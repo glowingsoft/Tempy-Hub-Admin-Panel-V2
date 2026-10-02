@@ -1,0 +1,82 @@
+import { paths } from 'src/routes/paths';
+
+import { CONFIG } from 'src/config-global';
+
+import { SvgColor } from 'src/components/svg-color';
+
+// ----------------------------------------------------------------------
+
+export const icon = (name) => <SvgColor src={`${CONFIG.site.basePath}/assets/icons/navbar/${name}.svg`} />;
+
+// const icon = (name) => (
+//   <Iconify icon={name} />
+// );
+
+const ICONS = {
+  job: icon('ic-job'),
+  blog: icon('ic-blog'),
+  chat: icon('ic-chat'),
+  mail: icon('ic-mail'),
+  user: icon('ic-user'),
+  file: icon('ic-file'),
+  lock: icon('ic-lock'),
+  tour: icon('ic-tour'),
+  order: icon('ic-order'),
+  label: icon('ic-label'),
+  blank: icon('ic-blank'),
+  kanban: icon('ic-kanban'),
+  folder: icon('ic-folder'),
+  course: icon('ic-course'),
+  banking: icon('ic-banking'),
+  booking: icon('ic-booking'),
+  invoice: icon('ic-invoice'),
+  product: icon('ic-product'),
+  calendar: icon('ic-calendar'),
+  disabled: icon('ic-disabled'),
+  external: icon('ic-external'),
+  menuItem: icon('ic-menu-item'),
+  ecommerce: icon('ic-ecommerce'),
+  analytics: icon('ic-analytics'),
+  dashboard: icon('ic-dashboard'),
+  parameter: icon('ic-parameter'),
+  directory: icon('ic-users'),
+  settings: icon('ic-settings'),
+  reports: icon('ic-reports'),
+  rota: icon('ic-rota'),
+  invitations: icon('ic-invitations'),
+  plan: icon('ic-plan'),
+  document: icon('ic-document'),
+  feedback: icon('ic-feedback'),
+  pendingApproval: icon('ic-check'),
+  compliance: icon('ic-compliance'),
+  supervision: icon('ic-users'),
+};
+
+// ----------------------------------------------------------------------
+
+export const navDataSiteManager = [
+  /**
+   * Overview
+   */
+  {
+    subheader: 'Overview',
+    items: [
+      { title: 'Dashboard', path: paths.siteManager.root, icon: ICONS.dashboard },
+      { title: 'Statistics', path: paths.siteManager.statistics, icon: ICONS.analytics },
+      { title: 'General Directory', path: paths.siteManager.directory.root, icon: ICONS.directory },
+      { title: 'Residents', path: paths.siteManager.residents.root, icon: ICONS.user },
+      { title: 'Reports', path: paths.siteManager.reports, icon: ICONS.reports },
+      { title: 'Rota', path: paths.siteManager.rota, icon: ICONS.rota },
+      { title: 'Invitations', path: paths.siteManager.invitaions.root, icon: ICONS.invitations },
+      { title: "Kiosks", path: paths.siteManager.kiosk, icon: ICONS.course },
+      { title: 'Visitor Feedback', path: paths.siteManager.feedback, icon: ICONS.feedback },
+      { title: 'Fire Drills', path: paths.siteManager.fireDrills, icon: ICONS.compliance },
+      { title: 'PEEP & Floor Plan', path: paths.siteManager.PEEPandFloorPlan, icon: ICONS.plan },
+      { title: 'Documents', path: paths.siteManager.documents.root, icon: ICONS.document },
+      { title: 'Supervision & Appraisal', path: paths.siteManager.supervision, icon: ICONS.supervision },
+      { title: 'Configuration', path: paths.siteManager.configuration, icon: ICONS.settings },
+      { title: "Approvals", path: paths.siteManager.pendingApproval, icon: ICONS.pendingApproval },
+      { title: "Roles", path: paths.siteManager.roles, icon: ICONS.lock },
+    ],
+  },
+];

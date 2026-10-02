@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PEEP &amp; Floor Plan — screens mapped to project structure</title>
+<style>
+  :root{
+    --bg:#0c0c0c; --panel:#161616; --panel2:#111; --line:#2a2a2a; --line2:#232323;
+    --ink:#e8e6e2; --ink-strong:#f4f2ef; --muted:#8a8a8a; --faint:#6a6a6a;
+    --blue:#9db8ff; --green:#4cd97b; --amber:#f5a623; --red:#ff6b6b;
+    --mono:ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.5}
+  a{color:var(--blue);text-decoration:none}
+  .wrap{max-width:1280px;margin:0 auto;padding:56px 32px 120px;display:flex;flex-direction:column;gap:56px}
+
+  /* ---------- page header ---------- */
+  .doc-head{display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line);padding-bottom:28px}
+  .kicker{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-family:var(--mono)}
+  .doc-head h1{font-size:26px;font-weight:700;color:var(--ink-strong);margin:0}
+  .doc-head p{font-size:14px;color:#a8a6a2;max-width:820px;margin:0}
+  .tag{font-family:var(--mono);color:#c9c7c3;font-size:.92em}
+
+  /* ---------- flow map ---------- */
+  .flow{display:flex;flex-direction:column;gap:14px;background:#131313;border:1px solid var(--line);border-radius:10px;padding:24px 26px}
+  .flow h2{font-size:13px;margin:0;color:var(--ink-strong);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em}
+  .flow-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12.5px}
+  .node{border:1px solid var(--line);background:var(--panel2);border-radius:6px;padding:6px 11px;color:var(--ink)}
+  .node.entry{border-color:#3a3a3a;background:#1c1c1c}
+  .node.dash{border-style:dashed}
+  .arrow{color:var(--faint);font-family:var(--mono)}
+  .flow-note{font-size:11.5px;color:var(--faint)}
+
+  /* ---------- frame + caption ---------- */
+  .frame{display:flex;flex-direction:column;gap:10px}
+  .screen{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .chrome{height:34px;background:var(--panel2);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 12px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#5f5f5f}
+  .url{flex:1;background:#0d0d0d;border:1px solid var(--line);border-radius:6px;height:22px;line-height:22px;text-align:center;font-size:11px;font-family:var(--mono);color:#7d7d7d}
+  .caption{display:flex;flex-direction:column;gap:3px;padding-left:4px}
+  .caption h3{font-size:13px;font-weight:700;color:var(--ink-strong);margin:0}
+  .caption .type{font-family:var(--mono);font-size:11px;color:var(--blue);text-transform:uppercase;letter-spacing:.04em}
+  .caption p{font-size:12.5px;color:var(--muted);margin:0;max-width:960px;line-height:1.5}
+
+  /* ---------- app shell ---------- */
+  .app{display:flex;min-height:520px}
+  .side{flex:0 0 208px;background:var(--panel2);border-right:1px solid var(--line);padding:16px 0;display:flex;flex-direction:column;gap:2px}
+  .brand{display:flex;align-items:center;gap:9px;padding:4px 16px 14px;margin-bottom:6px;border-bottom:1px solid var(--line2)}
+  .brand .mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#9db8ff,#5f7fd6)}
+  .brand .name{font-size:13px;font-weight:700;color:var(--ink-strong)}
+  .nav-label{padding:12px 16px 4px;font-size:10px;font-family:var(--mono);letter-spacing:.08em;color:var(--faint);text-transform:uppercase}
+  .nav-item{padding:8px 16px;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:9px}
+  .nav-item .ic{width:15px;text-align:center;color:var(--faint)}
+  .nav-item.active{color:var(--ink-strong);background:#1a1a1a;border-left:2px solid var(--blue);padding-left:14px;font-weight:600}
+  .nav-item.child{padding-left:36px;font-size:12px}
+  .nav-item.child.active{padding-left:34px}
+  .nav-item .badge{margin-left:auto;font-size:9px;font-family:var(--mono);color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .topbar{height:46px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px;background:var(--panel2)}
+  .crumbs{font-size:12px;color:var(--muted);font-family:var(--mono)}
+  .crumbs b{color:var(--ink)}
+  .topbar .spacer{flex:1}
+  .site-ctx{font-size:11.5px;color:#c9c7c3;background:#0d0d0d;border:1px solid var(--line);border-radius:6px;padding:5px 10px}
+  .avatar{width:24px;height:24px;border-radius:50%;background:#2a2a2a;border:1px solid #3a3a3a}
+
+  .content{padding:22px 24px 28px;display:flex;flex-direction:column;gap:18px}
+
+  /* ---------- page head ---------- */
+  .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .page-head h2{font-size:18px;font-weight:700;color:var(--ink-strong);margin:0}
+  .page-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .actions{display:flex;gap:8px;flex-shrink:0}
+
+  /* ---------- buttons ---------- */
+  .btn{padding:8px 14px;border-radius:6px;font-size:12.5px;border:1px solid var(--line);color:var(--ink);white-space:nowrap}
+  .btn--primary{background:#e8e6e2;color:#0c0c0c;border-color:#e8e6e2;font-weight:600}
+  .btn--danger{background:#c94444;color:#fff;border-color:#c94444;font-weight:600}
+  .btn--ghost{color:#a8a6a2}
+  .btn--link{border-color:transparent;padding:8px 4px;color:var(--blue)}
+
+  /* ---------- toolbar: search + filters ---------- */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
+  .search{flex:1;min-width:200px;background:#0d0d0d;border:1px solid var(--line);border-radius:6px;height:32px;line-height:32px;padding:0 10px;font-size:12px;color:var(--faint)}
+  .filter{background:#0d0d0d;border:1px solid var(--line);border-radius:6px;height:32px;line-height:32px;padding:0 10px;font-size:12px;color:#c9c7c3;display:flex;align-items:center;gap:6px}
+  .filter .k{color:var(--muted)}
+  .filter .caret{color:var(--faint)}
+  .filter.role-only{border-style:dashed}
+
+  /* ---------- table ---------- */
+  .table{width:100%;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12.5px}
+  .tr{display:grid;grid-template-columns:1.6fr .7fr 1fr .9fr .8fr 1.3fr;gap:12px;padding:10px 14px;align-items:center;border-bottom:1px solid var(--line2)}
+  .tr:last-child{border-bottom:0}
+  .tr.head{background:var(--panel2);color:var(--muted);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em}
+  .tr.sel{background:#1b1b1b}
+  .tr .rowname{color:var(--ink);font-weight:600}
+  .tr .row-actions{display:flex;gap:12px;justify-content:flex-end}
+  .tr .row-actions span{color:var(--blue)}
+
+  /* ---------- pills ---------- */
+  .pill{font-size:10.5px;font-family:var(--mono);padding:3px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+  .pill--low{background:rgba(76,217,123,.14);border:1px solid var(--green);color:var(--green)}
+  .pill--med{background:rgba(245,166,35,.14);border:1px solid var(--amber);color:var(--amber)}
+  .pill--high{background:rgba(255,107,107,.14);border:1px solid var(--red);color:var(--red)}
+  .pill--none{background:rgba(154,154,154,.12);border:1px solid var(--muted);color:#a8a6a2}
+  .pill--ok{background:rgba(76,217,123,.1);border:1px solid var(--green);color:var(--green)}
+  .pill--info{background:rgba(157,184,255,.12);border:1px solid var(--blue);color:var(--blue)}
+  .swatch{width:9px;height:9px;border-radius:2px;display:inline-block}
+
+  /* ---------- forms ---------- */
+  .form{display:flex;flex-direction:column;gap:16px;max-width:720px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field .label{font-size:11px;color:var(--muted);font-family:var(--mono);letter-spacing:.03em}
+  .field .hint{font-size:10.5px;color:var(--faint)}
+  .input{background:#0d0d0d;border:1px solid var(--line);border-radius:6px;padding:9px 11px;font-size:12.5px;color:#c9c7c3}
+  .input.readonly{border-style:dashed;color:var(--muted)}
+  .textarea{min-height:64px}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .segmented{display:flex;gap:6px}
+  .seg{padding:6px 14px;border-radius:6px;font-size:12px;border:1px solid #333;color:var(--muted)}
+  .seg.on{border-color:var(--red);color:var(--red);background:rgba(255,107,107,.18);font-weight:700}
+  .form-foot{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line2);padding-top:14px;max-width:720px}
+
+  /* ---------- detail ---------- */
+  .detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:1px solid var(--line2);padding-bottom:14px}
+  .detail-head h2{margin:0;font-size:17px;color:var(--ink-strong)}
+  .detail-head .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .dl{display:flex;flex-direction:column;gap:4px}
+  .dl .dt{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .dl .dd{background:#0d0d0d;border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:12.5px;color:#c9c7c3}
+  .dl.full{grid-column:1/-1}
+  .meta-line{font-size:11px;color:var(--faint);font-family:var(--mono)}
+
+  /* ---------- floor plan viewer ---------- */
+  .viewer{display:flex;gap:16px}
+  .viewer .canvas-col{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .switcher{display:flex;gap:6px}
+  .switcher .fl{padding:6px 12px;border-radius:6px;font-size:12px;border:1px solid var(--line);color:var(--muted)}
+  .switcher .fl.on{background:#242424;border-color:#3a3a3a;color:var(--ink);font-weight:600}
+  .plan{position:relative;height:300px;border-radius:8px;border:1px solid var(--line);overflow:hidden;
+    background:repeating-linear-gradient(45deg,#1c1c1c,#1c1c1c 10px,#161616 10px,#161616 20px)}
+  .plan .plan-label{position:absolute;top:10px;left:10px;font-size:10px;font-family:var(--mono);color:var(--faint)}
+  .pin{position:absolute;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;border:2px solid #0c0c0c}
+  .pin.ghost{background:transparent;border:2px dashed #e8e6e2;width:16px;height:16px}
+  .pin--low{background:var(--green)} .pin--med{background:var(--amber)} .pin--high{background:var(--red)}
+  .viewer .aside{flex:0 0 286px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px}
+
+  /* ---------- upload flow ---------- */
+  .steps{display:flex;gap:18px}
+  .step{flex:1;display:flex;flex-direction:column;gap:12px}
+  .step .snum{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .dropzone{border:2px dashed #333;border-radius:10px;padding:30px 16px;text-align:center;background:#0d0d0d;display:flex;flex-direction:column;gap:8px;align-items:center}
+  .filebox{width:38px;height:38px;border-radius:8px;border:1px solid #3a3a3a;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:10px;font-family:var(--mono)}
+  .progress{height:6px;background:#1e1e1e;border-radius:3px;overflow:hidden}
+  .progress > i{display:block;height:100%;width:68%;background:var(--blue)}
+  .version-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;border:1px solid var(--line);font-size:12px}
+
+  /* ---------- settings sub-nav ---------- */
+  .with-subnav{display:flex}
+  .subnav{flex:0 0 176px;background:var(--panel2);border-right:1px solid var(--line);padding:16px 0}
+  .subnav .lbl{padding:8px 16px 4px;font-size:10px;font-family:var(--mono);color:var(--faint);letter-spacing:.06em}
+  .subnav .it{padding:8px 16px;font-size:12.5px;color:var(--muted)}
+  .subnav .it.on{color:var(--ink-strong);background:#1a1a1a;border-left:2px solid var(--blue);padding-left:14px;font-weight:600}
+
+  /* ---------- list rows (floors) ---------- */
+  .rowcard{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+  .reorder{display:flex;flex-direction:column;gap:3px;color:var(--faint);font-size:9px}
+  .ord{width:22px;height:22px;border-radius:5px;background:#1e1e1e;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .rowcard .grow{flex:1;display:flex;flex-direction:column;gap:2px}
+  .rowcard .t{font-size:13px;color:var(--ink);font-weight:600}
+  .rowcard .s{font-size:11px;color:var(--faint)}
+  .rowcard .lk{display:flex;gap:12px;font-size:11.5px}
+  .rowcard .lk .del{color:#ff8a8f}
+
+  /* ---------- modal / confirm ---------- */
+  .modal{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:12px;max-width:460px}
+  .modal.danger{border-color:var(--red)}
+  .modal h4{margin:0;font-size:14px;color:var(--ink-strong)}
+  .modal p{margin:0;font-size:12.5px;color:#c9c7c3}
+  .warnbox{display:flex;gap:10px;align-items:flex-start;background:rgba(255,107,107,.1);border:1px solid var(--red);border-radius:8px;padding:12px;font-size:12.5px;color:#ffb3b3}
+  .modal-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:2px}
+  .modal-pair{display:flex;gap:20px;flex-wrap:wrap}
+
+  /* ---------- dashboard ---------- */
+  .bars{display:flex;flex-direction:column;gap:16px}
+  .site-block{display:flex;flex-direction:column;gap:5px;padding-bottom:14px;border-bottom:1px solid var(--line2)}
+  .site-block .hd{display:flex;justify-content:space-between;align-items:baseline}
+  .site-block .nm{font-size:13.5px;font-weight:600;color:var(--ink)}
+  .site-block .ct{font-size:11px;font-family:var(--mono);color:var(--muted)}
+  .bar-line{display:flex;align-items:center;gap:8px}
+  .bar-line .bk{width:56px;font-size:10px;color:var(--muted);font-family:var(--mono)}
+  .track{flex:1;background:#1e1e1e;border-radius:3px;height:12px;overflow:hidden}
+  .track > i{display:block;height:100%;border-radius:3px}
+  .bar-line .vv{width:22px;text-align:right;font-size:11px;color:#a8a6a2;font-family:var(--mono)}
+  .legend{display:flex;gap:14px;font-size:11px;font-family:var(--mono);color:var(--muted)}
+
+  /* ---------- reference table ---------- */
+  .perm{display:grid;grid-template-columns:200px repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .perm > div{background:#151515;padding:10px 12px;font-size:12px;color:var(--ink)}
+  .perm .h{background:var(--panel2);font-family:var(--mono);font-size:10.5px;font-weight:700;color:#c9c7c3;text-transform:uppercase}
+  .perm .lbl{font-weight:600}
+  .perm .yes{color:var(--blue)} .perm .no{color:var(--faint)} .perm .na{color:var(--faint);font-style:italic} .perm .ex{color:#ff8a8f}
+
+  .note{max-width:860px;background:#131313;border:1px solid var(--line);border-radius:10px;padding:24px 26px;display:flex;flex-direction:column;gap:12px}
+  .note h3{margin:0;font-size:14px;color:var(--ink-strong)}
+  .note p{margin:0;font-size:13px;color:#c9c7c3;line-height:1.6}
+
+  .section-title{font-size:15px;color:var(--ink-strong);font-weight:700;font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--line);padding-bottom:10px}
+  .empty{padding:56px 40px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+  .empty .glyph{width:44px;height:44px;border-radius:10px;border:1px solid #3a3a3a;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:18px}
+  .empty h4{margin:0;font-size:15px;color:var(--ink-strong)}
+  .empty p{margin:0;font-size:12.5px;color:var(--muted);max-width:380px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= HEADER ================= -->
+  <div class="doc-head">
+    <div class="kicker">TempyHub — Care Home Platform · wireframe reference</div>
+    <h1>PEEP &amp; Floor Plan — mapped to our project structure</h1>
+    <p>Same feature and rules as the PM's original wireframe, re-laid-out to match our boilerplate: a persistent
+    <b>sidebar shell</b>, <b>list pages</b> with search + filters, <b>detail</b> screens, and <b>add / edit</b> forms.
+    Every screen below is labelled with its structural type. Pin colour is still <span class="tag">derived, not stored</span>
+    — it is recomputed each render from the linked resident's current PEEP level.</p>
+  </div>
+
+  <!-- ================= FLOW MAP ================= -->
+  <div class="flow">
+    <h2>Navigation &amp; user flow</h2>
+    <div class="flow-row">
+      <span class="node entry">Sidebar → PEEP records</span><span class="arrow">→</span>
+      <span class="node">List (search + filters)</span><span class="arrow">— row »View »→</span>
+      <span class="node">Record detail</span><span class="arrow">— Edit →</span>
+      <span class="node">Edit form</span><span class="arrow">— Save →</span>
+      <span class="node">back to detail</span>
+    </div>
+    <div class="flow-row">
+      <span class="node">List</span><span class="arrow">— + Add record →</span>
+      <span class="node">Add form</span><span class="flow-note">(resident picked from profiles, never free-typed)</span>
+    </div>
+    <div class="flow-row">
+      <span class="node entry">Sidebar → Floor plans</span><span class="arrow">→</span>
+      <span class="node">List of floors</span><span class="arrow">— Open →</span>
+      <span class="node">Plan viewer (detail)</span><span class="arrow">— Place pins →</span>
+      <span class="node dash">Pin placement mode</span>
+    </div>
+    <div class="flow-row">
+      <span class="node">List of floors</span><span class="arrow">— Upload →</span>
+      <span class="node">Upload / replace plan</span>
+      <span class="arrow">·</span>
+      <span class="node">— + Add floor →</span>
+      <span class="node">Add floor</span>
+    </div>
+    <div class="flow-row">
+      <span class="node entry">Sidebar → Org rollup</span><span class="arrow">→</span>
+      <span class="node">Dashboard (org admin only)</span><span class="arrow">— View floor plan →</span>
+      <span class="node">Plan viewer</span>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="section-title">A · App shell</div>
+
+  <!-- FRAME A1 -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">Site</div>
+          <div class="nav-item"><span class="ic">▤</span>Dashboard</div>
+          <div class="nav-item"><span class="ic">◷</span>Rota</div>
+          <div class="nav-item"><span class="ic">☺</span>Residents</div>
+          <div class="nav-item"><span class="ic">☰</span>Staff</div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child">PEEP records</div>
+          <div class="nav-item child">Floor plans</div>
+          <div class="nav-item child">Org rollup <span class="badge">ORG</span></div>
+          <div class="nav-label">Admin</div>
+          <div class="nav-item"><span class="ic">⚙</span>Site settings</div>
+        </div>
+        <div class="main">
+          <div class="topbar">
+            <div class="crumbs">Home</div>
+            <div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court ▾</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="content">
+            <div class="page-head">
+              <div><h2>The shell every PEEP screen lives in</h2>
+                <div class="sub">Left: primary sidebar (PEEP &amp; Floor Plans is its own group with 3 entries). Top: breadcrumb + site context + user.</div></div>
+            </div>
+            <div class="toolbar" style="justify-content:flex-start">
+              <span class="pill pill--info">Org Super Admin</span> sees a site switcher in the top bar ·
+              <span class="pill pill--none">Site Manager / Employee</span> the top bar shows their own site, fixed.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">App shell</span>
+      <h3>A1 — Sidebar + topbar</h3>
+      <p>“Org rollup” carries an <span class="tag">ORG</span> badge because only Org Super Admin can open it. Everything that follows reuses this exact chrome.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="section-title">B · PEEP records — list / detail / add · edit</div>
+
+  <!-- FRAME B1 : LIST -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/peep</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">Site</div>
+          <div class="nav-item"><span class="ic">▤</span>Dashboard</div>
+          <div class="nav-item"><span class="ic">◷</span>Rota</div>
+          <div class="nav-item"><span class="ic">☺</span>Residents</div>
+          <div class="nav-item"><span class="ic">☰</span>Staff</div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child active">PEEP records</div>
+          <div class="nav-item child">Floor plans</div>
+          <div class="nav-item child">Org rollup <span class="badge">ORG</span></div>
+          <div class="nav-label">Admin</div>
+          <div class="nav-item"><span class="ic">⚙</span>Site settings</div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs"><b>PEEP records</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court</div><div class="avatar"></div></div>
+          <div class="content">
+            <div class="page-head">
+              <div><h2>PEEP records</h2><div class="sub">Willow Court · one record per resident</div></div>
+              <div class="actions"><span class="btn btn--primary">+ Add record</span></div>
+            </div>
+            <div class="toolbar">
+              <span class="search">Search residents by name or room…</span>
+              <span class="filter role-only"><span class="k">Site:</span> Willow Court <span class="caret">▾</span></span>
+              <span class="filter"><span class="k">Floor:</span> All <span class="caret">▾</span></span>
+              <span class="filter"><span class="k">PEEP level:</span> All <span class="caret">▾</span></span>
+              <span class="filter"><span class="k">Pin:</span> All <span class="caret">▾</span></span>
+            </div>
+            <div class="table">
+              <div class="tr head"><div>Resident</div><div>Room</div><div>Floor</div><div>PEEP level</div><div>Pin</div><div style="text-align:right">Actions</div></div>
+              <div class="tr sel"><div class="rowname">Doris Hale</div><div>12</div><div>Ground Floor</div><div><span class="pill pill--high">High</span></div><div><span class="pill pill--ok">placed</span></div><div class="row-actions"><span>View</span><span>Edit</span></div></div>
+              <div class="tr"><div class="rowname">Albert Kwan</div><div>14</div><div>Ground Floor</div><div><span class="pill pill--med">Medium</span></div><div><span class="pill pill--ok">placed</span></div><div class="row-actions"><span>View</span><span>Edit</span></div></div>
+              <div class="tr"><div class="rowname">Jean Ferris</div><div>15</div><div>Ground Floor</div><div><span class="pill pill--low">Low</span></div><div><span class="pill pill--ok">placed</span></div><div class="row-actions"><span>View</span><span>Edit</span></div></div>
+              <div class="tr"><div class="rowname">Frank Odom</div><div>18</div><div>First Floor</div><div><span class="pill pill--none">Not set</span></div><div><span class="pill pill--none">no pin</span></div><div class="row-actions"><span>View</span><span>Edit</span></div></div>
+              <div class="tr"><div class="rowname">Grace Tan</div><div>21</div><div>First Floor</div><div><span class="pill pill--med">Medium</span></div><div><span class="pill pill--none">no pin</span></div><div class="row-actions"><span>View</span><span>Edit</span></div></div>
+              <div class="tr"><div class="rowname">Walter Diaz</div><div>23</div><div>First Floor</div><div><span class="pill pill--high">High</span></div><div><span class="pill pill--ok">placed</span></div><div class="row-actions"><span>View</span><span>Edit</span></div></div>
+            </div>
+            <div class="meta-line">6 of 24 residents · rows never show another site's residents</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">List page</span>
+      <h3>B1 — PEEP records list</h3>
+      <p>Standard list: search + filter toolbar, table, primary “+ Add record”. The <b>Site</b> filter is dashed = present only for Org Super Admin; for a Site Manager it is fixed to their site. Row actions route to detail (View) or edit form.</p>
+    </div>
+  </div>
+
+  <!-- FRAME B2 : DETAIL -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/peep/doris-hale</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child active">PEEP records</div>
+          <div class="nav-item child">Floor plans</div>
+          <div class="nav-item child">Org rollup <span class="badge">ORG</span></div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs">PEEP records / <b>Doris Hale</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court</div><div class="avatar"></div></div>
+          <div class="content">
+            <div class="detail-head">
+              <div><h2>Doris Hale — Room 12</h2><div class="sub">Ground Floor · PEEP record</div></div>
+              <div class="actions">
+                <span class="btn btn--ghost">Back to list</span>
+                <span class="btn btn--primary">Edit record</span>
+              </div>
+            </div>
+            <div class="detail-grid">
+              <div class="dl"><span class="dt">PEEP LEVEL</span><span class="dd"><span class="pill pill--high">High</span> &nbsp;<span class="tag">drives pin colour — derived, not stored</span></span></div>
+              <div class="dl"><span class="dt">PIN</span><span class="dd">Placed on Ground Floor plan · <a href="#">open in viewer →</a></span></div>
+              <div class="dl full"><span class="dt">SUPPORT NEEDS</span><span class="dd">Non-ambulatory, requires evacuation chair. Hearing impaired — needs visual alerting during drills.</span></div>
+              <div class="dl"><span class="dt">PRIMARY ROUTE</span><span class="dd">Corridor A → East fire door → assembly point 1</span></div>
+              <div class="dl"><span class="dt">SECONDARY ROUTE</span><span class="dd">Corridor A → lounge → West fire door</span></div>
+              <div class="dl"><span class="dt">EQUIPMENT REQUIRED</span><span class="dd">Evacuation chair (stored corridor A cupboard)</span></div>
+              <div class="dl"><span class="dt">RESPONSIBLE STAFF</span><span class="dd">M. Okafor (day), R. Singh (night)</span></div>
+            </div>
+            <div class="meta-line">Last updated 10 Sep 2026 by S. Marsh (Site Manager)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Detail screen</span>
+      <h3>B2 — PEEP record detail</h3>
+      <p>Read-only view of one resident. All fields are free text in MVP. Employees land here as <b>view-only</b> — no “Edit record” button renders for them. “Edit record” opens B3.</p>
+    </div>
+  </div>
+
+  <!-- FRAME B3 : ADD / EDIT -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/peep/doris-hale/edit</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child active">PEEP records</div>
+          <div class="nav-item child">Floor plans</div>
+          <div class="nav-item child">Org rollup <span class="badge">ORG</span></div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs">PEEP records / Doris Hale / <b>Edit</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court</div><div class="avatar"></div></div>
+          <div class="content">
+            <div class="page-head"><div><h2>Edit PEEP record</h2>
+              <div class="sub">On <b>Add</b>, the first field is a “Resident” picker sourced from this site's profiles — never free-typed. On Edit it is fixed and read-only.</div></div></div>
+            <div class="form">
+              <div class="field"><span class="label">RESIDENT</span>
+                <span class="input readonly">Doris Hale — Room 12 · Ground Floor (fixed on edit)</span></div>
+              <div class="field"><span class="label">PEEP LEVEL</span>
+                <div class="segmented"><span class="seg">Low</span><span class="seg">Medium</span><span class="seg on">High ✓</span></div>
+                <span class="hint">Changing this changes the pin colour everywhere it appears — the colour is never stored separately.</span></div>
+              <div class="field"><span class="label">SUPPORT NEEDS</span>
+                <span class="input textarea">Non-ambulatory, requires evacuation chair. Hearing impaired — needs visual alerting during drills.</span></div>
+              <div class="two-col">
+                <div class="field"><span class="label">PRIMARY ROUTE</span><span class="input textarea">Corridor A → East fire door → assembly point 1</span></div>
+                <div class="field"><span class="label">SECONDARY ROUTE</span><span class="input textarea">Corridor A → lounge → West fire door</span></div>
+              </div>
+              <div class="two-col">
+                <div class="field"><span class="label">EQUIPMENT REQUIRED</span><span class="input textarea">Evacuation chair (stored corridor A cupboard)</span></div>
+                <div class="field"><span class="label">RESPONSIBLE STAFF</span><span class="input textarea">M. Okafor (day), R. Singh (night)</span></div>
+              </div>
+            </div>
+            <div class="form-foot"><span class="btn btn--ghost">Cancel</span><span class="btn btn--primary">Save record</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Add / edit form</span>
+      <h3>B3 — PEEP record add / edit</h3>
+      <p>One form for both modes. Site Manager: full CRUD, own site only. Save returns to the detail screen (B2).</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="section-title">C · Floor plans — list / detail / upload</div>
+
+  <!-- FRAME C1 : LIST -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/floor-plans</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child">PEEP records</div>
+          <div class="nav-item child active">Floor plans</div>
+          <div class="nav-item child">Org rollup <span class="badge">ORG</span></div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs"><b>Floor plans</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court</div><div class="avatar"></div></div>
+          <div class="content">
+            <div class="page-head">
+              <div><h2>Floor plans</h2><div class="sub">Willow Court · one plan per floor, floors are managed in Site settings → Floors</div></div>
+              <div class="actions"><span class="btn">Manage floors</span><span class="btn btn--primary">Upload plan</span></div>
+            </div>
+            <div class="toolbar">
+              <span class="search">Search floors…</span>
+              <span class="filter"><span class="k">Status:</span> All <span class="caret">▾</span></span>
+              <span class="filter"><span class="k">Has pins:</span> All <span class="caret">▾</span></span>
+            </div>
+            <div class="table">
+              <div class="tr head" style="grid-template-columns:1.4fr 1fr 1fr 1fr 1.6fr"><div>Floor</div><div>Plan</div><div>Version</div><div>Pins</div><div style="text-align:right">Actions</div></div>
+              <div class="tr" style="grid-template-columns:1.4fr 1fr 1fr 1fr 1.6fr"><div class="rowname">Ground Floor</div><div><span class="pill pill--ok">uploaded</span></div><div>v2 · 10 Sep 2026</div><div>7 placed</div><div class="row-actions"><span>Open</span><span>Upload</span><span>History</span></div></div>
+              <div class="tr" style="grid-template-columns:1.4fr 1fr 1fr 1fr 1.6fr"><div class="rowname">First Floor</div><div><span class="pill pill--ok">uploaded</span></div><div>v1 · 3 Jun 2026</div><div>4 placed</div><div class="row-actions"><span>Open</span><span>Upload</span><span>History</span></div></div>
+              <div class="tr" style="grid-template-columns:1.4fr 1fr 1fr 1fr 1.6fr"><div class="rowname">East Wing</div><div><span class="pill pill--none">no plan yet</span></div><div>—</div><div>0</div><div class="row-actions"><span>Upload</span></div></div>
+            </div>
+            <div class="meta-line">A floor can exist with no plan. “Open” routes to the viewer (C2); “Upload” routes to the upload flow (C3).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">List page</span>
+      <h3>C1 — Floor plans list</h3>
+      <p>Lists the site's floors and their plan status. Available to Site Manager (own site) and Org Super Admin (any site). Employees don't get this list — they reach a plan only via the viewer.</p>
+    </div>
+  </div>
+
+  <!-- FRAME C2 : DETAIL / VIEWER -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/floor-plans/ground-floor</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child">PEEP records</div>
+          <div class="nav-item child active">Floor plans</div>
+          <div class="nav-item child">Org rollup <span class="badge">ORG</span></div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs">Floor plans / <b>Ground Floor</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court</div><div class="avatar"></div></div>
+          <div class="content">
+            <div class="detail-head">
+              <div><h2>Ground Floor — plan viewer</h2><div class="sub">Willow Court · v2 (10 Sep 2026)</div></div>
+              <div class="actions">
+                <span class="btn btn--ghost">view only — Employee</span>
+                <span class="btn">Upload / replace</span>
+                <span class="btn btn--primary">Place pins</span>
+              </div>
+            </div>
+            <div class="viewer">
+              <div class="canvas-col">
+                <div class="switcher"><span class="fl on">Ground Floor</span><span class="fl">First Floor</span><span class="fl">East Wing</span></div>
+                <div class="plan">
+                  <span class="plan-label">Willow Court — ground floor</span>
+                  <span class="pin pin--high" style="left:22%;top:30%"></span>
+                  <span class="pin pin--med" style="left:48%;top:22%"></span>
+                  <span class="pin pin--low" style="left:65%;top:55%"></span>
+                  <span class="pin pin--none" style="left:30%;top:72%;background:#9a9a9a"></span>
+                  <span class="pin pin--med" style="left:78%;top:40%"></span>
+                </div>
+                <div class="legend">
+                  <span><span class="swatch" style="background:var(--green)"></span> Low</span>
+                  <span><span class="swatch" style="background:var(--amber)"></span> Medium</span>
+                  <span><span class="swatch" style="background:var(--red)"></span> High</span>
+                  <span class="tag">colours derived from each resident's current PEEP level</span>
+                </div>
+              </div>
+              <div class="aside">
+                <div class="detail-head" style="border:0;padding:0">
+                  <div><h2 style="font-size:14px">Doris Hale — Room 12</h2></div>
+                  <span class="pill pill--high">High</span>
+                </div>
+                <div class="meta-line" style="font-family:inherit;color:var(--muted)">Evacuation chair · Corridor A → East door</div>
+                <div class="dl"><span class="dt">ROUTES &amp; EQUIPMENT</span><span class="dd">Shown read-only here. Full record via “Edit record”.</span></div>
+                <div class="rowcard" style="border:0;background:transparent;padding:0;gap:12px">
+                  <span class="btn btn--link">Edit record</span>
+                  <span class="btn btn--link">Move pin</span>
+                  <span class="btn btn--link" style="color:#ff8a8f">Remove pin</span>
+                </div>
+                <div class="meta-line" style="border-top:1px solid var(--line);padding-top:8px;font-family:inherit;color:var(--faint)">During an active evacuation, high-PEEP residents also surface in the mark-safe rollcall.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Detail screen · role variants</span>
+      <h3>C2 — Floor plan viewer</h3>
+      <p>Same layout for all roles; the action bar changes:
+      <b>Employee</b> = view only (no upload / pin / edit controls) · <b>Site Manager</b> = edit + place pins, own site · <b>Org Super Admin</b> = same, plus a site switcher in the top bar. Floor switcher order comes from Site settings → Floors.</p>
+    </div>
+  </div>
+
+  <!-- FRAME C3 : UPLOAD (ADD/EDIT of a plan) -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/floor-plans/ground-floor/upload</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child">PEEP records</div>
+          <div class="nav-item child active">Floor plans</div>
+          <div class="nav-item child">Org rollup <span class="badge">ORG</span></div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs">Floor plans / Ground Floor / <b>Upload</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court</div><div class="avatar"></div></div>
+          <div class="content">
+            <div class="page-head"><div><h2>Upload / replace plan</h2>
+              <div class="sub">Every upload is a new version. Previous versions stay retrievable — nothing is silently deleted.</div></div></div>
+            <div class="steps">
+              <div class="step">
+                <span class="snum">STEP 1 — CHOOSE FLOOR &amp; FILE</span>
+                <div class="field"><span class="label">FLOOR</span><span class="input readonly">Ground Floor (from list — not free-typed)</span></div>
+                <div class="dropzone">
+                  <span class="filebox">PDF</span>
+                  <span style="font-size:13px;color:#c9c7c3">Drag a PDF here, or browse</span>
+                  <span class="hint">Plan for this floor only, up to 25MB</span>
+                </div>
+              </div>
+              <div class="step">
+                <span class="snum">STEP 2 — CONVERTING</span>
+                <div style="border:1px solid var(--line);border-radius:10px;padding:18px;background:#0d0d0d;display:flex;flex-direction:column;gap:10px">
+                  <div style="height:96px;border-radius:6px;background:repeating-linear-gradient(45deg,#1c1c1c,#1c1c1c 10px,#161616 10px,#161616 20px);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-family:var(--mono);color:var(--faint)">rendering page 1 of 3…</div>
+                  <div class="progress"><i></i></div>
+                </div>
+              </div>
+              <div class="step">
+                <span class="snum">STEP 3 — CONFIRM REPLACE</span>
+                <div style="border:1px solid var(--line);border-radius:10px;padding:16px;background:#0d0d0d;display:flex;flex-direction:column;gap:10px">
+                  <p style="margin:0;font-size:12.5px;color:#c9c7c3">Replaces the active plan for <b style="color:var(--ink)">Ground Floor</b> only. Other floors untouched; existing pins keep their relative coordinates.</p>
+                  <div class="version-row" style="background:rgba(76,217,123,.08)"><span>Ground Floor · v3 — 10 Sep 2026</span><span class="tag" style="color:var(--green)">will be active</span></div>
+                  <div class="version-row"><span style="color:var(--muted)">Ground Floor · v2 — 10 Sep 2026</span><span class="tag" style="color:var(--faint)">archived</span></div>
+                  <div class="version-row"><span style="color:var(--muted)">First Floor · v1 — 3 Jun 2026</span><span class="tag" style="color:var(--green)">unaffected</span></div>
+                  <span class="btn btn--primary" style="text-align:center">Confirm replace</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Add / edit flow</span>
+      <h3>C3 — Upload / replace plan</h3>
+      <p>Three-step inline flow rather than a modal. Re-uploading under the same floor replaces only that floor's active plan and keeps history.</p>
+    </div>
+  </div>
+
+  <!-- FRAME C4 : PIN PLACEMENT -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/floor-plans/ground-floor/pins</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child">PEEP records</div>
+          <div class="nav-item child active">Floor plans</div>
+          <div class="nav-item child">Org rollup <span class="badge">ORG</span></div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs">Floor plans / Ground Floor / <b>Pin placement</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court</div><div class="avatar"></div></div>
+          <div class="content">
+            <div class="page-head">
+              <div><h2>Pin placement</h2><div class="sub">Click anywhere on the plan to drop a pin, then link it to a resident</div></div>
+              <div class="actions"><span class="pill pill--info">placement mode</span><span class="btn btn--ghost">Done</span></div>
+            </div>
+            <div class="viewer">
+              <div class="canvas-col">
+                <div class="switcher"><span class="fl on">Ground Floor</span><span class="fl">First Floor</span></div>
+                <div class="plan">
+                  <span class="plan-label">Willow Court — ground floor</span>
+                  <span class="pin pin--high" style="left:22%;top:30%"></span>
+                  <span class="pin pin--med" style="left:48%;top:22%"></span>
+                  <span class="pin pin--low" style="left:65%;top:55%"></span>
+                  <span class="pin ghost" style="left:52%;top:60%"></span>
+                </div>
+                <span class="hint">Coordinates stored relative to the image (0–100% each axis), so pins stay aligned when the view is resized.</span>
+              </div>
+              <div class="aside">
+                <div class="rowname" style="font-size:13px;color:var(--ink-strong)">New pin — link to resident</div>
+                <div class="field"><span class="label">RESIDENT</span>
+                  <span class="input" style="display:flex;justify-content:space-between"><span>Room 21 — Grace Tan</span><span style="color:var(--faint)">▾</span></span>
+                  <span class="hint">From resident profiles at this site — never free-typed. Room implies the floor.</span></div>
+                <div class="field"><span class="label">PIN COLOUR</span>
+                  <span class="input" style="display:flex;align-items:center;gap:8px">
+                    <span class="swatch" style="width:10px;height:10px;border-radius:50%;background:var(--amber)"></span>
+                    <span>Medium</span>
+                    <span class="tag" style="margin-left:auto">derived, not stored</span></span>
+                  <span class="hint">Preview only — it reads the resident's current PEEP level. Not a choice made here.</span></div>
+                <div class="modal-foot"><span class="btn btn--ghost">Cancel</span><span class="btn btn--primary">Place pin</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Edit sub-mode</span>
+      <h3>C4 — Pin placement mode</h3>
+      <p>Reached from the viewer's “Place pins” action. The colour field is a non-editable preview of the linked resident's level.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="section-title">D · Site settings — Floors (list / add · rename / remove / empty)</div>
+
+  <!-- FRAME D1 : SETTINGS LIST -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/settings/floors</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">Site</div>
+          <div class="nav-item"><span class="ic">▤</span>Dashboard</div>
+          <div class="nav-item"><span class="ic">☺</span>Residents</div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child">PEEP records</div>
+          <div class="nav-item child">Floor plans</div>
+          <div class="nav-label">Admin</div>
+          <div class="nav-item active"><span class="ic">⚙</span>Site settings</div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs">Site settings / <b>Floors</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Willow Court</div><div class="avatar"></div></div>
+          <div class="with-subnav">
+            <div class="subnav">
+              <div class="lbl">SITE SETTINGS</div>
+              <div class="it">General details</div>
+              <div class="it">Staff &amp; roles</div>
+              <div class="it on">Floors</div>
+              <div class="it">Notifications</div>
+            </div>
+            <div class="content" style="flex:1">
+              <div class="page-head">
+                <div><h2>Floors — Willow Court</h2><div class="sub">Defines the floors/wings available for floor plans and pin placement</div></div>
+                <div class="actions"><span class="btn btn--primary">+ Add floor</span></div>
+              </div>
+              <div class="toolbar"><span class="search">Search floors…</span>
+                <span class="filter"><span class="k">Status:</span> All <span class="caret">▾</span></span></div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div class="rowcard">
+                  <div class="reorder"><div>▲</div><div>▼</div></div><div class="ord">1</div>
+                  <div class="grow"><div class="t">Ground Floor</div><div class="s">7 pins placed</div></div>
+                  <span class="pill pill--ok">Plan uploaded</span>
+                  <div class="lk"><span>Rename</span><span>Open plan →</span><span class="del">Remove</span></div>
+                </div>
+                <div class="rowcard">
+                  <div class="reorder"><div>▲</div><div>▼</div></div><div class="ord">2</div>
+                  <div class="grow"><div class="t">First Floor</div><div class="s">4 pins placed</div></div>
+                  <span class="pill pill--ok">Plan uploaded</span>
+                  <div class="lk"><span>Rename</span><span>Open plan →</span><span class="del">Remove</span></div>
+                </div>
+                <div class="rowcard">
+                  <div class="reorder"><div>▲</div><div>▼</div></div><div class="ord">3</div>
+                  <div class="grow"><div class="t">East Wing</div><div class="s">0 pins</div></div>
+                  <span class="pill pill--none">No plan yet</span>
+                  <div class="lk"><span>Rename</span><span>Upload plan</span><span class="del">Remove</span></div>
+                </div>
+              </div>
+              <div class="meta-line" style="border-top:1px solid var(--line2);padding-top:8px">Reordering here changes the floor switcher order on the viewer &amp; pin-placement screens.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">List page (settings sub-nav)</span>
+      <h3>D1 — Floors list</h3>
+      <p>Floors are their own entity, independent of any PDF. Managed by Site Manager / Org Super Admin. Sits under the standard Site settings sub-nav.</p>
+    </div>
+  </div>
+
+  <!-- FRAME D2 : ADD / RENAME -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/settings/floors</div></div>
+      <div class="content" style="padding:26px">
+        <div class="modal-pair">
+          <div class="modal">
+            <div class="snum" style="font-size:11px;color:var(--muted);font-family:var(--mono)">ADD FLOOR — dialog</div>
+            <h4>Add a new floor</h4>
+            <div class="field"><span class="label">FLOOR / WING LABEL</span><span class="input">Second Floor</span></div>
+            <p style="color:var(--faint);font-size:11px">No PDF needed yet — upload its plan later from the floor list.</p>
+            <div class="modal-foot"><span class="btn btn--ghost">Cancel</span><span class="btn btn--primary">Add floor</span></div>
+          </div>
+          <div class="modal">
+            <div class="snum" style="font-size:11px;color:var(--muted);font-family:var(--mono)">RENAME — inline in the row</div>
+            <div class="rowcard" style="border-color:#3a3a3a;background:#0d0d0d">
+              <div class="ord">2</div>
+              <div class="grow"><span class="input" style="border-color:var(--blue)">First Floor (Annex)</span></div>
+              <div class="lk"><span>Save</span><span style="color:var(--muted)">Cancel</span></div>
+            </div>
+            <p style="color:var(--faint);font-size:11px">Renaming doesn't affect the uploaded plan or pins — only the label.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Add / edit</span>
+      <h3>D2 — Add floor &amp; inline rename</h3>
+      <p>Add is a one-field dialog; rename happens inline in the list row (no separate screen).</p>
+    </div>
+  </div>
+
+  <!-- FRAME D3 : REMOVE CONFIRMATIONS -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/willow-court/settings/floors</div></div>
+      <div class="content" style="padding:26px">
+        <div class="modal-pair">
+          <div class="modal">
+            <div class="snum" style="font-size:11px;color:var(--muted);font-family:var(--mono)">REMOVE — NO PLAN, NO PINS</div>
+            <h4>Remove “East Wing”?</h4>
+            <p>No uploaded plan and no pins placed. It will be removed from the floor list and the floor switcher.</p>
+            <div class="modal-foot"><span class="btn btn--ghost">Cancel</span><span class="btn btn--danger">Remove floor</span></div>
+          </div>
+          <div class="modal danger">
+            <div class="snum" style="font-size:11px;color:#ff8a8f;font-family:var(--mono)">REMOVE — PLAN + PINS EXIST</div>
+            <h4>Remove “Ground Floor”?</h4>
+            <div class="warnbox"><span style="color:var(--red)">⚠</span>
+              <span><b>7 residents currently have pins on this floor.</b> Removing it deletes the plan and orphans those pins — they won't appear anywhere until re-placed.</span></div>
+            <p style="color:#c9c7c3">Consider moving pins to another floor, or re-uploading a replacement plan under this label instead.</p>
+            <div class="modal-foot"><span class="btn btn--ghost">Cancel</span><span class="btn btn--danger">Remove anyway</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Confirm dialogs</span>
+      <h3>D3 — Remove floor, two variants</h3>
+      <p>Plain confirm when nothing is at stake; explicit orphaned-pins warning and stronger button copy when residents have pins on that floor.</p>
+    </div>
+  </div>
+
+  <!-- FRAME D4 : EMPTY STATE -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/site/oakfield-manor/settings/floors</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">Admin</div>
+          <div class="nav-item active"><span class="ic">⚙</span>Site settings</div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs">Site settings / <b>Floors</b></div><div class="spacer"></div>
+            <div class="site-ctx">Site: Oakfield Manor</div><div class="avatar"></div></div>
+          <div class="with-subnav">
+            <div class="subnav">
+              <div class="lbl">SITE SETTINGS</div>
+              <div class="it">General details</div>
+              <div class="it">Staff &amp; roles</div>
+              <div class="it on">Floors</div>
+              <div class="it">Notifications</div>
+            </div>
+            <div class="empty">
+              <div class="glyph">▦</div>
+              <h4>No floors defined yet</h4>
+              <p>Oakfield Manor has no floors set up. Add one to start managing floor plans and pin placement — a floor doesn't need an uploaded plan right away.</p>
+              <span class="btn btn--primary">+ Add first floor</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Empty state</span>
+      <h3>D4 — No floors defined</h3>
+      <p>Standard empty state: a single clear call to add the first record instead of a blank list.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="section-title">E · Org rollup (dashboard — Org Super Admin only)</div>
+
+  <!-- FRAME E1 -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">tempyhub.app/org/peep-rollup</div></div>
+      <div class="app">
+        <div class="side">
+          <div class="brand"><span class="mark"></span><span class="name">TempyHub</span></div>
+          <div class="nav-label">Organisation</div>
+          <div class="nav-item"><span class="ic">▤</span>Org dashboard</div>
+          <div class="nav-item"><span class="ic">▦</span>Sites</div>
+          <div class="nav-label">PEEP &amp; Floor Plans</div>
+          <div class="nav-item child">PEEP records</div>
+          <div class="nav-item child">Floor plans</div>
+          <div class="nav-item child active">Org rollup <span class="badge">ORG</span></div>
+        </div>
+        <div class="main">
+          <div class="topbar"><div class="crumbs"><b>PEEP rollup</b></div><div class="spacer"></div>
+            <div class="site-ctx">All sites · Meridian Care Group</div><div class="avatar"></div></div>
+          <div class="content">
+            <div class="page-head">
+              <div><h2>PEEP &amp; Floor Plan — organisation rollup</h2><div class="sub">Cross-site view — this role only</div></div>
+              <div class="legend">
+                <span><span class="swatch" style="background:var(--green)"></span> Low</span>
+                <span><span class="swatch" style="background:var(--amber)"></span> Medium</span>
+                <span><span class="swatch" style="background:var(--red)"></span> High</span>
+              </div>
+            </div>
+            <div class="bars">
+              <div class="site-block">
+                <div class="hd"><span class="nm">Willow Court</span><span class="ct">17 residents</span></div>
+                <div class="bar-line"><span class="bk">Low</span><span class="track"><i style="width:53%;background:var(--green)"></i></span><span class="vv">9</span></div>
+                <div class="bar-line"><span class="bk">Medium</span><span class="track"><i style="width:29%;background:var(--amber)"></i></span><span class="vv">5</span></div>
+                <div class="bar-line"><span class="bk">High</span><span class="track"><i style="width:18%;background:var(--red)"></i></span><span class="vv">3</span></div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px"><span class="pill pill--ok">Floor plan uploaded</span><a href="#frameC2">View floor plan →</a></div>
+              </div>
+              <div class="site-block">
+                <div class="hd"><span class="nm">Oakfield Manor</span><span class="ct">12 residents</span></div>
+                <div class="bar-line"><span class="bk">Low</span><span class="track"><i style="width:35%;background:var(--green)"></i></span><span class="vv">6</span></div>
+                <div class="bar-line"><span class="bk">Medium</span><span class="track"><i style="width:24%;background:var(--amber)"></i></span><span class="vv">4</span></div>
+                <div class="bar-line"><span class="bk">High</span><span class="track"><i style="width:12%;background:var(--red)"></i></span><span class="vv">2</span></div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px"><span class="pill pill--ok">Floor plan uploaded</span><a href="#">View floor plan →</a></div>
+              </div>
+              <div class="site-block" style="border-bottom:0">
+                <div class="hd"><span class="nm">Riverside Lodge</span><span class="ct">15 residents</span></div>
+                <div class="bar-line"><span class="bk">Low</span><span class="track"><i style="width:65%;background:var(--green)"></i></span><span class="vv">11</span></div>
+                <div class="bar-line"><span class="bk">Medium</span><span class="track"><i style="width:18%;background:var(--amber)"></i></span><span class="vv">3</span></div>
+                <div class="bar-line"><span class="bk">High</span><span class="track"><i style="width:6%;background:var(--red)"></i></span><span class="vv">1</span></div>
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px"><span class="pill pill--none">Not uploaded</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Dashboard</span>
+      <h3>E1 — Org PEEP rollup</h3>
+      <p>Not a list/detail screen — a read-only cross-site dashboard. Shared-scale bar comparison (never a pie). Sites without a plan have no drill-in link.</p>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <div class="section-title">F · Reference</div>
+
+  <!-- FRAME F1 : PERMISSION TABLE -->
+  <div class="frame">
+    <div class="screen">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <div class="url">reference — permission boundaries</div></div>
+      <div class="content" style="padding:26px">
+        <h2 style="font-size:16px;color:var(--ink-strong);margin:0 0 14px">PEEP &amp; Floor Plan — who sees what</h2>
+        <div class="perm">
+          <div class="h">Capability</div><div class="h">Org Super Admin</div><div class="h">Site Manager</div><div class="h">Line Manager</div><div class="h">Platform Super Admin</div><div class="h">Employee</div>
+          <div class="lbl">View PEEP records</div><div class="yes">✓ any site</div><div class="yes">✓ own site</div><div class="na">no equivalent</div><div class="ex">excluded</div><div>✓ view only</div>
+          <div class="lbl">Edit PEEP records</div><div class="yes">✓ any site</div><div class="yes">✓ own site</div><div class="na">no equivalent</div><div class="ex">excluded</div><div class="no">—</div>
+          <div class="lbl">View floor plan</div><div class="yes">✓ any site</div><div class="yes">✓ own site</div><div class="na">no equivalent</div><div class="ex">excluded</div><div>✓</div>
+          <div class="lbl">Upload / replace plan</div><div class="yes">✓ any site</div><div class="yes">✓ own site</div><div class="na">no equivalent</div><div class="ex">excluded</div><div class="no">—</div>
+          <div class="lbl">Place / edit pins</div><div class="yes">✓ any site</div><div class="yes">✓ own site</div><div class="na">no equivalent</div><div class="ex">excluded</div><div class="no">—</div>
+          <div class="lbl">Manage floors</div><div class="yes">✓ any site</div><div class="yes">✓ own site</div><div class="na">no equivalent</div><div class="ex">excluded</div><div class="no">—</div>
+          <div class="lbl">Org-wide PEEP rollup</div><div class="yes">✓</div><div class="no">—</div><div class="na">no equivalent</div><div class="ex">excluded</div><div class="no">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="type">Reference</span>
+      <h3>F1 — Permission boundary table</h3>
+      <p>Line Manager and Platform Super Admin columns are deliberately empty — see the note below.</p>
+    </div>
+  </div>
+
+  <!-- NOTE -->
+  <div class="note">
+    <h3>Note for developers</h3>
+    <p><b>Why Line Manager and Platform Super Admin have no PEEP screen.</b> Line Manager visibility elsewhere in TempyHub is built on staff hierarchy — their team's rota, leave, compliance. PEEP is a resident-safety feature and residents don't report into a staff hierarchy, so there is no equivalent scope to give this role. There's no defensible slice of residents to show them that isn't already “their whole site”, which is the Site Manager's job.</p>
+    <p>Platform Super Admin's exclusion is not specific to PEEP — this role never sees resident data of any kind, anywhere in the product, including aggregate counts. That boundary is set at platform level; PEEP inherits it.</p>
+    <p>Treat both absences as intentional. If either screen shows up in a future backlog, treat it as a bug in the ask, not a gap in this design.</p>
+    <p>A resident's room number determines which floor's plan their pin lives on — this mapping is implicit, derived from the room, and never assigned a second time when placing a pin. Likewise the pin colour is always derived from the resident's current PEEP level and is never stored.</p>
+  </div>
+
+</div>
+</body>
+</html>
