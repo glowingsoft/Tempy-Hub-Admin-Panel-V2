@@ -1,0 +1,298 @@
+import { lazy, Suspense } from 'react';
+import { Outlet } from 'react-router-dom';
+
+import { CONFIG } from 'src/config-global';
+import { DashboardLayout } from 'src/layouts/dashboard';
+
+import { LoadingScreen } from 'src/components/loading-screen';
+
+// import { AuthGuard } from 'src/auth/guard';
+import ProtectedRoute from 'src/auth/guard/custom-auth-guard';
+
+// ----------------------------------------------------------------------
+
+// Overview
+const IndexPage = lazy(() => import('src/pages/dashboard'));
+const OverviewEcommercePage = lazy(() => import('src/pages/dashboard/ecommerce'));
+const OverviewAnalyticsPage = lazy(() => import('src/pages/dashboard/analytics'));
+const OverviewBankingPage = lazy(() => import('src/pages/dashboard/active-routes/banking'));
+const OverviewBookingPage = lazy(() => import('src/pages/dashboard/booking'));
+const OverviewFilePage = lazy(() => import('src/pages/dashboard/file'));
+const OverviewCoursePage = lazy(() => import('src/pages/dashboard/course'));
+// Product
+const ProductDetailsPage = lazy(() => import('src/pages/dashboard/product/details'));
+const ProductListPage = lazy(() => import('src/pages/dashboard/product/list'));
+const ProductCreatePage = lazy(() => import('src/pages/dashboard/product/new'));
+const ProductEditPage = lazy(() => import('src/pages/dashboard/product/edit'));
+// Order
+const OrderListPage = lazy(() => import('src/pages/dashboard/order/list'));
+const OrderDetailsPage = lazy(() => import('src/pages/dashboard/order/details'));
+// Invoice
+const InvoiceListPage = lazy(() => import('src/pages/dashboard/invoice/list'));
+const InvoiceDetailsPage = lazy(() => import('src/pages/dashboard/invoice/details'));
+const InvoiceCreatePage = lazy(() => import('src/pages/dashboard/invoice/new'));
+const InvoiceEditPage = lazy(() => import('src/pages/dashboard/invoice/edit'));
+// User
+const UserProfilePage = lazy(() => import('src/pages/dashboard/user/profile'));
+const UserCardsPage = lazy(() => import('src/pages/dashboard/user/cards'));
+const UserListPage = lazy(() => import('src/pages/dashboard/user/list'));
+const UserAccountPage = lazy(() => import('src/pages/dashboard/user/account'));
+const UserCreatePage = lazy(() => import('src/pages/dashboard/user/new'));
+const UserEditPage = lazy(() => import('src/pages/dashboard/user/edit'));
+const UserDetailPage = lazy(() => import('src/pages/dashboard/user/detail'));
+const ResidentListPage = lazy(() => import('src/pages/site-manager/residents/list'));
+const ResidentDetailPage = lazy(() => import('src/pages/site-manager/residents/detail'));
+// Blog
+const BlogPostsPage = lazy(() => import('src/pages/dashboard/post/list'));
+const BlogPostPage = lazy(() => import('src/pages/dashboard/post/details'));
+const BlogNewPostPage = lazy(() => import('src/pages/dashboard/post/new'));
+const BlogEditPostPage = lazy(() => import('src/pages/dashboard/post/edit'));
+// Job
+const JobDetailsPage = lazy(() => import('src/pages/dashboard/job/details'));
+const JobListPage = lazy(() => import('src/pages/dashboard/job/list'));
+const JobCreatePage = lazy(() => import('src/pages/dashboard/job/new'));
+const JobEditPage = lazy(() => import('src/pages/dashboard/job/edit'));
+// Tour
+const TourDetailsPage = lazy(() => import('src/pages/dashboard/tour/details'));
+const TourListPage = lazy(() => import('src/pages/dashboard/tour/list'));
+const TourCreatePage = lazy(() => import('src/pages/dashboard/tour/new'));
+const TourEditPage = lazy(() => import('src/pages/dashboard/tour/edit'));
+// File manager
+const FileManagerPage = lazy(() => import('src/pages/dashboard/file-manager'));
+// App
+const ChatPage = lazy(() => import('src/pages/dashboard/chat'));
+const MailPage = lazy(() => import('src/pages/dashboard/mail'));
+const CalendarPage = lazy(() => import('src/pages/dashboard/calendar'));
+const KanbanPage = lazy(() => import('src/pages/dashboard/kanban'));
+// Test render page by role
+const PermissionDeniedPage = lazy(() => import('src/pages/dashboard/permission'));
+// Blank page
+const ParamsPage = lazy(() => import('src/pages/dashboard/params'));
+const BlankPage = lazy(() => import('src/pages/dashboard/blank'));
+
+//invitations
+const InvitationsPage = lazy(() => import('src/pages/dashboard/active-routes/invitations/list'));
+const InvitationPage = lazy(() => import('src/pages/dashboard/active-routes/invitations/new'));
+
+//stats
+const StatsPage = lazy(() => import('src/pages/dashboard/active-routes/stats'));
+
+//kiosk
+const KioskListPage = lazy(() => import('src/pages/dashboard/active-routes/kiosk'));
+const KioskDetailPage = lazy(() => import('src/pages/dashboard/active-routes/kiosk/detail'));
+
+//visitor feedback
+const VisitorFeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/visitor-feedback'));
+
+//fire drills
+const FireDrillsPage = lazy(() => import('src/pages/dashboard/active-routes/fire-drills'));
+
+//documents
+const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/documents'));
+const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
+
+//supervision
+const SupervisionPage = lazy(() => import('src/pages/site-manager/supervision'));
+
+//reports
+
+const ReportsPage = lazy(() => import('src/pages/dashboard/active-routes/reports'));
+
+//peep and floor plan
+const PeepFloorPlanPage = lazy(() => import('src/pages/dashboard/active-routes/floor-plan'));
+const OrgRollupPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan'));
+const SiteDetailPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/site-detail.jsx'));
+const PeepAddPinPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/add-pin.jsx'));
+const PeepRecordsListPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/list.jsx'));
+const PeepRecordCreatePage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/new.jsx'));
+const PeepRecordEditPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/edit.jsx'));
+const FloorPlanListPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/floor-plans/list.jsx'));
+
+const ConfigurationPage = lazy(() => import('src/pages/dashboard/active-routes/configuration'));
+
+//pending approval 
+const PendingApprovalPage = lazy(() => import('src/pages/dashboard/active-routes/pending-approval'));
+
+//roles 
+const RolesPage = lazy(() => import('src/pages/dashboard/active-routes/role'));
+
+//rota
+const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
+
+// ----------------------------------------------------------------------
+
+const layoutContent = (
+  <DashboardLayout>
+    <Suspense fallback={<LoadingScreen />}>
+      <Outlet />
+    </Suspense>
+  </DashboardLayout>
+);
+
+
+export const siteManagerDashboardRoutes = [
+  {
+    path: 'site-manager',
+    // element: CONFIG.auth.skip ? <>{layoutContent}</> : <>{layoutContent}</>,
+    element: CONFIG.auth.skip ? <>{layoutContent}</> : <ProtectedRoute requiredPermission={[2]}>{layoutContent}</ProtectedRoute>,
+    children: [
+      { element: <IndexPage />, index: true },
+      {
+        path: 'directory',
+        children: [
+          { index: true, element: <UserListPage /> },
+          { path: ":id", element: <UserDetailPage /> }
+        ]
+      },
+      {
+        path: 'residents',
+        children: [
+          { index: true, element: <ResidentListPage /> },
+          { path: ':id', element: <ResidentDetailPage /> },
+        ],
+      },
+      {
+        path: "statistics", element: <StatsPage />
+      },
+      {
+        path: "reports", element: <ReportsPage />
+      },
+      {
+        path: "rota", element: <RotaPage />
+      },
+      {
+        path: "invitaions", children: [
+
+          { index: true, element: <InvitationsPage /> },
+
+          { path: "new", element: <InvitationPage /> }
+        ]
+      },
+      {
+        path: 'kiosk',
+        children: [
+          { index: true, element: <KioskListPage /> },
+          { path: ':id', element: <KioskDetailPage /> },
+        ],
+      },
+      {
+        path: 'feedback', element: <VisitorFeedbackPage />
+      },
+      {
+        path: 'fire-drills', element: <FireDrillsPage />
+      },
+      {
+        path: 'peep-and-Floor-plan',
+        children: [
+          { index: true, element: <OrgRollupPage /> },
+          { path: 'site/:siteId', element: <SiteDetailPage /> },
+          { path: 'site/:siteId/map', element: <PeepFloorPlanPage siteManagerDashboard /> },
+          { path: 'site/:siteId/map/add-pin', element: <PeepAddPinPage /> },
+          { path: 'site/:siteId/peep-records', element: <PeepRecordsListPage /> },
+          { path: 'site/:siteId/floor-plans', element: <FloorPlanListPage /> },
+          { path: 'peep-records', element: <PeepRecordsListPage /> },
+          { path: 'peep-records/new', element: <PeepRecordCreatePage /> },
+          { path: 'peep-records/:id/edit', element: <PeepRecordEditPage /> },
+          { path: 'floor-plans', element: <FloorPlanListPage /> },
+        ],
+      },
+      { path: "documents", element: <DocumentsPage /> },
+      { path: "documents/:id", element: <DocumentDetailPage /> },
+      {
+        path: "supervision", element: <SupervisionPage />
+      },
+      {
+        path: "configuration", element: <ConfigurationPage />
+      },
+      {
+        path: "approvals", element: <PendingApprovalPage />
+      },
+      {
+        path: "roles", element: <RolesPage />
+      },
+      { path: 'analytics', element: <OverviewAnalyticsPage /> },
+      { path: 'banking', element: <OverviewBankingPage /> },
+      { path: 'booking', element: <OverviewBookingPage /> },
+      { path: 'file', element: <OverviewFilePage /> },
+      { path: 'course', element: <OverviewCoursePage /> },
+      {
+        path: 'user',
+        children: [
+          { element: <UserProfilePage />, index: true },
+          { path: 'profile', element: <UserProfilePage /> },
+          { path: 'cards', element: <UserCardsPage /> },
+          { path: 'list', element: <UserListPage /> },
+          { path: 'new', element: <UserCreatePage /> },
+          { path: ':id/edit', element: <UserEditPage /> },
+          { path: 'account', element: <UserAccountPage /> },
+        ],
+      },
+      {
+        path: 'product',
+        children: [
+          { element: <ProductListPage />, index: true },
+          { path: 'list', element: <ProductListPage /> },
+          { path: ':id', element: <ProductDetailsPage /> },
+          { path: 'new', element: <ProductCreatePage /> },
+          { path: ':id/edit', element: <ProductEditPage /> },
+        ],
+      },
+      {
+        path: 'order',
+        children: [
+          { element: <OrderListPage />, index: true },
+          { path: 'list', element: <OrderListPage /> },
+          { path: ':id', element: <OrderDetailsPage /> },
+        ],
+      },
+      {
+        path: 'invoice',
+        children: [
+          { element: <InvoiceListPage />, index: true },
+          { path: 'list', element: <InvoiceListPage /> },
+          { path: ':id', element: <InvoiceDetailsPage /> },
+          { path: ':id/edit', element: <InvoiceEditPage /> },
+          { path: 'new', element: <InvoiceCreatePage /> },
+        ],
+      },
+      {
+        path: 'post',
+        children: [
+          { element: <BlogPostsPage />, index: true },
+          { path: 'list', element: <BlogPostsPage /> },
+          { path: ':title', element: <BlogPostPage /> },
+          { path: ':title/edit', element: <BlogEditPostPage /> },
+          { path: 'new', element: <BlogNewPostPage /> },
+        ],
+      },
+      {
+        path: 'job',
+        children: [
+          { element: <JobListPage />, index: true },
+          { path: 'list', element: <JobListPage /> },
+          { path: ':id', element: <JobDetailsPage /> },
+          { path: 'new', element: <JobCreatePage /> },
+          { path: ':id/edit', element: <JobEditPage /> },
+        ],
+      },
+      {
+        path: 'tour',
+        children: [
+          { element: <TourListPage />, index: true },
+          { path: 'list', element: <TourListPage /> },
+          { path: ':id', element: <TourDetailsPage /> },
+          { path: 'new', element: <TourCreatePage /> },
+          { path: ':id/edit', element: <TourEditPage /> },
+        ],
+      },
+      { path: 'file-manager', element: <FileManagerPage /> },
+      { path: 'mail', element: <MailPage /> },
+      { path: 'chat', element: <ChatPage /> },
+      { path: 'calendar', element: <CalendarPage /> },
+      { path: 'kanban', element: <KanbanPage /> },
+      { path: 'permission', element: <PermissionDeniedPage /> },
+      { path: 'params', element: <ParamsPage /> },
+      { path: 'blank', element: <BlankPage /> },
+    ],
+  },
+];

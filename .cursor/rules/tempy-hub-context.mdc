@@ -1,0 +1,16 @@
+---
+description: Read Tempy Hub product/Figma/feedback from Backend docs before UI work
+alwaysApply: true
+---
+
+# Tempy Hub — product docs live in Backend
+
+Do **not** keep Figma / BA / decision twins in this Admin Panel repo. Before UI or product decisions, read:
+
+1. `C:/Users/HP/Documents/Glowingsoft-Projects/Tempy-Hub-Backend/docs/PROJECT_CONTEXT.md`  
+2. `C:/Users/HP/Documents/Glowingsoft-Projects/Tempy-Hub-Backend/docs/FIGMA_UNDERSTANDING.md` — screens, fire/evac, kiosk  
+3. `C:/Users/HP/Documents/Glowingsoft-Projects/Tempy-Hub-Backend/docs/discovery/2026-09-25-client-ui-feedback.md`  
+4. `C:/Users/HP/Documents/Glowingsoft-Projects/Tempy-Hub-Backend/docs/frontend-changes-and-decisions.md` — UI change log when relevant  
+5. Relevant Backend `docs/decisions/*`
+
+UI “Site” ≈ API “branch”. Owner-only filters must not change Site Manager UX unless asked.

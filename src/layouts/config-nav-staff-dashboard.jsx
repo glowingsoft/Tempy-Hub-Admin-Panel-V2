@@ -1,0 +1,33 @@
+import { paths } from 'src/routes/paths';
+
+import { CONFIG } from 'src/config-global';
+import { SvgColor } from 'src/components/svg-color';
+
+const icon = (name) => <SvgColor src={`${CONFIG.site.basePath}/assets/icons/navbar/${name}.svg`} />;
+
+const ICONS = {
+  dashboard: icon('ic-dashboard'),
+  clock: icon('ic-clock'),
+  calendar: icon('ic-calendar'),
+  shifts: icon('ic-plan'),
+  competencies: icon('ic-compliance'),
+  supervision: icon('ic-users'),
+  document: icon('ic-document'),
+  rota: icon('ic-rota'),
+};
+
+export const navDataStaff = [
+  {
+    subheader: 'Employee',
+    items: [
+      { title: 'Dashboard', path: paths.staff.dashboard, icon: ICONS.dashboard },
+      { title: 'Rota', path: paths.staff.rota, icon: ICONS.rota },
+      { title: 'Attendance', path: paths.staff.attendance, icon: ICONS.clock },
+      { title: 'Leave Requests', path: paths.staff.leaveRequests, icon: ICONS.calendar },
+      { title: 'Shifts', path: paths.staff.shifts, icon: ICONS.shifts },
+      { title: 'My Competencies', path: paths.staff.competencies, icon: ICONS.competencies },
+      { title: 'Supervision & Appraisal', path: paths.staff.supervision, icon: ICONS.supervision },
+      { title: 'Documents', path: paths.staff.documents.root, icon: ICONS.document },
+    ],
+  },
+];
