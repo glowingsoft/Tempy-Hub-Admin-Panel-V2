@@ -119,6 +119,12 @@ const RolesPage = lazy(() => import('src/pages/dashboard/active-routes/role'));
 //rota
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
 
+//family engagement
+const FamilyOverviewPage = lazy(() => import('src/sections/family-engagement/view/family-overview-view'));
+const FamilyModerationPage = lazy(() => import('src/sections/moderation/view/family-moderation-view'));
+const CommunityWallPage = lazy(() => import('src/sections/community-wall/view/community-wall-view'));
+const GazettesPage = lazy(() => import('src/sections/gazettes/view/gazettes-view'));
+
 // ----------------------------------------------------------------------
 
 const layoutContent = (
@@ -210,6 +216,15 @@ export const siteManagerDashboardRoutes = [
       {
         path: "roles", element: <RolesPage />
       },
+      {
+        path: 'family-engagement',
+        children: [
+          { element: <FamilyOverviewPage />, index: true },
+          { path: 'overview', element: <FamilyOverviewPage /> },
+          { path: 'moderation', element: <FamilyModerationPage /> },
+          { path: 'community-wall', element: <CommunityWallPage /> },
+        ],
+      },
       { path: 'analytics', element: <OverviewAnalyticsPage /> },
       { path: 'banking', element: <OverviewBankingPage /> },
       { path: 'booking', element: <OverviewBookingPage /> },
@@ -293,6 +308,16 @@ export const siteManagerDashboardRoutes = [
       { path: 'permission', element: <PermissionDeniedPage /> },
       { path: 'params', element: <ParamsPage /> },
       { path: 'blank', element: <BlankPage /> },
+      {
+        path: 'family-engagement',
+        children: [
+          { element: <FamilyOverviewPage />, index: true },
+          { path: 'overview', element: <FamilyOverviewPage /> },
+          { path: 'moderation', element: <FamilyModerationPage /> },
+          { path: 'community-wall', element: <CommunityWallPage /> },
+          { path: 'gazettes', element: <GazettesPage /> },
+        ],
+      },
     ],
   },
 ];

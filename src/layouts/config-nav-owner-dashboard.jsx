@@ -27,6 +27,8 @@ const ICONS = {
   supervision: icon('ic-users'),
   settings: icon('ic-settings'),
   external: icon('ic-external'),
+  blog: icon('ic-blog'),
+  pendingApproval: icon('ic-check'),
 };
 
 // ----------------------------------------------------------------------
@@ -87,6 +89,18 @@ export const navDataOwner = [
       },
 
       { title: 'Connect to Tempy', path: paths.owner.tempyConnection, icon: ICONS.external },
+    ],
+  },
+  /**
+   * Family Engagement
+   */
+  {
+    subheader: 'FAMILY ENGAGEMENT',
+    items: [
+      { title: 'Overview', path: paths.owner.familyEngagement.overview, icon: ICONS.directory },
+      { title: 'Moderation', path: paths.owner.familyEngagement.moderation, icon: ICONS.pendingApproval },
+      { title: 'Community Wall', path: paths.owner.familyEngagement.communityWall, icon: ICONS.blog },
+      { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document },
     ],
   },
 ];

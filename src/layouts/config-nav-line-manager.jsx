@@ -90,4 +90,16 @@ export const navDataLineManager = [
       { title: 'Connect to Tempy', path: paths.lineManager.tempyConnection, icon: ICONS.external },
     ],
   },
+  /**
+   * Family Engagement
+   */
+  {
+    subheader: 'FAMILY ENGAGEMENT',
+    items: [
+      { title: 'Overview', path: paths.lineManager.familyEngagement.overview, icon: ICONS.directory },
+      { title: 'Moderation', path: paths.lineManager.familyEngagement.moderation, icon: ICONS.pendingApproval },
+      { title: 'Community Wall', path: paths.lineManager.familyEngagement.communityWall, icon: ICONS.blog },
+      { title: 'Gazettes', path: paths.lineManager.familyEngagement.gazettes, icon: ICONS.document },
+    ],
+  },
 ];

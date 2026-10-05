@@ -232,6 +232,13 @@ export const paths = {
         edit: `${ROOTS.DASHBOARD}/tour/${MOCK_ID}/edit`,
       },
     },
+    familyEngagement: {
+      root: `${ROOTS.DASHBOARD}/family-engagement`,
+      overview: `${ROOTS.DASHBOARD}/family-engagement/overview`,
+      moderation: `${ROOTS.DASHBOARD}/family-engagement/moderation`,
+      communityWall: `${ROOTS.DASHBOARD}/family-engagement/community-wall`,
+      gazettes: `${ROOTS.DASHBOARD}/family-engagement/gazettes`,
+    },
   },
   // SITE MANAGER  DASHBOARD
   siteManager: {
@@ -281,6 +288,13 @@ export const paths = {
     configuration: `${ROOTS.SITE_MANAGER}/configuration`,
     pendingApproval: `${ROOTS.SITE_MANAGER}/approvals`,
     roles: `${ROOTS.SITE_MANAGER}/roles`,
+    familyEngagement: {
+      root: `${ROOTS.SITE_MANAGER}/family-engagement`,
+      overview: `${ROOTS.SITE_MANAGER}/family-engagement/overview`,
+      moderation: `${ROOTS.SITE_MANAGER}/family-engagement/moderation`,
+      communityWall: `${ROOTS.SITE_MANAGER}/family-engagement/community-wall`,
+      gazettes: `${ROOTS.SITE_MANAGER}/family-engagement/gazettes`,
+    },
 
     mail: `${ROOTS.ADMIN_DASHBOARD}/mail`,
     chat: `${ROOTS.ADMIN_DASHBOARD}/chat`,
@@ -392,6 +406,13 @@ export const paths = {
       detail: (id) => `${ROOTS.LINE_MANAGER}/documents/${id}`,
     },
     tempyConnection: `${ROOTS.LINE_MANAGER}/tempy-connection`,
+    familyEngagement: {
+      root: `${ROOTS.LINE_MANAGER}/family-engagement`,
+      overview: `${ROOTS.LINE_MANAGER}/family-engagement/overview`,
+      moderation: `${ROOTS.LINE_MANAGER}/family-engagement/moderation`,
+      communityWall: `${ROOTS.LINE_MANAGER}/family-engagement/community-wall`,
+      gazettes: `${ROOTS.LINE_MANAGER}/family-engagement/gazettes`,
+    },
   },
   // ADMIN (SUPER ADMIN) DASHBOARD
   adminDashboard: {
@@ -408,6 +429,13 @@ export const paths = {
   },
   // ORGANIZATION OWNER DASHBOARD
   owner: {
+    familyEngagement: {
+      root: `${ROOTS.OWNER_DASHBOARD}/family-engagement`,
+      overview: `${ROOTS.OWNER_DASHBOARD}/family-engagement/overview`,
+      moderation: `${ROOTS.OWNER_DASHBOARD}/family-engagement/moderation`,
+      communityWall: `${ROOTS.OWNER_DASHBOARD}/family-engagement/community-wall`,
+      gazettes: `${ROOTS.OWNER_DASHBOARD}/family-engagement/gazettes`,
+    },
     root: `${ROOTS.OWNER_DASHBOARD}`,
     departments: {
       root: `${ROOTS.OWNER_DASHBOARD}/departments`,

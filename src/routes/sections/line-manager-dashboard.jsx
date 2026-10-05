@@ -57,6 +57,12 @@ const TempyConnectionPage = lazy(() => import('src/pages/dashboard/active-routes
 const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/documents'));
 const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
 
+//family engagement
+const FamilyOverviewPage = lazy(() => import('src/sections/family-engagement/view/family-overview-view'));
+const FamilyModerationPage = lazy(() => import('src/sections/moderation/view/family-moderation-view'));
+const CommunityWallPage = lazy(() => import('src/sections/community-wall/view/community-wall-view'));
+const GazettesPage = lazy(() => import('src/sections/gazettes/view/gazettes-view'));
+
 // ----------------------------------------------------------------------
 
 const layoutContent = (
@@ -110,6 +116,17 @@ export const lineManagerDashboardRoutes = [
             { path: "documents/:id", element: <DocumentDetailPage /> },
 
             { path: "tempy-connection", element: <TempyConnectionPage /> },
+
+            {
+                path: 'family-engagement',
+                children: [
+                    { element: <FamilyOverviewPage />, index: true },
+                    { path: 'overview', element: <FamilyOverviewPage /> },
+                    { path: 'moderation', element: <FamilyModerationPage /> },
+                    { path: 'community-wall', element: <CommunityWallPage /> },
+                    { path: 'gazettes', element: <GazettesPage /> },
+                ],
+            },
         ]
     }
 

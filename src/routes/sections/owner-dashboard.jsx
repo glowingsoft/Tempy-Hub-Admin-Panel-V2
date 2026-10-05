@@ -67,6 +67,12 @@ const TempyConnectionPage = lazy(() => import('src/pages/dashboard/active-routes
 const DataUsagePage = lazy(() => import('src/pages/dashboard/active-routes/data-usage'));
 const DataUsageDetailPage = lazy(() => import('src/pages/dashboard/active-routes/data-usage/detail'));
 
+// family engagement
+const FamilyOverviewPage = lazy(() => import('src/sections/family-engagement/view/family-overview-view'));
+const FamilyModerationPage = lazy(() => import('src/sections/moderation/view/family-moderation-view'));
+const CommunityWallPage = lazy(() => import('src/sections/community-wall/view/community-wall-view'));
+const GazettesPage = lazy(() => import('src/sections/gazettes/view/gazettes-view'));
+
 
 // Compatibility redirect helpers for legacy bookmark / link stability
 function LegacySiteRedirect({ target }) {
@@ -259,6 +265,16 @@ export const ownerDashboardRoutes = [
         children: [
           { index: true, element: <DataUsagePage /> },
           { path: ':id', element: <DataUsageDetailPage /> },
+        ],
+      },
+      {
+        path: 'family-engagement',
+        children: [
+          { element: <FamilyOverviewPage />, index: true },
+          { path: 'overview', element: <FamilyOverviewPage /> },
+          { path: 'moderation', element: <FamilyModerationPage /> },
+          { path: 'community-wall', element: <CommunityWallPage /> },
+          { path: 'gazettes', element: <GazettesPage /> },
         ],
       },
     ],

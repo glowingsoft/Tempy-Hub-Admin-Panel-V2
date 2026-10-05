@@ -79,4 +79,16 @@ export const navDataSiteManager = [
       { title: "Roles", path: paths.siteManager.roles, icon: ICONS.lock },
     ],
   },
+  /**
+   * Family Engagement
+   */
+  {
+    subheader: 'FAMILY ENGAGEMENT',
+    items: [
+      { title: 'Overview', path: paths.siteManager.familyEngagement.overview, icon: ICONS.directory },
+      { title: 'Moderation', path: paths.siteManager.familyEngagement.moderation, icon: ICONS.pendingApproval },
+      { title: 'Community Wall', path: paths.siteManager.familyEngagement.communityWall, icon: ICONS.blog },
+      { title: 'Gazettes', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document },
+    ],
+  },
 ];
