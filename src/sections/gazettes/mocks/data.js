@@ -93,7 +93,7 @@ export const mockGazettesData = {
       status: 'over_limit',
       statusLabel: 'Over 30 messages',
       avatarUrl: 'https://i.pravatar.cc/150?img=11',
-      actions: ['choose_which_to_keep'],
+      actions: ['preview', 'regenerate', 'pdf'],
       pdfUrl: SAMPLE_GAZETTE_PDF,
       coverHeadline: 'Grand Celebration & 31 Warm Family Wishes',
       previewPhotos: ['https://picsum.photos/seed/birthday-tea-1/1200/900'],

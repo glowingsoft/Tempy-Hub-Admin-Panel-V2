@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 import Dialog from '@mui/material/Dialog';
@@ -12,7 +12,6 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 import Tooltip from '@mui/material/Tooltip';
-import Card from '@mui/material/Card';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';
@@ -30,9 +29,7 @@ export function GazettePreviewDialog({
 }) {
   const theme = useTheme();
 
-  // PDF to Image rendering state (matching Peep Floor Plan viewer)
   const [pages, setPages] = useState([]);
-  const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [error, setError] = useState(false);
@@ -50,7 +47,6 @@ export function GazettePreviewDialog({
     setLoading(true);
     setError(false);
     setZoom(1);
-    setCurrentPage(0);
 
     convertPdfToImage(pdfUrl, { scale: 2.0 })
       .then((res) => {
@@ -79,13 +75,9 @@ export function GazettePreviewDialog({
   if (!resident) return null;
 
   // Zoom controls
-  const handleZoomIn = () => setZoom((prev) => Math.min(2.5, Number((prev + 0.25).toFixed(2))));
-  const handleZoomOut = () => setZoom((prev) => Math.max(0.5, Number((prev - 0.25).toFixed(2))));
+  const handleZoomIn = () => setZoom((prev) => Math.min(2.0, Number((prev + 0.2).toFixed(2))));
+  const handleZoomOut = () => setZoom((prev) => Math.max(0.6, Number((prev - 0.2).toFixed(2))));
   const handleResetZoom = () => setZoom(1);
-
-  // Pagination controls
-  const handlePrevPage = () => setCurrentPage((prev) => Math.max(0, prev - 1));
-  const handleNextPage = () => setCurrentPage((prev) => Math.min(pages.length - 1, prev + 1));
 
   // Print handler
   const handlePrint = () => {
@@ -110,14 +102,6 @@ export function GazettePreviewDialog({
     document.body.removeChild(link);
     toast.success(`Downloading ${resident.resident} - Gazette ${issueTitle}.pdf`);
   };
-
-  // Open external tab
-  const handleOpenExternal = () => {
-    window.open(pdfUrl, '_blank');
-  };
-
-  const activePageObj = pages[currentPage];
-  const activeImageSrc = activePageObj?.imageUrl || activePageObj?.dataUrl;
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
@@ -153,6 +137,7 @@ export function GazettePreviewDialog({
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Room {resident.room} · Florence House Autumn Gazette PDF Preview
+              {pages.length > 0 ? ` · ${pages.length} ${pages.length === 1 ? 'Page' : 'Pages'}` : ''}
             </Typography>
           </Box>
         </Stack>
@@ -171,7 +156,7 @@ export function GazettePreviewDialog({
             }}
           >
             <Tooltip title="Zoom out">
-              <IconButton size="small" onClick={handleZoomOut} disabled={zoom <= 0.5}>
+              <IconButton size="small" onClick={handleZoomOut} disabled={zoom <= 0.6}>
                 <Iconify icon="solar:magnifer-minus-linear" width={18} />
               </IconButton>
             </Tooltip>
@@ -184,7 +169,7 @@ export function GazettePreviewDialog({
               {Math.round(zoom * 100)}%
             </Typography>
             <Tooltip title="Zoom in">
-              <IconButton size="small" onClick={handleZoomIn} disabled={zoom >= 2.5}>
+              <IconButton size="small" onClick={handleZoomIn} disabled={zoom >= 2.0}>
                 <Iconify icon="solar:magnifer-plus-linear" width={18} />
               </IconButton>
             </Tooltip>
@@ -202,158 +187,107 @@ export function GazettePreviewDialog({
         </Stack>
       </DialogTitle>
 
-      {/* Main Preview Container matching Peep Floor Plan viewer */}
-      <DialogContent dividers sx={{ p: 2, bgcolor: 'grey.100', overflow: 'hidden' }}>
-        <Card
-          sx={{
-            width: '100%',
-            height: { xs: 520, md: 700 },
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'auto',
-            bgcolor: 'common.white',
-            position: 'relative',
-            borderRadius: 1.5,
-            boxShadow: theme.customShadows?.z8,
-          }}
-        >
-          {loading ? (
-            /* Loading State matching peep floor plan viewer */
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1.5,
-              }}
-            >
-              <CircularProgress size={36} />
-              <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                Rendering PDF preview...
-              </Typography>
-            </Box>
-          ) : error || !activeImageSrc ? (
-            /* Direct PDF Iframe Fallback if conversion fails */
-            <Box
-              component="iframe"
-              src={`${pdfUrl}#toolbar=1&navpanes=0`}
-              title={`${resident.resident} Gazette PDF`}
-              sx={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                display: 'block',
-              }}
-            />
-          ) : (
-            /* High-Res Canvas/Image Rendering matching peep floor plan */
-            <Box
-              sx={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'auto',
-                p: 2,
-              }}
-            >
-              <Box
-                component="img"
-                src={activeImageSrc}
-                alt={`${resident.resident} Gazette Page ${currentPage + 1}`}
-                sx={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  objectFit: 'contain',
-                  transform: `scale(${zoom})`,
-                  transformOrigin: 'center center',
-                  transition: 'transform 0.15s ease-out',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                  borderRadius: 1,
-                  userSelect: 'none',
-                }}
-              />
-            </Box>
-          )}
-
-          {/* Multiple Pages Selector if PDF has multiple pages */}
-          {pages.length > 1 && !loading && (
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              sx={{
-                position: 'absolute',
-                bottom: 16,
-                bgcolor: 'rgba(33, 43, 54, 0.85)',
-                color: 'common.white',
-                px: 2,
-                py: 0.75,
-                borderRadius: 3,
-                boxShadow: theme.customShadows?.z12,
-                zIndex: 2,
-              }}
-            >
-              <IconButton
-                size="small"
-                onClick={handlePrevPage}
-                disabled={currentPage === 0}
-                sx={{ color: 'common.white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
-              >
-                <Iconify icon="solar:alt-arrow-left-bold" width={18} />
-              </IconButton>
-              <Typography variant="caption" fontWeight={700}>
-                Page {currentPage + 1} of {pages.length}
-              </Typography>
-              <IconButton
-                size="small"
-                onClick={handleNextPage}
-                disabled={currentPage === pages.length - 1}
-                sx={{ color: 'common.white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)' } }}
-              >
-                <Iconify icon="solar:alt-arrow-right-bold" width={18} />
-              </IconButton>
-            </Stack>
-          )}
-        </Card>
+      {/* Main Preview Container: Continuous vertical scroll for all pages without extra gaps */}
+      <DialogContent
+        dividers
+        sx={{
+          p: 0,
+          bgcolor: (t) => (t.palette.mode === 'light' ? '#EAECEF' : 'grey.900'),
+          height: { xs: 540, md: 720 },
+          maxHeight: '75vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          overflowY: 'auto',
+          position: 'relative',
+        }}
+      >
+        {loading ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: 1,
+              minHeight: 360,
+              gap: 1.5,
+            }}
+          >
+            <CircularProgress size={36} />
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+              Rendering PDF preview...
+            </Typography>
+          </Box>
+        ) : error || pages.length === 0 ? (
+          <Box
+            component="iframe"
+            src={`${pdfUrl}#toolbar=1&navpanes=0`}
+            title={`${resident.resident} Gazette PDF`}
+            sx={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              display: 'block',
+            }}
+          />
+        ) : (
+          <Stack
+            spacing={1}
+            alignItems="center"
+            sx={{
+              py: 2,
+              px: { xs: 1, sm: 2 },
+              width: '100%',
+              maxWidth: `${Math.round(860 * zoom)}px`,
+              transition: 'max-width 0.15s ease-out',
+            }}
+          >
+            {pages.map((p, idx) => {
+              const imgSrc = p.imageUrl || p.dataUrl;
+              return (
+                <Box
+                  key={p.pageNumber || idx}
+                  component="img"
+                  src={imgSrc}
+                  alt={`${resident.resident} Gazette Page ${p.pageNumber || idx + 1}`}
+                  sx={{
+                    width: '100%',
+                    height: 'auto',
+                    display: 'block',
+                    boxShadow: '0 3px 12px rgba(0,0,0,0.15)',
+                    borderRadius: 0.5,
+                    bgcolor: 'common.white',
+                    userSelect: 'none',
+                  }}
+                />
+              );
+            })}
+          </Stack>
+        )}
       </DialogContent>
 
       {/* Action Buttons */}
-      <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+      <DialogActions sx={{ px: 3, py: 2, justifyContent: 'flex-end' }}>
         <Button
           variant="outlined"
           color="inherit"
-          onClick={handleOpenExternal}
-          startIcon={<Iconify icon="solar:square-top-down-bold" />}
+          onClick={handleDownloadPdf}
+          startIcon={<Iconify icon="solar:file-download-bold" />}
           sx={{ fontWeight: 600 }}
         >
-          Open in New Tab
+          Download PDF
         </Button>
 
-        <Stack direction="row" spacing={1.5}>
-          <Button
-            variant="outlined"
-            color="inherit"
-            onClick={handleDownloadPdf}
-            startIcon={<Iconify icon="solar:file-download-bold" />}
-            sx={{ fontWeight: 600 }}
-          >
-            Download PDF
-          </Button>
-
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handlePrint}
-            startIcon={<Iconify icon="solar:printer-bold" />}
-            sx={{ fontWeight: 700 }}
-          >
-            Print Gazette
-          </Button>
-        </Stack>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handlePrint}
+          startIcon={<Iconify icon="solar:printer-bold" />}
+          sx={{ fontWeight: 700 }}
+        >
+          Print Gazette
+        </Button>
       </DialogActions>
     </Dialog>
   );

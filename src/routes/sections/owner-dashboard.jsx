@@ -68,10 +68,12 @@ const DataUsagePage = lazy(() => import('src/pages/dashboard/active-routes/data-
 const DataUsageDetailPage = lazy(() => import('src/pages/dashboard/active-routes/data-usage/detail'));
 
 // family engagement
-const FamilyOverviewPage = lazy(() => import('src/sections/family-engagement/view/family-overview-view'));
-const FamilyModerationPage = lazy(() => import('src/sections/moderation/view/family-moderation-view'));
-const CommunityWallPage = lazy(() => import('src/sections/community-wall/view/community-wall-view'));
-const GazettesPage = lazy(() => import('src/sections/gazettes/view/gazettes-view'));
+const FamilyOverviewPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/overview'));
+const FamilyModerationPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/moderation'));
+const CommunityWallPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/community-wall'));
+const NewslettersPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/newsletters'));
+const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
+const FamilyGroupsPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/family-groups'));
 
 
 // Compatibility redirect helpers for legacy bookmark / link stability
@@ -274,7 +276,9 @@ export const ownerDashboardRoutes = [
           { path: 'overview', element: <FamilyOverviewPage /> },
           { path: 'moderation', element: <FamilyModerationPage /> },
           { path: 'community-wall', element: <CommunityWallPage /> },
+          { path: 'newsletters', element: <NewslettersPage /> },
           { path: 'gazettes', element: <GazettesPage /> },
+          { path: 'family-groups', element: <FamilyGroupsPage /> },
         ],
       },
     ],

@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 
 import Card from '@mui/material/Card';
@@ -12,9 +11,9 @@ import TableContainer from '@mui/material/TableContainer';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { CONFIG } from 'src/config-global';
-import { paths } from 'src/routes/paths';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
@@ -36,7 +35,6 @@ import { mockGazettesData, SAMPLE_GAZETTE_PDF } from '../mocks/data';
 import { GazetteTableRow } from '../gazette-table-row';
 import { GazettePreviewDialog } from '../gazette-preview-dialog';
 import { GazetteMessageFamilyDialog } from '../gazette-message-family-dialog';
-import { GazetteTrimMessagesDialog } from '../gazette-trim-messages-dialog';
 import { GazetteInviteFamilyDialog } from '../gazette-invite-family-dialog';
 import { FamilyWallPostDialog } from 'src/sections/family-engagement/family-wall-post-dialog';
 
@@ -77,7 +75,7 @@ const FILTER_FIELDS = [
 
 export function GazettesView() {
   const table = useTable();
-  const { pathname } = useLocation();
+  const familyPaths = useFamilyEngagementPaths();
 
   const [tableData, setTableData] = useState(mockGazettesData.residents);
   const [activeResident, setActiveResident] = useState(mockGazettesData.residents[0]);
@@ -89,33 +87,16 @@ export function GazettesView() {
   // Dialog Controls
   const previewDialog = useBoolean();
   const messageFamilyDialog = useBoolean();
-  const trimMessagesDialog = useBoolean();
   const inviteFamilyDialog = useBoolean();
   const wallPostDialog = useBoolean();
   const [targetResident, setTargetResident] = useState(null);
 
   // Contextual breadcrumb links based on role
-  const breadcrumbLinks = useMemo(() => {
-    if (pathname.startsWith('/line-manager')) {
-      return [
-        { name: 'Dashboard', href: paths.lineManager.root },
-        { name: 'Family Engagement', href: paths.lineManager.familyEngagement.overview },
-        { name: 'Gazettes' },
-      ];
-    }
-    if (pathname.startsWith('/owner-dashboard')) {
-      return [
-        { name: 'Dashboard', href: paths.owner.root },
-        { name: 'Family Engagement', href: paths.owner.familyEngagement.overview },
-        { name: 'Gazettes' },
-      ];
-    }
-    return [
-      { name: 'Dashboard', href: paths.siteManager.root },
-      { name: 'Family Engagement', href: paths.siteManager.familyEngagement.overview },
-      { name: 'Gazettes' },
-    ];
-  }, [pathname]);
+  const breadcrumbLinks = [
+    { name: 'Dashboard', href: familyPaths.dashboardRoot },
+    { name: 'Family Engagement', href: familyPaths.familyOverview },
+    { name: 'Gazettes' },
+  ];
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((f) => f.type === 'status'),
@@ -253,11 +234,6 @@ export function GazettesView() {
     wallPostDialog.onTrue();
   }, [wallPostDialog]);
 
-  const handleChooseMessages = useCallback((row) => {
-    setTargetResident(row);
-    trimMessagesDialog.onTrue();
-  }, [trimMessagesDialog]);
-
   const handleInviteFamily = useCallback((row) => {
     setTargetResident(row);
     inviteFamilyDialog.onTrue();
@@ -348,7 +324,7 @@ export function GazettesView() {
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
-        {/* Main Dashboard Cards (Exact CourseWidgetSummary style used in LineManagerDashboardView) */}
+        {/* Main Dashboard Cards (Data display only - non-clickable) */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {/* Card 1: Residents in this issue */}
           <Grid xs={12} sm={6} md={3}>
@@ -357,18 +333,10 @@ export function GazettesView() {
               total={summaryCounts.all}
               color="primary"
               icon={icon('ic-users')}
-              onClick={() => handleFilterChange('status', 'all')}
               sx={{
-                cursor: 'pointer',
-                transition: (t) => t.transitions.create(['transform', 'box-shadow', 'border-color']),
-                border: (t) =>
-                  filters.state.status === 'all'
-                    ? `2px solid ${t.palette.primary.main}`
-                    : `1px solid ${t.palette.divider}`,
-                '&:hover': {
-                  transform: 'translateY(-3px)',
-                  boxShadow: (t) => t.customShadows?.z12,
-                },
+                border: (t) => `1px solid ${t.palette.divider}`,
+                cursor: 'default',
+                userSelect: 'none',
               }}
             />
           </Grid>
@@ -380,20 +348,10 @@ export function GazettesView() {
               total={summaryCounts.ready}
               color="success"
               icon={icon('ic-check')}
-              onClick={() =>
-                handleFilterChange('status', filters.state.status === 'ready' ? 'all' : 'ready')
-              }
               sx={{
-                cursor: 'pointer',
-                transition: (t) => t.transitions.create(['transform', 'box-shadow', 'border-color']),
-                border: (t) =>
-                  filters.state.status === 'ready'
-                    ? `2px solid ${t.palette.success.main}`
-                    : `1px solid ${t.palette.divider}`,
-                '&:hover': {
-                  transform: 'translateY(-3px)',
-                  boxShadow: (t) => t.customShadows?.z12,
-                },
+                border: (t) => `1px solid ${t.palette.divider}`,
+                cursor: 'default',
+                userSelect: 'none',
               }}
             />
           </Grid>
@@ -405,20 +363,10 @@ export function GazettesView() {
               total={summaryCounts.noContent}
               color="warning"
               icon={icon('ic-file')}
-              onClick={() =>
-                handleFilterChange('status', filters.state.status === 'no_content' ? 'all' : 'no_content')
-              }
               sx={{
-                cursor: 'pointer',
-                transition: (t) => t.transitions.create(['transform', 'box-shadow', 'border-color']),
-                border: (t) =>
-                  filters.state.status === 'no_content'
-                    ? `2px solid ${t.palette.warning.main}`
-                    : `1px solid ${t.palette.divider}`,
-                '&:hover': {
-                  transform: 'translateY(-3px)',
-                  boxShadow: (t) => t.customShadows?.z12,
-                },
+                border: (t) => `1px solid ${t.palette.divider}`,
+                cursor: 'default',
+                userSelect: 'none',
               }}
             />
           </Grid>
@@ -430,20 +378,10 @@ export function GazettesView() {
               total={summaryCounts.needReview}
               color="error"
               icon={icon('ic-analytics')}
-              onClick={() =>
-                handleFilterChange('status', filters.state.status === 'need_review' ? 'all' : 'need_review')
-              }
               sx={{
-                cursor: 'pointer',
-                transition: (t) => t.transitions.create(['transform', 'box-shadow', 'border-color']),
-                border: (t) =>
-                  filters.state.status === 'need_review'
-                    ? `2px solid ${t.palette.error.main}`
-                    : `1px solid ${t.palette.divider}`,
-                '&:hover': {
-                  transform: 'translateY(-3px)',
-                  boxShadow: (t) => t.customShadows?.z12,
-                },
+                border: (t) => `1px solid ${t.palette.divider}`,
+                cursor: 'default',
+                userSelect: 'none',
               }}
             />
           </Grid>
@@ -494,10 +432,6 @@ export function GazettesView() {
                       onPreview={handleOpenPreview}
                       onRegenerate={handleRegenerate}
                       onPdf={handlePdfDownload}
-                      onMessageFamily={handleMessageFamily}
-                      onAddWallPost={handleAddWallPost}
-                      onChooseMessages={handleChooseMessages}
-                      onInviteFamily={handleInviteFamily}
                     />
                   ))}
 
@@ -530,17 +464,6 @@ export function GazettesView() {
         open={messageFamilyDialog.value}
         onClose={messageFamilyDialog.onFalse}
         resident={targetResident}
-      />
-
-      <GazetteTrimMessagesDialog
-        open={trimMessagesDialog.value}
-        onClose={trimMessagesDialog.onFalse}
-        resident={targetResident}
-        onSaved={(id) => {
-          setTableData((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, status: 'ready', statusLabel: 'Ready' } : r))
-          );
-        }}
       />
 
       <GazetteInviteFamilyDialog

@@ -160,7 +160,7 @@ export function CommunityWallPostCard({
         justifyContent: 'space-between',
         border: (t) =>
           isPinned
-            ? `1.5px solid ${alpha(t.palette.primary.main, 0.45)}`
+            ? `1px solid ${t.palette.primary.main}`
             : `1px solid ${t.palette.divider}`,
         boxShadow: (t) => t.customShadows?.card || '0 1px 3px rgba(0,0,0,0.06)',
         transition: 'box-shadow 0.2s ease',
@@ -171,27 +171,7 @@ export function CommunityWallPostCard({
       }}
     >
       <Box>
-        {/* Pinned Ribbon if pinned */}
-        {isPinned && (
-          <Box
-            sx={{
-              py: 0.5,
-              px: 2,
-              bgcolor: (t) => alpha(t.palette.primary.main, 0.08),
-              borderBottom: (t) => `1px solid ${alpha(t.palette.primary.main, 0.15)}`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}
-          >
-            <Iconify icon="solar:pin-bold" width={15} sx={{ color: 'primary.main' }} />
-            <Typography variant="caption" fontWeight={700} sx={{ color: 'primary.main', letterSpacing: 0.5 }}>
-              PINNED POST
-            </Typography>
-          </Box>
-        )}
-
-        {/* Post Header matching screenshot */}
+        {/* Post Header */}
         <Stack
           direction="row"
           alignItems="flex-start"
@@ -235,10 +215,27 @@ export function CommunityWallPostCard({
             </Box>
           </Stack>
 
-          {/* Three dots menu */}
-          <IconButton size="small" onClick={handleOpenMenu} sx={{ color: 'text.secondary' }}>
-            <Iconify icon="eva:more-horizontal-fill" width={22} />
-          </IconButton>
+          {/* Header Right Actions: Pinned badge + Three dots menu */}
+          <Stack direction="row" spacing={1} alignItems="center">
+            {isPinned && (
+              <Chip
+                size="small"
+                variant="soft"
+                color="primary"
+                icon={<Iconify icon="solar:pin-bold" width={14} />}
+                label="Pinned"
+                sx={{
+                  height: 24,
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  '& .MuiChip-icon': { ml: 0.5 },
+                }}
+              />
+            )}
+            <IconButton size="small" onClick={handleOpenMenu} sx={{ color: 'text.secondary' }}>
+              <Iconify icon="eva:more-horizontal-fill" width={22} />
+            </IconButton>
+          </Stack>
         </Stack>
 
         {/* Post Text Content */}

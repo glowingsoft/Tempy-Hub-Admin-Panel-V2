@@ -1,5 +1,4 @@
-import { useState, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
 import Box from '@mui/material/Box';
@@ -8,11 +7,11 @@ import Grid from '@mui/material/Unstable_Grid2';
 import { useTheme } from '@mui/material/styles';
 
 import { CONFIG } from 'src/config-global';
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 import { toast } from 'src/components/snackbar';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
+import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 
 import { mockFamilyOverviewData } from '../mocks/data';
 import { FamilyDashboardCards } from '../family-dashboard-cards';
@@ -29,44 +28,7 @@ const iconUrl = (name) => `${CONFIG.site.basePath}/assets/icons/navbar/${name}.s
 export function FamilyOverviewView() {
   const theme = useTheme();
   const router = useRouter();
-  const { pathname } = useLocation();
-
-  // Role detection for contextual shortcuts
-  const rolePaths = useMemo(() => {
-    if (pathname.startsWith('/line-manager')) {
-      return {
-        root: paths.lineManager.root,
-        directory: paths.lineManager.residents,
-        feedback: paths.lineManager.feedback,
-        fireDrills: paths.lineManager.fireDrills,
-        rota: paths.lineManager.teamRota,
-        moderation: paths.lineManager.familyEngagement.moderation,
-        communityWall: paths.lineManager.familyEngagement.communityWall,
-      };
-    }
-    if (pathname.startsWith('/admin-dashboard')) {
-      return {
-        root: paths.adminDashboard.root,
-        directory: paths.adminDashboard.root,
-        feedback: paths.adminDashboard.root,
-        fireDrills: paths.adminDashboard.fireDrills,
-        rota: paths.adminDashboard.root,
-        moderation: paths.adminDashboard.familyEngagement.moderation,
-        communityWall: paths.adminDashboard.familyEngagement.communityWall,
-      };
-    }
-    // Default site manager
-    return {
-      root: paths.siteManager.root,
-      directory: paths.siteManager.directory.root,
-      residents: paths.siteManager.residents.root,
-      feedback: paths.siteManager.feedback,
-      fireDrills: paths.siteManager.fireDrills,
-      rota: paths.siteManager.rota,
-      moderation: paths.siteManager.familyEngagement.moderation,
-      communityWall: paths.siteManager.familyEngagement.communityWall,
-    };
-  }, [pathname]);
+  const familyPaths = useFamilyEngagementPaths();
 
   // Dynamic counts state
   const [uploadsWaiting, setUploadsWaiting] = useState(mockFamilyOverviewData.metrics.uploadsWaiting);
@@ -207,14 +169,14 @@ export function FamilyOverviewView() {
       {/* MIDDLE SECTION: EXISTING DASHBOARD CARDS & FAMILY ACTIVITY (LAST 7 DAYS) */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid xs={12} md={6}>
-          <FamilyDashboardCards rolePaths={rolePaths} />
+          <FamilyDashboardCards navigationPaths={familyPaths} />
         </Grid>
 
         <Grid xs={12} md={6}>
           <FamilyActivityCard
             activity={mockFamilyOverviewData.activity}
-            onOpenModeration={() => router.push(rolePaths.moderation)}
-            onOpenNewPost={() => router.push(rolePaths.communityWall)}
+            onOpenModeration={() => router.push(familyPaths.moderation)}
+            onOpenNewPost={() => router.push(familyPaths.communityWall)}
           />
         </Grid>
       </Grid>

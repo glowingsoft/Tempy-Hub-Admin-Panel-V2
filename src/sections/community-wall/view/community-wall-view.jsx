@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 
 import Box from '@mui/material/Box';
@@ -18,8 +17,8 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
 import { CONFIG } from 'src/config-global';
-import { paths } from 'src/routes/paths';
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
@@ -41,7 +40,7 @@ const TAB_OPTIONS = [
 ];
 
 export function CommunityWallView() {
-  const { pathname } = useLocation();
+  const familyPaths = useFamilyEngagementPaths();
 
   const [posts, setPosts] = useState(_communityWallPosts);
   const [currentTab, setCurrentTab] = useState('all');
@@ -63,27 +62,11 @@ export function CommunityWallView() {
   const previewModal = useBoolean();
 
   // Role detection for breadcrumbs
-  const breadcrumbLinks = useMemo(() => {
-    if (pathname.startsWith('/line-manager')) {
-      return [
-        { name: 'Dashboard', href: paths.lineManager.root },
-        { name: 'Family Engagement', href: paths.lineManager.familyEngagement.overview },
-        { name: 'Community Wall' },
-      ];
-    }
-    if (pathname.startsWith('/owner-dashboard')) {
-      return [
-        { name: 'Dashboard', href: paths.owner.root },
-        { name: 'Family Engagement', href: paths.owner.familyEngagement.overview },
-        { name: 'Community Wall' },
-      ];
-    }
-    return [
-      { name: 'Dashboard', href: paths.siteManager.root },
-      { name: 'Family Engagement', href: paths.siteManager.familyEngagement.overview },
-      { name: 'Community Wall' },
-    ];
-  }, [pathname]);
+  const breadcrumbLinks = [
+    { name: 'Dashboard', href: familyPaths.dashboardRoot },
+    { name: 'Family Engagement', href: familyPaths.familyOverview },
+    { name: 'Community Wall' },
+  ];
 
   // Tab counts
   const counts = useMemo(

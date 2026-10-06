@@ -12,19 +12,19 @@ import { useRouter } from 'src/routes/hooks';
 
 // ----------------------------------------------------------------------
 
-export function FamilyDashboardCards({ rolePaths, sx, ...other }) {
+export function FamilyDashboardCards({ navigationPaths, sx, ...other }) {
   const theme = useTheme();
   const router = useRouter();
 
   const handleNavigate = (target) => {
-    if (!rolePaths) return;
+    if (!navigationPaths) return;
     if (target === 'onSite') {
-      if (rolePaths.directory) router.push(rolePaths.directory);
-      else if (rolePaths.root) router.push(rolePaths.root);
+      if (navigationPaths.directory) router.push(navigationPaths.directory);
+      else if (navigationPaths.dashboardRoot) router.push(navigationPaths.dashboardRoot);
     } else if (target === 'visitors') {
-      if (rolePaths.directory) router.push(rolePaths.directory);
-      else if (rolePaths.feedback) router.push(rolePaths.feedback);
-      else if (rolePaths.root) router.push(rolePaths.root);
+      if (navigationPaths.directory) router.push(navigationPaths.directory);
+      else if (navigationPaths.feedback) router.push(navigationPaths.feedback);
+      else if (navigationPaths.dashboardRoot) router.push(navigationPaths.dashboardRoot);
     }
   };
 
@@ -131,6 +131,6 @@ export function FamilyDashboardCards({ rolePaths, sx, ...other }) {
 }
 
 FamilyDashboardCards.propTypes = {
-  rolePaths: PropTypes.object,
+  navigationPaths: PropTypes.object,
   sx: PropTypes.object,
 };

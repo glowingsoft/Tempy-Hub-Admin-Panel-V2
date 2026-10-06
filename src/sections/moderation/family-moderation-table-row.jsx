@@ -52,7 +52,7 @@ export function FamilyModerationTableRow({
   };
 
   return (
-    <TableRow hover>
+    <TableRow hover onClick={onPreview} sx={{ cursor: 'pointer' }}>
       <TableCell>{serialNumber}</TableCell>
 
       {/* Photo */}

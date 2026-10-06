@@ -8,6 +8,8 @@ import { CONFIG } from 'src/config-global';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { fDate } from 'src/utils/format-time';
 
+import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
 import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
 import { AnalyticsWebsiteVisits } from 'src/sections/overview/analytics/analytics-website-visits';
 import { mockAttendanceResponse } from 'src/sections/active-sections/team-attendance/mocks/data';
@@ -54,6 +56,7 @@ function useAttendanceSummary() {
 }
 
 export function LineManagerDashboardView() {
+  const router = useRouter();
   const { user } = useSelector((state) => state.user);
 
   const { total, onTime, late, attendanceRate, trend } = useAttendanceSummary();
@@ -98,6 +101,40 @@ export function LineManagerDashboardView() {
             total={attendanceRate === null ? '—' : `${attendanceRate}%`}
             color="info"
             icon={icon('ic-analytics')}
+          />
+        </Grid>
+      </Grid>
+
+      {/* Family Engagement Summary Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid xs={12} sm={6} md={3}>
+          <CourseWidgetSummary
+            title="family uploads waiting"
+            total={6}
+            color="warning"
+            icon={icon('ic-file')}
+            onClick={() => router.push(paths.lineManager.familyEngagement.moderation)}
+            sx={{ cursor: 'pointer' }}
+          />
+        </Grid>
+
+        <Grid xs={12} sm={6} md={3}>
+          <CourseWidgetSummary
+            title="wall posts this week"
+            total={3}
+            color="primary"
+            icon={icon('ic-blog')}
+            onClick={() => router.push(paths.lineManager.familyEngagement.communityWall)}
+            sx={{ cursor: 'pointer' }}
+          />
+        </Grid>
+
+        <Grid xs={12} sm={6} md={3}>
+          <CourseWidgetSummary
+            title="messages sent"
+            total={2}
+            color="info"
+            icon={icon('ic-chat')}
           />
         </Grid>
       </Grid>

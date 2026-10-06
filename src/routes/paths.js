@@ -237,7 +237,9 @@ export const paths = {
       overview: `${ROOTS.DASHBOARD}/family-engagement/overview`,
       moderation: `${ROOTS.DASHBOARD}/family-engagement/moderation`,
       communityWall: `${ROOTS.DASHBOARD}/family-engagement/community-wall`,
+      newsletters: `${ROOTS.DASHBOARD}/family-engagement/newsletters`,
       gazettes: `${ROOTS.DASHBOARD}/family-engagement/gazettes`,
+      familyGroups: `${ROOTS.DASHBOARD}/family-engagement/family-groups`,
     },
   },
   // SITE MANAGER  DASHBOARD
@@ -293,7 +295,9 @@ export const paths = {
       overview: `${ROOTS.SITE_MANAGER}/family-engagement/overview`,
       moderation: `${ROOTS.SITE_MANAGER}/family-engagement/moderation`,
       communityWall: `${ROOTS.SITE_MANAGER}/family-engagement/community-wall`,
+      newsletters: `${ROOTS.SITE_MANAGER}/family-engagement/newsletters`,
       gazettes: `${ROOTS.SITE_MANAGER}/family-engagement/gazettes`,
+      familyGroups: `${ROOTS.SITE_MANAGER}/family-engagement/family-groups`,
     },
 
     mail: `${ROOTS.ADMIN_DASHBOARD}/mail`,
@@ -411,7 +415,9 @@ export const paths = {
       overview: `${ROOTS.LINE_MANAGER}/family-engagement/overview`,
       moderation: `${ROOTS.LINE_MANAGER}/family-engagement/moderation`,
       communityWall: `${ROOTS.LINE_MANAGER}/family-engagement/community-wall`,
+      newsletters: `${ROOTS.LINE_MANAGER}/family-engagement/newsletters`,
       gazettes: `${ROOTS.LINE_MANAGER}/family-engagement/gazettes`,
+      familyGroups: `${ROOTS.LINE_MANAGER}/family-engagement/family-groups`,
     },
   },
   // ADMIN (SUPER ADMIN) DASHBOARD
@@ -434,7 +440,9 @@ export const paths = {
       overview: `${ROOTS.OWNER_DASHBOARD}/family-engagement/overview`,
       moderation: `${ROOTS.OWNER_DASHBOARD}/family-engagement/moderation`,
       communityWall: `${ROOTS.OWNER_DASHBOARD}/family-engagement/community-wall`,
+      newsletters: `${ROOTS.OWNER_DASHBOARD}/family-engagement/newsletters`,
       gazettes: `${ROOTS.OWNER_DASHBOARD}/family-engagement/gazettes`,
+      familyGroups: `${ROOTS.OWNER_DASHBOARD}/family-engagement/family-groups`,
     },
     root: `${ROOTS.OWNER_DASHBOARD}`,
     departments: {

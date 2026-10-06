@@ -88,7 +88,9 @@ export const navDataSiteManager = [
       { title: 'Overview', path: paths.siteManager.familyEngagement.overview, icon: ICONS.directory },
       { title: 'Moderation', path: paths.siteManager.familyEngagement.moderation, icon: ICONS.pendingApproval },
       { title: 'Community Wall', path: paths.siteManager.familyEngagement.communityWall, icon: ICONS.blog },
+      { title: 'Newsletters', path: paths.siteManager.familyEngagement.newsletters, icon: ICONS.mail },
       { title: 'Gazettes', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document },
+      { title: 'Family Groups', path: paths.siteManager.familyEngagement.familyGroups, icon: ICONS.user },
     ],
   },
 ];

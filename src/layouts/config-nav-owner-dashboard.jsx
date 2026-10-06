@@ -28,6 +28,7 @@ const ICONS = {
   settings: icon('ic-settings'),
   external: icon('ic-external'),
   blog: icon('ic-blog'),
+  mail: icon('ic-mail'),
   pendingApproval: icon('ic-check'),
 };
 
@@ -100,7 +101,9 @@ export const navDataOwner = [
       { title: 'Overview', path: paths.owner.familyEngagement.overview, icon: ICONS.directory },
       { title: 'Moderation', path: paths.owner.familyEngagement.moderation, icon: ICONS.pendingApproval },
       { title: 'Community Wall', path: paths.owner.familyEngagement.communityWall, icon: ICONS.blog },
+      { title: 'Newsletters', path: paths.owner.familyEngagement.newsletters, icon: ICONS.mail },
       { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document },
+      { title: 'Family Groups', path: paths.owner.familyEngagement.familyGroups, icon: ICONS.user },
     ],
   },
 ];

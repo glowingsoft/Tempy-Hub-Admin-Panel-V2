@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 
 import Card from '@mui/material/Card';
@@ -8,9 +7,9 @@ import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
 
 import { CONFIG } from 'src/config-global';
-import { paths } from 'src/routes/paths';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -60,7 +59,7 @@ const FILTER_FIELDS = [
 
 export function FamilyModerationView() {
   const table = useTable();
-  const { pathname } = useLocation();
+  const familyPaths = useFamilyEngagementPaths();
 
   const previewModal = useBoolean();
   const disapproveDialog = useBoolean();
@@ -73,27 +72,11 @@ export function FamilyModerationView() {
   const filters = useSetState({ name: '', status: 'all' });
 
   // Contextual breadcrumb links based on role
-  const breadcrumbLinks = useMemo(() => {
-    if (pathname.startsWith('/line-manager')) {
-      return [
-        { name: 'Dashboard', href: paths.lineManager.root },
-        { name: 'Family Engagement', href: paths.lineManager.familyEngagement.overview },
-        { name: 'Moderation' },
-      ];
-    }
-    if (pathname.startsWith('/admin-dashboard')) {
-      return [
-        { name: 'Dashboard', href: paths.adminDashboard.root },
-        { name: 'Family Engagement', href: paths.adminDashboard.familyEngagement.overview },
-        { name: 'Moderation' },
-      ];
-    }
-    return [
-      { name: 'Dashboard', href: paths.siteManager.root },
-      { name: 'Family Engagement', href: paths.siteManager.familyEngagement.overview },
-      { name: 'Moderation' },
-    ];
-  }, [pathname]);
+  const breadcrumbLinks = [
+    { name: 'Dashboard', href: familyPaths.dashboardRoot },
+    { name: 'Family Engagement', href: familyPaths.familyOverview },
+    { name: 'Moderation' },
+  ];
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((f) => f.type === 'status'),
