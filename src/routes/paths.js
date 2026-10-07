@@ -76,9 +76,12 @@ export const paths = {
     staff: {
       signIn: '/staff/login',
     },
+    invite: (token) => `/invite/${token}`,
     jwt: {
       signIn: `${ROOTS.AUTH}/jwt/sign-in`,
       signUp: `${ROOTS.AUTH}/jwt/sign-up`,
+      resetPassword: `${ROOTS.AUTH}/jwt/reset-password`,
+      updatePassword: `${ROOTS.AUTH}/jwt/update-password`,
     },
     firebase: {
       signIn: `${ROOTS.AUTH}/firebase/sign-in`,
@@ -286,6 +289,7 @@ export const paths = {
     documents: {
       root: `${ROOTS.SITE_MANAGER}/documents`,
       detail: (id) => `${ROOTS.SITE_MANAGER}/documents/${id}`,
+      acknowledgements: (id) => `${ROOTS.SITE_MANAGER}/documents/${id}/acknowledgements`,
     },
     configuration: `${ROOTS.SITE_MANAGER}/configuration`,
     pendingApproval: `${ROOTS.SITE_MANAGER}/approvals`,
@@ -518,6 +522,9 @@ export const paths = {
     supervision: `${ROOTS.OWNER_DASHBOARD}/supervision`,
     reports: `${ROOTS.OWNER_DASHBOARD}/reports`,
     messages: `${ROOTS.OWNER_DASHBOARD}/messages`,
+    acknowledgements: (id) => `${ROOTS.OWNER_DASHBOARD}/documents/${id}/acknowledgements`,
+    supervision: `${ROOTS.OWNER_DASHBOARD}/supervision`,
+    reports: `${ROOTS.OWNER_DASHBOARD}/reports`,
     statistics: `${ROOTS.OWNER_DASHBOARD}/statistics`,
     tempyConnection: `${ROOTS.OWNER_DASHBOARD}/tempy-connection`,
     staffDashboardSettings: `${ROOTS.OWNER_DASHBOARD}/staff-dashboard-settings`,

@@ -122,3 +122,6 @@ firebase-debug.log
 
 # Turbo
 .turbo
+
+# Rules for cursor files
+cursor/rules/

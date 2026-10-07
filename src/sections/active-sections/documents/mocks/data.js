@@ -1,3 +1,5 @@
+import { mockEmployees } from 'src/sections/user/mocks/data';
+
 // mocks/data.js — updated document shape
 
 // Client feedback: documents need to be groupable into folders (the dense
@@ -27,6 +29,7 @@ export const mockDocuments = [
     updatedAt: '12 Aug 2026',
     uploadedBy: 'Site Manager',
     actionType: 'sign',
+    acknowledgementStats: { acknowledged: 18, assigned: 24, overdue: 2 },
     fileUrl: DEFAULT_DOCUMENT_URL,
   },
   {
@@ -41,6 +44,7 @@ export const mockDocuments = [
     updatedAt: '3 Mar 2026',
     uploadedBy: 'HR Department',
     actionType: 'sign',
+    acknowledgementStats: { acknowledged: 22, assigned: 24, overdue: 1 },
     description: 'Comprehensive safeguarding policies and procedures applicable to all care staff. Please review all sections before signing.',
     fileUrl: DEFAULT_DOCUMENT_URL,
   },
@@ -56,6 +60,7 @@ export const mockDocuments = [
     updatedAt: '11 Jan 2026',
     uploadedBy: 'Clinical Lead',
     actionType: 'sign',
+    acknowledgementStats: { acknowledged: 20, assigned: 24, overdue: 3 },
     description: 'Standard Operating Procedure for infection prevention and control. Please review and sign.',
     fileUrl: DEFAULT_DOCUMENT_URL,
   },
@@ -72,6 +77,7 @@ export const mockDocuments = [
     uploadedBy: 'Fire Safety Officer',
     actionType: 'sign',
     description: 'Annual fire risk assessment specific to the Hazelmere Residence site. Review and signature required.',
+    acknowledgementStats: { acknowledged: 7, assigned: 10, overdue: 2 },
     fileUrl: DEFAULT_DOCUMENT_URL,
   },
   {
@@ -87,6 +93,7 @@ export const mockDocuments = [
     uploadedBy: 'HR Department',
     actionType: 'sign',
     description: 'Employment contract for A. Nwosu. This document must be signed and returned to HR.',
+    acknowledgementStats: { acknowledged: 1, assigned: 1, overdue: 0 },
     assignedTo: 'A. Nwosu',
     fileUrl: DEFAULT_DOCUMENT_URL,
   },
@@ -103,6 +110,7 @@ export const mockDocuments = [
     uploadedBy: 'HR Department',
     actionType: 'sign',
     description: 'Employment contract for A. Nwosu. This document must be signed and returned to HR.',
+    acknowledgementStats: { acknowledged: 1, assigned: 1, overdue: 0 },
     assignedTo: 'A. Nwosu',
     fileUrl: DEFAULT_DOCUMENT_URL,
   },

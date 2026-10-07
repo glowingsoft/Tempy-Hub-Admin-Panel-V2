@@ -46,6 +46,7 @@ const KioskDetailPage = lazy(() => import('src/pages/dashboard/active-routes/kio
 //documents
 const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/documents'));
 const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
+const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/active-routes/documents/acknowledgements'));
 //reports
 const ReportsPage = lazy(() => import('src/pages/dashboard/active-routes/reports'));
 const PeepFloorPlanPage = lazy(() => import('src/pages/dashboard/active-routes/floor-plan'));
@@ -226,6 +227,7 @@ export const ownerDashboardRoutes = [
       { path: "documents/:id", element: <DocumentDetailPage ownerDashboard /> },
       { path: "reports", element: <ReportsPage ownerDashboard /> },
       { path: "messages", element: <MessagesPage /> },
+      { path: "documents/:id/acknowledgements", element: <DocumentAcknowledgementsPage /> },
       {
         path: 'directory',
         children: [

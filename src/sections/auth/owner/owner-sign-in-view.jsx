@@ -11,7 +11,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { useRouter } from 'src/routes/hooks';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
@@ -20,22 +20,15 @@ import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { useDispatch } from 'react-redux';
+import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
-
-import { mockOrganizations } from 'src/sections/organization/mocks/data';
 
 // ----------------------------------------------------------------------
 
 // Organization Owner permission level (see DashboardLayout nav selection).
 const OWNER_PERMISSION = 4;
-
-// The org this owner belongs to. The real backend returns this on the login
-// response; owner-scoped screens read it from the user object.
-const OWNER_ORGANIZATION = mockOrganizations[0]
-  ? { _id: mockOrganizations[0]._id, name: mockOrganizations[0].name }
-  : null;
 
 export const SignInSchema = zod.object({
   email: zod
@@ -50,53 +43,22 @@ export const SignInSchema = zod.object({
 
 // ----------------------------------------------------------------------
 
-// Mock login — mirrors the admin flow; no API integration.
-const mockOwnerLogin = async (payload) => {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-
-  return {
-    message: 'Login success',
-    data: {
-      basicInfo: {
-        _id: '692c5523e446ec147ce153b0',
-        profileIcon: 'https://dummybucket.s3.us-east-1.amazonaws.com/noimage.png',
-        name: 'Organization Owner',
-        email: payload.email,
-        phoneNumber: null,
-        language: 'en',
-      },
-      accountState: {
-        userType: 'owner',
-        status: 'active',
-        verificationStatus: { email: 'verified', phoneNumber: 'pending' },
-      },
-      organizationId: OWNER_ORGANIZATION?._id ?? null,
-      organization: OWNER_ORGANIZATION,
-      metadata: {
-        timezone: payload.timezone,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        __v: 0,
-      },
-      token:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTJjNTUyM2U0NDZlYzE0N2NlMTUzYjAiLCJpYXQiOjE3NjUxNzM1MjB9.owner-mock-token',
-    },
-  };
-};
-
-// ----------------------------------------------------------------------
-
 export function OwnerSignInView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch();
+
+  const [login, { isLoading: isLoginLoading }] = useLoginMutation();
 
   const [errorMsg, setErrorMsg] = useState('');
 
   const password = useBoolean();
 
+  const queryEmail = searchParams.get('email') || '';
+
   const defaultValues = {
-    email: 'owner@tempy.com',
-    password: '123456',
+    email: queryEmail || '',
+    password: '',
   };
 
   const methods = useForm({
@@ -110,47 +72,65 @@ export function OwnerSignInView() {
     formState: { isSubmitting },
   } = methods;
 
+  const isButtonLoading = isSubmitting || isLoginLoading;
+
   const onSubmit = handleSubmit(async (data) => {
     const deviceType = getDeviceType();
 
     const payload = {
       email: data.email.trim().toLowerCase(),
       password: data.password,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      userType: 'owner',
-      deviceType,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
       deviceId: '123',
+      deviceType: deviceType || 'desktop',
     };
 
     try {
-      const response = await mockOwnerLogin(payload);
+      const response = await login(payload).unwrap();
 
-      if (response.error) {
-        return toast.error(response.error.data?.message);
-      }
-
-      const user = response.data;
+      const user = response?.data ?? response;
 
       if (!user) {
-        return router.push('/404');
+        toast.error('Login failed: No user data received');
+        return null;
       }
 
-      if (!user?.accountState?.status) {
+      if (user?.accountState?.status === false || user?.accountState?.status === 'inactive') {
         toast.error('Your account is inactive. Please contact support.');
         return null;
       }
 
-      const permission = OWNER_PERMISSION;
+      const token = user?.token;
 
-      dispatch(setUser({ ...user, permission }));
+      if (token && typeof localStorage !== 'undefined') {
+        localStorage.setItem('token', token);
+      }
+
+      const permission = OWNER_PERMISSION;
+      const updatedUserData = {
+        ...user,
+        token,
+        permission,
+        displayName: user?.basicInfo?.name || user?.name || 'Organization Owner',
+      };
+
+      console.log('Owner Logged In User Data:', updatedUserData);
+
+      dispatch(setUser(updatedUserData));
 
       router.push(paths.owner.root);
 
       reset();
       toast.success('Login successful!');
     } catch (error) {
-      setErrorMsg(typeof error === 'string' ? error : error.message);
-      handleApiError(error);
+      console.error('Owner login error:', error);
+      const msg =
+        error?.data?.message ||
+        error?.data?.error ||
+        error?.message ||
+        'Login failed. Please check your credentials.';
+      setErrorMsg(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      toast.error(typeof msg === 'string' ? msg : 'Login failed');
     }
   });
 
@@ -200,7 +180,7 @@ export function OwnerSignInView() {
         size="large"
         type="submit"
         variant="contained"
-        loading={isSubmitting}
+        loading={isButtonLoading}
         loadingIndicator="Sign in..."
         sx={{ fontSize: '1.05rem', py: 1.25, fontWeight: 700 }}
       >

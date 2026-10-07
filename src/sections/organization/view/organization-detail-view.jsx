@@ -23,9 +23,10 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 
+import { LoadingScreen } from 'src/components/loading-screen';
 import { StaffProfileListView } from 'src/sections/staff-profile/view';
 
-// import { useGetOrganizationQuery } from 'src/store/Reducer/organizations-api';
+import { useGetOrganizationByIdQuery } from 'src/store/Reducer/organizations-api';
 import { mockOrganizations, ORGANIZATION_STATUS_OPTIONS } from '../mocks/data';
 import { canEditOrganization } from '../utils';
 import { OrganizationCreateEditModal } from '../organization-create-edit-modal';
@@ -62,13 +63,19 @@ export function OrganizationDetailView() {
   const { user } = useSelector((state) => state.user);
   const canEdit = canEditOrganization(user);
 
-  // TODO: swap for the real query once the endpoint exists:
-  // const { data, isLoading } = useGetOrganizationQuery(id);
-  // const organization = data?.data;
+  const { data, isLoading } = useGetOrganizationByIdQuery(id, { skip: !id });
   const organization = useMemo(
-    () => mockOrganizations.find((org) => org._id === id) ?? null,
-    [id]
+    () => (data ? (data?.data ?? data) : (mockOrganizations.find((org) => org._id === id) ?? null)),
+    [data, id]
   );
+
+  if (isLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <LoadingScreen sx={{ py: 10 }} />
+      </Box>
+    );
+  }
 
   if (!organization) {
     return (

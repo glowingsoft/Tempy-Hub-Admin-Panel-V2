@@ -30,10 +30,9 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetOrganizationsQuery } from 'src/store/Reducer/organizations-api';
+import { useGetOrganizationsQuery } from 'src/store/Reducer/organizations-api';
 import {
   createMockOrganization,
-  mockOrganizationsResponse,
   ORGANIZATION_STATUS_OPTIONS,
 } from '../mocks/data';
 import { canEditOrganization } from '../utils';
@@ -81,22 +80,17 @@ export function OrganizationListView() {
   const configureModulesDialog = useBoolean();
   const [selectedOrganization, setSelectedOrganization] = useState(null);
   const [createdOrganization, setCreatedOrganization] = useState(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
   // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint exists:
-  // const { data, isLoading, isFetching } = useGetOrganizationsQuery({
-  //   page: table.page + 1,
-  //   limit: table.rowsPerPage,
-  //   keyword: keyword || undefined,
-  //   status: filters.state.status !== 'all' ? filters.state.status : undefined,
-  // });
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockOrganizationsResponse;
+  const { data, isLoading, isFetching } = useGetOrganizationsQuery({
+    page: table.page + 1,
+    limit: table.rowsPerPage,
+    keyword: keyword ? keyword.trim() : undefined,
+    status: filters.state.status !== 'all' ? filters.state.status : undefined,
+  });
 
-  // `reloadKey` bumps after a mock create so the mutated list re-renders.
-  const allOrganizations = useMemo(() => data?.data ?? [], [data, reloadKey]);
+  const organizations = useMemo(() => data?.data ?? [], [data]);
+  const totalRecords = data?.meta?.totalRecords ?? organizations.length;
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -107,41 +101,16 @@ export function OrganizationListView() {
     []
   );
 
-  // Client-side filtering (mock only — the API will do this server-side).
-  const filteredOrganizations = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
-    return allOrganizations.filter((org) => {
-      const matchesStatus =
-        filters.state.status === 'all' || org.status === filters.state.status;
-
-      const matchesSearch =
-        !search ||
-        org.name?.toLowerCase().includes(search) ||
-        org.owner?.name?.toLowerCase().includes(search) ||
-        org.owner?.email?.toLowerCase().includes(search);
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [allOrganizations, filters.state.status, keyword]);
-
-  const totalRecords = filteredOrganizations.length;
-
-  const paginatedOrganizations = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return filteredOrganizations.slice(start, start + table.rowsPerPage);
-  }, [filteredOrganizations, table.page, table.rowsPerPage]);
-
   const getStatusCount = useCallback(
     (status) =>
       status === 'all'
-        ? allOrganizations.length
-        : allOrganizations.filter((org) => org.status === status).length,
-    [allOrganizations]
+        ? totalRecords
+        : organizations.filter((org) => org.status === status).length,
+    [organizations, totalRecords]
   );
 
   const canReset = !!filters.state.search || filters.state.status !== 'all';
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && organizations.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -172,12 +141,11 @@ export function OrganizationListView() {
     setSelectedOrganization(null);
   }, [editModal]);
 
-  // After a successful (mock) create, ask whether to configure modules now.
+  // After a successful create, ask whether to configure modules now.
   const handleCreateSuccess = useCallback(
-    (payload) => {
-      const organization = createMockOrganization(payload);
+    (response) => {
+      const organization = response?._id ? response : createMockOrganization(response);
       setCreatedOrganization(organization);
-      setReloadKey((key) => key + 1);
       configureModulesDialog.onTrue();
     },
     [configureModulesDialog]
@@ -249,7 +217,7 @@ export function OrganizationListView() {
                   ))
                 ) : (
                   <>
-                    {paginatedOrganizations.map((row, index) => (
+                    {organizations.map((row, index) => (
                       <OrganizationTableRow
                         key={row._id}
                         row={row}

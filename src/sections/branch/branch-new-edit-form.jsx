@@ -23,11 +23,12 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
+import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import { useCreateBranchMutation, useUpdateBranchMutation } from 'src/store/Reducer/branches-api';
 import { mockJobTitles } from 'src/sections/job-title/mocks/data';
 import { mockDepartments } from 'src/sections/department/mocks/data';
-
-// import { useCreateBranchMutation, useUpdateBranchMutation } from 'src/store/Reducer/branches-api';
-import { DEFAULT_BRANCH_SETTINGS, createMockBranch, updateMockBranch } from './mocks/data';
+import { DEFAULT_BRANCH_SETTINGS } from './mocks/data';
 import { getBrowserTimezone } from './utils';
 
 // ----------------------------------------------------------------------
@@ -112,23 +113,33 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
 
   const isEdit = !!currentBranch;
 
-  // Dropdown options come from the existing Job Titles / Departments data,
-  // scoped to the owner's organization.
-  const jobTitleOptions = useMemo(
-    () =>
-      mockJobTitles
-        .filter((jt) => !organizationId || jt.organizationId === organizationId)
-        .map((jt) => ({ value: jt._id, label: jt.name })),
-    [organizationId]
+  const { data: jobTitlesData } = useGetJobTitlesQuery(
+    { organizationId, limit: 100 },
+    { skip: !organizationId }
+  );
+  const { data: departmentsData } = useGetDepartmentsQuery(
+    { organizationId, limit: 100 },
+    { skip: !organizationId }
   );
 
-  const departmentOptions = useMemo(
-    () =>
-      mockDepartments
-        .filter((dep) => !organizationId || dep.organizationId === organizationId)
-        .map((dep) => ({ value: dep._id, label: dep.name })),
-    [organizationId]
-  );
+  const [createBranch, { isLoading: isCreating }] = useCreateBranchMutation();
+  const [updateBranch, { isLoading: isUpdating }] = useUpdateBranchMutation();
+
+  // Dropdown options come from the Job Titles / Departments API,
+  // falling back to mocks if not yet created.
+  const jobTitleOptions = useMemo(() => {
+    const list = jobTitlesData?.data?.length ? jobTitlesData.data : mockJobTitles;
+    return list
+      .filter((jt) => !organizationId || jt.organizationId === organizationId)
+      .map((jt) => ({ value: jt._id, label: jt.name }));
+  }, [jobTitlesData, organizationId]);
+
+  const departmentOptions = useMemo(() => {
+    const list = departmentsData?.data?.length ? departmentsData.data : mockDepartments;
+    return list
+      .filter((dep) => !organizationId || dep.organizationId === organizationId)
+      .map((dep) => ({ value: dep._id, label: dep.name }));
+  }, [departmentsData, organizationId]);
 
   const defaultValues = useMemo(
     () => ({
@@ -194,14 +205,14 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
 
       const manager = data.hasManager
         ? {
-            name: data.managerName,
-            email: data.managerEmail,
-            jobTitleId: data.managerJobTitleId,
-            ...(data.managerDepartmentId ? { departmentId: data.managerDepartmentId } : {}),
-            startDate: data.managerStartDate
-              ? dayjs(data.managerStartDate).toISOString()
-              : undefined,
-          }
+          name: data.managerName,
+          email: data.managerEmail,
+          jobTitleId: data.managerJobTitleId,
+          ...(data.managerDepartmentId ? { departmentId: data.managerDepartmentId } : {}),
+          startDate: data.managerStartDate
+            ? dayjs(data.managerStartDate).toISOString()
+            : undefined,
+        }
         : undefined;
 
       const branchPayload = {
@@ -215,29 +226,41 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
         settings,
       };
 
-      // TODO: replace with the real mutation once the endpoints are wired up.
-      // if (isEdit) {
-      //   await updateBranch({ branchId: currentBranch._id, organizationId, ...branchPayload, manager: data.hasManager ? manager : null }).unwrap();
-      // } else {
-      //   await createBranch({ organizationId, ...branchPayload, manager }).unwrap();
-      // }
-
       let branchId = currentBranch?._id;
 
       if (isEdit) {
-        updateMockBranch(currentBranch._id, {
+        const response = await updateBranch({
+          branchId: currentBranch._id,
+          organizationId,
           ...branchPayload,
           manager: data.hasManager ? manager : null,
-        });
+        }).unwrap();
+        branchId = response?._id || response?.data?._id || currentBranch._id;
       } else {
-        const created = createMockBranch({ organizationId, ...branchPayload, manager });
-        branchId = created._id;
+        const response = await createBranch({
+          organizationId,
+          ...branchPayload,
+          manager,
+        }).unwrap();
+        branchId = response?._id || response?.data?._id || response?.data?.branch?._id;
       }
 
       toast.success(isEdit ? 'Site updated successfully!' : 'Site created successfully!');
-      router.push(paths.owner.sites.detail(branchId));
+      if (branchId) {
+        router.push(paths.owner.sites.detail(branchId));
+      } else {
+        router.push(paths.owner.sites.root);
+      }
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      console.error('Save site error:', error);
+      const errorMessage =
+        error?.data?.message ||
+        error?.data?.msg ||
+        error?.data?.error ||
+        error?.error ||
+        error?.message ||
+        'Something went wrong. Please try again.';
+      toast.error(errorMessage);
     }
   });
 
@@ -498,7 +521,11 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            loading={isSubmitting || isCreating || isUpdating}
+          >
             {isEdit ? 'Save changes' : 'Create site'}
           </LoadingButton>
         </Stack>

@@ -13,7 +13,7 @@ import { getOwnerOrganizationId } from '../utils';
 
 export function BranchCreateView() {
   const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const organizationId = getOwnerOrganizationId(user) ?? '';
 
   return (
     <DashboardContent>

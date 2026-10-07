@@ -57,7 +57,7 @@ export const navDataOwner = [
       },
       { title: 'Shifts', path: paths.owner.shifts.root, icon: ICONS.calendar },
       { title: 'Shift Claims', path: paths.owner.shiftClaims.root, icon: ICONS.check },
-      
+
       { title: 'Kiosk', path: paths.owner.kiosk, icon: ICONS.folder },
       {
         title: 'PEEP & Floor Plans',

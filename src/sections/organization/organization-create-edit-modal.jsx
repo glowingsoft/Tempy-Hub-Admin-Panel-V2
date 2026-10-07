@@ -14,19 +14,24 @@ import DialogTitle from '@mui/material/DialogTitle';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
-// import { useCreateOrganizationMutation, useUpdateOrganizationMutation } from 'src/store/Reducer/organizations-api';
+import { useCreateOrganizationMutation, useUpdateOrganizationMutation } from 'src/store/Reducer/organizations-api';
 
 // ----------------------------------------------------------------------
 
-const OrganizationSchema = zod.object({
-  name: zod.string().min(1, 'Organization name is required'),
-  ownerName: zod.string().min(1, 'Owner name is required'),
-  ownerEmail: zod
-    .string()
-    .min(1, 'Owner email is required')
-    .email('Owner email must be a valid email address'),
-  emergencyNotifyOffsite: zod.boolean(),
-});
+const makeOrganizationSchema = (isEdit) =>
+  zod.object({
+    name: zod.string().min(1, 'Organization name is required'),
+    ownerName: isEdit
+      ? zod.string().optional()
+      : zod.string().min(1, 'Owner name is required'),
+    ownerEmail: isEdit
+      ? zod.string().optional()
+      : zod
+        .string()
+        .min(1, 'Owner email is required')
+        .email('Owner email must be a valid email address'),
+    emergencyNotifyOffsite: zod.boolean(),
+  });
 
 // ----------------------------------------------------------------------
 
@@ -44,7 +49,7 @@ export function OrganizationCreateEditModal({ open, onClose, currentOrganization
   );
 
   const methods = useForm({
-    resolver: zodResolver(OrganizationSchema),
+    resolver: zodResolver(makeOrganizationSchema(isEdit)),
     defaultValues,
   });
 
@@ -59,29 +64,46 @@ export function OrganizationCreateEditModal({ open, onClose, currentOrganization
     methods.reset(defaultValues);
   };
 
+  const [createOrganization, { isLoading: isCreating }] = useCreateOrganizationMutation();
+  const [updateOrganization, { isLoading: isUpdating }] = useUpdateOrganizationMutation();
+
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
-      const payload = {
-        name: data.name,
-        ownerName: data.ownerName,
-        ownerEmail: data.ownerEmail,
-        settings: {
-          emergencyNotifyOffsite: data.emergencyNotifyOffsite,
-        },
-      };
+      let response = null;
+      if (isEdit) {
+        const organizationId = currentOrganization?._id || currentOrganization?.id;
+        const payload = {
+          name: data.name,
+          settings: {
+            emergencyNotifyOffsite: data.emergencyNotifyOffsite,
+          },
+        };
+        response = await updateOrganization({ organizationId, ...payload }).unwrap();
+      } else {
+        const payload = {
+          name: data.name,
+          ownerName: data.ownerName,
+          ownerEmail: data.ownerEmail,
+          settings: {
+            emergencyNotifyOffsite: data.emergencyNotifyOffsite,
+          },
+        };
+        response = await createOrganization(payload).unwrap();
+      }
 
-      // TODO: replace with the real mutation once the endpoint is wired up.
-      // if (isEdit) {
-      //   await updateOrganization({ id: currentOrganization._id, ...payload }).unwrap();
-      // } else {
-      //   await createOrganization(payload).unwrap();
-      // }
-
-      onSuccess?.(payload);
+      onSuccess?.(response ?? data);
       toast.success(isEdit ? 'Organization updated successfully!' : 'Organization created successfully!');
       handleClose();
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      console.error(isEdit ? 'Update organization error:' : 'Create organization error:', error);
+      const errorMessage =
+        error?.data?.message ||
+        error?.data?.msg ||
+        error?.data?.error ||
+        error?.error ||
+        error?.message ||
+        'Something went wrong. Please try again.';
+      toast.error(errorMessage);
     }
   });
 
@@ -102,8 +124,18 @@ export function OrganizationCreateEditModal({ open, onClose, currentOrganization
             }}
           >
             <Field.Text name="name" label="Organization Name" />
-            <Field.Text name="ownerName" label="Owner Name" />
-            <Field.Text name="ownerEmail" label="Owner Email" />
+            <Field.Text
+              name="ownerName"
+              label="Owner Name"
+              disabled={isEdit}
+              helperText={isEdit ? 'Owner cannot be modified' : undefined}
+            />
+            <Field.Text
+              name="ownerEmail"
+              label="Owner Email"
+              disabled={isEdit}
+              helperText={isEdit ? 'Owner cannot be modified' : undefined}
+            />
 
             <Field.Switch
               name="emergencyNotifyOffsite"
@@ -122,7 +154,7 @@ export function OrganizationCreateEditModal({ open, onClose, currentOrganization
             type="submit"
             variant="contained"
             color="primary"
-            loading={methods.formState.isSubmitting}
+            loading={isCreating || isUpdating || methods.formState.isSubmitting}
           >
             {isEdit ? 'Save Changes' : 'Create Organization'}
           </LoadingButton>

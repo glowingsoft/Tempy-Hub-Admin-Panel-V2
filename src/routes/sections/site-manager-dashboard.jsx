@@ -91,6 +91,7 @@ const FireDrillsPage = lazy(() => import('src/pages/dashboard/active-routes/fire
 //documents
 const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/documents'));
 const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
+const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/active-routes/documents/acknowledgements'));
 
 //supervision
 const SupervisionPage = lazy(() => import('src/pages/site-manager/supervision'));
@@ -210,6 +211,7 @@ export const siteManagerDashboardRoutes = [
       },
       { path: "documents", element: <DocumentsPage /> },
       { path: "documents/:id", element: <DocumentDetailPage /> },
+      { path: "documents/:id/acknowledgements", element: <DocumentAcknowledgementsPage /> },
       {
         path: "supervision", element: <SupervisionPage />
       },

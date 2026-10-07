@@ -2,6 +2,8 @@ export const API_ROUTES = {
     AUTH: {
         LOGIN: '/auth/login',
         ADMIN_LOGIN: 'admin/login',
+        INVITATION_BY_TOKEN: (token) => `/auth/invitations/${token}`,
+        ACCEPT_INVITATION: (token) => `/auth/invitations/${token}/accept`,
     },
 
     WALLETS: '/wallets',
@@ -17,7 +19,9 @@ export const API_ROUTES = {
     CATEGORIES_BY_ID: (id) => `/categories/${id}`,
 
     ORGANIZATIONS: '/admin/organizations',
+    ORGANIZATION_BY_ID: (id) => `/admin/organizations/${id}`,
     ORGANIZATION_MODULE_ACCESS: (id) => `/admin/organizations/${id}/module-access`,
+    MODULE_DEFINITIONS: '/admin/module-definitions',
     ORGANIZATION_DEPARTMENTS: (organizationId) => `/admin/organizations/${organizationId}/departments`,
     ORGANIZATION_DEPARTMENT_BY_ID: (organizationId, departmentId) =>
         `/admin/organizations/${organizationId}/departments/${departmentId}`,

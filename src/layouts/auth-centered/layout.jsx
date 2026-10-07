@@ -56,7 +56,7 @@ export function AuthCenteredLayout({ sx, children }) {
        * Style
        *************************************** */
       cssVars={{
-        '--layout-auth-content-width': '420px',
+        '--layout-auth-content-width': '460px',
       }}
       sx={{
         '&::before': {

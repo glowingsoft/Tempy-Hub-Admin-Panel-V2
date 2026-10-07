@@ -31,7 +31,7 @@ const TABLE_HEAD = [
 
 export function StaffDocumentListView() {
     const table = useTable();
-    const [documents, setDocuments] = useState(getStaffDocuments);
+    const documents = getStaffDocuments();
     const [selectedDocument, setSelectedDocument] = useState(null);
     const [search, setSearch] = useState('');
     const keyword = useDebounce(search, 400);
@@ -48,12 +48,6 @@ export function StaffDocumentListView() {
 
     const handleView = useCallback((document) => {
         setSelectedDocument(document);
-    }, []);
-
-    const handleAcknowledge = useCallback((document) => {
-        setDocuments((current) => current.map((item) => (
-            item._id === document._id ? { ...item, acknowledged: true, acknowledgedAt: new Date().toISOString() } : item
-        )));
     }, []);
 
     const paginatedDocuments = filteredDocuments.slice(
@@ -86,7 +80,6 @@ export function StaffDocumentListView() {
                                         row={row}
                                         serialNumber={table.page * table.rowsPerPage + index + 1}
                                         onView={handleView}
-                                        onAcknowledge={handleAcknowledge}
                                     />
                                 ))}
                                 <TableNoData notFound={!filteredDocuments.length} title="No documents found" />

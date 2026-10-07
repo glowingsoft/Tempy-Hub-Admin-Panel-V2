@@ -22,7 +22,7 @@ import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { useDispatch } from 'react-redux';
-// import { useAdminLoginMutation, useLoginMutation } from 'src/store/Reducer/auth';
+import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
@@ -95,17 +95,15 @@ export function AdminSignInView() {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  // API hooks commented out
-  // const [login] = useLoginMutation();
-  // const [adminLogin] = useAdminLoginMutation();
+  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
 
   const [errorMsg, setErrorMsg] = useState('');
 
   const password = useBoolean();
 
   const defaultValues = {
-    email: 'admin@tempy.com',
-    password: '123456',
+    email: 'superadmin@tempyhub.com',
+    password: 'superTempy11',
   };
 
   const methods = useForm({
@@ -128,10 +126,10 @@ export function AdminSignInView() {
         router.push(paths.siteManager.root);
         break;
       case 3:
-        router.push(paths.lineManager.root)
+        router.push(paths.lineManager.root);
         break;
       default:
-        router.push('/');
+        router.push(paths.dashboard.root);
         break;
     }
   };
@@ -142,72 +140,57 @@ export function AdminSignInView() {
     const payload = {
       email: data.email.trim().toLowerCase(),
       password: data.password,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      userType: data.email.includes('admin') ? 'admin' : 'user',
-      deviceType,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
       deviceId: '123',
+      deviceType: deviceType || 'desktop',
     };
 
-    console.log('Payload:', payload);
+    console.log('Login Payload:', payload);
 
     try {
-      // API calls commented out - using mock data instead
-      // let response;
-      // if (payload.userType === 'admin') {
-      //   response = await adminLogin(payload).unwrap();
-      // } else {
-      //   response = await login(payload).unwrap();
-      // }
+      const response = await login(payload).unwrap();
 
-      // Using mock login function
-      const response = await mockLogin(payload);
+      const user = response?.data ?? response;
 
-      if (response.error) {
-        return toast.error(response.error.data?.message);
-      }
-
-      if (!response.data) {
+      if (!user) {
         toast.error('Login failed: No user data received');
-        router.push('/');
         return null;
       }
 
-      const user = response.data;
-
-      if (!user) {
-        return router.push('/404');
-      }
-
-      if (!user?.accountState?.status) {
+      if (user?.accountState?.status === false || user?.accountState?.status === 'inactive') {
         toast.error('Your account is inactive. Please contact support.');
         return null;
       }
 
-      // const user_type = user?.accountState?.userType === 'user' ? 2 : 1;
-      let user_type = null;
+      const token = user?.token;
 
-      user_type = ((user?.basicInfo?.email === "admin@tempy.com" && 1))
+      if (token && typeof localStorage !== 'undefined') {
+        localStorage.setItem('token', token);
+      }
 
-
-      console.log({ user_type });
-
-      const permission = user_type;
-
+      const permission = 1;
       const UpdatedUserData = {
         ...user,
+        token,
         permission,
       };
 
-      console.log('Updated User Data', UpdatedUserData);
+      console.log('Updated User Data:', UpdatedUserData);
 
       dispatch(setUser(UpdatedUserData));
-      goTo(user_type);
+      goTo(permission);
 
       reset();
       toast.success('Login successful!');
     } catch (error) {
-      setErrorMsg(typeof error === 'string' ? error : error.message);
-      handleApiError(error);
+      console.error('Login error:', error);
+      const msg =
+        error?.data?.message ||
+        error?.data?.error ||
+        error?.message ||
+        'Login failed. Please check your credentials.';
+      setErrorMsg(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      toast.error(typeof msg === 'string' ? msg : 'Login failed');
     }
   });
 
@@ -274,7 +257,7 @@ export function AdminSignInView() {
         size="large"
         type="submit"
         variant="contained"
-        loading={isSubmitting}
+        loading={isSubmitting || isLoggingIn}
         loadingIndicator="Sign in..."
         sx={{ fontSize: '1.05rem', py: 1.25, fontWeight: 700 }}
       >

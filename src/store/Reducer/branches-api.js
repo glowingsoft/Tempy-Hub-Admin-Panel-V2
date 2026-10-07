@@ -84,9 +84,9 @@ export const branchesApi = createApi({
       providesTags: (result, error, { organizationId }) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'Branch', id: _id })),
-              { type: 'Branch', id: `LIST-${organizationId}` },
-            ]
+            ...result.data.map(({ _id }) => ({ type: 'Branch', id: _id })),
+            { type: 'Branch', id: `LIST-${organizationId}` },
+          ]
           : [{ type: 'Branch', id: `LIST-${organizationId}` }],
     }),
 
@@ -105,6 +105,7 @@ export const branchesApi = createApi({
         method: 'POST',
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { organizationId }) => [
         { type: 'Branch', id: `LIST-${organizationId}` },
       ],
@@ -116,6 +117,7 @@ export const branchesApi = createApi({
         method: 'PUT',
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { branchId, organizationId }) => [
         { type: 'Branch', id: branchId },
         ...(organizationId ? [{ type: 'Branch', id: `LIST-${organizationId}` }] : []),

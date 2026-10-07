@@ -7,7 +7,25 @@ export const createCustomFetchBaseQuery = () => {
     baseUrl: import.meta.env.VITE_BASE_URL,
     prepareHeaders: (headers, { getState }) => {
       const state = getState();
-      const token = state?.user?.user?.token;
+      let token =
+        state?.user?.user?.token ||
+        state?.user?.token ||
+        (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+
+      if (!token && typeof window !== 'undefined') {
+        try {
+          const persisted = localStorage.getItem('persist:root');
+          if (persisted) {
+            const root = JSON.parse(persisted);
+            const userObj = root?.user ? JSON.parse(root.user) : null;
+            token = userObj?.token || userObj?.user?.token;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      token = token || import.meta.env.VITE_ADMIN_ACCESS_TOKEN;
 
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);
@@ -31,7 +49,7 @@ export const createCustomFetchBaseQuery = () => {
         const isOnLoginPage =
           isBrowser &&
           (window.location.pathname === '/' ||
-            window.location.pathname === '/auth/jwt/sign-in');
+            window.location.pathname.startsWith('/auth'));
 
         if (!isOnLoginPage) {
           api.dispatch(logout());

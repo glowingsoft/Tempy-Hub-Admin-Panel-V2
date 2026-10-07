@@ -12,7 +12,7 @@ import { GenericTableRowActions } from 'src/components/generic-table/table-row-a
 import { Label } from 'src/components/label';
 import { fDate } from 'src/utils/format-time';
 
-export function StaffDocumentTableRow({ row, serialNumber, onView, onAcknowledge }) {
+export function StaffDocumentTableRow({ row, serialNumber }) {
     const router = useRouter();
     const detailPath = paths.staff.documents.detail(row._id);
 
@@ -22,14 +22,6 @@ export function StaffDocumentTableRow({ row, serialNumber, onView, onAcknowledge
             icon: 'solar:eye-bold',
             tooltip: 'View document',
             onClick: () => router.push(detailPath),
-        },
-        {
-            key: 'acknowledge',
-            icon: 'solar:check-circle-bold',
-            tooltip: 'Acknowledge document',
-            color: 'success',
-            hidden: row.acknowledged,
-            onClick: (e) => { e?.stopPropagation?.(); onAcknowledge(row); },
         },
     ];
 

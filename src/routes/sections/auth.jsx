@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 
 import { AuthSplitLayout } from 'src/layouts/auth-split';
+import { AuthCenteredLayout } from 'src/layouts/auth-centered';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
@@ -15,6 +16,8 @@ import { GuestGuard } from 'src/auth/guard';
 const Jwt = {
   SignInPage: lazy(() => import('src/pages/auth/jwt/sign-in')),
   SignUpPage: lazy(() => import('src/pages/auth/jwt/sign-up')),
+  ResetPasswordPage: lazy(() => import('src/pages/auth/jwt/reset-password')),
+  UpdatePasswordPage: lazy(() => import('src/pages/auth/jwt/update-password')),
 };
 
 const authJwt = {
@@ -38,6 +41,22 @@ const authJwt = {
             <Jwt.SignUpPage />
           </AuthSplitLayout>
         </GuestGuard>
+      ),
+    },
+    {
+      path: 'reset-password',
+      element: (
+        <AuthCenteredLayout>
+          <Jwt.ResetPasswordPage />
+        </AuthCenteredLayout>
+      ),
+    },
+    {
+      path: 'update-password',
+      element: (
+        <AuthCenteredLayout>
+          <Jwt.UpdatePasswordPage />
+        </AuthCenteredLayout>
       ),
     },
   ],
@@ -314,6 +333,15 @@ const authSupabase = {
 // ----------------------------------------------------------------------
 
 export const authRoutes = [
+  {
+    path: 'auth',
+    element: (
+      <Suspense fallback={<SplashScreen />}>
+        <Outlet />
+      </Suspense>
+    ),
+    children: [authJwt, authAmplify, authFirebase, authAuth0, authSupabase, authAdmin, authOwner, authStaff],
+  },
   {
     path: '',
     element: (

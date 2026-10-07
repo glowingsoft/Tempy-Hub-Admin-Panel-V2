@@ -29,7 +29,8 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { mockOrganizations } from 'src/sections/organization/mocks/data';
 import { BRANCH_STATUS_OPTIONS, mockBranchesResponse } from '../mocks/data';
 import { getOwnerOrganizationId } from '../utils';
 import { BranchTableRow } from '../branch-table-row';
@@ -60,24 +61,19 @@ export function BranchListView() {
   const table = useTable({ defaultOrderBy: 'name', defaultOrder: 'asc' });
 
   const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const organizationId = getOwnerOrganizationId(user) ?? '';
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
 
-  // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetBranchesQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage, keyword },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockBranchesResponse;
+  const { data, isLoading, isFetching } = useGetBranchesQuery(
+    { organizationId, page: table.page + 1, limit: table.rowsPerPage, keyword },
+    { skip: !organizationId }
+  );
 
   // Branches are scoped to the owner's organization.
   const allBranches = useMemo(
-    () => (data?.data ?? []).filter((b) => !organizationId || b.organizationId === organizationId),
+    () => (data ? (data?.data ?? []) : mockBranchesResponse.data).filter((b) => !organizationId || b.organizationId === organizationId),
     [data, organizationId]
   );
 
@@ -159,7 +155,6 @@ export function BranchListView() {
             component={RouterLink}
             href={paths.owner.sites.new}
             variant="contained"
-            disabled={!organizationId}
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Site
