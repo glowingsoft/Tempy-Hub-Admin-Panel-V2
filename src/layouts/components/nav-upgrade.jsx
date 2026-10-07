@@ -110,8 +110,8 @@ export function UpgradeBlock({ sx, ...other }) {
           repeat: Infinity,
           repeatDelay: 0,
         }}
-        alt="Small Rocket"
-        src={`${CONFIG.site.basePath}/assets/illustrations/illustration-rocket-small.webp`}
+        alt="Upgrade"
+        src={`${CONFIG.site.basePath}/assets/illustrations/illustration-upgrade.webp`}
         sx={{ right: 0, width: 112, height: 112, position: 'absolute' }}
       />
 

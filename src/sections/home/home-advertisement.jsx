@@ -102,8 +102,8 @@ export function HomeAdvertisement({ sx, ...other }) {
         component={m.img}
         animate={{ y: [-20, 0, -20] }}
         transition={{ duration: 4, repeat: Infinity }}
-        alt="rocket"
-        src={`${CONFIG.site.basePath}/assets/illustrations/illustration-rocket-large.webp`}
+        alt="Tempy illustration"
+        src={`${CONFIG.site.basePath}/assets/illustrations/tempy-login-illustration.jpg`}
         sx={{ zIndex: 9, width: 360, aspectRatio: '1/1' }}
       />
     </m.div>

@@ -130,8 +130,8 @@ export function NavItemDashboard({ path, sx, ...other }) {
         >
           <Box
             component="img"
-            alt="illustration-dashboard"
-            src={`${CONFIG.site.basePath}/assets/illustrations/illustration-dashboard.webp`}
+            alt="Tempy Hub dashboard illustration"
+            src={`${CONFIG.site.basePath}/assets/illustrations/tempy-login-illustration.jpg`}
             sx={{
               width: 640,
               objectFit: 'cover',
