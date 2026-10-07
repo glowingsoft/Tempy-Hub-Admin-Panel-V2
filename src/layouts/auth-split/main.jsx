@@ -15,6 +15,8 @@ export function Main({ sx, children, layoutQuery, ...other }) {
       sx={{
         display: 'flex',
         flex: '1 1 auto',
+        width: 1,
+        minHeight: '100vh',
         flexDirection: 'column',
         [theme.breakpoints.up(layoutQuery)]: {
           flexDirection: 'row',
@@ -40,6 +42,7 @@ export function Content({ sx, children, layoutQuery, ...other }) {
         display: 'flex',
         flexDirection: 'column',
         maxWidth: 'var(--layout-auth-content-width)',
+        px: { xs: 2.5, sm: 3, md: 4 },
       }}
     >
       {children}
@@ -57,8 +60,12 @@ export function Content({ sx, children, layoutQuery, ...other }) {
         alignItems: 'center',
         flexDirection: 'column',
         justifyContent: 'center',
+        minHeight: '100vh',
         [theme.breakpoints.up(layoutQuery)]: {
-          px: 0,
+          width: '50%',
+          maxWidth: '50%',
+          flex: '0 0 50%',
+          px: { md: 4, lg: 7 },
           py: 'calc(var(--layout-header-desktop-height) + 24px)',
         },
         ...sx,
