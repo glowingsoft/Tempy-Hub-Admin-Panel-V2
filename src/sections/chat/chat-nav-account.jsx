@@ -19,6 +19,8 @@ import { usePopover, CustomPopover } from 'src/components/custom-popover';
 
 import { useMockedUser } from 'src/auth/hooks';
 
+import { mockChatSenderAvatar } from './mocks/data';
+
 // ----------------------------------------------------------------------
 
 export function ChatNavAccount() {
@@ -36,7 +38,7 @@ export function ChatNavAccount() {
     <>
       <Badge variant={status} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
         <Avatar
-          src={user?.photoURL}
+          src={mockChatSenderAvatar || user?.photoURL}
           alt={user?.displayName}
           onClick={popover.onOpen}
           sx={{ cursor: 'pointer', width: 48, height: 48 }}

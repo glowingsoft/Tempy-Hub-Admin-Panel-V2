@@ -98,6 +98,7 @@ export const navDataLineManager = [
     items: [
       { title: 'Moderation', path: paths.lineManager.familyEngagement.moderation, icon: ICONS.pendingApproval },
       { title: 'Community Wall', path: paths.lineManager.familyEngagement.communityWall, icon: ICONS.blog },
+      { title: 'Messages', path: paths.lineManager.messages, icon: ICONS.chat },
     ],
   },
 ];

@@ -91,6 +91,7 @@ export const navDataSiteManager = [
       { title: 'Newsletters', path: paths.siteManager.familyEngagement.newsletters, icon: ICONS.mail },
       { title: 'Gazettes', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document },
       { title: 'Family Groups', path: paths.siteManager.familyEngagement.familyGroups, icon: ICONS.user },
+       { title: 'Messages', path: paths.siteManager.messages, icon: ICONS.chat },
     ],
   },
 ];

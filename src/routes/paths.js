@@ -302,6 +302,7 @@ export const paths = {
 
     mail: `${ROOTS.ADMIN_DASHBOARD}/mail`,
     chat: `${ROOTS.ADMIN_DASHBOARD}/chat`,
+    messages: `${ROOTS.SITE_MANAGER}/messages`,
     blank: `${ROOTS.ADMIN_DASHBOARD}/blank`,
     kanban: `${ROOTS.ADMIN_DASHBOARD}/kanban`,
     calendar: `${ROOTS.ADMIN_DASHBOARD}/calendar`,
@@ -402,6 +403,7 @@ export const paths = {
     training: `${ROOTS.LINE_MANAGER}/training`,
     photoApproval: `${ROOTS.LINE_MANAGER}/photo-approval`,
     feedback: `${ROOTS.LINE_MANAGER}/feedback`,
+    messages: `${ROOTS.LINE_MANAGER}/messages`,
     fireDrills: `${ROOTS.LINE_MANAGER}/fire-drills`,
     residents: `${ROOTS.LINE_MANAGER}/residents`,
     residentsDetail: (id) => `${ROOTS.LINE_MANAGER}/residents/${id}`,
@@ -515,6 +517,7 @@ export const paths = {
     },
     supervision: `${ROOTS.OWNER_DASHBOARD}/supervision`,
     reports: `${ROOTS.OWNER_DASHBOARD}/reports`,
+    messages: `${ROOTS.OWNER_DASHBOARD}/messages`,
     statistics: `${ROOTS.OWNER_DASHBOARD}/statistics`,
     tempyConnection: `${ROOTS.OWNER_DASHBOARD}/tempy-connection`,
     staffDashboardSettings: `${ROOTS.OWNER_DASHBOARD}/staff-dashboard-settings`,

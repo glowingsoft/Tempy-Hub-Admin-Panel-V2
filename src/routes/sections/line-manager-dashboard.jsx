@@ -50,6 +50,9 @@ const FireDrillsPage = lazy(() => import('src/pages/dashboard/active-routes/fire
 const ResidentListPage = lazy(() => import('src/pages/site-manager/residents/list'));
 const ResidentDetailPage = lazy(() => import('src/pages/site-manager/residents/detail'));
 
+//messages
+const MessagesPage = lazy(() => import('src/pages/dashboard/messages'));
+
 //connect to tempy
 const TempyConnectionPage = lazy(() => import('src/pages/dashboard/active-routes/tempy-connection'));
 
@@ -107,6 +110,8 @@ export const lineManagerDashboardRoutes = [
             { path: "training", element: <TrainingPage /> },
 
             { path: "feedback", element: <FeedbackPage /> },
+
+            { path: "messages", element: <MessagesPage /> },
 
             { path: "fire-drills", element: <FireDrillsPage /> },
 

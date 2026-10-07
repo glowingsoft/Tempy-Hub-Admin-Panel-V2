@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import Typography from '@mui/material/Typography';
 
-import { paths } from 'src/routes/paths';
-import { useRouter, useSearchParams } from 'src/routes/hooks';
+import { usePathname, useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { CONFIG } from 'src/config-global';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -26,6 +25,8 @@ import { useCollapseNav } from '../hooks/use-collapse-nav';
 
 export function ChatView() {
   const router = useRouter();
+
+  const pathname = usePathname();
 
   const { user } = useMockedUser();
 
@@ -52,10 +53,10 @@ export function ChatView() {
     : [];
 
   useEffect(() => {
-    if (conversationError || !selectedConversationId) {
-      router.push(paths.dashboard.chat);
+    if (conversationError && selectedConversationId) {
+      router.push(pathname);
     }
-  }, [conversationError, router, selectedConversationId]);
+  }, [conversationError, pathname, router, selectedConversationId]);
 
   const handleAddRecipients = useCallback((selected) => {
     setRecipients(selected);
@@ -95,6 +96,7 @@ export function ChatView() {
               conversations={conversations}
               loading={conversationsLoading}
               selectedConversationId={selectedConversationId}
+              basePath={pathname}
               collapseNav={conversationsNav}
             />
           ),
@@ -118,6 +120,7 @@ export function ChatView() {
                 recipients={recipients}
                 onAddRecipients={handleAddRecipients}
                 selectedConversationId={selectedConversationId}
+                basePath={pathname}
                 disabled={!recipients.length && !selectedConversationId}
               />
             </>

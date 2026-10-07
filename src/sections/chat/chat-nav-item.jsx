@@ -9,7 +9,6 @@ import AvatarGroup from '@mui/material/AvatarGroup';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
 
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { useResponsive } from 'src/hooks/use-responsive';
@@ -24,7 +23,7 @@ import { useNavItem } from './hooks/use-nav-item';
 
 // ----------------------------------------------------------------------
 
-export function ChatNavItem({ selected, collapse, conversation, onCloseMobile }) {
+export function ChatNavItem({ selected, collapse, conversation, onCloseMobile, basePath }) {
   const { user } = useMockedUser();
 
   const mdUp = useResponsive('up', 'md');
@@ -46,11 +45,11 @@ export function ChatNavItem({ selected, collapse, conversation, onCloseMobile })
 
       await clickConversation(conversation.id);
 
-      router.push(`${paths.dashboard.chat}?id=${conversation.id}`);
+      router.push(`${basePath}?id=${conversation.id}`);
     } catch (error) {
       console.error(error);
     }
-  }, [conversation.id, mdUp, onCloseMobile, router]);
+  }, [basePath, conversation.id, mdUp, onCloseMobile, router]);
 
   const renderGroup = (
     <Badge

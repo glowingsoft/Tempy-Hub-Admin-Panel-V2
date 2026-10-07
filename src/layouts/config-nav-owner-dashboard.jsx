@@ -10,6 +10,7 @@ const icon = (name) => <SvgColor src={`${CONFIG.site.basePath}/assets/icons/navb
 
 const ICONS = {
   dashboard: icon('ic-dashboard'),
+  chat: icon('ic-chat'),
   analytics: icon('ic-analytics'),
   directory: icon('ic-users'),
   rota: icon('ic-rota'),
@@ -104,6 +105,7 @@ export const navDataOwner = [
       { title: 'Newsletters', path: paths.owner.familyEngagement.newsletters, icon: ICONS.mail },
       { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document },
       { title: 'Family Groups', path: paths.owner.familyEngagement.familyGroups, icon: ICONS.user },
+      { title: 'Messages', path: paths.owner.messages, icon: ICONS.chat },
     ],
   },
 ];

@@ -82,13 +82,13 @@ export function ChatHeaderDetail({ collapseNav, participants, loading }) {
       {group ? renderGroup : renderSingle}
 
       <Stack direction="row" flexGrow={1} justifyContent="flex-end">
-        <IconButton>
+        {/* <IconButton>
           <Iconify icon="solar:phone-bold" />
-        </IconButton>
+        </IconButton> */}
 
-        <IconButton>
+        {/* <IconButton>
           <Iconify icon="solar:videocamera-record-bold" />
-        </IconButton>
+        </IconButton> */}
 
         <IconButton onClick={handleToggleNav}>
           <Iconify icon={!collapseDesktop ? 'ri:sidebar-unfold-fill' : 'ri:sidebar-fold-fill'} />

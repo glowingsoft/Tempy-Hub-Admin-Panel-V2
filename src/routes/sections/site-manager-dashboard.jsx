@@ -42,6 +42,7 @@ const UserEditPage = lazy(() => import('src/pages/dashboard/user/edit'));
 const UserDetailPage = lazy(() => import('src/pages/dashboard/user/detail'));
 const ResidentListPage = lazy(() => import('src/pages/site-manager/residents/list'));
 const ResidentDetailPage = lazy(() => import('src/pages/site-manager/residents/detail'));
+const MessagesPage = lazy(() => import('src/pages/dashboard/messages'));
 // Blog
 const BlogPostsPage = lazy(() => import('src/pages/dashboard/post/list'));
 const BlogPostPage = lazy(() => import('src/pages/dashboard/post/details'));
@@ -161,6 +162,9 @@ export const siteManagerDashboardRoutes = [
       },
       {
         path: "statistics", element: <StatsPage />
+      },
+      {
+        path: "messages", element: <MessagesPage />
       },
       {
         path: "reports", element: <ReportsPage />

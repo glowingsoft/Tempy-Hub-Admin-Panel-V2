@@ -1,10 +1,9 @@
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 import Stack from '@mui/material/Stack';
 import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
 
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { uuidv4 } from 'src/utils/uuidv4';
@@ -23,12 +22,11 @@ export function ChatMessageInput({
   recipients,
   onAddRecipients,
   selectedConversationId,
+  basePath,
 }) {
   const router = useRouter();
 
   const { user } = useMockedUser();
-
-  const fileRef = useRef(null);
 
   const [message, setMessage] = useState('');
 
@@ -70,38 +68,42 @@ export function ChatMessageInput({
     [messageData, myContact, recipients]
   );
 
-  const handleAttach = useCallback(() => {
-    if (fileRef.current) {
-      fileRef.current.click();
-    }
-  }, []);
-
   const handleChangeMessage = useCallback((event) => {
     setMessage(event.target.value);
   }, []);
 
   const handleSendMessage = useCallback(
-    async (event) => {
+    async () => {
       try {
-        if (event.key === 'Enter') {
-          if (message) {
-            if (selectedConversationId) {
-              await sendMessage(selectedConversationId, messageData);
-            } else {
-              const res = await createConversation(conversationData);
-
-              router.push(`${paths.dashboard.chat}?id=${res.conversation.id}`);
-
-              onAddRecipients([]);
-            }
-          }
-          setMessage('');
+        if (!message.trim()) {
+          return;
         }
+
+        if (selectedConversationId) {
+          await sendMessage(selectedConversationId, messageData);
+        } else {
+          const res = await createConversation(conversationData);
+
+          router.push(`${basePath}?id=${res.conversation.id}`);
+
+          onAddRecipients([]);
+        }
+
+        setMessage('');
       } catch (error) {
         console.error(error);
       }
     },
-    [conversationData, message, messageData, onAddRecipients, router, selectedConversationId]
+    [basePath, conversationData, message, messageData, onAddRecipients, router, selectedConversationId]
+  );
+
+  const handleKeyUp = useCallback(
+    (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        handleSendMessage();
+      }
+    },
+    [handleSendMessage]
   );
 
   return (
@@ -110,7 +112,7 @@ export function ChatMessageInput({
         name="chat-message"
         id="chat-message-input"
         value={message}
-        onKeyUp={handleSendMessage}
+        onKeyUp={handleKeyUp}
         onChange={handleChangeMessage}
         placeholder="Type a message"
         disabled={disabled}
@@ -121,14 +123,12 @@ export function ChatMessageInput({
         }
         endAdornment={
           <Stack direction="row" sx={{ flexShrink: 0 }}>
-            <IconButton onClick={handleAttach}>
-              <Iconify icon="solar:gallery-add-bold" />
-            </IconButton>
-            <IconButton onClick={handleAttach}>
-              <Iconify icon="eva:attach-2-fill" />
-            </IconButton>
-            <IconButton>
-              <Iconify icon="solar:microphone-bold" />
+            <IconButton
+              aria-label="Send message"
+              onClick={handleSendMessage}
+              disabled={disabled || !message.trim()}
+            >
+              <Iconify icon="iconamoon:send-fill" />
             </IconButton>
           </Stack>
         }
@@ -140,7 +140,6 @@ export function ChatMessageInput({
         }}
       />
 
-      <input type="file" ref={fileRef} style={{ display: 'none' }} />
     </>
   );
 }

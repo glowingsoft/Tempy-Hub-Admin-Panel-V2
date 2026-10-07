@@ -3,12 +3,33 @@ import useSWR, { mutate } from 'swr';
 
 import { keyBy } from 'src/utils/helper';
 import axios, { fetcher, endpoints } from 'src/utils/axios';
+import { mockChatContacts, mockChatConversations } from 'src/sections/chat/mocks/data';
 
 // ----------------------------------------------------------------------
 
 const enableServer = false;
 
 const CHART_ENDPOINT = endpoints.chat;
+
+const MOCK_CONVERSATIONS_KEY = 'chat:mock:conversations';
+
+const getConversationKey = (conversationId) =>
+  enableServer
+    ? [CHART_ENDPOINT, { params: { conversationId, endpoint: 'conversation' } }]
+    : ['chat:mock:conversation', conversationId];
+
+const getConversationsKey = () =>
+  enableServer
+    ? [CHART_ENDPOINT, { params: { endpoint: 'conversations' } }]
+    : MOCK_CONVERSATIONS_KEY;
+
+const fetchMockContacts = async () => ({ contacts: mockChatContacts });
+
+const fetchMockConversations = async () => ({ conversations: mockChatConversations });
+
+const fetchMockConversation = async ([, conversationId]) => ({
+  conversation: mockChatConversations.find((item) => item.id === conversationId),
+});
 
 const swrOptions = {
   revalidateIfStale: enableServer,
@@ -21,7 +42,11 @@ const swrOptions = {
 export function useGetContacts() {
   const url = [CHART_ENDPOINT, { params: { endpoint: 'contacts' } }];
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, swrOptions);
+  const { data, isLoading, error, isValidating } = useSWR(
+    enableServer ? url : 'chat:mock:contacts',
+    enableServer ? fetcher : fetchMockContacts,
+    swrOptions
+  );
 
   const memoizedValue = useMemo(
     () => ({
@@ -42,7 +67,11 @@ export function useGetContacts() {
 export function useGetConversations() {
   const url = [CHART_ENDPOINT, { params: { endpoint: 'conversations' } }];
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, swrOptions);
+  const { data, isLoading, error, isValidating } = useSWR(
+    enableServer ? url : MOCK_CONVERSATIONS_KEY,
+    enableServer ? fetcher : fetchMockConversations,
+    swrOptions
+  );
 
   const memoizedValue = useMemo(() => {
     const byId = data?.conversations.length ? keyBy(data.conversations, 'id') : {};
@@ -67,7 +96,17 @@ export function useGetConversation(conversationId) {
     ? [CHART_ENDPOINT, { params: { conversationId, endpoint: 'conversation' } }]
     : '';
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, swrOptions);
+  const key = conversationId
+    ? enableServer
+      ? url
+      : ['chat:mock:conversation', conversationId]
+    : null;
+
+  const { data, isLoading, error, isValidating } = useSWR(
+    key,
+    enableServer ? fetcher : fetchMockConversation,
+    swrOptions
+  );
 
   const memoizedValue = useMemo(
     () => ({
@@ -85,20 +124,26 @@ export function useGetConversation(conversationId) {
 // ----------------------------------------------------------------------
 
 export async function sendMessage(conversationId, messageData) {
-  const conversationsUrl = [CHART_ENDPOINT, { params: { endpoint: 'conversations' } }];
+  const conversationsUrl = getConversationsKey();
+  const conversationUrl = getConversationKey(conversationId);
 
-  const conversationUrl = [
-    CHART_ENDPOINT,
-    { params: { conversationId, endpoint: 'conversation' } },
-  ];
+  if (!enableServer) {
+    const conversation = mockChatConversations.find((item) => item.id === conversationId);
 
-  /**
-   * Work on server
-   */
-  if (enableServer) {
-    const data = { conversationId, messageData };
-    await axios.put(CHART_ENDPOINT, data);
+    if (!conversation) {
+      throw new Error(`Conversation not found: ${conversationId}`);
+    }
+
+    conversation.messages = [...conversation.messages, messageData];
+
+    mutate(conversationUrl, { conversation }, false);
+    mutate(conversationsUrl, { conversations: mockChatConversations }, false);
+
+    return;
   }
+
+  const data = { conversationId, messageData };
+  await axios.put(CHART_ENDPOINT, data);
 
   /**
    * Work in local
@@ -106,7 +151,9 @@ export async function sendMessage(conversationId, messageData) {
   mutate(
     conversationUrl,
     (currentData) => {
-      const currentConversation = currentData.conversation;
+      const currentConversation =
+        currentData?.conversation ||
+        mockChatConversations.find((conversation) => conversation.id === conversationId);
 
       const conversation = {
         ...currentConversation,
@@ -121,7 +168,7 @@ export async function sendMessage(conversationId, messageData) {
   mutate(
     conversationsUrl,
     (currentData) => {
-      const currentConversations = currentData.conversations;
+      const currentConversations = currentData?.conversations || mockChatConversations;
 
       const conversations = currentConversations.map((conversation) =>
         conversation.id === conversationId
@@ -138,7 +185,15 @@ export async function sendMessage(conversationId, messageData) {
 // ----------------------------------------------------------------------
 
 export async function createConversation(conversationData) {
-  const url = [CHART_ENDPOINT, { params: { endpoint: 'conversations' } }];
+  const url = getConversationsKey();
+
+  if (!enableServer) {
+    mockChatConversations.push(conversationData);
+
+    mutate(url, { conversations: mockChatConversations }, false);
+
+    return { conversation: conversationData };
+  }
 
   /**
    * Work on server
@@ -152,7 +207,7 @@ export async function createConversation(conversationData) {
   mutate(
     url,
     (currentData) => {
-      const currentConversations = currentData.conversations;
+      const currentConversations = currentData?.conversations || mockChatConversations;
 
       const conversations = [...currentConversations, conversationData];
 
@@ -172,15 +227,21 @@ export async function clickConversation(conversationId) {
    */
   if (enableServer) {
     await axios.get(CHART_ENDPOINT, { params: { conversationId, endpoint: 'mark-as-seen' } });
+  } else {
+    const conversation = mockChatConversations.find((item) => item.id === conversationId);
+
+    if (conversation) {
+      conversation.unreadCount = 0;
+    }
   }
 
   /**
    * Work in local
    */
   mutate(
-    [CHART_ENDPOINT, { params: { endpoint: 'conversations' } }],
+    getConversationsKey(),
     (currentData) => {
-      const currentConversations = currentData.conversations;
+      const currentConversations = currentData?.conversations || mockChatConversations;
 
       const conversations = currentConversations.map((conversation) =>
         conversation.id === conversationId ? { ...conversation, unreadCount: 0 } : conversation

@@ -10,6 +10,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { useMockedUser } from 'src/auth/hooks';
 
+import { mockChatSenderAvatar } from './mocks/data';
 import { useMessage } from './hooks/use-message';
 
 // ----------------------------------------------------------------------
@@ -119,6 +120,16 @@ export function ChatMessageItem({ message, participants, onOpenLightbox }) {
           {renderActions}
         </Stack>
       </Stack>
+
+      {me && (
+        <Avatar
+          alt={user?.displayName}
+          src={mockChatSenderAvatar || user?.photoURL}
+          sx={{ width: 32, height: 32, ml: 2 }}
+        >
+          {user?.displayName?.charAt(0)}
+        </Avatar>
+      )}
     </Stack>
   );
 }

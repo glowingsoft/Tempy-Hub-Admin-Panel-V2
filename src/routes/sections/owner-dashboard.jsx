@@ -54,6 +54,7 @@ const UserListPage = lazy(() => import('src/pages/dashboard/user/list'));
 const UserDetailPage = lazy(() => import('src/pages/dashboard/user/detail'));
 const ResidentListPage = lazy(() => import('src/pages/owner-dashboard/residents/list'));
 const ResidentDetailPage = lazy(() => import('src/pages/owner-dashboard/residents/detail'));
+const MessagesPage = lazy(() => import('src/pages/dashboard/messages'));
 const StatsPage = lazy(() => import('src/pages/owner-dashboard/statistics'));
 const StaffDashboardSettingsPage = lazy(() => import('src/pages/owner-dashboard/staff-dashboard-settings.jsx'));
 const ConfigurationPage = lazy(() => import('src/pages/owner-dashboard/configuration.jsx'));
@@ -224,6 +225,7 @@ export const ownerDashboardRoutes = [
       { path: "documents", element: <DocumentsPage ownerDashboard /> },
       { path: "documents/:id", element: <DocumentDetailPage ownerDashboard /> },
       { path: "reports", element: <ReportsPage ownerDashboard /> },
+      { path: "messages", element: <MessagesPage /> },
       {
         path: 'directory',
         children: [

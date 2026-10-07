@@ -9,7 +9,6 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import ClickAwayListener from '@mui/material/ClickAwayListener';
 
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { useResponsive } from 'src/hooks/use-responsive';
@@ -31,7 +30,14 @@ const NAV_COLLAPSE_WIDTH = 96;
 
 // ----------------------------------------------------------------------
 
-export function ChatNav({ loading, contacts, conversations, collapseNav, selectedConversationId }) {
+export function ChatNav({
+  loading,
+  contacts,
+  conversations,
+  collapseNav,
+  selectedConversationId,
+  basePath,
+}) {
   const theme = useTheme();
 
   const router = useRouter();
@@ -67,8 +73,8 @@ export function ChatNav({ loading, contacts, conversations, collapseNav, selecte
     if (!mdUp) {
       onCloseMobile();
     }
-    router.push(paths.dashboard.chat);
-  }, [mdUp, onCloseMobile, router]);
+    router.push(basePath);
+  }, [basePath, mdUp, onCloseMobile, router]);
 
   const handleSearchContacts = useCallback(
     (inputValue) => {
@@ -93,9 +99,9 @@ export function ChatNav({ loading, contacts, conversations, collapseNav, selecte
     (result) => {
       handleClickAwaySearch();
 
-      router.push(`${paths.dashboard.chat}?id=${result.id}`);
+      router.push(`${basePath}?id=${result.id}`);
     },
-    [handleClickAwaySearch, router]
+    [basePath, handleClickAwaySearch, router]
   );
 
   const renderLoading = <ChatNavItemSkeleton />;
@@ -110,6 +116,7 @@ export function ChatNav({ loading, contacts, conversations, collapseNav, selecte
             conversation={conversations.byId[conversationId]}
             selected={conversationId === selectedConversationId}
             onCloseMobile={onCloseMobile}
+            basePath={basePath}
           />
         ))}
       </Box>
@@ -159,11 +166,11 @@ export function ChatNav({ loading, contacts, conversations, collapseNav, selecte
           />
         </IconButton>
 
-        {!collapseDesktop && (
+        {/* {!collapseDesktop && (
           <IconButton onClick={handleClickCompose}>
             <Iconify width={24} icon="solar:user-plus-bold" />
           </IconButton>
-        )}
+        )} */}
       </Stack>
 
       <Box sx={{ p: 2.5, pt: 0 }}>{!collapseDesktop && renderSearchInput}</Box>
