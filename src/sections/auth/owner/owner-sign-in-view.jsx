@@ -102,10 +102,6 @@ export function OwnerSignInView() {
 
       const token = user?.token;
 
-      if (token && typeof localStorage !== 'undefined') {
-        localStorage.setItem('token', token);
-      }
-
       const permission = OWNER_PERMISSION;
       const updatedUserData = {
         ...user,
@@ -124,11 +120,16 @@ export function OwnerSignInView() {
       toast.success('Login successful!');
     } catch (error) {
       console.error('Owner login error:', error);
-      const msg =
+      const apiMessage =
         error?.data?.message ||
         error?.data?.error ||
         error?.message ||
         'Login failed. Please check your credentials.';
+      const msg =
+        typeof apiMessage === 'string' &&
+        apiMessage.toLowerCase().includes('platform admin account')
+          ? 'Wrong credentials'
+          : apiMessage;
       setErrorMsg(typeof msg === 'string' ? msg : JSON.stringify(msg));
       toast.error(typeof msg === 'string' ? msg : 'Login failed');
     }

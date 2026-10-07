@@ -22,7 +22,7 @@ import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { useDispatch } from 'react-redux';
-import { useLoginMutation } from 'src/store/Reducer/auth';
+import { useAdminLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
@@ -95,7 +95,7 @@ export function AdminSignInView() {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [adminLogin, { isLoading: isLoggingIn }] = useAdminLoginMutation();
 
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -120,7 +120,7 @@ export function AdminSignInView() {
   const goTo = (permission) => {
     switch (permission) {
       case 1:
-        router.push(paths.dashboard.root);
+        router.push(paths.adminDashboard.root);
         break;
       case 2:
         router.push(paths.siteManager.root);
@@ -129,7 +129,7 @@ export function AdminSignInView() {
         router.push(paths.lineManager.root);
         break;
       default:
-        router.push(paths.dashboard.root);
+        router.push(paths.adminDashboard.root);
         break;
     }
   };
@@ -148,7 +148,7 @@ export function AdminSignInView() {
     console.log('Login Payload:', payload);
 
     try {
-      const response = await login(payload).unwrap();
+      const response = await adminLogin(payload).unwrap();
 
       const user = response?.data ?? response;
 
@@ -163,10 +163,6 @@ export function AdminSignInView() {
       }
 
       const token = user?.token;
-
-      if (token && typeof localStorage !== 'undefined') {
-        localStorage.setItem('token', token);
-      }
 
       const permission = 1;
       const UpdatedUserData = {

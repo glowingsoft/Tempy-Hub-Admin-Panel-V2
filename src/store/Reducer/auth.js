@@ -27,8 +27,7 @@ import { createCustomFetchBaseQuery } from "../baseQuery";
 // ----------------------------------------------------------------------
 
 const ADMIN_ACCESS_TOKEN =
-  import.meta.env.VITE_ADMIN_ACCESS_TOKEN ||
-  '4e186170a9ec995292a33c1d2109dea88b0ed291acfae5e74839d47bf8afb130';
+  import.meta.env.VITE_ADMIN_ACCESS_TOKEN;
 
 export const authApi = createApi({
   reducerPath: "auth",
@@ -40,7 +39,6 @@ export const authApi = createApi({
         url: API_ROUTES.AUTH.LOGIN,
         method: "POST",
         body: loginData,
-        ...(ADMIN_ACCESS_TOKEN ? { headers: { 'x-admin-access-token': ADMIN_ACCESS_TOKEN } } : {}),
       }),
       transformResponse: (res) => res?.data ?? res,
     }),

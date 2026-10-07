@@ -13,9 +13,6 @@ const userSlice = createSlice({
 
     logout: (state) => {
       console.log('userSlice - Logging out');
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-      }
       state.user = null;
     },
   },
