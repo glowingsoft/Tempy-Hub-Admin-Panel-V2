@@ -106,12 +106,17 @@ export function BranchListView() {
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [allBranches, filters.state.status, keyword]);
 
-  const totalRecords = filteredBranches.length;
+  const totalRecords =
+    filters.state.status === 'all' && Number.isFinite(data?.meta?.totalRecords)
+      ? data.meta.totalRecords
+      : filteredBranches.length;
 
   const paginatedBranches = useMemo(() => {
+    if (data) return filteredBranches;
+
     const start = table.page * table.rowsPerPage;
     return filteredBranches.slice(start, start + table.rowsPerPage);
-  }, [filteredBranches, table.page, table.rowsPerPage]);
+  }, [data, filteredBranches, table.page, table.rowsPerPage]);
 
   const getStatusCount = useCallback(
     (status) =>

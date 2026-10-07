@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -10,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { useParams, useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
+import { useSelector } from 'react-redux';
 
 import { fDateTime } from 'src/utils/format-time';
 
@@ -17,9 +16,11 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { LoadingScreen } from 'src/components/loading-screen';
 
-// import { useGetBranchQuery } from 'src/store/Reducer/branches-api';
-import { getBranchStatusMeta, getMockBranchById } from '../mocks/data';
+import { useGetBranchQuery } from 'src/store/Reducer/branches-api';
+import { getBranchStatusMeta } from '../mocks/data';
+import { getOwnerOrganizationId } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -28,10 +29,56 @@ const yesNo = (value) => (value ? 'Yes' : 'No');
 export function BranchDetailView() {
   const { id } = useParams();
   const router = useRouter();
+  const { user } = useSelector((state) => state.user);
+  const organizationId = getOwnerOrganizationId(user);
+  const { data: response, isLoading, isError, error } = useGetBranchQuery(
+    { branchId: id, organizationId },
+    { skip: !id || !organizationId }
+  );
+  const branch = response
+    ? {
+        ...response,
+        organization:
+          response.organization ??
+          user?.access?.organizations?.find((organization) => organization._id === organizationId),
+        settings: {
+          ...response.settings,
+          breaksPaid: response.settings?.breaksPaid ?? response.settings?.paidBreaks,
+        },
+        activation:
+          response.activation ??
+          (response.activatedAt
+            ? { activatedAt: response.activatedAt, activatedBy: response.activatedBy }
+            : null),
+        manager: response.manager ?? response.managerInvitation ?? null,
+      }
+    : null;
 
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data: branch, isLoading } = useGetBranchQuery(id);
-  const branch = useMemo(() => getMockBranchById(id), [id]);
+  if (isLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <LoadingScreen sx={{ py: 10 }} />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    const errorMessage =
+      error?.data?.message || error?.data?.error || error?.error || 'Unable to load site details.';
+
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Button
+          onClick={() => router.push(paths.owner.sites.root)}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          sx={{ mb: 2 }}
+        >
+          Back
+        </Button>
+        <EmptyContent filled title={errorMessage} sx={{ py: 10 }} />
+      </Box>
+    );
+  }
 
   if (!branch) {
     return (
@@ -91,7 +138,6 @@ export function BranchDetailView() {
               </Label>
             }
           />
-          <DetailItem label="Timezone" value={branch.timezone || '—'} />
           <DetailItem label="Assembly point" value={branch.assemblyPoint || '—'} />
           <DetailItem label="Address" value={branch.address || '—'} />
           <DetailItem label="Organization" value={branch.organization?.name || '—'} />

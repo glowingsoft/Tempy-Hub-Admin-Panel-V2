@@ -75,7 +75,7 @@ export const branchesApi = createApi({
       query: ({ organizationId, page = 1, limit = 10, keyword = '' }) => ({
         url: API_ROUTES.ORGANIZATION_BRANCHES(organizationId),
         method: 'GET',
-        params: { page, limit, ...(keyword ? { keyword } : {}) },
+        params: { page, limit, keyword },
       }),
       transformResponse: (res) => ({
         data: res?.data ?? [],
@@ -91,12 +91,13 @@ export const branchesApi = createApi({
     }),
 
     getBranch: builder.query({
-      query: (branchId) => ({
+      query: ({ branchId, organizationId }) => ({
         url: API_ROUTES.BRANCH_BY_ID(branchId),
         method: 'GET',
+        headers: { 'x-org-id': organizationId },
       }),
       transformResponse: (res) => res?.data ?? res,
-      providesTags: (result, error, branchId) => [{ type: 'Branch', id: branchId }],
+      providesTags: (result, error, { branchId }) => [{ type: 'Branch', id: branchId }],
     }),
 
     createBranch: builder.mutation({
@@ -112,9 +113,10 @@ export const branchesApi = createApi({
     }),
 
     updateBranch: builder.mutation({
-      query: ({ branchId, ...body }) => ({
+      query: ({ branchId, organizationId, ...body }) => ({
         url: API_ROUTES.BRANCH_BY_ID(branchId),
-        method: 'PUT',
+        method: 'PATCH',
+        headers: { 'x-org-id': organizationId },
         body,
       }),
       transformResponse: (res) => res?.data ?? res,

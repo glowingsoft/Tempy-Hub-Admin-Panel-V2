@@ -28,7 +28,7 @@ export const API_ROUTES = {
     ORGANIZATION_JOB_TITLES: (organizationId) => `/admin/organizations/${organizationId}/job-titles`,
     ORGANIZATION_JOB_TITLE_BY_ID: (organizationId, jobTitleId) =>
         `/admin/organizations/${organizationId}/job-titles/${jobTitleId}`,
-    ORGANIZATION_BRANCHES: (organizationId) => `/admin/organizations/${organizationId}branches`,
+    ORGANIZATION_BRANCHES: (organizationId) => `/admin/organizations/${organizationId}/branches`,
     BRANCH_BY_ID: (branchId) => `/admin/branches/${branchId}`,
     ORGANIZATION_INVITATIONS: (organizationId) => `/admin/organizations/${organizationId}/invitations`,
     INVITATION_BY_ID: (invitationId) => `/admin/invitations/${invitationId}`,
