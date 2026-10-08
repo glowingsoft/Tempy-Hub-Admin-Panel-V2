@@ -59,7 +59,7 @@ export function NavList({ data }) {
                   backgroundSize: 'auto 88%',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
-                  backgroundImage: `url(${CONFIG.site.basePath}/assets/illustrations/illustration-dashboard.webp)`,
+                  backgroundImage: `url(${CONFIG.site.basePath}/assets/illustrations/tempy-login-illustration.jpg)`,
                   border: (theme) =>
                     `solid 1px ${varAlpha(theme.palette.grey['500Channel'], 0.12)}`,
                 },

@@ -44,7 +44,12 @@ export function Router() {
         //   </MainLayout>
         // </Suspense>
         <GuestGuard>
-          <AuthSplitLayout section={{ title: 'Hi, Welcome back' }}>
+          <AuthSplitLayout
+            section={{
+              title: 'Manager Portal',
+              subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+            }}
+          >
             <Jwt.SignInPage />
           </AuthSplitLayout>
         </GuestGuard>

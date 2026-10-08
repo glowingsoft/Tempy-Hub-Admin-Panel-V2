@@ -62,7 +62,7 @@ export function AuthSplitLayout({ sx, section, hideSection = false, children }) 
        *************************************** */
       sx={sx}
       cssVars={{
-        '--layout-auth-content-width': '420px',
+        '--layout-auth-content-width': '460px',
       }}
     >
       <Main layoutQuery={layoutQuery}>
@@ -71,35 +71,7 @@ export function AuthSplitLayout({ sx, section, hideSection = false, children }) 
             title={section?.title}
             layoutQuery={layoutQuery}
             imgUrl={section?.imgUrl}
-            method={CONFIG.auth.method}
             subtitle={section?.subtitle}
-            methods={[
-              {
-                label: 'Jwt',
-                path: paths.auth.jwt.signIn,
-                icon: `${CONFIG.site.basePath}/assets/icons/platforms/ic-jwt.svg`,
-              },
-              {
-                label: 'Firebase',
-                path: paths.auth.firebase.signIn,
-                icon: `${CONFIG.site.basePath}/assets/icons/platforms/ic-firebase.svg`,
-              },
-              {
-                label: 'Amplify',
-                path: paths.auth.amplify.signIn,
-                icon: `${CONFIG.site.basePath}/assets/icons/platforms/ic-amplify.svg`,
-              },
-              {
-                label: 'Auth0',
-                path: paths.auth.auth0.signIn,
-                icon: `${CONFIG.site.basePath}/assets/icons/platforms/ic-auth0.svg`,
-              },
-              {
-                label: 'Supabase',
-                path: paths.auth.supabase.signIn,
-                icon: `${CONFIG.site.basePath}/assets/icons/platforms/ic-supabase.svg`,
-              },
-            ]}
           />
         )}
         <Content layoutQuery={layoutQuery}>{children}</Content>

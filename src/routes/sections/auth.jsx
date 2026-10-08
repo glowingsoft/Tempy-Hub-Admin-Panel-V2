@@ -27,7 +27,12 @@ const authJwt = {
       path: 'sign-in',
       element: (
         <GuestGuard>
-          <AuthSplitLayout section={{ title: 'Hi, Welcome back' }}>
+          <AuthSplitLayout
+            section={{
+              title: 'Manager Portal',
+              subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+            }}
+          >
             <Jwt.SignInPage />
           </AuthSplitLayout>
         </GuestGuard>
@@ -145,7 +150,12 @@ const authAdmin = {
       path: 'login',
       element: (
         <GuestGuard>
-          <AuthSplitLayout section={{ title: 'Hi, Welcome back' }}>
+          <AuthSplitLayout
+            section={{
+              title: 'Super Admin Portal',
+              subtitle: 'Manage organizations, platform permissions, and centralized care home settings.',
+            }}
+          >
             <Admin.SignInPage />
           </AuthSplitLayout>
         </GuestGuard>
@@ -161,7 +171,12 @@ const authOwner = {
       path: 'login',
       element: (
         <GuestGuard>
-          <AuthSplitLayout section={{ title: 'Hi, Welcome back' }}>
+          <AuthSplitLayout
+            section={{
+              title: 'Organization Owner Portal',
+              subtitle: 'Manage sites, rota schedules, resident profiles, and operational compliance.',
+            }}
+          >
             <Owner.SignInPage />
           </AuthSplitLayout>
         </GuestGuard>
@@ -177,7 +192,12 @@ const authStaff = {
       path: 'login',
       element: (
         <GuestGuard>
-          <AuthSplitLayout section={{ title: 'Hi, Welcome back' }}>
+          <AuthSplitLayout
+            section={{
+              title: 'Staff Portal',
+              subtitle: 'View your shift schedules, clock in attendance, and submit leave requests easily.',
+            }}
+          >
             <Staff.SignInPage />
           </AuthSplitLayout>
         </GuestGuard>
