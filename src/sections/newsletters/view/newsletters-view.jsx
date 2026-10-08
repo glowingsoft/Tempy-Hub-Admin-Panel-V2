@@ -19,8 +19,7 @@ import { NewsletterDeliveryConfig } from '../newsletter-delivery-config';
 export function NewslettersView() {
   const familyPaths = useFamilyEngagementPaths();
 
-  // Template State
-  const [selectedTemplate, setSelectedTemplate] = useState('classic');
+  const [selectedMonth, setSelectedMonth] = useState(mockNewsletterData.header.dateLabel);
 
   // Content Sections State (Welcome, Highlights, and Coming Up selected by default)
   const [sectionsState, setSectionsState] = useState({
@@ -81,8 +80,8 @@ export function NewslettersView() {
           {/* Column 1: Template Selection & Content Checklist */}
           <Grid xs={12} md={4} lg={4}>
             <NewsletterTemplateConfig
-              selectedTemplate={selectedTemplate}
-              onSelectTemplate={setSelectedTemplate}
+              selectedMonth={selectedMonth}
+              onSelectMonth={setSelectedMonth}
               sectionsState={sectionsState}
               onToggleSection={handleToggleSection}
             />
@@ -91,7 +90,7 @@ export function NewslettersView() {
           {/* Column 2: Live Portrait Preview */}
           <Grid xs={12} md={4} lg={4}>
             <NewsletterPreviewPaper
-              selectedTemplate={selectedTemplate}
+              selectedMonth={selectedMonth}
               sectionsState={sectionsState}
               welcomeText={welcomeText}
             />

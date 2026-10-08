@@ -5,113 +5,49 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Checkbox from '@mui/material/Checkbox';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import { alpha, useTheme } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';
-import { NEWSLETTER_TEMPLATES } from './mocks/data';
+import { NEWSLETTER_MONTHS } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
 export function NewsletterTemplateConfig({
-  selectedTemplate,
-  onSelectTemplate,
+  selectedMonth,
+  onSelectMonth,
   sectionsState,
   onToggleSection,
 }) {
   const theme = useTheme();
 
   return (
-    <Card sx={{ p: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* 1. Template Selector */}
-      <Box sx={{ mb: 0.5 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-          <Iconify icon="solar:palette-round-bold" width={22} sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" fontWeight={700}>
-            1. Select Template
-          </Typography>
-        </Stack>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-          Choose a visual style for this edition.
-        </Typography>
-
-        <Stack spacing={1.25}>
-          {NEWSLETTER_TEMPLATES.map((tmpl) => {
-            const isSelected = selectedTemplate === tmpl.id;
-            return (
-              <Box
-                key={tmpl.id}
-                onClick={() => onSelectTemplate(tmpl.id)}
-                sx={{
-                  p: 1.5,
-                  borderRadius: 1.5,
-                  cursor: 'pointer',
-                  border: (t) =>
-                    `1.5px solid ${isSelected ? t.palette.primary.main : t.palette.divider}`,
-                  bgcolor: isSelected
-                    ? alpha(theme.palette.primary.main, 0.06)
-                    : alpha(theme.palette.background.neutral, 0.4),
-                  transition: theme.transitions.create(['border-color', 'background-color', 'box-shadow']),
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    bgcolor: alpha(theme.palette.primary.main, 0.04),
-                  },
-                }}
-              >
-                <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                  <Box
-                    sx={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: isSelected ? 'primary.main' : alpha(theme.palette.primary.main, 0.12),
-                      color: isSelected ? 'primary.contrastText' : 'primary.main',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Iconify icon={tmpl.icon} width={18} />
-                  </Box>
-
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between">
-                      <Typography variant="subtitle2" fontWeight={700}>
-                        {tmpl.label}
-                      </Typography>
-                      {isSelected && (
-                        <Iconify
-                          icon="solar:check-circle-bold"
-                          width={18}
-                          sx={{ color: 'primary.main' }}
-                        />
-                      )}
-                    </Stack>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
-                      {tmpl.description}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-            );
-          })}
-        </Stack>
-      </Box>
-
-      <Divider sx={{ my: 2.5 }} />
-
-      {/* 2. Content Sections Checklist */}
+    <Card sx={{ p: 3.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ flexGrow: 1 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
           <Iconify icon="solar:checklist-minimalistic-bold" width={22} sx={{ color: 'primary.main' }} />
           <Typography variant="h6" fontWeight={700}>
             Content Sections
           </Typography>
         </Stack>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-          Check sections to include in the preview.
-        </Typography>
+        
+
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label="Newsletter month"
+          value={selectedMonth}
+          onChange={(event) => onSelectMonth(event.target.value)}
+          sx={{ mb: 2 }}
+        >
+          {NEWSLETTER_MONTHS.map((month) => (
+            <MenuItem key={month} value={month}>
+              {month}
+            </MenuItem>
+          ))}
+        </TextField>
 
         <Stack spacing={1}>
           {/* Welcome from manager */}
@@ -263,8 +199,8 @@ export function NewsletterTemplateConfig({
 }
 
 NewsletterTemplateConfig.propTypes = {
-  selectedTemplate: PropTypes.string.isRequired,
-  onSelectTemplate: PropTypes.func.isRequired,
+  selectedMonth: PropTypes.string.isRequired,
+  onSelectMonth: PropTypes.func.isRequired,
   sectionsState: PropTypes.object.isRequired,
   onToggleSection: PropTypes.func.isRequired,
 };
