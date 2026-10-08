@@ -64,7 +64,18 @@ export function DepartmentTableRow({ row, serialNumber, onEditRow }) {
       </TableCell>
 
       <TableCell align="center">
-        <Box onClick={(event) => event.stopPropagation()}>
+        <Box
+          onClick={(event) => event.stopPropagation()}
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            width: 1,
+            '& > .MuiStack-root': {
+              justifyContent: 'center',
+              width: 1,
+            },
+          }}
+        >
           <GenericTableRowActions actions={actions} />
         </Box>
       </TableCell>

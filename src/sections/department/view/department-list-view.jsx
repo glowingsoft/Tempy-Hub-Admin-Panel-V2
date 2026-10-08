@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
@@ -29,9 +30,8 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
-import { createMockDepartment, mockDepartmentsResponse } from '../mocks/data';
-import { getOwnerOrganizationId } from '../utils';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 import { DepartmentTableRow } from '../department-table-row';
 
@@ -45,7 +45,7 @@ const STATUS_OPTIONS = [
 
 const TABLE_HEAD = [
   { id: 'sr', label: 'Sr#', width: 60 },
-  { id: 'name', label: 'Name', minWidth: 220 },
+  { id: 'name', label: 'Name', width: 220, minWidth: 220 },
   { id: 'sortOrder', label: 'Sort Order', width: 120, align: 'center' },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
@@ -59,7 +59,11 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function DepartmentListView() {
-  const table = useTable({ defaultOrderBy: 'sortOrder', defaultOrder: 'asc' });
+  const table = useTable({
+    defaultOrderBy: 'sortOrder',
+    defaultOrder: 'asc',
+    defaultRowsPerPage: 10,
+  });
 
   const { user } = useSelector((state) => state.user);
   const organizationId = getOwnerOrganizationId(user);
@@ -70,24 +74,13 @@ export function DepartmentListView() {
   const createModal = useBoolean();
   const editModal = useBoolean();
   const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
-  // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetDepartmentsQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockDepartmentsResponse;
-
-  // Departments are scoped to the owner's organization.
-  // `reloadKey` bumps after a mock create/edit so the mutated list re-renders.
-  const allDepartments = useMemo(
-    () => (data?.data ?? []).filter((d) => !organizationId || d.organizationId === organizationId),
-    [data, organizationId, reloadKey]
+  const { currentData: data, isLoading, isFetching, isError, error } = useGetDepartmentsQuery(
+    { organizationId, page: table.page + 1, limit: table.rowsPerPage },
+    { skip: !organizationId }
   );
+
+  const allDepartments = data?.data ?? [];
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -98,7 +91,7 @@ export function DepartmentListView() {
     []
   );
 
-  // Client-side filtering (mock only — the API will do this server-side).
+  // Search and status filters apply to the current API page.
   const filteredDepartments = useMemo(() => {
     const search = keyword.trim().toLowerCase();
 
@@ -115,12 +108,10 @@ export function DepartmentListView() {
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   }, [allDepartments, filters.state.status, keyword]);
 
-  const totalRecords = filteredDepartments.length;
-
-  const paginatedDepartments = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return filteredDepartments.slice(start, start + table.rowsPerPage);
-  }, [filteredDepartments, table.page, table.rowsPerPage]);
+  const totalRecords =
+    filters.state.status === 'all' && !keyword.trim() && Number.isFinite(data?.meta?.totalRecords)
+      ? data.meta.totalRecords
+      : filteredDepartments.length;
 
   const getStatusCount = useCallback(
     (status) => {
@@ -162,10 +153,7 @@ export function DepartmentListView() {
     setSelectedDepartment(null);
   }, [editModal]);
 
-  const handleCreateSuccess = useCallback((payload) => {
-    createMockDepartment(payload);
-    setReloadKey((key) => key + 1);
-  }, []);
+  const handleCreateSuccess = useCallback(() => table.onResetPage(), [table.onResetPage]);
 
   const orgName = user?.organization?.name;
 
@@ -182,7 +170,6 @@ export function DepartmentListView() {
           <Button
             variant="contained"
             onClick={createModal.onTrue}
-            disabled={!organizationId}
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Department
@@ -192,6 +179,12 @@ export function DepartmentListView() {
       />
 
       <Card>
+        {isError && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {error?.data?.message || error?.error || 'Failed to load departments.'}
+          </Alert>
+        )}
+
         <StatusTabsFilterWrapper
           filterField={statusFilterField}
           value={filters.state.status}
@@ -222,7 +215,7 @@ export function DepartmentListView() {
                   ))
                 ) : (
                   <>
-                    {paginatedDepartments.map((row, index) => (
+                    {filteredDepartments.map((row, index) => (
                       <DepartmentTableRow
                         key={row._id}
                         row={row}

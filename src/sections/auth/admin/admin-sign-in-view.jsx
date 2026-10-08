@@ -102,8 +102,8 @@ export function AdminSignInView() {
   const password = useBoolean();
 
   const defaultValues = {
-    email: 'superadmin@tempyhub.com',
-    password: 'superTempy11',
+    email: import.meta.env.VITE_SUPER_ADMIN_LOGIN_EMAIL || '',
+    password: import.meta.env.VITE_SUPER_ADMIN_LOGIN_PASSWORD || '',
   };
 
   const methods = useForm({
@@ -145,8 +145,6 @@ export function AdminSignInView() {
       deviceType: deviceType || 'desktop',
     };
 
-    console.log('Login Payload:', payload);
-
     try {
       const response = await adminLogin(payload).unwrap();
 
@@ -170,8 +168,6 @@ export function AdminSignInView() {
         token,
         permission,
       };
-
-      console.log('Updated User Data:', UpdatedUserData);
 
       dispatch(setUser(UpdatedUserData));
       goTo(permission);
@@ -213,6 +209,7 @@ export function AdminSignInView() {
       <Field.Text
         name="email"
         label="Email address"
+        inputProps={{ autoComplete: 'username' }}
         InputLabelProps={{ shrink: true, sx: { fontSize: '1.1rem' } }}
         sx={{ '& .MuiInputBase-input': { fontSize: '1.1rem', padding: '14.5px 14px' } }}
       />
@@ -223,6 +220,7 @@ export function AdminSignInView() {
           label="Password"
           placeholder="6+ characters"
           type={password.value ? 'text' : 'password'}
+          inputProps={{ autoComplete: 'current-password' }}
           InputLabelProps={{ shrink: true, sx: { fontSize: '1.1rem' } }}
           sx={{ '& .MuiInputBase-input': { fontSize: '1.1rem', padding: '14.5px 14px' } }}
           InputProps={{
@@ -272,7 +270,7 @@ export function AdminSignInView() {
         </Alert>
       )}
 
-      <Form methods={methods} onSubmit={onSubmit}>
+      <Form methods={methods} onSubmit={onSubmit} autoComplete="on">
         {renderForm}
       </Form>
     </>

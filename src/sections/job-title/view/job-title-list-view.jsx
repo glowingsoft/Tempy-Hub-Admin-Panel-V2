@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
@@ -29,9 +30,8 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
-import { createMockJobTitle, mockJobTitlesResponse } from '../mocks/data';
-import { getOwnerOrganizationId } from '../utils';
+import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
+import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { JobTitleCreateEditModal } from '../job-title-create-edit-modal';
 import { JobTitleTableRow } from '../job-title-table-row';
 
@@ -45,9 +45,9 @@ const STATUS_OPTIONS = [
 
 const TABLE_HEAD = [
   { id: 'sr', label: 'Sr#', width: 60 },
-  { id: 'name', label: 'Name', minWidth: 220 },
-  { id: 'level', label: 'Level', minWidth: 160 },
-  { id: 'branch', label: 'Site', minWidth: 140 },
+  { id: 'name', label: 'Name', width: 220, minWidth: 220 },
+  { id: 'level', label: 'Level', width: 160, minWidth: 160 },
+  { id: 'branch', label: 'Site', width: 140, minWidth: 140 },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
 ];
@@ -60,7 +60,11 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function JobTitleListView() {
-  const table = useTable({ defaultOrderBy: 'name', defaultOrder: 'asc' });
+  const table = useTable({
+    defaultOrderBy: 'name',
+    defaultOrder: 'asc',
+    defaultRowsPerPage: 10,
+  });
 
   const { user } = useSelector((state) => state.user);
   const organizationId = getOwnerOrganizationId(user);
@@ -71,24 +75,13 @@ export function JobTitleListView() {
   const createModal = useBoolean();
   const editModal = useBoolean();
   const [selectedJobTitle, setSelectedJobTitle] = useState(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
-  // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetJobTitlesQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockJobTitlesResponse;
-
-  // Job titles are scoped to the owner's organization.
-  // `reloadKey` bumps after a mock create/edit so the mutated list re-renders.
-  const allJobTitles = useMemo(
-    () => (data?.data ?? []).filter((jt) => !organizationId || jt.organizationId === organizationId),
-    [data, organizationId, reloadKey]
+  const { currentData: data, isLoading, isFetching, isError, error } = useGetJobTitlesQuery(
+    { organizationId, page: table.page + 1, limit: table.rowsPerPage },
+    { skip: !organizationId }
   );
+
+  const allJobTitles = data?.data ?? [];
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -99,7 +92,7 @@ export function JobTitleListView() {
     []
   );
 
-  // Client-side filtering (mock only — the API will do this server-side).
+  // Search and status filters apply to the current API page.
   const filteredJobTitles = useMemo(() => {
     const search = keyword.trim().toLowerCase();
 
@@ -116,12 +109,10 @@ export function JobTitleListView() {
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [allJobTitles, filters.state.status, keyword]);
 
-  const totalRecords = filteredJobTitles.length;
-
-  const paginatedJobTitles = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return filteredJobTitles.slice(start, start + table.rowsPerPage);
-  }, [filteredJobTitles, table.page, table.rowsPerPage]);
+  const totalRecords =
+    filters.state.status === 'all' && !keyword.trim() && Number.isFinite(data?.meta?.totalRecords)
+      ? data.meta.totalRecords
+      : filteredJobTitles.length;
 
   const getStatusCount = useCallback(
     (status) => {
@@ -163,10 +154,7 @@ export function JobTitleListView() {
     setSelectedJobTitle(null);
   }, [editModal]);
 
-  const handleCreateSuccess = useCallback((payload) => {
-    createMockJobTitle(payload);
-    setReloadKey((key) => key + 1);
-  }, []);
+  const handleCreateSuccess = useCallback(() => table.onResetPage(), [table.onResetPage]);
 
   const orgName = user?.organization?.name;
 
@@ -183,7 +171,6 @@ export function JobTitleListView() {
           <Button
             variant="contained"
             onClick={createModal.onTrue}
-            disabled={!organizationId}
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Job Title
@@ -193,6 +180,12 @@ export function JobTitleListView() {
       />
 
       <Card>
+        {isError && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {error?.data?.message || error?.error || 'Failed to load job titles.'}
+          </Alert>
+        )}
+
         <StatusTabsFilterWrapper
           filterField={statusFilterField}
           value={filters.state.status}
@@ -223,7 +216,7 @@ export function JobTitleListView() {
                   ))
                 ) : (
                   <>
-                    {paginatedJobTitles.map((row, index) => (
+                    {filteredJobTitles.map((row, index) => (
                       <JobTitleTableRow
                         key={row._id}
                         row={row}

@@ -59,9 +59,7 @@ export function BranchTableRow({ row, serialNumber }) {
 
       <TableCell>{row.code || '—'}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.timezone || '—'}</TableCell>
-
-      <TableCellWithTooltip maxWidth={240}>{row.address || '—'}</TableCellWithTooltip>
+      <TableCellWithTooltip maxWidth="100%">{row.address || '—'}</TableCellWithTooltip>
 
       <TableCell align="center">
         <Label variant="soft" color={status.color}>
@@ -69,10 +67,23 @@ export function BranchTableRow({ row, serialNumber }) {
         </Label>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.createdAt)}</TableCell>
+      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+        {fDate(row.createdAt)}
+      </TableCell>
 
       <TableCell align="center">
-        <Box onClick={(event) => event.stopPropagation()}>
+        <Box
+          onClick={(event) => event.stopPropagation()}
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            width: 1,
+            '& > .MuiStack-root': {
+              justifyContent: 'center',
+              width: 1,
+            },
+          }}
+        >
           <GenericTableRowActions actions={actions} />
         </Box>
       </TableCell>

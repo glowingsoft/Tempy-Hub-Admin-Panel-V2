@@ -11,28 +11,60 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Avatar from '@mui/material/Avatar';
+import { LoadingButton } from '@mui/lab';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { useUpdateResidentVisitorPasscodeMutation } from 'src/store/Reducer/residents-api';
 
-export function ResidentSecurityDialog({ open, resident, onClose, onSave }) {
+const getErrorMessage = (error) =>
+    error?.data?.message ||
+    error?.data?.msg ||
+    error?.data?.error ||
+    error?.error ||
+    error?.message ||
+    'Failed to update visitor passcode.';
+
+export function ResidentSecurityDialog({
+    open,
+    resident,
+    onClose,
+    onSave,
+    organizationId = null,
+}) {
     const [showPassword, setShowPassword] = useState(false);
     const [securityPassword, setSecurityPassword] = useState('');
+    const [updateVisitorPasscode, { isLoading }] = useUpdateResidentVisitorPasscodeMutation();
 
     useEffect(() => {
         if (resident) {
-            setSecurityPassword(resident.securityPassword || '');
+            setSecurityPassword(resident.visitorPasscode || resident.securityPassword || '');
             setShowPassword(false);
         }
     }, [resident, open]);
 
     if (!resident) return null;
 
-    const handleSave = () => {
-        onSave?.({
+    const handleSave = async () => {
+        const updatedResident = {
             ...resident,
+            visitorPasscode: securityPassword,
             securityPassword,
-        });
-        onClose();
+        };
+
+        try {
+            const result = await updateVisitorPasscode({
+                residentId: resident._id,
+                organizationId,
+                visitorPasscode: securityPassword,
+            }).unwrap();
+            onSave?.({ ...updatedResident, ...result, visitorPasscode: securityPassword, securityPassword });
+            toast.success('Visitor passcode updated successfully!');
+            onClose();
+        } catch (error) {
+            console.error('Update visitor passcode error:', error);
+            toast.error(getErrorMessage(error));
+        }
     };
 
     return (
@@ -79,12 +111,12 @@ export function ResidentSecurityDialog({ open, resident, onClose, onSave }) {
             </DialogContent>
 
             <DialogActions sx={{ px: 3, py: 2 }}>
-                <Button variant="outlined" color="inherit" onClick={onClose}>
+                <Button variant="outlined" color="inherit" onClick={onClose} disabled={isLoading}>
                     Cancel
                 </Button>
-                <Button variant="contained" color="primary" onClick={handleSave}>
+                <LoadingButton variant="contained" color="primary" onClick={handleSave} loading={isLoading}>
                     Save Password
-                </Button>
+                </LoadingButton>
             </DialogActions>
         </Dialog>
     );

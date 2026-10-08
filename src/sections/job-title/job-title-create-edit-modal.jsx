@@ -15,10 +15,10 @@ import MenuItem from '@mui/material/MenuItem';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import { useCreateJobTitleMutation } from 'src/store/Reducer/job-titles-api';
 
-// import { useCreateJobTitleMutation, useUpdateJobTitleMutation } from 'src/store/Reducer/job-titles-api';
 import { JOB_TITLE_LEVEL_OPTIONS } from './mocks/data';
 
 // ----------------------------------------------------------------------
@@ -28,7 +28,7 @@ const JobTitleSchema = zod.object({
   level: zod.string().min(1, 'Level is required'),
   active: zod.boolean(),
   branchId: zod.string().optional(),
-  departmentId: zod.string().optional(),
+  departmentIds: zod.array(zod.object({ value: zod.string(), label: zod.string() })),
 });
 
 // ----------------------------------------------------------------------
@@ -44,21 +44,38 @@ export function JobTitleCreateEditModal({
 }) {
   const isEdit = !!currentJobTitle;
 
-  // Optional branch scope — branches for the owner's organization.
+  const {
+    currentData: branchesData,
+    isFetching: isBranchesFetching,
+    isError: isBranchesError,
+    error: branchesError,
+  } = useGetBranchesQuery(
+    { organizationId, page: 1, limit: 100 },
+    { skip: !open || !organizationId }
+  );
+
   const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !organizationId || branch.organizationId === organizationId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [organizationId]
+    () => (branchesData?.data ?? []).map((branch) => ({ value: branch._id, label: branch.name })),
+    [branchesData]
+  );
+
+  const {
+    currentData: departmentsData,
+    isFetching: isDepartmentsFetching,
+    isError: isDepartmentsError,
+    error: departmentsError,
+  } = useGetDepartmentsQuery(
+    { organizationId, page: 1, limit: 100 },
+    { skip: !open || !organizationId }
   );
 
   const departmentOptions = useMemo(
     () =>
-      mockDepartments
-        .filter((department) => !organizationId || department.organizationId === organizationId)
-        .map((department) => ({ value: department._id, label: department.name })),
-    [organizationId]
+      (departmentsData?.data ?? []).map((department) => ({
+        value: department._id,
+        label: department.name,
+      })),
+    [departmentsData]
   );
 
   const defaultValues = useMemo(
@@ -67,7 +84,22 @@ export function JobTitleCreateEditModal({
       level: currentJobTitle?.level || JOB_TITLE_LEVEL_OPTIONS[0]?.value || '',
       active: currentJobTitle?.active ?? true,
       branchId: currentJobTitle?.branchId || (currentJobTitle?.siteScope === 'none' ? '__none__' : '__all_sites__'),
-      departmentId: currentJobTitle?.departmentId || currentJobTitle?.department?._id || '',
+      departmentIds:
+        currentJobTitle?.departments?.map((department) => ({
+          value: department._id,
+          label: department.name,
+        })) ??
+        (currentJobTitle?.departmentId || currentJobTitle?.department?._id
+          ? [
+              {
+                value: currentJobTitle.departmentId || currentJobTitle.department._id,
+                label:
+                  currentJobTitle.department?.name ||
+                  currentJobTitle.departmentId ||
+                  currentJobTitle.department._id,
+              },
+            ]
+          : []),
     }),
     [currentJobTitle]
   );
@@ -76,6 +108,8 @@ export function JobTitleCreateEditModal({
     resolver: zodResolver(JobTitleSchema),
     defaultValues,
   });
+
+  const [createJobTitle, { isLoading: isCreating }] = useCreateJobTitleMutation();
 
   useEffect(() => {
     if (open) {
@@ -90,8 +124,6 @@ export function JobTitleCreateEditModal({
 
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
-      // Payload kept decoupled from the wire format. The API slice picks
-      // `{ name, level, branchId? }` for the body and `organizationId` for the URL.
       const payload = {
         organizationId,
         name: data.name,
@@ -107,21 +139,31 @@ export function JobTitleCreateEditModal({
             : data.branchId === '__all_sites__'
               ? 'all'
               : 'branch',
-        departmentId: data.departmentId || null,
+        departmentIds: data.departmentIds.map((department) => department.value),
       };
 
-      // TODO: replace with the real mutation once the endpoint is wired up.
-      // if (isEdit) {
-      //   await updateJobTitle({ jobTitleId: currentJobTitle._id, ...payload }).unwrap();
-      // } else {
-      //   await createJobTitle(payload).unwrap();
-      // }
+      const result = isEdit
+        ? payload
+        : await createJobTitle({
+          organizationId,
+          name: data.name,
+          level: data.level,
+          branchId: payload.branchId,
+        }).unwrap();
 
-      onSuccess?.(payload);
+      onSuccess?.(result);
       toast.success(isEdit ? 'Job title updated successfully!' : 'Job title created successfully!');
       handleClose();
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      console.error(isEdit ? 'Update job title error:' : 'Create job title error:', error);
+      const errorMessage =
+        error?.data?.message ||
+        error?.data?.msg ||
+        error?.data?.error ||
+        error?.error ||
+        error?.message ||
+        'Something went wrong. Please try again.';
+      toast.error(errorMessage);
     }
   });
 
@@ -151,7 +193,18 @@ export function JobTitleCreateEditModal({
               ))}
             </Field.Select>
 
-            <Field.Select name="branchId" label="Site (optional)">
+            <Field.Select
+              name="branchId"
+              label="Site (optional)"
+              disabled={isBranchesFetching}
+              helperText={
+                isBranchesError
+                  ? branchesError?.data?.message || branchesError?.error || 'Failed to load sites.'
+                  : isBranchesFetching
+                    ? 'Loading sites...'
+                    : undefined
+              }
+            >
               <MenuItem value="__all_sites__">All sites</MenuItem>
               <MenuItem value="__none__">None</MenuItem>
               {branchOptions.map((option) => (
@@ -161,14 +214,23 @@ export function JobTitleCreateEditModal({
               ))}
             </Field.Select>
 
-            <Field.Select name="departmentId" label="Department (optional)">
-              <MenuItem value="">None</MenuItem>
-              {departmentOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            <Field.Autocomplete
+              name="departmentIds"
+              label="Departments (optional)"
+              placeholder={isDepartmentsFetching ? 'Loading departments...' : 'Search and select departments'}
+              options={departmentOptions}
+              multiple
+              loading={isDepartmentsFetching}
+              getOptionLabel={(option) => option.label || ''}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
+              helperText={
+                isDepartmentsError
+                  ? departmentsError?.data?.message ||
+                    departmentsError?.error ||
+                    'Failed to load departments.'
+                  : undefined
+              }
+            />
 
             <Field.Switch name="active" label="Active" />
           </Box>
@@ -183,7 +245,7 @@ export function JobTitleCreateEditModal({
             type="submit"
             variant="contained"
             color="primary"
-            loading={methods.formState.isSubmitting}
+            loading={methods.formState.isSubmitting || isCreating}
           >
             {isEdit ? 'Save Changes' : 'Create Job Title'}
           </LoadingButton>

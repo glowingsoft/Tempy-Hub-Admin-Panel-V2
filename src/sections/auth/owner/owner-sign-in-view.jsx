@@ -57,8 +57,8 @@ export function OwnerSignInView() {
   const queryEmail = searchParams.get('email') || '';
 
   const defaultValues = {
-    email: queryEmail || '',
-    password: '',
+    email: queryEmail || import.meta.env.VITE_OWNER_LOGIN_EMAIL || '',
+    password: import.meta.env.VITE_OWNER_LOGIN_PASSWORD || '',
   };
 
   const methods = useForm({
@@ -151,6 +151,7 @@ export function OwnerSignInView() {
       <Field.Text
         name="email"
         label="Email address"
+        inputProps={{ autoComplete: 'username' }}
         InputLabelProps={{ shrink: true, sx: { fontSize: '1.1rem' } }}
         sx={{ '& .MuiInputBase-input': { fontSize: '1.1rem', padding: '14.5px 14px' } }}
       />
@@ -161,6 +162,7 @@ export function OwnerSignInView() {
           label="Password"
           placeholder="6+ characters"
           type={password.value ? 'text' : 'password'}
+          inputProps={{ autoComplete: 'current-password' }}
           InputLabelProps={{ shrink: true, sx: { fontSize: '1.1rem' } }}
           sx={{ '& .MuiInputBase-input': { fontSize: '1.1rem', padding: '14.5px 14px' } }}
           InputProps={{
@@ -200,7 +202,7 @@ export function OwnerSignInView() {
         </Alert>
       )}
 
-      <Form methods={methods} onSubmit={onSubmit}>
+      <Form methods={methods} onSubmit={onSubmit} autoComplete="on">
         {renderForm}
       </Form>
     </>

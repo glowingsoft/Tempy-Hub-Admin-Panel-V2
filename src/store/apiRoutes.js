@@ -66,4 +66,10 @@ export const API_ROUTES = {
     // Attendance (shared line-manager / owner listing).
     ORGANIZATION_ATTENDANCE: (organizationId) => `/admin/organizations/${organizationId}/attendance`,
     ATTENDANCE_BY_ID: (attendanceDayId) => `/admin/attendance/${attendanceDayId}`,
+
+    // Residents
+    RESIDENTS: '/admin/residents',
+    RESIDENT_BY_ID: (residentId) => `/admin/residents/${residentId}`,
+    RESIDENT_VISITOR_PASSCODE: (residentId) => `/admin/residents/${residentId}/visitor-passcode`,
+    RESIDENT_VERIFY_PASSCODE: (residentId) => `/admin/residents/${residentId}/verify-passcode`,
 };

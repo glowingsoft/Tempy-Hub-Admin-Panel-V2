@@ -28,7 +28,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //   }
 //
 // POST /admin/organizations/:organizationId/departments
-//   request:  { "name": "Kitchen", "sortOrder": 1, "branchId"?: string }
+//   request:  { "name": "Kitchen", "sortOrder": 1 }
 //   response: { "message": "string", "data": Department }
 //
 // PATCH /admin/organizations/:organizationId/departments/:departmentId
@@ -74,10 +74,10 @@ export const departmentsApi = createApi({
     }),
 
     createDepartment: builder.mutation({
-      query: ({ organizationId, name, sortOrder, branchId }) => ({
+      query: ({ organizationId, name, sortOrder }) => ({
         url: API_ROUTES.ORGANIZATION_DEPARTMENTS(organizationId),
         method: 'POST',
-        body: { name, sortOrder, ...(branchId ? { branchId } : {}) },
+        body: { name, sortOrder },
       }),
       invalidatesTags: (result, error, { organizationId }) => [
         { type: 'Department', id: `LIST-${organizationId}` },

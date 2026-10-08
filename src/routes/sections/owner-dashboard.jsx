@@ -14,7 +14,6 @@ const OwnerDashboardPage = lazy(() => import('src/pages/owner-dashboard'));
 const DepartmentListPage = lazy(() => import('src/pages/owner-dashboard/departments/list'));
 const DepartmentDetailPage = lazy(() => import('src/pages/owner-dashboard/departments/detail'));
 const JobTitleListPage = lazy(() => import('src/pages/owner-dashboard/job-titles/list'));
-const JobTitleDetailPage = lazy(() => import('src/pages/owner-dashboard/job-titles/detail'));
 const BranchListPage = lazy(() => import('src/pages/owner-dashboard/branches/list'));
 const BranchDetailPage = lazy(() => import('src/pages/owner-dashboard/branches/detail'));
 const BranchCreatePage = lazy(() => import('src/pages/owner-dashboard/branches/new'));
@@ -122,7 +121,7 @@ export const ownerDashboardRoutes = [
         path: 'job-titles',
         children: [
           { index: true, element: <JobTitleListPage /> },
-          { path: ':id', element: <JobTitleDetailPage /> },
+          { path: ':id', element: <Navigate to="/owner-dashboard/job-titles" replace /> },
         ],
       },
       {

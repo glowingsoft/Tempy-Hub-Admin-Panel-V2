@@ -33,7 +33,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //
 // POST /admin/organizations/:organizationId/job-titles
 //   request:  { "name": "Head Chef", "level": "siteManagement", "branchId"?: string }
-//   response: { "message": "string", "data": JobTitle }
+//   response: { "message": "Job title created successfully", "data": JobTitle }
 //
 // PATCH /admin/organizations/:organizationId/job-titles/:jobTitleId
 //   request:  { "name"?: string, "level"?: string, "active"?: boolean, "branchId"?: string | null }
@@ -81,6 +81,7 @@ export const jobTitlesApi = createApi({
         method: 'POST',
         body: { name, level, ...(branchId ? { branchId } : {}) },
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { organizationId }) => [
         { type: 'JobTitle', id: `LIST-${organizationId}` },
       ],

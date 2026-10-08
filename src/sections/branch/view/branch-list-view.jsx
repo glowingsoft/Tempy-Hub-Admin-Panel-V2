@@ -39,15 +39,16 @@ import { BranchTableRow } from '../branch-table-row';
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All', color: 'default' }, ...BRANCH_STATUS_OPTIONS];
 
+const SITE_COLUMN_WIDTH = `${100 / 7}%`;
+
 const TABLE_HEAD = [
-  { id: 'sr', label: 'Sr#', width: 60 },
-  { id: 'name', label: 'Name', minWidth: 200 },
-  { id: 'code', label: 'Code', width: 100 },
-  { id: 'timezone', label: 'Timezone', minWidth: 160 },
-  { id: 'address', label: 'Address', minWidth: 200 },
-  { id: 'status', label: 'Status', width: 140, align: 'center' },
-  { id: 'createdAt', label: 'Created At', width: 140 },
-  { id: 'actions', label: 'Actions', width: 100, align: 'center' },
+  { id: 'sr', label: 'Sr#', width: SITE_COLUMN_WIDTH },
+  { id: 'name', label: 'Name', width: SITE_COLUMN_WIDTH },
+  { id: 'code', label: 'Code', width: SITE_COLUMN_WIDTH },
+  { id: 'address', label: 'Address', width: SITE_COLUMN_WIDTH },
+  { id: 'status', label: 'Status', width: SITE_COLUMN_WIDTH, align: 'center' },
+  { id: 'createdAt', label: 'Created At', width: SITE_COLUMN_WIDTH, align: 'center' },
+  { id: 'actions', label: 'Actions', width: SITE_COLUMN_WIDTH, align: 'center' },
 ];
 
 const FILTER_FIELDS = [
@@ -183,9 +184,20 @@ export function BranchListView() {
           onSearchChange={handleSearchChange}
         />
 
-        <Box sx={{ position: 'relative' }}>
-          <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1000 }}>
+        <Box sx={{ position: 'relative', width: 1, minWidth: 0 }}>
+          <Scrollbar sx={{ width: 1 }}>
+            <Table
+              size={table.dense ? 'small' : 'medium'}
+              sx={{
+                width: '100%',
+                minWidth: { xs: 784, md: '100%' },
+                tableLayout: 'fixed',
+                '& .MuiTableCell-root': {
+                  px: { xs: 1, sm: 2 },
+                  py: table.dense ? 0.5 : { xs: 1, sm: 1.5 },
+                },
+              }}
+            >
               <TableHeadCustom
                 order={table.order}
                 orderBy={table.orderBy}

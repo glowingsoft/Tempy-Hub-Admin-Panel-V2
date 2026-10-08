@@ -4,7 +4,7 @@ import TextField from '@mui/material/TextField';
 
 // ----------------------------------------------------------------------
 
-export function RHFTextField({ name, helperText, type, ...other }) {
+export function RHFTextField({ name, helperText, type, inputProps, ...other }) {
   const { control } = useFormContext();
 
   return (
@@ -28,6 +28,7 @@ export function RHFTextField({ name, helperText, type, ...other }) {
           helperText={error?.message ?? helperText}
           inputProps={{
             autoComplete: 'off',
+            ...inputProps,
           }}
           {...other}
         />
