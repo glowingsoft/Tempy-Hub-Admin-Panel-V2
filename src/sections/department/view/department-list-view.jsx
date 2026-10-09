@@ -76,7 +76,12 @@ export function DepartmentListView() {
   const [selectedDepartment, setSelectedDepartment] = useState(null);
 
   const { currentData: data, isLoading, isFetching, isError, error } = useGetDepartmentsQuery(
-    { organizationId, page: table.page + 1, limit: table.rowsPerPage },
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      keyword: keyword.trim(),
+    },
     { skip: !organizationId }
   );
 
@@ -91,25 +96,21 @@ export function DepartmentListView() {
     []
   );
 
-  // Search and status filters apply to the current API page.
+  // Status filtering applies to the current API page; keyword search is server-side.
   const filteredDepartments = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
     return allDepartments
       .filter((department) => {
         const matchesStatus =
           filters.state.status === 'all' ||
           (filters.state.status === 'active') === !!department.isActive;
 
-        const matchesSearch = !search || department.name?.toLowerCase().includes(search);
-
-        return matchesStatus && matchesSearch;
+        return matchesStatus;
       })
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  }, [allDepartments, filters.state.status, keyword]);
+  }, [allDepartments, filters.state.status]);
 
   const totalRecords =
-    filters.state.status === 'all' && !keyword.trim() && Number.isFinite(data?.meta?.totalRecords)
+    filters.state.status === 'all' && Number.isFinite(data?.meta?.totalRecords)
       ? data.meta.totalRecords
       : filteredDepartments.length;
 

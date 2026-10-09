@@ -15,17 +15,33 @@ import { Label } from 'src/components/label';
 import { TableCellWithTooltip } from 'src/components/table';
 
 import { getMembershipStatusMeta, getRoleLabel } from './mocks/data';
+import {
+  resolveBranchName,
+  resolveJobTitleName,
+  resolveDepartmentNames,
+} from './use-invitation-lookups';
 
 // ----------------------------------------------------------------------
 
-export function MembershipTableRow({ row, serialNumber, onResend, onRevoke, onDelete }) {
+export function MembershipTableRow({
+  row,
+  serialNumber,
+  onResend,
+  onRevoke,
+  onDelete,
+  branchesMap,
+  jobTitlesMap,
+  departmentsMap,
+}) {
   const router = useRouter();
 
   const detailPath = paths.owner.memberships.invitations.detail(row._id);
   const editPath = paths.owner.memberships.invitations.edit(row._id);
 
   const status = getMembershipStatusMeta(row.status);
-  const departmentNames = (row.departments || []).map((dep) => dep.name).join(', ');
+  const branchName = resolveBranchName(row, branchesMap);
+  const jobTitleName = resolveJobTitleName(row, jobTitlesMap);
+  const departmentNames = resolveDepartmentNames(row, departmentsMap);
 
   const actions = [
     {
@@ -96,11 +112,11 @@ export function MembershipTableRow({ row, serialNumber, onResend, onRevoke, onDe
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{getRoleLabel(row.role)}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{branchName}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.jobTitle?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{jobTitleName}</TableCell>
 
-      <TableCellWithTooltip maxWidth={200}>{departmentNames || '—'}</TableCellWithTooltip>
+      <TableCellWithTooltip maxWidth={200}>{departmentNames}</TableCellWithTooltip>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.startDate)}</TableCell>
 

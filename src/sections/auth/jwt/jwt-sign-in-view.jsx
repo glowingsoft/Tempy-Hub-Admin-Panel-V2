@@ -13,7 +13,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { RouterLink } from 'src/routes/components';
-import { useRouter } from 'src/routes/hooks';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
@@ -22,7 +22,7 @@ import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { useDispatch } from 'react-redux';
-// import { useAdminLoginMutation, useLoginMutation } from 'src/store/Reducer/auth';
+import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
@@ -93,19 +93,20 @@ const mockLogin = async (payload) => {
 
 export function JwtSignInView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch();
 
-  // API hooks commented out
-  // const [login] = useLoginMutation();
-  // const [adminLogin] = useAdminLoginMutation();
+  const [login, { isLoading: isLoginLoading }] = useLoginMutation();
 
   const [errorMsg, setErrorMsg] = useState('');
 
   const password = useBoolean();
 
+  const queryEmail = searchParams.get('email') || '';
+
   const defaultValues = {
-    email: 'linemanager@tempy.com',
-    password: '123456',
+    email: queryEmail || 'linemanager@tempy.com',
+    password: queryEmail ? '' : '123456',
   };
 
   const methods = useForm({
@@ -128,8 +129,14 @@ export function JwtSignInView() {
         router.push(paths.siteManager.root);
         break;
       case 3:
-        router.push(paths.lineManager.root)
-         break;
+        router.push(paths.lineManager.root);
+        break;
+      case 4:
+        router.push(paths.owner.root);
+        break;
+      case 5:
+        router.push(paths.staff.dashboard);
+        break;
       default:
         router.push('/');
         break;
@@ -142,51 +149,67 @@ export function JwtSignInView() {
     const payload = {
       email: data.email.trim().toLowerCase(),
       password: data.password,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
       userType: data.email.includes('admin') ? 'admin' : 'user',
-      deviceType,
+      deviceType: deviceType || 'desktop',
       deviceId: '123',
     };
 
     try {
-      // API calls commented out - using mock data instead
-      // let response;
-      // if (payload.userType === 'admin') {
-      //   response = await adminLogin(payload).unwrap();
-      // } else {
-      //   response = await login(payload).unwrap();
-      // }
+      let response;
+      const isDemoAccount =
+        payload.email === 'linemanager@tempy.com' || payload.email === 'sitemanager@tempy.com';
 
-      // Using mock login function
-      const response = await mockLogin(payload);
-
-      if (response.error) {
-        return toast.error(response.error.data?.message);
+      try {
+        response = await login(payload).unwrap();
+      } catch (apiError) {
+        if (isDemoAccount) {
+          response = await mockLogin(payload);
+        } else {
+          throw apiError;
+        }
       }
 
-      if (!response.data) {
+      if (response?.error) {
+        return toast.error(response.error.data?.message || 'Login failed');
+      }
+
+      const user = response?.data ?? response;
+
+      if (!user) {
         toast.error('Login failed: No user data received');
         router.push('/');
         return null;
       }
 
-      const user = response.data;
-
-      if (!user) {
-        return router.push('/404');
-      }
-
-      if (!user?.accountState?.status) {
+      if (user?.accountState?.status === false || user?.accountState?.status === 'inactive') {
         toast.error('Your account is inactive. Please contact support.');
         return null;
       }
 
-      // const user_type = user?.accountState?.userType === 'user' ? 2 : 1;
-      let user_type = null;
+      let user_type =
+        ((user?.basicInfo?.email === "sitemanager@tempy.com" && 2) ||
+        (user?.basicInfo?.email === "linemanager@tempy.com" && 3));
 
-      user_type = (
-        (user?.basicInfo?.email === "sitemanager@tempy.com" && 2) || user?.basicInfo?.email === "linemanager@tempy.com" && 3)
+      if (!user_type) {
+        const role =
+          user?.access?.memberships?.[0]?.role ||
+          user?.role ||
+          user?.basicInfo?.role ||
+          user?.accountState?.role;
 
+        if (role === 'lineManager' || role === 'line_manager' || role === 'Line Manager') {
+          user_type = 3;
+        } else if (role === 'siteManager' || role === 'site_manager' || role === 'Site Manager') {
+          user_type = 2;
+        } else if (role === 'admin' || user?.accountState?.userType === 'admin') {
+          user_type = 1;
+        } else if (role === 'owner' || role === 'Owner') {
+          user_type = 4;
+        } else if (role === 'staff' || role === 'Staff') {
+          user_type = 5;
+        }
+      }
 
       console.log({ user_type });
 
@@ -195,6 +218,7 @@ export function JwtSignInView() {
       const UpdatedUserData = {
         ...user,
         permission,
+        displayName: user?.basicInfo?.name || user?.name || 'Manager',
       };
 
       console.log('Updated User Data', UpdatedUserData);
@@ -205,8 +229,14 @@ export function JwtSignInView() {
       reset();
       toast.success('Login successful!');
     } catch (error) {
-      setErrorMsg(typeof error === 'string' ? error : error.message);
-      handleApiError(error);
+      console.error('Login error:', error);
+      const msg =
+        error?.data?.message ||
+        error?.data?.error ||
+        error?.message ||
+        'Login failed. Please check your credentials.';
+      setErrorMsg(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      toast.error(typeof msg === 'string' ? msg : 'Login failed');
     }
   });
 
@@ -253,7 +283,15 @@ export function JwtSignInView() {
         </Link>
       </Stack>
 
-      <LoadingButton fullWidth color="inherit" size="large" type="submit" variant="contained" loading={isSubmitting} loadingIndicator="Sign in...">
+      <LoadingButton
+        fullWidth
+        color="inherit"
+        size="large"
+        type="submit"
+        variant="contained"
+        loading={isSubmitting || isLoginLoading}
+        loadingIndicator="Sign in..."
+      >
         Sign in
       </LoadingButton>
     </Stack>

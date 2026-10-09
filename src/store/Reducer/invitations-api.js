@@ -5,8 +5,8 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 // ----------------------------------------------------------------------
 // Invitations / Memberships API
 //
-// An invitation belongs to an organization. Listing + create are org-scoped;
-// resend / revoke / delete address an invitation directly.
+// An invitation belongs to an organization. List + create use organization
+// routes; invitation-specific operations include the organization scope header.
 //
 // GET  /admin/organizations/:organizationId/invitations?page=1&limit=10&status=pending
 //   status: "pending" | "accepted" | "revoked" (optional)
@@ -54,6 +54,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //
 // POST /admin/invitations/:invitationId/resend  -> { "message": "string", "data": Invitation }
 // POST /admin/invitations/:invitationId/revoke  -> { "message": "string", "data": Invitation }
+// GET  /admin/organizations/:organizationId/invitations/:invitationId
 // PUT  /admin/invitations/:invitationId          -> update a pending invitation (shape assumed)
 // DELETE /admin/invitations/:invitationId        -> remove a revoked invitation (assumed)
 // ----------------------------------------------------------------------
@@ -67,10 +68,15 @@ export const invitationsApi = createApi({
 
   endpoints: (builder) => ({
     getInvitations: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, status }) => ({
+      query: ({ organizationId, page = 1, limit = 10, status, keyword = '' }) => ({
         url: API_ROUTES.ORGANIZATION_INVITATIONS(organizationId),
         method: 'GET',
-        params: { page, limit, ...(status && status !== 'all' ? { status } : {}) },
+        params: {
+          page,
+          limit,
+          ...(status && status !== 'all' ? { status } : {}),
+          ...(keyword ? { keyword } : {}),
+        },
       }),
       transformResponse: (res) => ({
         data: res?.data ?? [],
@@ -86,12 +92,13 @@ export const invitationsApi = createApi({
     }),
 
     getInvitation: builder.query({
-      query: (invitationId) => ({
-        url: API_ROUTES.INVITATION_BY_ID(invitationId),
+      query: ({ invitationId, organizationId }) => ({
+        url: API_ROUTES.ORGANIZATION_INVITATION_BY_ID(organizationId, invitationId),
         method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
       }),
       transformResponse: (res) => res?.data ?? res,
-      providesTags: (result, error, invitationId) => [{ type: 'Invitation', id: invitationId }],
+      providesTags: (result, error, { invitationId }) => [{ type: 'Invitation', id: invitationId }],
     }),
 
     createInvitation: builder.mutation({
@@ -100,6 +107,7 @@ export const invitationsApi = createApi({
         method: 'POST',
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { organizationId }) => [listTag(organizationId)],
     }),
 
@@ -116,10 +124,12 @@ export const invitationsApi = createApi({
     }),
 
     resendInvitation: builder.mutation({
-      query: ({ invitationId }) => ({
+      query: ({ invitationId, organizationId }) => ({
         url: API_ROUTES.INVITATION_RESEND(invitationId),
         method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { invitationId, organizationId }) => [
         { type: 'Invitation', id: invitationId },
         ...(organizationId ? [listTag(organizationId)] : []),
@@ -127,10 +137,12 @@ export const invitationsApi = createApi({
     }),
 
     revokeInvitation: builder.mutation({
-      query: ({ invitationId }) => ({
+      query: ({ invitationId, organizationId }) => ({
         url: API_ROUTES.INVITATION_REVOKE(invitationId),
         method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { invitationId, organizationId }) => [
         { type: 'Invitation', id: invitationId },
         ...(organizationId ? [listTag(organizationId)] : []),

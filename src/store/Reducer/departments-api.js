@@ -44,10 +44,10 @@ export const departmentsApi = createApi({
 
   endpoints: (builder) => ({
     getDepartments: builder.query({
-      query: ({ organizationId, page = 1, limit = 10 }) => ({
+      query: ({ organizationId, page = 1, limit = 10, keyword = '' }) => ({
         url: API_ROUTES.ORGANIZATION_DEPARTMENTS(organizationId),
         method: 'GET',
-        params: { page, limit },
+        params: { page, limit, ...(keyword ? { keyword } : {}) },
       }),
       transformResponse: (res) => ({
         data: res?.data ?? [],

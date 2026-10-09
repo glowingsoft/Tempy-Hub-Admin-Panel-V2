@@ -32,11 +32,11 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //   }
 //
 // POST /admin/organizations/:organizationId/job-titles
-//   request:  { "name": "Head Chef", "level": "siteManagement", "branchId"?: string }
+//   request:  { "name": "Head Chef", "level": "siteManagement", "branchId"?: string, "departmentId"?: string | null }
 //   response: { "message": "Job title created successfully", "data": JobTitle }
 //
 // PATCH /admin/organizations/:organizationId/job-titles/:jobTitleId
-//   request:  { "name"?: string, "level"?: string, "active"?: boolean, "branchId"?: string | null }
+//   request:  { "name"?: string, "level"?: string, "active"?: boolean, "branchId"?: string | null, "departmentId"?: string | null }
 //   response: { "message": "string", "data": JobTitle }
 //   (PATCH shape assumed — align with the backend when wired.)
 // ----------------------------------------------------------------------
@@ -48,10 +48,10 @@ export const jobTitlesApi = createApi({
 
   endpoints: (builder) => ({
     getJobTitles: builder.query({
-      query: ({ organizationId, page = 1, limit = 10 }) => ({
+      query: ({ organizationId, page = 1, limit = 10, keyword = '' }) => ({
         url: API_ROUTES.ORGANIZATION_JOB_TITLES(organizationId),
         method: 'GET',
-        params: { page, limit },
+        params: { page, limit, ...(keyword ? { keyword } : {}) },
       }),
       transformResponse: (res) => ({
         data: res?.data ?? [],
@@ -76,10 +76,15 @@ export const jobTitlesApi = createApi({
     }),
 
     createJobTitle: builder.mutation({
-      query: ({ organizationId, name, level, branchId }) => ({
+      query: ({ organizationId, name, level, branchId, departmentId }) => ({
         url: API_ROUTES.ORGANIZATION_JOB_TITLES(organizationId),
         method: 'POST',
-        body: { name, level, ...(branchId ? { branchId } : {}) },
+        body: {
+          name,
+          level,
+          ...(branchId ? { branchId } : {}),
+          ...(departmentId ? { departmentId } : {}),
+        },
       }),
       transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { organizationId }) => [

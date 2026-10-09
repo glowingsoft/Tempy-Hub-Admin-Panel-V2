@@ -7,7 +7,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { MembershipNewEditForm } from '../membership-new-edit-form';
-import { getOwnerOrganizationId } from '../utils';
+import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 
 // ----------------------------------------------------------------------
 

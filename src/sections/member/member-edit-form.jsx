@@ -23,8 +23,8 @@ import { mockBranches } from 'src/sections/branch/mocks/data';
 import { mockJobTitles } from 'src/sections/job-title/mocks/data';
 import { mockDepartments } from 'src/sections/department/mocks/data';
 
-// import { useUpdateMembershipMutation } from 'src/store/Reducer/members-api';
-import { MEMBER_ROLE_OPTIONS, MEMBER_PERMISSION_OPTIONS, updateMockMember } from './mocks/data';
+import { useUpdateMembershipMutation } from 'src/store/Reducer/members-api';
+import { MEMBER_ROLE_OPTIONS, MEMBER_PERMISSION_OPTIONS } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
@@ -47,7 +47,7 @@ export function MemberEditForm({ organizationId, currentMember }) {
 
   const membershipId = currentMember?.membershipId ?? currentMember?._id;
 
-  // const [updateMembership, { isLoading: isUpdating }] = useUpdateMembershipMutation();
+  const [updateMembership, { isLoading: isUpdating }] = useUpdateMembershipMutation();
 
   const branchOptions = useMemo(
     () =>
@@ -109,15 +109,12 @@ export function MemberEditForm({ organizationId, currentMember }) {
         startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
       };
 
-      // TODO: replace with the real mutation once the endpoint is wired up.
-      // await updateMembership({ membershipId, organizationId, ...payload }).unwrap();
-
-      updateMockMember(membershipId, payload);
+      await updateMembership({ membershipId, organizationId, ...payload }).unwrap();
 
       toast.success('Membership updated successfully!');
       router.push(paths.owner.memberships.members.detail(membershipId));
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      toast.error(error?.data?.message || error?.message || 'Something went wrong. Please try again.');
     }
   });
 
@@ -214,7 +211,7 @@ export function MemberEditForm({ organizationId, currentMember }) {
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton type="submit" variant="contained" loading={isSubmitting || isUpdating}>
             Save changes
           </LoadingButton>
         </Stack>

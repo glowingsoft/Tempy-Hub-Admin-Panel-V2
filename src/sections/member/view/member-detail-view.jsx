@@ -1,9 +1,15 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useSelector } from 'react-redux';
 
+import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { useGetMemberQuery } from 'src/store/Reducer/members-api';
+
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -19,12 +25,10 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 
-// import { useGetMemberQuery } from 'src/store/Reducer/members-api';
 import {
   getMemberPermissionLabels,
   getMemberRoleLabel,
   getMemberStatusMeta,
-  getMockMemberById,
 } from '../mocks/data';
 import { useMemberActions } from '../use-member-actions';
 import { MemberActionDialog } from '../member-action-dialog';
@@ -34,15 +38,49 @@ import { MemberActionDialog } from '../member-action-dialog';
 export function MemberDetailView() {
   const { id } = useParams();
   const router = useRouter();
+  const { user } = useSelector((state) => state.user);
+  const organizationId = getOwnerOrganizationId(user);
 
-  const [reloadKey, setReloadKey] = useState(0);
+  const [, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
 
   const { askDeactivate, confirmProps } = useMemberActions({ onChanged: refresh });
 
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data: member, isLoading } = useGetMemberQuery(id);
-  const member = useMemo(() => getMockMemberById(id), [id, reloadKey]);
+  const {
+    data: member,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useGetMemberQuery(
+    { membershipId: id, organizationId },
+    { skip: !id || !organizationId }
+  );
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={refetch}>
+              Retry
+            </Button>
+          }
+        >
+          {error?.data?.message || 'Unable to load member details.'}
+        </Alert>
+      </Box>
+    );
+  }
 
   if (!member) {
     return (

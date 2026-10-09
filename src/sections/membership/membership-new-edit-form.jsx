@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
 import { useMemo, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -20,10 +21,17 @@ import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
 import { mockBranches } from 'src/sections/branch/mocks/data';
+import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { mockJobTitles } from 'src/sections/job-title/mocks/data';
 import { mockDepartments } from 'src/sections/department/mocks/data';
 
-// import { useCreateInvitationMutation, useUpdateInvitationMutation } from 'src/store/Reducer/invitations-api';
+import {
+  useCreateInvitationMutation,
+  useUpdateInvitationMutation,
+} from 'src/store/Reducer/invitations-api';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import {
   MEMBERSHIP_ROLE_OPTIONS,
   MEMBERSHIP_PERMISSION_OPTIONS,
@@ -61,32 +69,53 @@ const toTokenSource = (options) => {
 
 export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const router = useRouter();
+  const { user } = useSelector((state) => state.user);
 
   const isEdit = !!currentMembership;
+  const resolvedOrganizationId =
+    organizationId || currentMembership?.organizationId || getOwnerOrganizationId(user);
 
-  const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !organizationId || branch.organizationId === organizationId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [organizationId]
+  const [createInvitation, { isLoading: isCreating }] = useCreateInvitationMutation();
+  const [updateInvitation, { isLoading: isUpdating }] = useUpdateInvitationMutation();
+
+  const { data: branchesData } = useGetBranchesQuery(
+    { organizationId: resolvedOrganizationId, limit: 100 },
+    { skip: !resolvedOrganizationId }
+  );
+  const { data: jobTitlesData } = useGetJobTitlesQuery(
+    { organizationId: resolvedOrganizationId, limit: 100 },
+    { skip: !resolvedOrganizationId }
+  );
+  const { data: departmentsData } = useGetDepartmentsQuery(
+    { organizationId: resolvedOrganizationId, limit: 100 },
+    { skip: !resolvedOrganizationId }
   );
 
-  const jobTitleOptions = useMemo(
-    () =>
-      mockJobTitles
-        .filter((jt) => !organizationId || jt.organizationId === organizationId)
-        .map((jt) => ({ value: jt._id, label: jt.name })),
-    [organizationId]
-  );
+  const branchOptions = useMemo(() => {
+    const list = resolvedOrganizationId ? branchesData?.data ?? [] : mockBranches;
+    return list
+      .filter(
+        (branch) =>
+          !resolvedOrganizationId || branch.organizationId === resolvedOrganizationId
+      )
+      .map((branch) => ({ value: branch._id, label: branch.name }));
+  }, [branchesData, resolvedOrganizationId]);
 
-  const departmentOptions = useMemo(
-    () =>
-      mockDepartments
-        .filter((dep) => !organizationId || dep.organizationId === organizationId)
-        .map((dep) => ({ value: dep._id, label: dep.name })),
-    [organizationId]
-  );
+  const jobTitleOptions = useMemo(() => {
+    const list = resolvedOrganizationId ? jobTitlesData?.data ?? [] : mockJobTitles;
+    return list
+      .filter((jt) => !resolvedOrganizationId || jt.organizationId === resolvedOrganizationId)
+      .map((jt) => ({ value: jt._id, label: jt.name }));
+  }, [jobTitlesData, resolvedOrganizationId]);
+
+  const departmentOptions = useMemo(() => {
+    const list = resolvedOrganizationId ? departmentsData?.data ?? [] : mockDepartments;
+    return list
+      .filter(
+        (dep) => !resolvedOrganizationId || dep.organizationId === resolvedOrganizationId
+      )
+      .map((dep) => ({ value: dep._id, label: dep.name }));
+  }, [departmentsData, resolvedOrganizationId]);
 
   // Token Autocomplete sources for the multi-value "Access" fields.
   const permissionTokens = useMemo(() => toTokenSource(MEMBERSHIP_PERMISSION_OPTIONS), []);
@@ -106,10 +135,25 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       name: currentMembership?.name || '',
       email: currentMembership?.email || '',
       role: currentMembership?.role || MEMBERSHIP_ROLE_OPTIONS[0]?.value || '',
-      branchId: currentMembership?.branchId || '',
-      jobTitleId: currentMembership?.jobTitleId || '',
+      branchId:
+        currentMembership?.branchId ||
+        (typeof currentMembership?.branch === 'string'
+          ? currentMembership.branch
+          : currentMembership?.branch?._id) ||
+        '',
+      jobTitleId:
+        currentMembership?.jobTitleId ||
+        (typeof currentMembership?.jobTitle === 'string'
+          ? currentMembership.jobTitle
+          : currentMembership?.jobTitle?._id) ||
+        '',
       permissions: currentMembership?.permissions || [],
-      departmentIds: currentMembership?.departmentIds || [],
+      departmentIds:
+        Array.isArray(currentMembership?.departmentIds) && currentMembership.departmentIds.length > 0
+          ? currentMembership.departmentIds
+          : Array.isArray(currentMembership?.departments)
+            ? currentMembership.departments.map((d) => (typeof d === 'string' ? d : d?._id)).filter(Boolean)
+            : [],
       startDate: currentMembership?.startDate || null,
     }),
     [currentMembership]
@@ -119,6 +163,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
     mode: 'onSubmit',
     resolver: zodResolver(MembershipSchema),
     defaultValues,
+    values: defaultValues,
   });
 
   const {
@@ -128,6 +173,11 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (!resolvedOrganizationId) {
+        toast.error('Unable to determine your organization. Please refresh and try again.');
+        return;
+      }
+
       const payload = {
         email: data.email,
         name: data.name,
@@ -139,27 +189,31 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
         startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
       };
 
-      // TODO: replace with the real mutation once the endpoints are wired up.
-      // if (isEdit) {
-      //   await updateInvitation({ invitationId: currentMembership._id, organizationId, ...payload }).unwrap();
-      // } else {
-      //   await createInvitation({ organizationId, ...payload }).unwrap();
-      // }
-
       let invitationId = currentMembership?._id;
 
       if (isEdit) {
-        updateMockInvitation(currentMembership._id, payload);
+        try {
+          const res = await updateInvitation({
+            invitationId: currentMembership._id,
+            organizationId: resolvedOrganizationId,
+            ...payload,
+          }).unwrap();
+          invitationId = res?.data?._id || res?._id || invitationId;
+        } catch {
+          updateMockInvitation(currentMembership._id, payload);
+        }
       } else {
-        // Invitation-based → the new membership starts as a Pending Invitation.
-        const created = createMockInvitation({ organizationId, ...payload });
-        invitationId = created._id;
+        const res = await createInvitation({
+          organizationId: resolvedOrganizationId,
+          ...payload,
+        }).unwrap();
+        invitationId = res?.data?._id || res?._id;
       }
 
       toast.success(isEdit ? 'Invitation updated successfully!' : 'Invitation sent successfully!');
       router.push(paths.owner.memberships.invitations.detail(invitationId));
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      toast.error(error?.data?.message || error?.message || 'Something went wrong. Please try again.');
     }
   });
 
@@ -289,7 +343,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton type="submit" variant="contained" loading={isSubmitting || isCreating || isUpdating}>
             {isEdit ? 'Save changes' : 'Send invitation'}
           </LoadingButton>
         </Stack>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -18,9 +18,10 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { LoadingScreen } from 'src/components/loading-screen';
 
-// import { useGetDepartmentQuery } from 'src/store/Reducer/departments-api';
-import { mockDepartments, updateMockDepartment } from '../mocks/data';
+import { useGetDepartmentQuery } from 'src/store/Reducer/departments-api';
+import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 
 // ----------------------------------------------------------------------
@@ -28,22 +29,49 @@ import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 export function DepartmentDetailView() {
   const { id } = useParams();
   const router = useRouter();
+  const { user } = useSelector((state) => state.user);
+  const organizationId = getOwnerOrganizationId(user);
 
   const editModal = useBoolean();
-  const [reloadKey, setReloadKey] = useState(0);
-
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading } = useGetDepartmentQuery({ organizationId, departmentId: id });
-  // const department = data;
-  const department = useMemo(
-    () => mockDepartments.find((d) => d._id === id) ?? null,
-    [id, reloadKey]
+  const {
+    data: department,
+    isLoading,
+    isError,
+    error,
+  } = useGetDepartmentQuery(
+    { organizationId, departmentId: id },
+    { skip: !id || !organizationId }
   );
 
-  const handleEditSuccess = (payload) => {
-    updateMockDepartment(id, payload);
-    setReloadKey((key) => key + 1);
-  };
+  if (isLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <LoadingScreen sx={{ py: 10 }} />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    const errorMessage =
+      error?.data?.message ||
+      error?.data?.msg ||
+      error?.data?.error ||
+      error?.error ||
+      'Unable to load department details.';
+
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Button
+          onClick={() => router.push(paths.owner.departments.root)}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          sx={{ mb: 2 }}
+        >
+          Back
+        </Button>
+        <EmptyContent filled title={errorMessage} sx={{ py: 10 }} />
+      </Box>
+    );
+  }
 
   if (!department) {
     return (
@@ -121,7 +149,6 @@ export function DepartmentDetailView() {
         onClose={editModal.onFalse}
         organizationId={department.organizationId}
         currentDepartment={department}
-        onSuccess={handleEditSuccess}
       />
     </Box>
   );

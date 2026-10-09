@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
@@ -29,12 +30,13 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetInvitationsQuery } from 'src/store/Reducer/invitations-api';
+import { useGetInvitationsQuery } from 'src/store/Reducer/invitations-api';
 import { MEMBERSHIP_STATUS_OPTIONS, mockInvitationsResponse } from '../mocks/data';
-import { getOwnerOrganizationId } from '../utils';
+import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { useInvitationActions } from '../use-invitation-actions';
 import { InvitationActionDialog } from '../invitation-action-dialog';
 import { MembershipTableRow } from '../membership-table-row';
+import { useInvitationLookups } from '../use-invitation-lookups';
 
 // ----------------------------------------------------------------------
 
@@ -81,6 +83,8 @@ export function MembershipListView() {
     onChanged: refresh,
   });
 
+  const { branchesMap, jobTitlesMap, departmentsMap } = useInvitationLookups(organizationId);
+
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
     []
@@ -91,23 +95,34 @@ export function MembershipListView() {
   );
 
   // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetInvitationsQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage, status: filters.state.status },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockInvitationsResponse;
+  const {
+    data: apiData,
+    isLoading,
+    isFetching,
+    isError,
+    error: apiError,
+  } = useGetInvitationsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      status: filters.state.status,
+      keyword,
+    },
+    { skip: !organizationId }
+  );
+  const usesApi = Boolean(organizationId);
+  const data = usesApi ? apiData : mockInvitationsResponse;
 
   const allInvitations = useMemo(
     () =>
-      (data?.data ?? []).filter((inv) => !organizationId || inv.organizationId === organizationId),
+      (data?.data ?? []).filter(
+        (invitation) => !organizationId || invitation.organizationId === organizationId
+      ),
     [data, organizationId, reloadKey]
   );
 
-  // Client-side filtering (mock only — the API filters server-side).
-  const filteredInvitations = useMemo(() => {
+  const mockFilteredInvitations = useMemo(() => {
     const search = keyword.trim().toLowerCase();
 
     return allInvitations.filter((invitation) => {
@@ -123,12 +138,15 @@ export function MembershipListView() {
     });
   }, [allInvitations, filters.state.status, keyword]);
 
-  // Pagination metadata (mirrors the API `meta`).
-  const totalRecords = filteredInvitations.length;
-  const paginatedInvitations = useMemo(() => {
+  const mockPageInvitations = useMemo(() => {
     const start = table.page * table.rowsPerPage;
-    return filteredInvitations.slice(start, start + table.rowsPerPage);
-  }, [filteredInvitations, table.page, table.rowsPerPage]);
+    return mockFilteredInvitations.slice(start, start + table.rowsPerPage);
+  }, [mockFilteredInvitations, table.page, table.rowsPerPage]);
+
+  const paginatedInvitations = usesApi ? allInvitations : mockPageInvitations;
+  const totalRecords = usesApi
+    ? apiData?.meta?.totalRecords ?? apiData?.data?.length ?? 0
+    : mockFilteredInvitations.length;
 
   const getStatusCount = useCallback(
     (status) =>
@@ -171,7 +189,6 @@ export function MembershipListView() {
             component={RouterLink}
             href={paths.owner.memberships.invitations.new}
             variant="contained"
-            disabled={!organizationId}
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Invitation
@@ -181,6 +198,12 @@ export function MembershipListView() {
       />
 
       <Card>
+        {isError && (
+          <Alert severity="error">
+            {apiError?.data?.message || 'Unable to load invitations. Please try again.'}
+          </Alert>
+        )}
+
         {statusFilterField && (
           <StatusTabsFilterWrapper
             filterField={statusFilterField}
@@ -221,6 +244,9 @@ export function MembershipListView() {
                         onResend={resend}
                         onRevoke={askRevoke}
                         onDelete={askDelete}
+                        branchesMap={branchesMap}
+                        jobTitlesMap={jobTitlesMap}
+                        departmentsMap={departmentsMap}
                       />
                     ))}
 

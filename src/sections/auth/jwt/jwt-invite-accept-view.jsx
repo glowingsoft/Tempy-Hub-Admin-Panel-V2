@@ -24,6 +24,44 @@ import {
 
 import { JwtUpdatePasswordView } from './jwt-update-password-view';
 
+const ROLE_CONFIG = {
+  staff: {
+    label: 'Staff',
+    loginPath: paths.auth.staff.signIn,
+    loginButtonText: 'Proceed to Staff Login',
+  },
+  lineManager: {
+    label: 'Line Manager',
+    loginPath: '/',
+    loginButtonText: 'Proceed to Manager Portal',
+  },
+  siteManager: {
+    label: 'Site Manager',
+    loginPath: '/',
+    loginButtonText: 'Proceed to Manager Portal',
+  },
+  owner: {
+    label: 'Owner',
+    loginPath: paths.auth.owner.signIn,
+    loginButtonText: 'Proceed to Owner Login',
+  },
+};
+
+function getRoleConfig(role) {
+  const normalized = (role || '').toLowerCase();
+  if (normalized === 'staff') return ROLE_CONFIG.staff;
+  if (normalized === 'linemanager' || normalized === 'line_manager' || normalized === 'line manager')
+    return ROLE_CONFIG.lineManager;
+  if (normalized === 'sitemanager' || normalized === 'site_manager' || normalized === 'site manager')
+    return ROLE_CONFIG.siteManager;
+  if (normalized === 'owner') return ROLE_CONFIG.owner;
+  return {
+    label: role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Member',
+    loginPath: '/',
+    loginButtonText: 'Proceed to Login',
+  };
+}
+
 // ----------------------------------------------------------------------
 
 export function JwtInviteAcceptView() {
@@ -69,7 +107,8 @@ export function JwtInviteAcceptView() {
       const payload = {
         organizationName: displayInvitation?.organizationName || 'your organization',
         email: displayInvitation?.email || '',
-        name: formData.name || displayInvitation?.name || 'Owner',
+        name: formData.name || displayInvitation?.name || 'Member',
+        role: displayInvitation?.role || '',
         acceptedAt: new Date().toISOString(),
       };
 
@@ -104,6 +143,10 @@ export function JwtInviteAcceptView() {
   if (step === 'success') {
     const orgName = displayInvitation?.organizationName || 'your organization';
     const email = displayInvitation?.email || '';
+    const roleConfig = getRoleConfig(displayInvitation?.role);
+    const loginUrl = `${roleConfig.loginPath}${
+      email ? (roleConfig.loginPath.includes('?') ? '&' : '?') + `email=${encodeURIComponent(email)}` : ''
+    }`;
 
     return (
       <Card sx={{ p: 4, textAlign: 'center' }}>
@@ -126,7 +169,7 @@ export function JwtInviteAcceptView() {
           <Typography variant="h5">Account Activated!</Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Your account for <strong>{orgName}</strong> has been configured
+            Your account for <strong>{orgName}</strong> as <strong>{roleConfig.label}</strong> has been configured
             successfully. You can now log in with your email and new password.
           </Typography>
 
@@ -134,16 +177,10 @@ export function JwtInviteAcceptView() {
             fullWidth
             size="large"
             variant="contained"
-            onClick={() =>
-              router.push(
-                `${paths.auth.owner.signIn}${
-                  email ? `?email=${encodeURIComponent(email)}` : ''
-                }`
-              )
-            }
+            onClick={() => router.push(loginUrl)}
             sx={{ mt: 2 }}
           >
-            Proceed to Owner Login
+            {roleConfig.loginButtonText}
           </LoadingButton>
         </Stack>
       </Card>
@@ -214,10 +251,13 @@ export function JwtInviteAcceptView() {
             fullWidth
             size="large"
             variant="contained"
-            onClick={() => router.push(paths.auth.owner.signIn)}
+            onClick={() => {
+              const roleConfig = getRoleConfig(displayInvitation?.role);
+              router.push(roleConfig.loginPath);
+            }}
             sx={{ mt: 2 }}
           >
-            Go to Owner Login
+            {displayInvitation?.role ? getRoleConfig(displayInvitation.role).loginButtonText : 'Go to Login'}
           </LoadingButton>
 
           <Link
@@ -236,12 +276,18 @@ export function JwtInviteAcceptView() {
 
   // 4. Step 1: Overview & Organization Details
   if (step === 'overview') {
+    const roleConfig = getRoleConfig(displayInvitation?.role);
+    const email = displayInvitation?.email || '';
+    const loginUrl = `${roleConfig.loginPath}${
+      email ? (roleConfig.loginPath.includes('?') ? '&' : '?') + `email=${encodeURIComponent(email)}` : ''
+    }`;
+
     return (
       <Stack spacing={3}>
         <Stack spacing={1} sx={{ textAlign: 'center' }}>
           <Typography variant="h4">Organization Invitation</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            You have been invited to manage this organization on Tempy Hub.
+            You have been invited to join <strong>{displayInvitation?.organizationName || 'this organization'}</strong> as <strong>{roleConfig.label}</strong>.
           </Typography>
         </Stack>
 
@@ -266,7 +312,7 @@ export function JwtInviteAcceptView() {
                 <Typography variant="subtitle1">{displayInvitation.organizationName}</Typography>
                 <Chip
                   size="small"
-                  label={displayInvitation.role ? displayInvitation.role.toUpperCase() : 'OWNER'}
+                  label={roleConfig.label.toUpperCase()}
                   color="primary"
                   variant="soft"
                   sx={{ mt: 0.5, fontWeight: 600 }}
@@ -289,6 +335,15 @@ export function JwtInviteAcceptView() {
                   Email Address:
                 </Typography>
                 <Typography variant="subtitle2">{displayInvitation.email}</Typography>
+              </Stack>
+
+              <Stack direction="row" justifyContent="space-between">
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Role:
+                </Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  {roleConfig.label}
+                </Typography>
               </Stack>
 
               {displayInvitation.expiresAt && (
@@ -317,7 +372,7 @@ export function JwtInviteAcceptView() {
 
         <Link
           component={RouterLink}
-          href={paths.auth.owner.signIn}
+          href={loginUrl}
           color="inherit"
           variant="subtitle2"
           sx={{ mx: 'auto', alignItems: 'center', display: 'inline-flex' }}

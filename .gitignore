@@ -125,3 +125,6 @@ firebase-debug.log
 
 # Rules for cursor files
 cursor/rules/
+
+# Local API implementation notes
+/API_IMPLEMENTATION_DETAILS.md

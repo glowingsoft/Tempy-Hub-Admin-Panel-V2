@@ -77,7 +77,12 @@ export function JobTitleListView() {
   const [selectedJobTitle, setSelectedJobTitle] = useState(null);
 
   const { currentData: data, isLoading, isFetching, isError, error } = useGetJobTitlesQuery(
-    { organizationId, page: table.page + 1, limit: table.rowsPerPage },
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      keyword: keyword.trim(),
+    },
     { skip: !organizationId }
   );
 
@@ -92,25 +97,21 @@ export function JobTitleListView() {
     []
   );
 
-  // Search and status filters apply to the current API page.
+  // Status filtering applies to the current API page; keyword search is server-side.
   const filteredJobTitles = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
     return allJobTitles
       .filter((jobTitle) => {
         const matchesStatus =
           filters.state.status === 'all' ||
           (filters.state.status === 'active') === !!jobTitle.active;
 
-        const matchesSearch = !search || jobTitle.name?.toLowerCase().includes(search);
-
-        return matchesStatus && matchesSearch;
+        return matchesStatus;
       })
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [allJobTitles, filters.state.status, keyword]);
+  }, [allJobTitles, filters.state.status]);
 
   const totalRecords =
-    filters.state.status === 'all' && !keyword.trim() && Number.isFinite(data?.meta?.totalRecords)
+    filters.state.status === 'all' && Number.isFinite(data?.meta?.totalRecords)
       ? data.meta.totalRecords
       : filteredJobTitles.length;
 

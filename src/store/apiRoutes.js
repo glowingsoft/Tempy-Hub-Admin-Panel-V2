@@ -31,6 +31,8 @@ export const API_ROUTES = {
     ORGANIZATION_BRANCHES: (organizationId) => `/admin/organizations/${organizationId}/branches`,
     BRANCH_BY_ID: (branchId) => `/admin/branches/${branchId}`,
     ORGANIZATION_INVITATIONS: (organizationId) => `/admin/organizations/${organizationId}/invitations`,
+    ORGANIZATION_INVITATION_BY_ID: (organizationId, invitationId) =>
+        `/admin/organizations/${organizationId}/invitations/${invitationId}`,
     INVITATION_BY_ID: (invitationId) => `/admin/invitations/${invitationId}`,
     INVITATION_RESEND: (invitationId) => `/admin/invitations/${invitationId}/resend`,
     INVITATION_REVOKE: (invitationId) => `/admin/invitations/${invitationId}/revoke`,

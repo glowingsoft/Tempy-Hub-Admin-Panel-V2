@@ -17,7 +17,10 @@ import { toast } from 'src/components/snackbar';
 
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
-import { useCreateJobTitleMutation } from 'src/store/Reducer/job-titles-api';
+import {
+  useCreateJobTitleMutation,
+  useUpdateJobTitleMutation,
+} from 'src/store/Reducer/job-titles-api';
 
 import { JOB_TITLE_LEVEL_OPTIONS } from './mocks/data';
 
@@ -28,7 +31,9 @@ const JobTitleSchema = zod.object({
   level: zod.string().min(1, 'Level is required'),
   active: zod.boolean(),
   branchId: zod.string().optional(),
-  departmentIds: zod.array(zod.object({ value: zod.string(), label: zod.string() })),
+  departmentId: zod
+    .object({ value: zod.string(), label: zod.string() })
+    .nullable(),
 });
 
 // ----------------------------------------------------------------------
@@ -78,31 +83,24 @@ export function JobTitleCreateEditModal({
     [departmentsData]
   );
 
-  const defaultValues = useMemo(
-    () => ({
+  const defaultValues = useMemo(() => {
+    const department =
+      currentJobTitle?.department ??
+      currentJobTitle?.departments?.[0] ??
+      (currentJobTitle?.departmentId
+        ? { _id: currentJobTitle.departmentId, name: currentJobTitle.departmentId }
+        : null);
+
+    return {
       name: currentJobTitle?.name || '',
       level: currentJobTitle?.level || JOB_TITLE_LEVEL_OPTIONS[0]?.value || '',
       active: currentJobTitle?.active ?? true,
       branchId: currentJobTitle?.branchId || (currentJobTitle?.siteScope === 'none' ? '__none__' : '__all_sites__'),
-      departmentIds:
-        currentJobTitle?.departments?.map((department) => ({
-          value: department._id,
-          label: department.name,
-        })) ??
-        (currentJobTitle?.departmentId || currentJobTitle?.department?._id
-          ? [
-              {
-                value: currentJobTitle.departmentId || currentJobTitle.department._id,
-                label:
-                  currentJobTitle.department?.name ||
-                  currentJobTitle.departmentId ||
-                  currentJobTitle.department._id,
-              },
-            ]
-          : []),
-    }),
-    [currentJobTitle]
-  );
+      departmentId: department
+        ? { value: department._id, label: department.name || department._id }
+        : null,
+    };
+  }, [currentJobTitle]);
 
   const methods = useForm({
     resolver: zodResolver(JobTitleSchema),
@@ -110,6 +108,7 @@ export function JobTitleCreateEditModal({
   });
 
   const [createJobTitle, { isLoading: isCreating }] = useCreateJobTitleMutation();
+  const [updateJobTitle, { isLoading: isUpdating }] = useUpdateJobTitleMutation();
 
   useEffect(() => {
     if (open) {
@@ -139,19 +138,28 @@ export function JobTitleCreateEditModal({
             : data.branchId === '__all_sites__'
               ? 'all'
               : 'branch',
-        departmentIds: data.departmentIds.map((department) => department.value),
+        departmentId: data.departmentId?.value || null,
       };
 
       const result = isEdit
-        ? payload
+        ? await updateJobTitle({
+            organizationId,
+            jobTitleId: currentJobTitle._id,
+            name: data.name,
+            level: data.level,
+            active: data.active,
+            branchId: payload.branchId,
+            departmentId: payload.departmentId,
+          }).unwrap()
         : await createJobTitle({
-          organizationId,
-          name: data.name,
-          level: data.level,
-          branchId: payload.branchId,
-        }).unwrap();
+            organizationId,
+            name: data.name,
+            level: data.level,
+            branchId: payload.branchId,
+            departmentId: payload.departmentId,
+          }).unwrap();
 
-      onSuccess?.(result);
+      onSuccess?.(isEdit ? payload : result);
       toast.success(isEdit ? 'Job title updated successfully!' : 'Job title created successfully!');
       handleClose();
     } catch (error) {
@@ -215,11 +223,10 @@ export function JobTitleCreateEditModal({
             </Field.Select>
 
             <Field.Autocomplete
-              name="departmentIds"
-              label="Departments (optional)"
-              placeholder={isDepartmentsFetching ? 'Loading departments...' : 'Search and select departments'}
+              name="departmentId"
+              label="Department (optional)"
+              placeholder={isDepartmentsFetching ? 'Loading departments...' : 'Search and select a department'}
               options={departmentOptions}
-              multiple
               loading={isDepartmentsFetching}
               getOptionLabel={(option) => option.label || ''}
               isOptionEqualToValue={(option, value) => option.value === value.value}
@@ -245,7 +252,7 @@ export function JobTitleCreateEditModal({
             type="submit"
             variant="contained"
             color="primary"
-            loading={methods.formState.isSubmitting || isCreating}
+            loading={methods.formState.isSubmitting || isCreating || isUpdating}
           >
             {isEdit ? 'Save Changes' : 'Create Job Title'}
           </LoadingButton>

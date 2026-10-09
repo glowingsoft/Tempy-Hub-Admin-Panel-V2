@@ -15,7 +15,10 @@ import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
-import { useCreateDepartmentMutation } from 'src/store/Reducer/departments-api';
+import {
+  useCreateDepartmentMutation,
+  useUpdateDepartmentMutation,
+} from 'src/store/Reducer/departments-api';
 
 // ----------------------------------------------------------------------
 
@@ -80,6 +83,7 @@ export function DepartmentCreateEditModal({
   });
 
   const [createDepartment, { isLoading: isCreating }] = useCreateDepartmentMutation();
+  const [updateDepartment, { isLoading: isUpdating }] = useUpdateDepartmentMutation();
 
   useEffect(() => {
     if (open) {
@@ -109,6 +113,15 @@ export function DepartmentCreateEditModal({
           organizationId,
           name: data.name,
           sortOrder: data.sortOrder,
+        }).unwrap();
+      } else {
+        await updateDepartment({
+          organizationId,
+          departmentId: currentDepartment._id,
+          name: data.name,
+          sortOrder: data.sortOrder,
+          isActive: data.isActive,
+          branchId: data.branchId?.value || null,
         }).unwrap();
       }
 
@@ -176,7 +189,7 @@ export function DepartmentCreateEditModal({
             type="submit"
             variant="contained"
             color="primary"
-            loading={methods.formState.isSubmitting || isCreating}
+            loading={methods.formState.isSubmitting || isCreating || isUpdating}
           >
             {isEdit ? 'Save Changes' : 'Create Department'}
           </LoadingButton>
