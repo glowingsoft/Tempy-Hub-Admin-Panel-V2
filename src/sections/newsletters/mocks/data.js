@@ -1,24 +1,18 @@
 // Mock Data for Newsletters Section
 
-export const NEWSLETTER_TEMPLATES = [
-  {
-    id: 'classic',
-    label: 'Classic',
-    description: 'Balanced editorial style with structured headlines & classic typography',
-    icon: 'solar:document-text-bold',
-  },
-  {
-    id: 'photo-led',
-    label: 'Photo-led',
-    description: 'Prominent hero images, photo badges & visual-forward collage',
-    icon: 'solar:gallery-bold',
-  },
-  {
-    id: 'simple',
-    label: 'Simple',
-    description: 'Clean minimalist bulletin layout, concise text & high legibility',
-    icon: 'solar:notes-bold',
-  },
+export const NEWSLETTER_MONTHS = [
+  'January 2026',
+  'February 2026',
+  'March 2026',
+  'April 2026',
+  'May 2026',
+  'June 2026',
+  'July 2026',
+  'August 2026',
+  'September 2026',
+  'October 2026',
+  'November 2026',
+  'December 2026',
 ];
 
 export const mockNewsletterData = {

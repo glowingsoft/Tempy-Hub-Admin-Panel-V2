@@ -15,16 +15,17 @@ import { mockNewsletterData } from './mocks/data';
 // ----------------------------------------------------------------------
 
 export function NewsletterPreviewPaper({
-  selectedTemplate,
+  selectedMonth,
   sectionsState,
   welcomeText,
 }) {
   const theme = useTheme();
   const { header, sections } = mockNewsletterData;
-
-  const isClassic = selectedTemplate === 'classic';
-  const isPhotoLed = selectedTemplate === 'photo-led';
-  const isSimple = selectedTemplate === 'simple';
+  const [monthName, year] = selectedMonth.split(' ');
+  const monthAbbreviation = new Date(`${monthName} 1, ${year}`).toLocaleString('en-US', {
+    month: 'short',
+  });
+  const previewWelcomeText = (welcomeText || sections.welcome.text).replace(/October/gi, monthName);
 
   return (
     <Card
@@ -53,44 +54,12 @@ export function NewsletterPreviewPaper({
 
         <Chip
           size="small"
-          label={`Template: ${isClassic ? 'Classic' : isPhotoLed ? 'Photo-led' : 'Simple'}`}
+          label="Template: Classic"
           color="primary"
           variant="soft"
           sx={{ fontWeight: 600, fontSize: '0.75rem' }}
         />
       </Box>
-
-      {/* Photo-led Hero Banner (if photo-led selected) */}
-      {isPhotoLed && (
-        <Box
-          sx={{
-            width: '100%',
-            height: 180,
-            borderRadius: 1.5,
-            overflow: 'hidden',
-            position: 'relative',
-            mb: 2.5,
-            backgroundImage: `url(https://picsum.photos/seed/garden-afternoon-1/1000/500)`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        >
-          <Box
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%)',
-              display: 'flex',
-              alignItems: 'flex-end',
-              p: 2,
-            }}
-          >
-            <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 700 }}>
-              Autumn Life at Florence House
-            </Typography>
-          </Box>
-        </Box>
-      )}
 
       {/* Header Block */}
       <Box
@@ -98,8 +67,8 @@ export function NewsletterPreviewPaper({
           pb: 2,
           mb: 2.5,
           borderBottom: (t) =>
-            isSimple ? `1px solid ${t.palette.divider}` : `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-          textAlign: isClassic ? 'center' : 'left',
+            `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+          textAlign: 'center',
         }}
       >
         <Typography
@@ -120,15 +89,15 @@ export function NewsletterPreviewPaper({
             fontWeight: 800,
             color: '#111827',
             letterSpacing: -0.5,
-            fontFamily: isClassic ? 'Georgia, serif' : 'inherit',
+            fontFamily: 'Georgia, serif',
             my: 0.5,
           }}
         >
-          {header.editionTitle}
+          {`${monthName} newsletter`}
         </Typography>
 
         <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontWeight: 500 }}>
-          {header.tagline}
+          {`${header.tagline.split('·').slice(1).join('·').trim()} · ${selectedMonth}`}
         </Typography>
       </Box>
 
@@ -139,7 +108,7 @@ export function NewsletterPreviewPaper({
             sx={{
               p: 2,
               borderRadius: 1.5,
-              bgcolor: isSimple ? alpha(theme.palette.grey[500], 0.04) : alpha(theme.palette.primary.main, 0.04),
+              bgcolor: alpha(theme.palette.primary.main, 0.04),
               borderLeft: `3px solid ${theme.palette.primary.main}`,
             }}
           >
@@ -151,11 +120,11 @@ export function NewsletterPreviewPaper({
               sx={{
                 color: 'text.secondary',
                 lineHeight: 1.6,
-                fontStyle: isClassic ? 'italic' : 'normal',
+                fontStyle: 'italic',
                 fontSize: '0.85rem',
               }}
             >
-              &ldquo;{welcomeText || sections.welcome.text}&rdquo;
+              &ldquo;{previewWelcomeText}&rdquo;
             </Typography>
             <Typography variant="caption" sx={{ color: 'primary.dark', fontWeight: 700, mt: 1, display: 'block' }}>
               — {sections.welcome.author}
@@ -268,7 +237,7 @@ export function NewsletterPreviewPaper({
                         fontSize: '0.75rem',
                       }}
                     >
-                      {event.date}
+                      {event.date.replace(/Oct/g, monthAbbreviation)}
                     </Box>
                     <Box>
                       <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.82rem' }}>
@@ -345,7 +314,7 @@ export function NewsletterPreviewPaper({
 }
 
 NewsletterPreviewPaper.propTypes = {
-  selectedTemplate: PropTypes.string.isRequired,
+  selectedMonth: PropTypes.string.isRequired,
   sectionsState: PropTypes.object.isRequired,
   welcomeText: PropTypes.string.isRequired,
 };

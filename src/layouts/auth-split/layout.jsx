@@ -13,7 +13,7 @@ import { LayoutSection } from '../core/layout-section';
 
 // ----------------------------------------------------------------------
 
-export function AuthSplitLayout({ sx, section, hideSection = false, children }) {
+export function AuthSplitLayout({ sx, section, hideSection=false, children }) {
   const mobileNavOpen = useBoolean();
 
   const layoutQuery = 'md';
