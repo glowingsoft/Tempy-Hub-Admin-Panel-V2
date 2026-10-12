@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 
 import Box from '@mui/material/Box';
@@ -11,6 +11,9 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Grid from '@mui/material/Grid';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Divider from '@mui/material/Divider';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -23,42 +26,90 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { Lightbox } from 'src/components/lightbox';
-import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 
+import { varAlpha } from 'src/theme/styles';
+import { Label } from 'src/components/label';
 import { _communityWallPosts } from 'src/sections/family-engagement/mocks/data';
 import { CommunityWallPostCard } from '../community-wall-post-card';
+import { CommunityWallSidebar } from '../community-wall-sidebar';
 import { NewWallPostDialog } from '../new-wall-post-dialog';
 import { EditWallPostDialog } from '../edit-wall-post-dialog';
 
 // ----------------------------------------------------------------------
 
 const TAB_OPTIONS = [
-  { value: 'all', label: 'All Posts' },
-  { value: 'pinned', label: 'Pinned' },
-  { value: 'with_photos', label: 'Photos' },
+  { value: 'all', label: 'All posts', color: 'default' },
+  { value: 'pinned', label: 'Pin', color: 'info' },
+  { value: 'photos', label: 'Photos', color: 'primary' },
+  { value: 'scheduled', label: 'Scheduled', color: 'warning' },
+  { value: 'drafts', label: 'Draft', color: 'default' },
 ];
+
+const AUTHOR_OPTIONS = [
+  'All',
+  'Jane Smith',
+  'Daniel Mensah',
+  'Tom Lee',
+  'Sarah Jenkins',
+  'Amara Silva',
+];
+const RESIDENT_OPTIONS = [
+  'All',
+  'John Smith',
+  'Mary Johnson',
+  'Robert Brown',
+  'Linda Davis',
+  'James Taylor',
+];
+const GROUP_OPTIONS = [
+  'All',
+  'All families & residents',
+  'Willow House families',
+  'Rosewood Court families',
+  'Selected families (3)',
+];
+const DATE_OPTIONS = ['Last 30 days', 'Last 7 days', 'Last 90 days', 'All time'];
+const SORT_OPTIONS = ['Newest first', 'Oldest first', 'Most popular'];
+
+// ----------------------------------------------------------------------
 
 export function CommunityWallView() {
   const familyPaths = useFamilyEngagementPaths();
 
   const [posts, setPosts] = useState(_communityWallPosts);
+
+  useEffect(() => {
+    setPosts(_communityWallPosts);
+  }, []);
+
   const [currentTab, setCurrentTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Create post modal state
-  const newPostDialog = useBoolean();
+  // Dropdown filter states
+  const [selectedAuthor, setSelectedAuthor] = useState('All');
+  const [selectedResident, setSelectedResident] = useState('All');
+  const [selectedGroup, setSelectedGroup] = useState('All');
+  const [selectedDate, setSelectedDate] = useState('Last 30 days');
+  const [selectedSort, setSelectedSort] = useState('Newest first');
 
-  // Editing state
+  // Anchor elements for filter menus
+  const [authorAnchor, setAuthorAnchor] = useState(null);
+  const [residentAnchor, setResidentAnchor] = useState(null);
+  const [groupAnchor, setGroupAnchor] = useState(null);
+  const [dateAnchor, setDateAnchor] = useState(null);
+  const [sortAnchor, setSortAnchor] = useState(null);
+
+  // Dialog states
+  const newPostDialog = useBoolean();
   const [editingPost, setEditingPost] = useState(null);
   const editDialog = useBoolean();
-
-  // Deleting state
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const deleteDialog = useBoolean();
 
-  // Lightbox preview
-  const [previewPhoto, setPreviewPhoto] = useState(null);
+  // Multi-image Lightbox preview state
+  const [previewSlides, setPreviewSlides] = useState([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const previewModal = useBoolean();
 
   // Role detection for breadcrumbs
@@ -68,26 +119,72 @@ export function CommunityWallView() {
     { name: 'Community Wall' },
   ];
 
-  // Tab counts
-  const counts = useMemo(
-    () => ({
-      all: posts.length,
-      pinned: posts.filter((p) => p.isPinned).length,
-      with_photos: posts.filter((p) => p.photos && p.photos.length > 0).length,
-    }),
+  // Tab count helper for moderation-style tabs
+  const getTabCount = useCallback(
+    (tabValue) => {
+      if (tabValue === 'all') return posts.length;
+      if (tabValue === 'pinned') return posts.filter((p) => p.isPinned).length;
+      if (tabValue === 'photos') return posts.filter((p) => p.photos && p.photos.length > 0).length;
+      if (tabValue === 'scheduled') return posts.filter((p) => p.status === 'scheduled').length;
+      if (tabValue === 'drafts') return posts.filter((p) => p.status === 'draft').length;
+      return 0;
+    },
     [posts]
   );
 
-  // Filtered & sorted posts (pinned first)
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    selectedAuthor !== 'All' ||
+    selectedResident !== 'All' ||
+    selectedGroup !== 'All' ||
+    selectedDate !== 'Last 30 days';
+
+  const handleResetFilters = useCallback(() => {
+    setSearchQuery('');
+    setSelectedAuthor('All');
+    setSelectedResident('All');
+    setSelectedGroup('All');
+    setSelectedDate('Last 30 days');
+    setSelectedSort('Newest first');
+  }, []);
+
+  // Filtered & sorted posts
   const filteredPosts = useMemo(() => {
     let result = [...posts];
 
+    // Filter by Tab
     if (currentTab === 'pinned') {
       result = result.filter((p) => p.isPinned);
-    } else if (currentTab === 'with_photos') {
+    } else if (currentTab === 'photos') {
       result = result.filter((p) => p.photos && p.photos.length > 0);
+    } else if (currentTab === 'drafts') {
+      result = result.filter((p) => p.status === 'draft');
+    } else if (currentTab === 'scheduled') {
+      result = result.filter((p) => p.status === 'scheduled');
+    } else if (currentTab === 'reported') {
+      result = result.filter((p) => p.isReported);
+    } else {
+      result = result.filter((p) => !p.status || p.status === 'published');
     }
 
+    // Filter by Author
+    if (selectedAuthor !== 'All') {
+      result = result.filter((p) => p.author?.name?.toLowerCase().includes(selectedAuthor.toLowerCase()));
+    }
+
+    // Filter by Resident (strictly using residents from moderation)
+    if (selectedResident !== 'All') {
+      result = result.filter((p) =>
+        p.taggedResidents?.some((r) => r.name.toLowerCase().includes(selectedResident.toLowerCase()))
+      );
+    }
+
+    // Filter by Group
+    if (selectedGroup !== 'All') {
+      result = result.filter((p) => p.audience?.toLowerCase().includes(selectedGroup.toLowerCase()));
+    }
+
+    // Filter by Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
@@ -99,13 +196,20 @@ export function CommunityWallView() {
       );
     }
 
-    // Sort: pinned first, then newest
+    // Sorting
     return result.sort((a, b) => {
+      if (selectedSort === 'Oldest first') {
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      }
+      if (selectedSort === 'Most popular') {
+        return (b.reactions?.heart || 0) - (a.reactions?.heart || 0);
+      }
+      // Newest first default (pinned on top)
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      return new Date(b.createdAt) - new Date(a.createdAt);
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     });
-  }, [posts, currentTab, searchQuery]);
+  }, [posts, currentTab, selectedAuthor, selectedResident, selectedGroup, selectedSort, searchQuery]);
 
   // Handlers
   const handlePostCreated = (newPost) => {
@@ -154,15 +258,12 @@ export function CommunityWallView() {
       prev.map((p) => {
         if (p.id === postId) {
           const currentReaction = p.reactions?.userReaction;
-          const reactions = { ...(p.reactions || { like: 0, heart: 0, smile: 0 }) };
+          const reactions = { ...(p.reactions || { heart: 0 }) };
 
           if (currentReaction === reactionType) {
             reactions[reactionType] = Math.max(0, (reactions[reactionType] || 1) - 1);
             reactions.userReaction = null;
           } else {
-            if (currentReaction && reactions[currentReaction] > 0) {
-              reactions[currentReaction] -= 1;
-            }
             reactions[reactionType] = (reactions[reactionType] || 0) + 1;
             reactions.userReaction = reactionType;
           }
@@ -174,10 +275,20 @@ export function CommunityWallView() {
     );
   };
 
-  const handlePreviewPhoto = (photoUrl) => {
-    setPreviewPhoto(photoUrl);
-    previewModal.onTrue();
-  };
+  // Preview full photo in Lightbox
+  const handlePreviewPhoto = useCallback(
+    (photoUrl, allPhotos = []) => {
+      const photoList = allPhotos && allPhotos.length > 0 ? allPhotos : [photoUrl];
+      const slides = photoList.map((url) => ({
+        src: typeof url === 'string' ? url : url.src || url.preview || '',
+      }));
+      const initialIdx = Math.max(0, photoList.indexOf(photoUrl));
+      setPreviewSlides(slides);
+      setPreviewIndex(initialIdx >= 0 ? initialIdx : 0);
+      previewModal.onTrue();
+    },
+    [previewModal]
+  );
 
   return (
     <>
@@ -186,66 +297,60 @@ export function CommunityWallView() {
       </Helmet>
 
       <DashboardContent>
-        {/* Page Header with 'Create post' Button */}
+        {/* Top Header with 'Create post' Button */}
         <CustomBreadcrumbs
           heading="Community Wall"
           links={breadcrumbLinks}
           action={
             <Button
               variant="contained"
-              color="primary"
+              color="inherit"
               startIcon={<Iconify icon="solar:pen-new-square-bold" />}
               onClick={newPostDialog.onTrue}
-              sx={{ fontWeight: 700, px: 2.5 }}
             >
               Create post
             </Button>
           }
-          sx={{ mb: { xs: 3, md: 4 } }}
+          sx={{ mb: { xs: 2.5, md: 3 } }}
         />
 
-        {/* Feed Filtering Toolbar (Tabs & Search) */}
-        <Card sx={{ mb: 3.5, p: 2 }}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            alignItems={{ xs: 'stretch', sm: 'center' }}
-            justifyContent="space-between"
-            spacing={2}
+        {/* 1. Filter Card: Moderation-style Tabs at top and Search + Filters toolbar under that */}
+        <Card sx={{ mb: 3 }}>
+          {/* Status Tabs - identical UI to StatusTabsFilter in Moderation */}
+          <Tabs
+            value={currentTab}
+            onChange={(_, val) => setCurrentTab(val)}
+            sx={{
+              px: 2.5,
+              boxShadow: (theme) =>
+                `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+            }}
           >
-            <Tabs
-              value={currentTab}
-              onChange={(_, val) => setCurrentTab(val)}
-              sx={{
-                '& .MuiTab-root': {
-                  minHeight: 44,
-                  fontWeight: 600,
-                },
-              }}
-            >
-              {TAB_OPTIONS.map((tab) => (
-                <Tab
-                  key={tab.value}
-                  value={tab.value}
-                  label={tab.label}
-                  iconPosition="end"
-                  icon={
-                    <Label
-                      variant={currentTab === tab.value ? 'filled' : 'soft'}
-                      color={tab.value === 'pinned' ? 'primary' : 'default'}
-                      sx={{ ml: 1 }}
-                    >
-                      {counts[tab.value]}
-                    </Label>
-                  }
-                />
-              ))}
-            </Tabs>
+            {TAB_OPTIONS.map((tab) => (
+              <Tab
+                key={tab.value}
+                iconPosition="end"
+                value={tab.value}
+                label={tab.label}
+                icon={
+                  <Label
+                    variant={((tab.value === 'all' || tab.value === currentTab) && 'filled') || 'soft'}
+                    color={tab.color || 'default'}
+                  >
+                    {getTabCount(tab.value)}
+                  </Label>
+                }
+              />
+            ))}
+          </Tabs>
 
+          <Stack spacing={2} sx={{ p: 2.5 }}>
+            {/* Search Bar - Exactly like Moderation Toolbar */}
             <TextField
-              size="small"
-              placeholder="Search posts or residents..."
+              fullWidth
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search resident, post, or author..."
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -253,45 +358,260 @@ export function CommunityWallView() {
                   </InputAdornment>
                 ),
               }}
-              sx={{ width: { xs: 1, sm: 280 } }}
             />
           </Stack>
         </Card>
 
-        {/* Feed of Posts: 2 posts in a row (50% width each) */}
-        {filteredPosts.length > 0 ? (
-          <Grid container spacing={3}>
-            {filteredPosts.map((post) => (
-              <Grid item xs={12} md={6} key={post.id} sx={{ display: 'flex' }}>
-                <CommunityWallPostCard
-                  post={post}
-                  onPin={handleTogglePin}
-                  onEdit={handleOpenEdit}
-                  onRemove={handleOpenDelete}
-                  onReactionToggle={handleReactionToggle}
-                  onPreviewPhoto={handlePreviewPhoto}
-                  sx={{ width: 1, height: '100%' }}
-                />
-              </Grid>
+        {/* 2. Filter Dropdowns Bar (Under the Card, NO second search) */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1.25}
+          flexWrap="wrap"
+          sx={{ mb: 3 }}
+        >
+          {/* Author filter */}
+          <Button
+            variant="outlined"
+            color="inherit"
+            size="small"
+            onClick={(e) => setAuthorAnchor(e.currentTarget)}
+            endIcon={<Iconify icon="solar:alt-arrow-down-linear" width={14} />}
+            sx={{
+              bgcolor: 'background.paper',
+              borderColor: 'divider',
+              borderRadius: '20px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              textTransform: 'none',
+              px: 1.75,
+              py: 0.6,
+              color: selectedAuthor !== 'All' ? 'primary.main' : 'text.primary',
+            }}
+          >
+            Author{selectedAuthor !== 'All' ? `: ${selectedAuthor}` : ''}
+          </Button>
+          <Menu anchorEl={authorAnchor} open={Boolean(authorAnchor)} onClose={() => setAuthorAnchor(null)}>
+            {AUTHOR_OPTIONS.map((author) => (
+              <MenuItem
+                key={author}
+                selected={selectedAuthor === author}
+                onClick={() => {
+                  setSelectedAuthor(author);
+                  setAuthorAnchor(null);
+                }}
+                sx={{ fontSize: '0.8125rem' }}
+              >
+                {author === 'All' ? 'All Authors' : author}
+              </MenuItem>
             ))}
+          </Menu>
+
+          {/* Resident filter (strictly using residents from moderation) */}
+          <Button
+            variant="outlined"
+            color="inherit"
+            size="small"
+            onClick={(e) => setResidentAnchor(e.currentTarget)}
+            endIcon={<Iconify icon="solar:alt-arrow-down-linear" width={14} />}
+            sx={{
+              bgcolor: 'background.paper',
+              borderColor: 'divider',
+              borderRadius: '20px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              textTransform: 'none',
+              px: 1.75,
+              py: 0.6,
+              color: selectedResident !== 'All' ? 'primary.main' : 'text.primary',
+            }}
+          >
+            Resident{selectedResident !== 'All' ? `: ${selectedResident}` : ''}
+          </Button>
+          <Menu anchorEl={residentAnchor} open={Boolean(residentAnchor)} onClose={() => setResidentAnchor(null)}>
+            {RESIDENT_OPTIONS.map((resident) => (
+              <MenuItem
+                key={resident}
+                selected={selectedResident === resident}
+                onClick={() => {
+                  setSelectedResident(resident);
+                  setResidentAnchor(null);
+                }}
+                sx={{ fontSize: '0.8125rem' }}
+              >
+                {resident === 'All' ? 'All Residents' : resident}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          {/* Group filter */}
+          <Button
+            variant="outlined"
+            color="inherit"
+            size="small"
+            onClick={(e) => setGroupAnchor(e.currentTarget)}
+            endIcon={<Iconify icon="solar:alt-arrow-down-linear" width={14} />}
+            sx={{
+              bgcolor: 'background.paper',
+              borderColor: 'divider',
+              borderRadius: '20px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              textTransform: 'none',
+              px: 1.75,
+              py: 0.6,
+              color: selectedGroup !== 'All' ? 'primary.main' : 'text.primary',
+            }}
+          >
+            Group{selectedGroup !== 'All' ? `: ${selectedGroup}` : ''}
+          </Button>
+          <Menu anchorEl={groupAnchor} open={Boolean(groupAnchor)} onClose={() => setGroupAnchor(null)}>
+            {GROUP_OPTIONS.map((group) => (
+              <MenuItem
+                key={group}
+                selected={selectedGroup === group}
+                onClick={() => {
+                  setSelectedGroup(group);
+                  setGroupAnchor(null);
+                }}
+                sx={{ fontSize: '0.8125rem' }}
+              >
+                {group === 'All' ? 'All Groups' : group}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          {/* Date filter */}
+          <Button
+            variant="outlined"
+            color="inherit"
+            size="small"
+            onClick={(e) => setDateAnchor(e.currentTarget)}
+            endIcon={<Iconify icon="solar:alt-arrow-down-linear" width={14} />}
+            sx={{
+              bgcolor: 'background.paper',
+              borderColor: 'divider',
+              borderRadius: '20px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              textTransform: 'none',
+              px: 1.75,
+              py: 0.6,
+            }}
+          >
+            {selectedDate}
+          </Button>
+          <Menu anchorEl={dateAnchor} open={Boolean(dateAnchor)} onClose={() => setDateAnchor(null)}>
+            {DATE_OPTIONS.map((dateOpt) => (
+              <MenuItem
+                key={dateOpt}
+                selected={selectedDate === dateOpt}
+                onClick={() => {
+                  setSelectedDate(dateOpt);
+                  setDateAnchor(null);
+                }}
+                sx={{ fontSize: '0.8125rem' }}
+              >
+                {dateOpt}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          {/* Sort filter */}
+          <Button
+            variant="outlined"
+            color="inherit"
+            size="small"
+            onClick={(e) => setSortAnchor(e.currentTarget)}
+            endIcon={<Iconify icon="solar:alt-arrow-down-linear" width={14} />}
+            sx={{
+              bgcolor: 'background.paper',
+              borderColor: 'divider',
+              borderRadius: '20px',
+              fontWeight: 600,
+              fontSize: '0.8125rem',
+              textTransform: 'none',
+              px: 1.75,
+              py: 0.6,
+            }}
+          >
+            {selectedSort}
+          </Button>
+          <Menu anchorEl={sortAnchor} open={Boolean(sortAnchor)} onClose={() => setSortAnchor(null)}>
+            {SORT_OPTIONS.map((sortOpt) => (
+              <MenuItem
+                key={sortOpt}
+                selected={selectedSort === sortOpt}
+                onClick={() => {
+                  setSelectedSort(sortOpt);
+                  setSortAnchor(null);
+                }}
+                sx={{ fontSize: '0.8125rem' }}
+              >
+                {sortOpt}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          {hasActiveFilters && (
+            <Button
+              color="error"
+              size="small"
+              onClick={handleResetFilters}
+              startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+              sx={{
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                textTransform: 'none',
+              }}
+            >
+              Clear
+            </Button>
+          )}
+        </Stack>
+
+        {/* 3. Main 2-Column Content: Left = Feed, Right = Sidebar */}
+        <Grid container spacing={3}>
+          {/* Left Column: Feed of Community Wall Posts */}
+          <Grid item xs={12} lg={8}>
+            {filteredPosts.length > 0 ? (
+              <Stack spacing={2.5}>
+                {filteredPosts.map((post) => (
+                  <CommunityWallPostCard
+                    key={post.id}
+                    post={post}
+                    onPin={handleTogglePin}
+                    onEdit={handleOpenEdit}
+                    onRemove={handleOpenDelete}
+                    onReactionToggle={handleReactionToggle}
+                    onPreviewPhoto={handlePreviewPhoto}
+                  />
+                ))}
+              </Stack>
+            ) : (
+              <Card sx={{ p: 5, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 2 }}>
+                <Iconify
+                  icon="solar:letter-unread-bold"
+                  width={48}
+                  sx={{ color: 'text.disabled', mb: 1.5, mx: 'auto' }}
+                />
+                <Typography variant="subtitle1" fontWeight={700}>
+                  No posts found
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                  {searchQuery
+                    ? `No posts matched "${searchQuery}". Try a different keyword.`
+                    : 'No posts in this category yet. Click "Create post" above to share an update.'}
+                </Typography>
+              </Card>
+            )}
           </Grid>
-        ) : (
-          <Card sx={{ p: 5, textAlign: 'center', bgcolor: 'background.neutral' }}>
-            <Iconify
-              icon="solar:letter-unread-bold"
-              width={48}
-              sx={{ color: 'text.disabled', mb: 1.5, mx: 'auto' }}
-            />
-            <Typography variant="subtitle1" fontWeight={700}>
-              No posts found
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-              {searchQuery
-                ? `No posts matched "${searchQuery}". Try a different keyword.`
-                : 'No posts in this category yet. Click "Create post" above to share an update.'}
-            </Typography>
-          </Card>
-        )}
+
+          {/* Right Column: Sidebar Widgets */}
+          <Grid item xs={12} lg={4}>
+            <CommunityWallSidebar />
+          </Grid>
+        </Grid>
 
         {/* Create Post Dialog */}
         <NewWallPostDialog
@@ -329,12 +649,12 @@ export function CommunityWallView() {
           </DialogActions>
         </Dialog>
 
-        {/* Lightbox Photo Preview */}
+        {/* Multi-image Lightbox Preview */}
         <Lightbox
           open={previewModal.value}
           close={previewModal.onFalse}
-          slides={previewPhoto ? [{ type: 'image', src: previewPhoto }] : []}
-          index={0}
+          slides={previewSlides}
+          index={previewIndex}
         />
       </DashboardContent>
     </>
