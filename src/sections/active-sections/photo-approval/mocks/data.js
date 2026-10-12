@@ -9,8 +9,11 @@ export const _pendingPhotoApprovals = [
     photos: [
       'https://picsum.photos/seed/garden-afternoon-1/1200/900',
       'https://picsum.photos/seed/garden-afternoon-2/1200/900',
+      'https://picsum.photos/seed/birthday-tea-1/1200/900',
+      'https://picsum.photos/seed/craft-group-1/1200/900',
+      'https://picsum.photos/seed/craft-group-2/1200/900',
     ],
-    photoCount: 2,
+    photoCount: 5,
     uploadedBy: 'Carer: Jane Smith',
     uploadedAt: '2026-08-18',
     status: 'pending',
