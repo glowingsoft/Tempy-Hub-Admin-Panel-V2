@@ -14,7 +14,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
-import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import {
   useCreateDepartmentMutation,
   useUpdateDepartmentMutation,
@@ -47,20 +47,13 @@ export function DepartmentCreateEditModal({
 }) {
   const isEdit = !!currentDepartment;
 
-  const {
-    currentData: branchesData,
-    isFetching: isBranchesFetching,
-    isError: isBranchesError,
-    error: branchesError,
-  } = useGetBranchesQuery(
-    { organizationId, page: 1, limit: 100 },
-    { skip: !open || !organizationId }
-  );
-
-  const branchOptions = useMemo(
-    () => (branchesData?.data ?? []).map((branch) => ({ value: branch._id, label: branch.name })),
-    [branchesData]
-  );
+  const { branchOptions, isBranchesFetching } = useOrganizationLookups({
+    organizationId,
+    branches: open && !!organizationId,
+    jobTitles: false,
+    departments: false,
+    limit: 100,
+  });
 
   const defaultValues = useMemo(
     () => ({
@@ -69,9 +62,9 @@ export function DepartmentCreateEditModal({
       isActive: currentDepartment?.isActive ?? true,
       branchId: currentDepartment?.branchId
         ? {
-            value: currentDepartment.branchId,
-            label: currentDepartment.branch?.name || currentDepartment.branchId,
-          }
+          value: currentDepartment.branchId,
+          label: currentDepartment.branch?.name || currentDepartment.branchId,
+        }
         : null,
     }),
     [currentDepartment]
@@ -100,12 +93,12 @@ export function DepartmentCreateEditModal({
     try {
       const payload = isEdit
         ? {
-            organizationId,
-            name: data.name,
-            sortOrder: data.sortOrder,
-            isActive: data.isActive,
-            branchId: data.branchId?.value || null,
-          }
+          organizationId,
+          name: data.name,
+          sortOrder: data.sortOrder,
+          isActive: data.isActive,
+          branchId: data.branchId?.value || null,
+        }
         : { organizationId, name: data.name, sortOrder: data.sortOrder };
 
       if (!isEdit) {
@@ -169,11 +162,7 @@ export function DepartmentCreateEditModal({
               loading={isBranchesFetching}
               getOptionLabel={(option) => option.label || ''}
               isOptionEqualToValue={(option, value) => option.value === value.value}
-              helperText={
-                isBranchesError
-                  ? branchesError?.data?.message || branchesError?.error || 'Failed to load sites.'
-                  : undefined
-              }
+              helperText={isBranchesFetching ? 'Loading sites...' : undefined}
             />
 
             <Field.Switch name="isActive" label="Active" />

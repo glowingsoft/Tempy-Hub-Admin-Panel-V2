@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -9,8 +8,8 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -58,8 +57,8 @@ const FILTER_FIELDS = [
 
 export function ResidentListView({ ownerDashboard = false }) {
     const table = useTable({ defaultOrderBy: 'name', defaultOrder: 'asc' });
-    const { user } = useSelector((state) => state.user);
-    const organizationId = ownerDashboard ? getOwnerOrganizationId(user) : null;
+    const { organizationId: currentOrgId, user } = useCurrentOrganization();
+    const organizationId = ownerDashboard ? currentOrgId : null;
     const { branchId, onBranchChange } = useOwnerBranchFilter();
 
     const importDialog = useBoolean();

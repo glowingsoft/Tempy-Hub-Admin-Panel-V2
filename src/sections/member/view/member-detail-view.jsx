@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
-import { useSelector } from 'react-redux';
 
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useGetMemberQuery } from 'src/store/Reducer/members-api';
 
 import Alert from '@mui/material/Alert';
@@ -38,13 +38,14 @@ import { MemberActionDialog } from '../member-action-dialog';
 export function MemberDetailView() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId } = useCurrentOrganization();
+  const { branchesMap, jobTitlesMap, departmentsMap, resolveBranchName, resolveJobTitleName, resolveDepartmentNames } =
+    useOrganizationLookups(organizationId);
 
   const [, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
 
-  const { askDeactivate, confirmProps } = useMemberActions({ onChanged: refresh });
+  const { askDeactivate, confirmProps } = useMemberActions({ organizationId, onChanged: refresh });
 
   const {
     data: member,
@@ -99,7 +100,9 @@ export function MemberDetailView() {
 
   const status = getMemberStatusMeta(member.status);
   const permissionLabels = getMemberPermissionLabels(member.permissions);
-  const departmentNames = (member.departments || []).map((dep) => dep.name).join(', ');
+  const branchName = resolveBranchName(member, branchesMap);
+  const jobTitleName = resolveJobTitleName(member, jobTitlesMap);
+  const departmentNames = resolveDepartmentNames(member, departmentsMap);
   const isActive = member.status === 'active';
 
   return (
@@ -156,10 +159,13 @@ export function MemberDetailView() {
               </Label>
             }
           />
-          <DetailItem label="Site" value={member.branch?.name || '—'} />
-          <DetailItem label="Job title" value={member.jobTitle?.name || '—'} />
-          <DetailItem label="Departments" value={departmentNames || '—'} />
-          <DetailItem label="Start date" value={fDate(member.startDate)} />
+          <DetailItem label="Site" value={branchName} />
+          <DetailItem label="Job title" value={jobTitleName} />
+          <DetailItem label="Departments" value={departmentNames} />
+          <DetailItem
+            label="Start date"
+            value={fDate(member.startDate || member.staffProfile?.startDate) || '—'}
+          />
         </DetailCard>
 
         <Card sx={{ p: 3 }}>

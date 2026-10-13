@@ -1,19 +1,16 @@
-import { useSelector } from 'react-redux';
-
 import { paths } from 'src/routes/paths';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { MembershipNewEditForm } from '../membership-new-edit-form';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 
 // ----------------------------------------------------------------------
 
 export function MembershipCreateView() {
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId } = useCurrentOrganization();
 
   return (
     <DashboardContent>

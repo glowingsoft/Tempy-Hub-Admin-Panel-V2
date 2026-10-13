@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -31,7 +30,7 @@ import {
 } from 'src/components/table';
 
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { JobTitleCreateEditModal } from '../job-title-create-edit-modal';
 import { JobTitleTableRow } from '../job-title-table-row';
 
@@ -66,8 +65,7 @@ export function JobTitleListView() {
     defaultRowsPerPage: 10,
   });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId, organizationName, user } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -157,7 +155,7 @@ export function JobTitleListView() {
 
   const handleCreateSuccess = useCallback(() => table.onResetPage(), [table.onResetPage]);
 
-  const orgName = user?.organization?.name;
+  const orgName = organizationName || user?.organization?.name;
 
   return (
     <DashboardContent>

@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -28,10 +27,10 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
-import { mockOrganizations } from 'src/sections/organization/mocks/data';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 import { mockStaffProfilesResponse } from '../mocks/data';
-import { getOwnerOrganizationId, getOwnerOrganizationName } from '../utils';
 import { StaffProfileTableRow } from '../staff-profile-table-row';
 
 // ----------------------------------------------------------------------
@@ -62,13 +61,7 @@ export function StaffProfileListView({
 } = {}) {
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
 
-  const { user } = useSelector((state) => state.user);
-  const isOwner = user?.permission === 4;
-
-  const defaultOrgId = getOwnerOrganizationId(user) || mockOrganizations[0]?._id;
-  const defaultOrgName = getOwnerOrganizationName(user) || mockOrganizations[0]?.name || '';
-
-  const organizationId = propOrgId !== undefined ? propOrgId : defaultOrgId;
+  const { organizationId, organizationName: defaultOrgName, isOwner } = useCurrentOrganization(propOrgId);
   const orgName = propOrgName !== undefined ? propOrgName : defaultOrgName;
 
   const resolvedPaths = useMemo(
@@ -85,20 +78,32 @@ export function StaffProfileListView({
     [isOwner, pathsConfig]
   );
 
+  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
+
   const filters = useSetState({ search: '' });
   const keyword = useDebounce(filters.state.search, 500);
 
   const [reloadKey] = useState(0);
 
   // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetStaffProfilesQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockStaffProfilesResponse;
+  const {
+    data: apiData,
+    isLoading,
+    isFetching,
+    isError,
+    error: apiError,
+  } = useGetStaffProfilesQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      keyword,
+    },
+    { skip: !organizationId }
+  );
+
+  const usesApi = Boolean(organizationId);
+  const data = usesApi ? apiData : mockStaffProfilesResponse;
 
   const allProfiles = useMemo(
     () =>
@@ -108,7 +113,7 @@ export function StaffProfileListView({
     [data, organizationId, reloadKey]
   );
 
-  const filteredProfiles = useMemo(() => {
+  const mockFilteredProfiles = useMemo(() => {
     const search = keyword.trim().toLowerCase();
 
     return allProfiles.filter(
@@ -119,12 +124,15 @@ export function StaffProfileListView({
     );
   }, [allProfiles, keyword]);
 
-  // Pagination metadata (mirrors the API `meta`).
-  const totalRecords = filteredProfiles.length;
-  const paginatedProfiles = useMemo(() => {
+  const mockPaginatedProfiles = useMemo(() => {
     const start = table.page * table.rowsPerPage;
-    return filteredProfiles.slice(start, start + table.rowsPerPage);
-  }, [filteredProfiles, table.page, table.rowsPerPage]);
+    return mockFilteredProfiles.slice(start, start + table.rowsPerPage);
+  }, [mockFilteredProfiles, table.page, table.rowsPerPage]);
+
+  const paginatedProfiles = usesApi ? (data?.data ?? []) : mockPaginatedProfiles;
+  const totalRecords = usesApi
+    ? apiData?.meta?.totalRecords ?? apiData?.data?.length ?? 0
+    : mockFilteredProfiles.length;
 
   const notFound = !isLoading && !isFetching && totalRecords === 0;
 
@@ -156,7 +164,7 @@ export function StaffProfileListView({
             { name: 'Staff Profiles' },
             ...(orgName ? [{ name: orgName }] : []),
           ]}
-          action={
+          /* action={
             <Button
               component={RouterLink}
               href={resolvedPaths.new}
@@ -166,12 +174,12 @@ export function StaffProfileListView({
             >
               New Staff Profile
             </Button>
-          }
+          } */
           sx={{ mb: { xs: 3, md: 5 } }}
         />
       )}
 
-      {embedded && (
+      {/* {embedded && (
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             component={RouterLink}
@@ -183,7 +191,7 @@ export function StaffProfileListView({
             New Staff Profile
           </Button>
         </Box>
-      )}
+      )} */}
 
       <Card>
         <FlexibleTableToolbar
@@ -211,6 +219,9 @@ export function StaffProfileListView({
                         detailPath={resolvedPaths.detail(row._id)}
                         editPath={resolvedPaths.edit(row._id)}
                         hideViewAction={hideViewAction}
+                        branchesMap={branchesMap}
+                        jobTitlesMap={jobTitlesMap}
+                        departmentsMap={departmentsMap}
                       />
                     ))}
 

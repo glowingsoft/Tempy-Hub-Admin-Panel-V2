@@ -18,3 +18,8 @@ export function canEditOrganization(user) {
   const userType = user?.accountState?.userType;
   return !!userType && userType !== ONBOARDING_USER_TYPE;
 }
+
+export {
+  getOwnerOrganizationId,
+  getOwnerOrganizationName,
+} from 'src/utils/organization';

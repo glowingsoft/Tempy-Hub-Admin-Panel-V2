@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -19,17 +18,18 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 
-// import { useGetStaffProfileQuery } from 'src/store/Reducer/staff-profiles-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetStaffProfileQuery } from 'src/store/Reducer/staff-profiles-api';
 import { getMockStaffProfileById } from '../mocks/data';
 
 // ----------------------------------------------------------------------
 
-export function StaffProfileDetailView({ pathsConfig } = {}) {
+export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId } = {}) {
   const { id } = useParams();
   const router = useRouter();
 
-  const { user } = useSelector((state) => state.user);
-  const isOwner = user?.permission === 4;
+  const { organizationId: resolvedOrgId, isOwner } = useCurrentOrganization(propOrgId);
 
   const resolvedPaths = useMemo(
     () => ({
@@ -44,9 +44,32 @@ export function StaffProfileDetailView({ pathsConfig } = {}) {
     [isOwner, pathsConfig]
   );
 
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data: profile, isLoading } = useGetStaffProfileQuery(id);
-  const profile = useMemo(() => getMockStaffProfileById(id), [id]);
+  const {
+    data: apiProfile,
+    isLoading,
+    isFetching,
+  } = useGetStaffProfileQuery(
+    { staffProfileId: id, organizationId: resolvedOrgId },
+    { skip: !id }
+  );
+
+  const mockProfile = useMemo(() => getMockStaffProfileById(id), [id]);
+  const rawProfile = apiProfile || mockProfile;
+  // Handle cases where response might be wrapped in data or direct object
+  const profile = rawProfile?.data && !rawProfile?._id ? rawProfile.data : rawProfile;
+
+  const orgIdForLookups = profile?.organizationId || resolvedOrgId;
+  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(orgIdForLookups);
+
+  if (isLoading || isFetching) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', py: 4 }}>
+          Loading staff profile...
+        </Typography>
+      </Box>
+    );
+  }
 
   if (!profile) {
     return (
@@ -63,7 +86,46 @@ export function StaffProfileDetailView({ pathsConfig } = {}) {
     );
   }
 
-  const departmentNames = (profile.departments || []).map((dep) => dep.name).join(', ');
+  // Site / Branch name
+  const branchName =
+    profile.branch?.name ||
+    profile.branchName ||
+    (typeof profile.branch === 'string' && branchesMap[profile.branch]?.name) ||
+    (profile.branchId && branchesMap[profile.branchId]?.name) ||
+    '—';
+
+  // Job title name
+  const jobTitleName =
+    profile.jobTitle?.name ||
+    profile.jobTitleName ||
+    (typeof profile.jobTitle === 'string' && jobTitlesMap[profile.jobTitle]?.name) ||
+    (profile.jobTitleId && jobTitlesMap[profile.jobTitleId]?.name) ||
+    '—';
+
+  // Departments
+  const departmentNames = (() => {
+    if (Array.isArray(profile.departments) && profile.departments.length > 0) {
+      if (typeof profile.departments[0] === 'object' && profile.departments[0]?.name) {
+        return profile.departments.map((d) => d.name).filter(Boolean).join(', ');
+      }
+      if (typeof profile.departments[0] === 'string') {
+        const names = profile.departments.map((depId) => departmentsMap[depId]?.name || depId).filter(Boolean);
+        if (names.length > 0) return names.join(', ');
+      }
+    }
+    if (Array.isArray(profile.departmentIds) && profile.departmentIds.length > 0) {
+      const names = profile.departmentIds.map((depId) => departmentsMap[depId]?.name || depId).filter(Boolean);
+      if (names.length > 0) return names.join(', ');
+    }
+    if (profile.department?.name) {
+      return profile.department.name;
+    }
+    return '—';
+  })();
+
+  const staffName = profile.user?.name || profile.userName || profile.name || '—';
+  const staffEmail = profile.user?.email || profile.userEmail || profile.email || '—';
+  const orgName = profile.organization?.name || profile.organizationName || '—';
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
@@ -74,16 +136,16 @@ export function StaffProfileDetailView({ pathsConfig } = {}) {
       </Box>
 
       <CustomBreadcrumbs
-        heading={profile.user?.name || 'Staff profile'}
+        heading={staffName !== '—' ? staffName : 'Staff profile'}
         links={[
           { name: 'Dashboard', href: resolvedPaths.dashboardRoot },
           { name: 'Staff Profiles', href: resolvedPaths.root },
-          { name: profile.user?.name || 'Staff profile' },
+          { name: staffName !== '—' ? staffName : 'Staff profile' },
         ]}
         action={
           <Button
             component={RouterLink}
-            href={resolvedPaths.edit(profile._id)}
+            href={resolvedPaths.edit(profile._id || id)}
             variant="contained"
             startIcon={<Iconify icon="solar:pen-bold" />}
           >
@@ -95,14 +157,14 @@ export function StaffProfileDetailView({ pathsConfig } = {}) {
 
       <Stack spacing={3}>
         <DetailCard title="User">
-          <DetailItem label="Name" value={profile.user?.name || '—'} />
-          <DetailItem label="Email" value={profile.user?.email || '—'} />
+          <DetailItem label="Name" value={staffName} />
+          <DetailItem label="Email" value={staffEmail} />
         </DetailCard>
 
         <DetailCard title="Assignment">
-          <DetailItem label="Site" value={profile.branch?.name || '—'} />
-          <DetailItem label="Job title" value={profile.jobTitle?.name || '—'} />
-          <DetailItem label="Departments" value={departmentNames || '—'} />
+          <DetailItem label="Site" value={branchName} />
+          <DetailItem label="Job title" value={jobTitleName} />
+          <DetailItem label="Departments" value={departmentNames} />
           <DetailItem label="Start date" value={fDate(profile.startDate)} />
           <DetailItem label="PIN" value={profile.pin || '—'} />
           <DetailItem
@@ -113,7 +175,7 @@ export function StaffProfileDetailView({ pathsConfig } = {}) {
                 : '—'
             }
           />
-          <DetailItem label="Organization" value={profile.organization?.name || '—'} />
+          <DetailItem label="Organization" value={orgName} />
         </DetailCard>
 
         <DetailCard title="Record">

@@ -15,8 +15,7 @@ import MenuItem from '@mui/material/MenuItem';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
-import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
-import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import {
   useCreateJobTitleMutation,
   useUpdateJobTitleMutation,
@@ -50,38 +49,16 @@ export function JobTitleCreateEditModal({
   const isEdit = !!currentJobTitle;
 
   const {
-    currentData: branchesData,
-    isFetching: isBranchesFetching,
-    isError: isBranchesError,
-    error: branchesError,
-  } = useGetBranchesQuery(
-    { organizationId, page: 1, limit: 100 },
-    { skip: !open || !organizationId }
-  );
-
-  const branchOptions = useMemo(
-    () => (branchesData?.data ?? []).map((branch) => ({ value: branch._id, label: branch.name })),
-    [branchesData]
-  );
-
-  const {
-    currentData: departmentsData,
-    isFetching: isDepartmentsFetching,
-    isError: isDepartmentsError,
-    error: departmentsError,
-  } = useGetDepartmentsQuery(
-    { organizationId, page: 1, limit: 100 },
-    { skip: !open || !organizationId }
-  );
-
-  const departmentOptions = useMemo(
-    () =>
-      (departmentsData?.data ?? []).map((department) => ({
-        value: department._id,
-        label: department.name,
-      })),
-    [departmentsData]
-  );
+    branchOptions,
+    departmentOptions,
+    isBranchesFetching,
+    isDepartmentsFetching,
+  } = useOrganizationLookups({
+    organizationId,
+    branches: open && !!organizationId,
+    departments: open && !!organizationId,
+    limit: 100,
+  });
 
   const defaultValues = useMemo(() => {
     const department =
@@ -143,21 +120,21 @@ export function JobTitleCreateEditModal({
 
       const result = isEdit
         ? await updateJobTitle({
-            organizationId,
-            jobTitleId: currentJobTitle._id,
-            name: data.name,
-            level: data.level,
-            active: data.active,
-            branchId: payload.branchId,
-            departmentId: payload.departmentId,
-          }).unwrap()
+          organizationId,
+          jobTitleId: currentJobTitle._id,
+          name: data.name,
+          level: data.level,
+          active: data.active,
+          branchId: payload.branchId,
+          departmentId: payload.departmentId,
+        }).unwrap()
         : await createJobTitle({
-            organizationId,
-            name: data.name,
-            level: data.level,
-            branchId: payload.branchId,
-            departmentId: payload.departmentId,
-          }).unwrap();
+          organizationId,
+          name: data.name,
+          level: data.level,
+          branchId: payload.branchId,
+          departmentId: payload.departmentId,
+        }).unwrap();
 
       onSuccess?.(isEdit ? payload : result);
       toast.success(isEdit ? 'Job title updated successfully!' : 'Job title created successfully!');
@@ -205,13 +182,7 @@ export function JobTitleCreateEditModal({
               name="branchId"
               label="Site (optional)"
               disabled={isBranchesFetching}
-              helperText={
-                isBranchesError
-                  ? branchesError?.data?.message || branchesError?.error || 'Failed to load sites.'
-                  : isBranchesFetching
-                    ? 'Loading sites...'
-                    : undefined
-              }
+              helperText={isBranchesFetching ? 'Loading sites...' : undefined}
             >
               <MenuItem value="__all_sites__">All sites</MenuItem>
               <MenuItem value="__none__">None</MenuItem>
@@ -230,13 +201,7 @@ export function JobTitleCreateEditModal({
               loading={isDepartmentsFetching}
               getOptionLabel={(option) => option.label || ''}
               isOptionEqualToValue={(option, value) => option.value === value.value}
-              helperText={
-                isDepartmentsError
-                  ? departmentsError?.data?.message ||
-                    departmentsError?.error ||
-                    'Failed to load departments.'
-                  : undefined
-              }
+              helperText={isDepartmentsFetching ? 'Loading departments...' : undefined}
             />
 
             <Field.Switch name="active" label="Active" />

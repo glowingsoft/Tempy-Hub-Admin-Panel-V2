@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -13,6 +12,7 @@ import { paths } from 'src/routes/paths';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -31,7 +31,6 @@ import {
 } from 'src/components/table';
 
 import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 import { DepartmentTableRow } from '../department-table-row';
 
@@ -65,8 +64,7 @@ export function DepartmentListView() {
     defaultRowsPerPage: 10,
   });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId, organizationName, user } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -156,7 +154,7 @@ export function DepartmentListView() {
 
   const handleCreateSuccess = useCallback(() => table.onResetPage(), [table.onResetPage]);
 
-  const orgName = user?.organization?.name;
+  const orgName = organizationName || user?.organization?.name;
 
   return (
     <DashboardContent>

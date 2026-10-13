@@ -1,5 +1,3 @@
-import { useSelector } from 'react-redux';
-
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -11,6 +9,7 @@ import { useParams, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { fDateTime } from 'src/utils/format-time';
 
@@ -21,7 +20,6 @@ import { Label } from 'src/components/label';
 import { LoadingScreen } from 'src/components/loading-screen';
 
 import { useGetDepartmentQuery } from 'src/store/Reducer/departments-api';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 
 // ----------------------------------------------------------------------
@@ -29,8 +27,7 @@ import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 export function DepartmentDetailView() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId } = useCurrentOrganization();
 
   const editModal = useBoolean();
   const {

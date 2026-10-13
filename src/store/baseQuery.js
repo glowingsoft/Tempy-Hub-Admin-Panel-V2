@@ -1,4 +1,5 @@
 import { fetchBaseQuery } from '@reduxjs/toolkit/query';
+import { toast } from 'src/components/snackbar';
 import { handleApiError } from './handleApiError';
 import { logout } from './slices/userSlice';
 
@@ -38,7 +39,12 @@ export const createCustomFetchBaseQuery = () => {
           if (isBrowser) {
             window.location.replace('/');
           }
+          return result;
         }
+      }
+
+      if (!extraOptions?.disableToast) {
+        toast.error(message);
       }
     }
 

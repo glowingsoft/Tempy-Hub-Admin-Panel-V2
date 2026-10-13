@@ -8,8 +8,8 @@ import Typography from '@mui/material/Typography';
 import { useParams, useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
-import { useSelector } from 'react-redux';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { fDateTime } from 'src/utils/format-time';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -20,7 +20,6 @@ import { LoadingScreen } from 'src/components/loading-screen';
 
 import { useGetBranchQuery } from 'src/store/Reducer/branches-api';
 import { getBranchStatusMeta } from '../mocks/data';
-import { getOwnerOrganizationId } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -29,29 +28,28 @@ const yesNo = (value) => (value ? 'Yes' : 'No');
 export function BranchDetailView() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId, user } = useCurrentOrganization();
   const { data: response, isLoading, isError, error } = useGetBranchQuery(
     { branchId: id, organizationId },
     { skip: !id || !organizationId }
   );
   const branch = response
     ? {
-        ...response,
-        organization:
-          response.organization ??
-          user?.access?.organizations?.find((organization) => organization._id === organizationId),
-        settings: {
-          ...response.settings,
-          breaksPaid: response.settings?.breaksPaid ?? response.settings?.paidBreaks,
-        },
-        activation:
-          response.activation ??
-          (response.activatedAt
-            ? { activatedAt: response.activatedAt, activatedBy: response.activatedBy }
-            : null),
-        manager: response.manager ?? response.managerInvitation ?? null,
-      }
+      ...response,
+      organization:
+        response.organization ??
+        user?.access?.organizations?.find((organization) => organization._id === organizationId),
+      settings: {
+        ...response.settings,
+        breaksPaid: response.settings?.breaksPaid ?? response.settings?.paidBreaks,
+      },
+      activation:
+        response.activation ??
+        (response.activatedAt
+          ? { activatedAt: response.activatedAt, activatedBy: response.activatedBy }
+          : null),
+      manager: response.manager ?? response.managerInvitation ?? null,
+    }
     : null;
 
   if (isLoading) {
@@ -156,8 +154,8 @@ export function BranchDetailView() {
                   value={
                     settings.breakRules?.length
                       ? settings.breakRules
-                          .map((rule) => `${rule.minHours}h+ shift → ${rule.unpaidMinutes} min`)
-                          .join(', ')
+                        .map((rule) => `${rule.minHours}h+ shift → ${rule.unpaidMinutes} min`)
+                        .join(', ')
                       : '—'
                   }
                 />

@@ -21,15 +21,54 @@ export function StaffProfileTableRow({
   detailPath: customDetailPath,
   editPath: customEditPath,
   hideViewAction = false,
+  branchesMap = {},
+  jobTitlesMap = {},
+  departmentsMap = {},
 }) {
   const router = useRouter();
 
   const detailPath = customDetailPath || paths.owner.staffProfiles.detail(row._id);
   const editPath = customEditPath || paths.owner.staffProfiles.edit(row._id);
 
-  const departmentNames = (row.departments || []).map((dep) => dep.name).join(', ');
-  const staffName = row.user?.name || '—';
-  const staffEmail = row.user?.email || '—';
+  // Site / Branch name
+  const branchName =
+    row.branch?.name ||
+    row.branchName ||
+    (typeof row.branch === 'string' && branchesMap[row.branch]?.name) ||
+    (row.branchId && branchesMap[row.branchId]?.name) ||
+    '—';
+
+  // Job title name
+  const jobTitleName =
+    row.jobTitle?.name ||
+    row.jobTitleName ||
+    (typeof row.jobTitle === 'string' && jobTitlesMap[row.jobTitle]?.name) ||
+    (row.jobTitleId && jobTitlesMap[row.jobTitleId]?.name) ||
+    '—';
+
+  // Departments
+  const departmentNames = (() => {
+    if (Array.isArray(row.departments) && row.departments.length > 0) {
+      if (typeof row.departments[0] === 'object' && row.departments[0]?.name) {
+        return row.departments.map((d) => d.name).filter(Boolean).join(', ');
+      }
+      if (typeof row.departments[0] === 'string') {
+        const names = row.departments.map((id) => departmentsMap[id]?.name || id).filter(Boolean);
+        if (names.length > 0) return names.join(', ');
+      }
+    }
+    if (Array.isArray(row.departmentIds) && row.departmentIds.length > 0) {
+      const names = row.departmentIds.map((id) => departmentsMap[id]?.name || id).filter(Boolean);
+      if (names.length > 0) return names.join(', ');
+    }
+    if (row.department?.name) {
+      return row.department.name;
+    }
+    return '—';
+  })();
+
+  const staffName = row.user?.name || row.userName || row.name || '—';
+  const staffEmail = row.user?.email || row.userEmail || row.email || '—';
 
   const actions = [
     {
@@ -67,11 +106,11 @@ export function StaffProfileTableRow({
         </Stack>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{branchName}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.jobTitle?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{jobTitleName}</TableCell>
 
-      <TableCellWithTooltip maxWidth={200}>{departmentNames || '—'}</TableCellWithTooltip>
+      <TableCellWithTooltip maxWidth={200}>{departmentNames}</TableCellWithTooltip>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.startDate)}</TableCell>
 

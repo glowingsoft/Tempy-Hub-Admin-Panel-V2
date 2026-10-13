@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -21,8 +20,14 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import {
+  useOrganizationLookups,
+  resolveBranchName,
+  resolveJobTitleName,
+  resolveDepartmentNames,
+} from 'src/hooks/use-organization-lookups';
 import { useGetInvitationQuery } from 'src/store/Reducer/invitations-api';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 
 import {
   getMembershipStatusMeta,
@@ -32,20 +37,13 @@ import {
 } from '../mocks/data';
 import { useInvitationActions } from '../use-invitation-actions';
 import { InvitationActionDialog } from '../invitation-action-dialog';
-import {
-  useInvitationLookups,
-  resolveBranchName,
-  resolveJobTitleName,
-  resolveDepartmentNames,
-} from '../use-invitation-lookups';
 
 // ----------------------------------------------------------------------
 
 export function MembershipDetailView() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId } = useCurrentOrganization();
 
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -65,7 +63,7 @@ export function MembershipDetailView() {
     onChanged: handleChanged,
   });
 
-  const { branchesMap, jobTitlesMap, departmentsMap } = useInvitationLookups(organizationId);
+  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
 
   const {
     data: apiInvitation,

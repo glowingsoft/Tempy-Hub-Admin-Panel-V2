@@ -62,6 +62,7 @@ const normalizeMembership = (membership) => ({
   name: membership.name ?? membership.user?.name,
   email: membership.email ?? membership.user?.email,
   branchId: membership.branchId ?? membership.branch?._id ?? null,
+  startDate: membership.startDate ?? membership.staffProfile?.startDate ?? null,
 });
 
 export const membersApi = createApi({
@@ -124,13 +125,17 @@ export const membersApi = createApi({
     }),
 
     deactivateMembership: builder.mutation({
-      query: ({ membershipId }) => ({
+      query: ({ membershipId, organizationId }) => ({
         url: API_ROUTES.MEMBERSHIP_DEACTIVATE(membershipId),
         method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
       }),
+      transformResponse: (res) =>
+        res?.data ? { ...normalizeMembership(res.data), message: res?.message } : res,
       invalidatesTags: (result, error, { membershipId, organizationId }) => [
         { type: 'Member', id: membershipId },
         ...(organizationId ? [listTag(organizationId)] : []),
+        ...(result?.organizationId ? [listTag(result.organizationId)] : []),
       ],
     }),
   }),

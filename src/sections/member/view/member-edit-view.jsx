@@ -16,7 +16,7 @@ export function MemberEditView({ member: currentMember }) {
         links={[
           { name: 'Dashboard', href: paths.owner.root },
           { name: 'Members', href: paths.owner.memberships.members.root },
-          { name: currentMember?.name },
+          { name: currentMember?.name || currentMember?.user?.name || 'Member' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -13,6 +12,7 @@ import { useRouter } from 'src/routes/hooks';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -68,7 +68,7 @@ export function OrganizationListView() {
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
   const router = useRouter();
 
-  const { user } = useSelector((state) => state.user);
+  const { user } = useCurrentOrganization();
   const canEdit = canEditOrganization(user);
 
   const filters = useSetState({ search: '', status: 'all' });

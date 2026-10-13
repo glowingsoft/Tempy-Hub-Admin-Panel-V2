@@ -2,7 +2,6 @@ import dayjs from 'dayjs';
 import { z as zod } from 'zod';
 import { useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import { useSelector } from 'react-redux';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
@@ -21,9 +20,8 @@ import { useRouter } from 'src/routes/hooks';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { mockJobTitles } from 'src/sections/job-title/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { mockOrganizations } from 'src/sections/organization/mocks/data';
 
 // import {
@@ -68,8 +66,7 @@ export function StaffProfileNewEditForm({
   pathsConfig,
 } = {}) {
   const router = useRouter();
-  const { user } = useSelector((state) => state.user);
-  const isOwner = user?.permission === 4;
+  const { organizationId: currentOrgId, isOwner } = useCurrentOrganization(organizationId);
 
   const resolvedPaths = useMemo(
     () => ({
@@ -114,7 +111,7 @@ export function StaffProfileNewEditForm({
   } = methods;
 
   const watchedOrgId = watch('organizationId');
-  const activeOrgId = organizationId || watchedOrgId || mockOrganizations[0]?._id;
+  const activeOrgId = organizationId || watchedOrgId || currentOrgId || mockOrganizations[0]?._id;
 
   // const [createStaffProfile] = useCreateStaffProfileMutation();
   // const [updateStaffProfile] = useUpdateStaffProfileMutation();
@@ -127,29 +124,10 @@ export function StaffProfileNewEditForm({
     [activeOrgId]
   );
 
-  const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !activeOrgId || branch.organizationId === activeOrgId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [activeOrgId]
-  );
-
-  const jobTitleOptions = useMemo(
-    () =>
-      mockJobTitles
-        .filter((jt) => !activeOrgId || jt.organizationId === activeOrgId)
-        .map((jt) => ({ value: jt._id, label: jt.name })),
-    [activeOrgId]
-  );
-
-  const departmentOptions = useMemo(
-    () =>
-      mockDepartments
-        .filter((dep) => !activeOrgId || dep.organizationId === activeOrgId)
-        .map((dep) => ({ value: dep._id, label: dep.name })),
-    [activeOrgId]
-  );
+  const { branchOptions, jobTitleOptions, departmentOptions } = useOrganizationLookups({
+    organizationId: activeOrgId,
+    limit: 100,
+  });
 
   // `departmentIds` stays a string[] — the Autocomplete works on id strings and
   // resolves labels through this map.

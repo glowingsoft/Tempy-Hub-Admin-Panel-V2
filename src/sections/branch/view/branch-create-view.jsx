@@ -1,19 +1,16 @@
-import { useSelector } from 'react-redux';
-
 import { paths } from 'src/routes/paths';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { BranchNewEditForm } from '../branch-new-edit-form';
-import { getOwnerOrganizationId } from '../utils';
 
 // ----------------------------------------------------------------------
 
 export function BranchCreateView() {
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user) ?? '';
+  const { organizationId } = useCurrentOrganization();
 
   return (
     <DashboardContent>

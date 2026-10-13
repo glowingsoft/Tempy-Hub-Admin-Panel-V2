@@ -12,9 +12,8 @@ import TextField from '@mui/material/TextField';
 import { LoadingButton } from '@mui/lab';
 
 import { toast } from 'src/components/snackbar';
-import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useCreateResidentMutation, useUpdateResidentMutation } from 'src/store/Reducer/residents-api';
-import { mockBranchesResponse } from 'src/sections/branch/mocks/data';
 import {
     RESIDENT_CARE_LEVEL_OPTIONS,
     RESIDENT_STATUS_OPTIONS,
@@ -55,17 +54,13 @@ export function ResidentAddEditDialog({
     const [errors, setErrors] = useState({});
 
     // For Owner Dashboard, load real branches from the organization; for site/line manager, fallback to mock.
-    const { data: realBranchesData, isFetching: isBranchesFetching } = useGetBranchesQuery(
-        { organizationId, page: 1, limit: 100 },
-        { skip: !open || !organizationId || !ownerDashboard }
-    );
-
-    const branches = useMemo(() => {
-        if (ownerDashboard) {
-            return (realBranchesData?.data ?? []).map((b) => ({ _id: b._id, name: b.name }));
-        }
-        return mockBranchesResponse.data || [];
-    }, [ownerDashboard, realBranchesData]);
+    const { branches, isBranchesLoading: isBranchesFetching } = useOrganizationLookups({
+        organizationId: ownerDashboard ? organizationId : null,
+        branches: open && !!organizationId && ownerDashboard,
+        jobTitles: false,
+        departments: false,
+        limit: 100,
+    });
 
     const [createResident, { isLoading: isCreating }] = useCreateResidentMutation();
     const [updateResident, { isLoading: isUpdating }] = useUpdateResidentMutation();

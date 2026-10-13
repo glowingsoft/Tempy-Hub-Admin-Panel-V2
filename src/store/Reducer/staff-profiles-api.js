@@ -64,10 +64,14 @@ export const staffProfilesApi = createApi({
 
   endpoints: (builder) => ({
     getStaffProfiles: builder.query({
-      query: ({ organizationId, page = 1, limit = 10 }) => ({
+      query: ({ organizationId, page = 1, limit = 10, keyword }) => ({
         url: API_ROUTES.ORGANIZATION_STAFF_PROFILES(organizationId),
         method: 'GET',
-        params: { page, limit },
+        params: {
+          page,
+          limit,
+          ...(keyword ? { keyword } : {}),
+        },
       }),
       transformResponse: (res) => ({
         data: res?.data ?? [],
@@ -83,14 +87,22 @@ export const staffProfilesApi = createApi({
     }),
 
     getStaffProfile: builder.query({
-      query: (staffProfileId) => ({
-        url: API_ROUTES.STAFF_PROFILE_BY_ID(staffProfileId),
-        method: 'GET',
-      }),
+      query: (arg) => {
+        const staffProfileId = typeof arg === 'string' ? arg : arg?.staffProfileId;
+        const organizationId = typeof arg === 'object' ? arg?.organizationId : undefined;
+
+        return {
+          url: API_ROUTES.STAFF_PROFILE_BY_ID(staffProfileId),
+          method: 'GET',
+          params: organizationId ? { organizationId } : undefined,
+          headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        };
+      },
       transformResponse: (res) => res?.data ?? res,
-      providesTags: (result, error, staffProfileId) => [
-        { type: 'StaffProfile', id: staffProfileId },
-      ],
+      providesTags: (result, error, arg) => {
+        const staffProfileId = typeof arg === 'string' ? arg : arg?.staffProfileId;
+        return [{ type: 'StaffProfile', id: staffProfileId }];
+      },
     }),
 
     createStaffProfile: builder.mutation({

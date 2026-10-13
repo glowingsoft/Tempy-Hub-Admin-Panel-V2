@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -30,13 +29,13 @@ import {
   useTable,
 } from 'src/components/table';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useGetInvitationsQuery } from 'src/store/Reducer/invitations-api';
 import { MEMBERSHIP_STATUS_OPTIONS, mockInvitationsResponse } from '../mocks/data';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { useInvitationActions } from '../use-invitation-actions';
 import { InvitationActionDialog } from '../invitation-action-dialog';
 import { MembershipTableRow } from '../membership-table-row';
-import { useInvitationLookups } from '../use-invitation-lookups';
 
 // ----------------------------------------------------------------------
 
@@ -68,9 +67,8 @@ const FILTER_FIELDS = [
 export function MembershipListView() {
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
-  const orgName = user?.organization?.name;
+  const { organizationId, organizationName: orgName } = useCurrentOrganization();
+  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -82,8 +80,6 @@ export function MembershipListView() {
     organizationId,
     onChanged: refresh,
   });
-
-  const { branchesMap, jobTitlesMap, departmentsMap } = useInvitationLookups(organizationId);
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),

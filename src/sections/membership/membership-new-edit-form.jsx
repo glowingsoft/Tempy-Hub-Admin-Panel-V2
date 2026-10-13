@@ -1,7 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
 import { useMemo, useCallback } from 'react';
-import { useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -20,18 +19,13 @@ import { useRouter } from 'src/routes/hooks';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
-import { mockJobTitles } from 'src/sections/job-title/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 
 import {
   useCreateInvitationMutation,
   useUpdateInvitationMutation,
 } from 'src/store/Reducer/invitations-api';
-import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
-import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
-import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import {
   MEMBERSHIP_ROLE_OPTIONS,
   MEMBERSHIP_PERMISSION_OPTIONS,
@@ -69,53 +63,22 @@ const toTokenSource = (options) => {
 
 export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const router = useRouter();
-  const { user } = useSelector((state) => state.user);
+  const { organizationId: currentOrgId } = useCurrentOrganization();
 
   const isEdit = !!currentMembership;
   const resolvedOrganizationId =
-    organizationId || currentMembership?.organizationId || getOwnerOrganizationId(user);
+    organizationId || currentMembership?.organizationId || currentOrgId;
 
   const [createInvitation, { isLoading: isCreating }] = useCreateInvitationMutation();
   const [updateInvitation, { isLoading: isUpdating }] = useUpdateInvitationMutation();
 
-  const { data: branchesData } = useGetBranchesQuery(
-    { organizationId: resolvedOrganizationId, limit: 100 },
-    { skip: !resolvedOrganizationId }
-  );
-  const { data: jobTitlesData } = useGetJobTitlesQuery(
-    { organizationId: resolvedOrganizationId, limit: 100 },
-    { skip: !resolvedOrganizationId }
-  );
-  const { data: departmentsData } = useGetDepartmentsQuery(
-    { organizationId: resolvedOrganizationId, limit: 100 },
-    { skip: !resolvedOrganizationId }
-  );
-
-  const branchOptions = useMemo(() => {
-    const list = resolvedOrganizationId ? branchesData?.data ?? [] : mockBranches;
-    return list
-      .filter(
-        (branch) =>
-          !resolvedOrganizationId || branch.organizationId === resolvedOrganizationId
-      )
-      .map((branch) => ({ value: branch._id, label: branch.name }));
-  }, [branchesData, resolvedOrganizationId]);
-
-  const jobTitleOptions = useMemo(() => {
-    const list = resolvedOrganizationId ? jobTitlesData?.data ?? [] : mockJobTitles;
-    return list
-      .filter((jt) => !resolvedOrganizationId || jt.organizationId === resolvedOrganizationId)
-      .map((jt) => ({ value: jt._id, label: jt.name }));
-  }, [jobTitlesData, resolvedOrganizationId]);
-
-  const departmentOptions = useMemo(() => {
-    const list = resolvedOrganizationId ? departmentsData?.data ?? [] : mockDepartments;
-    return list
-      .filter(
-        (dep) => !resolvedOrganizationId || dep.organizationId === resolvedOrganizationId
-      )
-      .map((dep) => ({ value: dep._id, label: dep.name }));
-  }, [departmentsData, resolvedOrganizationId]);
+  const { branchOptions, jobTitleOptions, departmentOptions } = useOrganizationLookups({
+    organizationId: resolvedOrganizationId,
+    branches: true,
+    jobTitles: true,
+    departments: true,
+    limit: 100,
+  });
 
   // Token Autocomplete sources for the multi-value "Access" fields.
   const permissionTokens = useMemo(() => toTokenSource(MEMBERSHIP_PERMISSION_OPTIONS), []);

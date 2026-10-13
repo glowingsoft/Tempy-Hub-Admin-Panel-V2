@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -19,10 +19,8 @@ import { useRouter } from 'src/routes/hooks';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { mockJobTitles } from 'src/sections/job-title/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
-
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useUpdateMembershipMutation } from 'src/store/Reducer/members-api';
 import { MEMBER_ROLE_OPTIONS, MEMBER_PERMISSION_OPTIONS } from './mocks/data';
 
@@ -36,52 +34,91 @@ export const MemberUpdateSchema = zod.object({
   permissions: zod.array(zod.string()),
   departmentIds: zod.array(zod.string()),
   startDate: zod
-    .union([zod.string(), zod.null()])
-    .refine((value) => !!value, { message: 'Start date is required!' }),
+    .union([zod.string(), zod.null(), zod.any()])
+    .refine((value) => Boolean(value), { message: 'Start date is required!' }),
 });
 
 // ----------------------------------------------------------------------
 
 export function MemberEditForm({ organizationId, currentMember }) {
   const router = useRouter();
+  const { organizationId: currentOrgId } = useCurrentOrganization();
+
+  const resolvedOrganizationId =
+    organizationId || currentMember?.organizationId || currentOrgId;
 
   const membershipId = currentMember?.membershipId ?? currentMember?._id;
 
   const [updateMembership, { isLoading: isUpdating }] = useUpdateMembershipMutation();
 
-  const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !organizationId || branch.organizationId === organizationId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [organizationId]
-  );
+  const { branches, jobTitles, departments } = useOrganizationLookups({
+    organizationId: resolvedOrganizationId,
+    limit: 100,
+  });
 
-  const jobTitleOptions = useMemo(
-    () =>
-      mockJobTitles
-        .filter((jt) => !organizationId || jt.organizationId === organizationId)
-        .map((jt) => ({ value: jt._id, label: jt.name })),
-    [organizationId]
-  );
+  const branchOptions = useMemo(() => {
+    const opts = branches.map((branch) => ({ value: branch._id, label: branch.name }));
 
-  const departmentOptions = useMemo(
-    () =>
-      mockDepartments
-        .filter((dep) => !organizationId || dep.organizationId === organizationId)
-        .map((dep) => ({ value: dep._id, label: dep.name })),
-    [organizationId]
-  );
+    const currentBranchId =
+      currentMember?.branchId ||
+      (typeof currentMember?.branch === 'string' ? currentMember.branch : currentMember?.branch?._id);
+    const currentBranchName = currentMember?.branch?.name;
+    if (currentBranchId && !opts.some((o) => o.value === currentBranchId)) {
+      opts.unshift({ value: currentBranchId, label: currentBranchName || currentBranchId });
+    }
+    return opts;
+  }, [branches, currentMember]);
+
+  const jobTitleOptions = useMemo(() => {
+    const opts = jobTitles.map((jt) => ({ value: jt._id, label: jt.name }));
+
+    const currentJobTitleId =
+      currentMember?.jobTitleId ||
+      (typeof currentMember?.jobTitle === 'string' ? currentMember.jobTitle : currentMember?.jobTitle?._id);
+    const currentJobTitleName = currentMember?.jobTitle?.name;
+    if (currentJobTitleId && !opts.some((o) => o.value === currentJobTitleId)) {
+      opts.unshift({ value: currentJobTitleId, label: currentJobTitleName || currentJobTitleId });
+    }
+    return opts;
+  }, [jobTitles, currentMember]);
+
+  const departmentOptions = useMemo(() => {
+    const opts = departments.map((dep) => ({ value: dep._id, label: dep.name }));
+
+    (currentMember?.departments || []).forEach((d) => {
+      const depId = typeof d === 'string' ? d : d?._id;
+      const depName = typeof d === 'string' ? d : d?.name;
+      if (depId && !opts.some((o) => o.value === depId)) {
+        opts.push({ value: depId, label: depName || depId });
+      }
+    });
+    return opts;
+  }, [departments, currentMember]);
 
   const defaultValues = useMemo(
     () => ({
-      name: currentMember?.name || '',
+      name: currentMember?.name || currentMember?.user?.name || '',
       role: currentMember?.role || MEMBER_ROLE_OPTIONS[0]?.value || '',
-      branchId: currentMember?.branchId || '',
-      jobTitleId: currentMember?.jobTitleId || '',
+      branchId:
+        currentMember?.branchId ||
+        (typeof currentMember?.branch === 'string'
+          ? currentMember.branch
+          : currentMember?.branch?._id) ||
+        '',
+      jobTitleId:
+        currentMember?.jobTitleId ||
+        (typeof currentMember?.jobTitle === 'string'
+          ? currentMember.jobTitle
+          : currentMember?.jobTitle?._id) ||
+        '',
       permissions: currentMember?.permissions || [],
-      departmentIds: currentMember?.departmentIds || [],
-      startDate: currentMember?.startDate || null,
+      departmentIds:
+        Array.isArray(currentMember?.departmentIds) && currentMember.departmentIds.length > 0
+          ? currentMember.departmentIds
+          : Array.isArray(currentMember?.departments)
+            ? currentMember.departments.map((d) => (typeof d === 'string' ? d : d?._id)).filter(Boolean)
+            : [],
+      startDate: currentMember?.startDate || currentMember?.staffProfile?.startDate || null,
     }),
     [currentMember]
   );
@@ -90,12 +127,20 @@ export function MemberEditForm({ organizationId, currentMember }) {
     mode: 'onSubmit',
     resolver: zodResolver(MemberUpdateSchema),
     defaultValues,
+    values: defaultValues,
   });
 
   const {
+    reset,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  useEffect(() => {
+    if (currentMember) {
+      reset(defaultValues);
+    }
+  }, [currentMember, defaultValues, reset]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -109,7 +154,11 @@ export function MemberEditForm({ organizationId, currentMember }) {
         startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
       };
 
-      await updateMembership({ membershipId, organizationId, ...payload }).unwrap();
+      await updateMembership({
+        membershipId,
+        organizationId: resolvedOrganizationId,
+        ...payload,
+      }).unwrap();
 
       toast.success('Membership updated successfully!');
       router.push(paths.owner.memberships.members.detail(membershipId));
@@ -137,7 +186,7 @@ export function MemberEditForm({ organizationId, currentMember }) {
             {/* Email identifies the user account and is not editable here. */}
             <TextField
               label="Email"
-              value={currentMember?.email || ''}
+              value={currentMember?.email || currentMember?.user?.email || ''}
               disabled
               InputLabelProps={{ shrink: true }}
             />

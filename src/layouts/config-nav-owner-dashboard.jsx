@@ -43,7 +43,7 @@ export const navDataOwner = [
       { title: 'Sites', path: paths.owner.sites.root, icon: ICONS.booking },
       { title: 'Departments', path: paths.owner.departments.root, icon: ICONS.folder },
       { title: 'Job Titles', path: paths.owner.jobTitles.root, icon: ICONS.label },
-      // { title: 'Staff Profiles', path: paths.owner.staffProfiles.root, icon: ICONS.user },
+      { title: 'Staff Profiles', path: paths.owner.staffProfiles.root, icon: ICONS.user },
       { title: 'Billing & Usage', path: paths.owner.dataUsage.root, icon: ICONS.folder },
       { title: 'Statistics', path: paths.owner.statistics, icon: ICONS.analytics },
       { title: 'General Directory', path: paths.owner.directory.root, icon: ICONS.directory },

@@ -23,11 +23,8 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
-import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
-import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useCreateBranchMutation, useUpdateBranchMutation } from 'src/store/Reducer/branches-api';
-import { mockJobTitles } from 'src/sections/job-title/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
 import { DEFAULT_BRANCH_SETTINGS } from './mocks/data';
 import { getBrowserTimezone } from './utils';
 
@@ -113,33 +110,15 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
 
   const isEdit = !!currentBranch;
 
-  const { data: jobTitlesData } = useGetJobTitlesQuery(
-    { organizationId, limit: 100 },
-    { skip: !organizationId }
-  );
-  const { data: departmentsData } = useGetDepartmentsQuery(
-    { organizationId, limit: 100 },
-    { skip: !organizationId }
-  );
+  const { jobTitleOptions, departmentOptions } = useOrganizationLookups({
+    organizationId,
+    jobTitles: !!organizationId,
+    departments: !!organizationId,
+    limit: 100,
+  });
 
   const [createBranch, { isLoading: isCreating }] = useCreateBranchMutation();
   const [updateBranch, { isLoading: isUpdating }] = useUpdateBranchMutation();
-
-  // Dropdown options come from the Job Titles / Departments API,
-  // falling back to mocks if not yet created.
-  const jobTitleOptions = useMemo(() => {
-    const list = jobTitlesData?.data?.length ? jobTitlesData.data : mockJobTitles;
-    return list
-      .filter((jt) => !organizationId || jt.organizationId === organizationId)
-      .map((jt) => ({ value: jt._id, label: jt.name }));
-  }, [jobTitlesData, organizationId]);
-
-  const departmentOptions = useMemo(() => {
-    const list = departmentsData?.data?.length ? departmentsData.data : mockDepartments;
-    return list
-      .filter((dep) => !organizationId || dep.organizationId === organizationId)
-      .map((dep) => ({ value: dep._id, label: dep.name }));
-  }, [departmentsData, organizationId]);
 
   const defaultValues = useMemo(
     () => ({

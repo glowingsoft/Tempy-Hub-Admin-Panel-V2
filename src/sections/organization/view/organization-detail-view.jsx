@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -15,6 +14,7 @@ import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useTabs } from 'src/hooks/use-tabs';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { fDateTime } from 'src/utils/format-time';
 
@@ -60,7 +60,7 @@ export function OrganizationDetailView() {
   const tabs = useTabs(initialTab);
   const editModal = useBoolean();
 
-  const { user } = useSelector((state) => state.user);
+  const { user } = useCurrentOrganization();
   const canEdit = canEditOrganization(user);
 
   const { data, isLoading } = useGetOrganizationByIdQuery(id, { skip: !id });

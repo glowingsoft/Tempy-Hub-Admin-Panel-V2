@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -15,11 +14,11 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useParams, usePathname, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { useGetResidentQuery } from 'src/store/Reducer/residents-api';
 import { getResidentPeepById } from 'src/sections/active-sections/peen-floor-plan/mocks/data';
 import { ResidentPeepDrawer } from 'src/sections/active-sections/peen-floor-plan/resident-peep-drawer';
@@ -41,8 +40,8 @@ export function ResidentDetailView() {
     const isOwner = pathname.startsWith(paths.owner.root);
     const isLineManager = pathname.startsWith(paths.lineManager.root);
 
-    const { user } = useSelector((state) => state.user);
-    const organizationId = isOwner ? getOwnerOrganizationId(user) : null;
+    const { organizationId: currentOrgId } = useCurrentOrganization();
+    const organizationId = isOwner ? currentOrgId : null;
 
     const {
         data: apiResident,

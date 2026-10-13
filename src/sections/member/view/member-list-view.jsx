@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { useSelector } from 'react-redux';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -11,11 +10,12 @@ import { paths } from 'src/routes/paths';
 
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { useGetMembersQuery } from 'src/store/Reducer/members-api';
-import { getOwnerOrganizationId, getOwnerOrganizationName } from 'src/sections/branch/utils';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -54,9 +54,8 @@ const FILTER_FIELDS = [createFilterField.search({ placeholder: 'Search name or e
 export function MemberListView() {
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
-  const orgName = getOwnerOrganizationName(user);
+  const { organizationId, organizationName: orgName } = useCurrentOrganization();
+  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
 
   const filters = useSetState({ search: '' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -148,6 +147,9 @@ export function MemberListView() {
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         onDeactivate={askDeactivate}
+                        branchesMap={branchesMap}
+                        jobTitlesMap={jobTitlesMap}
+                        departmentsMap={departmentsMap}
                       />
                     ))}
 

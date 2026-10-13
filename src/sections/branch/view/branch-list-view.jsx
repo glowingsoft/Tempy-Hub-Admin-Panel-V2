@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -12,6 +11,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -32,7 +32,6 @@ import {
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { mockOrganizations } from 'src/sections/organization/mocks/data';
 import { BRANCH_STATUS_OPTIONS, mockBranchesResponse } from '../mocks/data';
-import { getOwnerOrganizationId } from '../utils';
 import { BranchTableRow } from '../branch-table-row';
 
 // ----------------------------------------------------------------------
@@ -61,8 +60,7 @@ const FILTER_FIELDS = [
 export function BranchListView() {
   const table = useTable({ defaultOrderBy: 'name', defaultOrder: 'asc' });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user) ?? '';
+  const { organizationId = '', organizationName = '', user } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -145,7 +143,7 @@ export function BranchListView() {
     [filters, table]
   );
 
-  const orgName = user?.organization?.name;
+  const orgName = organizationName || user?.organization?.name;
 
   return (
     <DashboardContent>
