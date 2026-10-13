@@ -21,7 +21,7 @@ export function ShiftClaimTableRow({ row, serialNumber, onApprove, onSendToTempy
   const detailPath = paths.owner.shiftClaims.detail(row._id);
 
   const status = getShiftClaimStatusMeta(row.status);
-  const canApprove = row.status === 'open';
+  const canApprove = row.status === 'open' || row.status === 'pending';
 
   const actions = [
     {
@@ -58,7 +58,9 @@ export function ShiftClaimTableRow({ row, serialNumber, onApprove, onSendToTempy
     <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
       <TableCell>{serialNumber}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {typeof row.branch === 'object' ? row.branch?.name : row.branch || '—'}
+      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{getShiftClaimStaffName(row)}</TableCell>
 

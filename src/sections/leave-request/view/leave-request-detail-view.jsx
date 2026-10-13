@@ -16,7 +16,8 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 
-// import { useGetLeaveRequestsQuery } from 'src/store/Reducer/leave-requests-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetLeaveRequestsQuery } from 'src/store/Reducer/leave-requests-api';
 import { getLeaveRequestStatusMeta, getLeaveTypeLabel, getMockLeaveRequestById } from '../mocks/data';
 import { getLeaveRequestContext, getLeaveRequestStaffName } from '../utils';
 import { useLeaveRequestActions } from '../use-leave-request-actions';
@@ -29,15 +30,36 @@ export function LeaveRequestDetailView({ variant = 'owner' }) {
   const router = useRouter();
 
   const ctx = useMemo(() => getLeaveRequestContext(variant), [variant]);
+  const { organizationId } = useCurrentOrganization();
 
-  const [reloadKey, setReloadKey] = useState(0);
-  const handleChanged = useCallback(() => setReloadKey((key) => key + 1), []);
+  const { data: apiResponse, isLoading, refetch } = useGetLeaveRequestsQuery(
+    { organizationId, limit: 100 },
+    { skip: !organizationId }
+  );
 
-  const { askApprove, askReject, dialogProps } = useLeaveRequestActions({ onChanged: handleChanged });
+  const request = useMemo(
+    () => apiResponse?.data?.find((r) => r._id === id) || getMockLeaveRequestById(id),
+    [apiResponse, id]
+  );
 
-  // TODO: swap for a real `GET /admin/leave-requests/:id` query if one exists —
-  // for now the detail reads from the mock list.
-  const request = useMemo(() => getMockLeaveRequestById(id), [id, reloadKey]);
+  const reqOrgId =
+    (typeof request?.organizationId === 'object' ? request?.organizationId?._id : request?.organizationId) ||
+    organizationId;
+
+  const { askApprove, askReject, dialogProps } = useLeaveRequestActions({
+    organizationId: reqOrgId,
+    onChanged: refetch,
+  });
+
+  if (isLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', py: 4 }}>
+          Loading leave request...
+        </Typography>
+      </Box>
+    );
+  }
 
   if (!request) {
     return (

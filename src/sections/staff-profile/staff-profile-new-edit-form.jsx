@@ -24,10 +24,10 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { mockOrganizations } from 'src/sections/organization/mocks/data';
 
-// import {
-//   useCreateStaffProfileMutation,
-//   useUpdateStaffProfileMutation,
-// } from 'src/store/Reducer/staff-profiles-api';
+import {
+  useCreateStaffProfileMutation,
+  useUpdateStaffProfileMutation,
+} from 'src/store/Reducer/staff-profiles-api';
 import {
   mockStaffUsers,
   createMockStaffProfile,
@@ -47,8 +47,10 @@ export const StaffProfileSchema = zod.object({
     .refine((value) => !!value, { message: 'Start date is required!' }),
   pin: zod
     .string()
-    .min(1, { message: 'PIN is required!' })
-    .regex(/^\d{4,6}$/, { message: 'PIN must be 4 to 6 digits.' }),
+    .optional()
+    .refine((value) => !value || /^\d{4,6}$/.test(value), {
+      message: 'PIN must be 4 to 6 digits.',
+    }),
   // Optional — used to show earnings alongside worked hours on the Staff Dashboard.
   hourlyRate: zod
     .string()
@@ -85,11 +87,27 @@ export function StaffProfileNewEditForm({
   const defaultValues = useMemo(
     () => ({
       organizationId:
-        currentStaffProfile?.organizationId || organizationId || mockOrganizations[0]?._id || '',
-      userId: currentStaffProfile?.userId || '',
-      branchId: currentStaffProfile?.branchId || '',
-      jobTitleId: currentStaffProfile?.jobTitleId || '',
-      departmentIds: currentStaffProfile?.departmentIds || [],
+        (typeof currentStaffProfile?.organizationId === 'object'
+          ? currentStaffProfile.organizationId._id
+          : currentStaffProfile?.organizationId) ||
+        organizationId ||
+        mockOrganizations[0]?._id ||
+        '',
+      userId:
+        (typeof currentStaffProfile?.userId === 'object'
+          ? currentStaffProfile.userId._id
+          : currentStaffProfile?.userId) || '',
+      branchId:
+        (typeof currentStaffProfile?.branchId === 'object'
+          ? currentStaffProfile.branchId._id
+          : currentStaffProfile?.branchId) || '',
+      jobTitleId:
+        (typeof currentStaffProfile?.jobTitleId === 'object'
+          ? currentStaffProfile.jobTitleId._id
+          : currentStaffProfile?.jobTitleId) || '',
+      departmentIds: Array.isArray(currentStaffProfile?.departmentIds)
+        ? currentStaffProfile.departmentIds.map((d) => (typeof d === 'object' ? d._id : d))
+        : [],
       startDate: currentStaffProfile?.startDate || null,
       pin: currentStaffProfile?.pin || '',
       hourlyRate:
@@ -113,21 +131,87 @@ export function StaffProfileNewEditForm({
   const watchedOrgId = watch('organizationId');
   const activeOrgId = organizationId || watchedOrgId || currentOrgId || mockOrganizations[0]?._id;
 
-  // const [createStaffProfile] = useCreateStaffProfileMutation();
-  // const [updateStaffProfile] = useUpdateStaffProfileMutation();
+  const [createStaffProfile, { isLoading: isCreating }] = useCreateStaffProfileMutation();
+  const [updateStaffProfile, { isLoading: isUpdating }] = useUpdateStaffProfileMutation();
 
-  const userOptions = useMemo(
-    () =>
-      mockStaffUsers
-        .filter((u) => !activeOrgId || u.organizationId === activeOrgId)
-        .map((u) => ({ value: u._id, label: `${u.name} (${u.email})` })),
-    [activeOrgId]
-  );
+  const userOptions = useMemo(() => {
+    const list = [...mockStaffUsers.filter((u) => !activeOrgId || u.organizationId === activeOrgId)];
+    const currentUserId =
+      typeof currentStaffProfile?.userId === 'object'
+        ? currentStaffProfile.userId._id
+        : currentStaffProfile?.userId;
+    const currentUserName =
+      typeof currentStaffProfile?.userId === 'object'
+        ? `${currentStaffProfile.userId.name} (${currentStaffProfile.userId.email})`
+        : currentStaffProfile?.user?.name || currentStaffProfile?.userName;
 
-  const { branchOptions, jobTitleOptions, departmentOptions } = useOrganizationLookups({
+    if (currentUserId && !list.some((u) => u._id === currentUserId)) {
+      list.unshift({
+        _id: currentUserId,
+        name: currentUserName || currentUserId,
+        email: '',
+      });
+    }
+
+    return list.map((u) => ({
+      value: u._id,
+      label: u.email ? `${u.name} (${u.email})` : u.name,
+    }));
+  }, [activeOrgId, currentStaffProfile]);
+
+  const {
+    branchOptions: rawBranchOptions,
+    jobTitleOptions: rawJobTitleOptions,
+    departmentOptions: rawDepartmentOptions,
+  } = useOrganizationLookups({
     organizationId: activeOrgId,
     limit: 100,
   });
+
+  const branchOptions = useMemo(() => {
+    const list = [...rawBranchOptions];
+    const branchId =
+      typeof currentStaffProfile?.branchId === 'object'
+        ? currentStaffProfile.branchId._id
+        : currentStaffProfile?.branchId;
+    const branchName =
+      (typeof currentStaffProfile?.branchId === 'object' && currentStaffProfile.branchId.name) ||
+      currentStaffProfile?.branch?.name;
+    if (branchId && !list.some((b) => b.value === branchId)) {
+      list.unshift({ value: branchId, label: branchName || branchId });
+    }
+    return list;
+  }, [rawBranchOptions, currentStaffProfile]);
+
+  const jobTitleOptions = useMemo(() => {
+    const list = [...rawJobTitleOptions];
+    const jobTitleId =
+      typeof currentStaffProfile?.jobTitleId === 'object'
+        ? currentStaffProfile.jobTitleId._id
+        : currentStaffProfile?.jobTitleId;
+    const jobTitleName =
+      (typeof currentStaffProfile?.jobTitleId === 'object' && currentStaffProfile.jobTitleId.name) ||
+      currentStaffProfile?.jobTitle?.name;
+    if (jobTitleId && !list.some((j) => j.value === jobTitleId)) {
+      list.unshift({ value: jobTitleId, label: jobTitleName || jobTitleId });
+    }
+    return list;
+  }, [rawJobTitleOptions, currentStaffProfile]);
+
+  const departmentOptions = useMemo(() => {
+    const list = [...rawDepartmentOptions];
+    const rawDeps = Array.isArray(currentStaffProfile?.departmentIds)
+      ? currentStaffProfile.departmentIds
+      : [];
+    rawDeps.forEach((dep) => {
+      const depId = typeof dep === 'object' ? dep._id : dep;
+      const depName = typeof dep === 'object' ? dep.name : dep;
+      if (depId && !list.some((d) => d.value === depId)) {
+        list.push({ value: depId, label: depName || depId });
+      }
+    });
+    return list;
+  }, [rawDepartmentOptions, currentStaffProfile]);
 
   // `departmentIds` stays a string[] — the Autocomplete works on id strings and
   // resolves labels through this map.
@@ -148,32 +232,35 @@ export function StaffProfileNewEditForm({
         jobTitleId: data.jobTitleId,
         departmentIds: data.departmentIds,
         startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
-        pin: data.pin,
-        hourlyRate: data.hourlyRate ? Number(data.hourlyRate) : null,
+        ...(data.pin ? { pin: data.pin } : {}),
+        ...(data.hourlyRate ? { hourlyRate: Number(data.hourlyRate) } : {}),
       };
 
-      // TODO: replace with the real mutation once the endpoints are wired up.
-      // TODO: confirm whether `userId` is accepted on update — assumed create-only here.
       let profileId = staffProfileId;
       const targetOrgId = organizationId || data.organizationId || activeOrgId;
 
       if (isEdit) {
-        // await updateStaffProfile({ staffProfileId, organizationId: targetOrgId, ...payload }).unwrap();
-        updateMockStaffProfile(staffProfileId, payload);
+        await updateStaffProfile({
+          staffProfileId,
+          organizationId: targetOrgId,
+          ...payload,
+        }).unwrap();
       } else {
-        // await createStaffProfile({ organizationId: targetOrgId, userId: data.userId, ...payload }).unwrap();
-        const created = createMockStaffProfile({
+        const res = await createStaffProfile({
           organizationId: targetOrgId,
           userId: data.userId,
           ...payload,
-        });
-        profileId = created._id;
+        }).unwrap();
+        profileId = res?.data?._id || res?._id || staffProfileId;
       }
 
       toast.success(isEdit ? 'Staff profile updated successfully!' : 'Staff profile created successfully!');
       router.push(resolvedPaths.detail(profileId));
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      console.error('Failed to save staff profile:', error);
+      if (!error?.status) {
+        toast.error(error?.message || 'Something went wrong. Please try again.');
+      }
     }
   });
 
@@ -285,7 +372,7 @@ export function StaffProfileNewEditForm({
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton type="submit" variant="contained" loading={isSubmitting || isUpdating || isCreating}>
             {isEdit ? 'Save changes' : 'Create staff profile'}
           </LoadingButton>
         </Stack>

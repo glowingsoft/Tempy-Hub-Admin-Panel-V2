@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -68,6 +68,17 @@ export function OrganizationDetailView() {
     () => (data ? (data?.data ?? data) : (mockOrganizations.find((org) => org._id === id) ?? null)),
     [data, id]
   );
+
+  useEffect(() => {
+    if (organization?._id) {
+      try {
+        localStorage.setItem('activeOrganizationId', organization._id);
+        if (organization.name) {
+          localStorage.setItem('activeOrganizationName', organization.name);
+        }
+      } catch (_) {}
+    }
+  }, [organization]);
 
   if (isLoading) {
     return (
@@ -148,9 +159,9 @@ export function OrganizationDetailView() {
           pathsConfig={{
             dashboardRoot: paths.dashboard.root,
             root: `${paths.dashboard.organizations.detail(organization._id)}?tab=staff-profiles`,
-            new: paths.dashboard.staffProfiles.new,
-            detail: paths.dashboard.staffProfiles.detail,
-            edit: paths.dashboard.staffProfiles.edit,
+            new: `${paths.dashboard.staffProfiles.new}?orgId=${organization._id}`,
+            detail: (staffId) => `${paths.dashboard.staffProfiles.detail(staffId)}?orgId=${organization._id}`,
+            edit: (staffId) => `${paths.dashboard.staffProfiles.edit(staffId)}?orgId=${organization._id}`,
           }}
         />
       )}

@@ -130,8 +130,9 @@ export function OwnerSignInView() {
         apiMessage.toLowerCase().includes('platform admin account')
           ? 'Wrong credentials'
           : apiMessage;
-      setErrorMsg(typeof msg === 'string' ? msg : JSON.stringify(msg));
-      toast.error(typeof msg === 'string' ? msg : 'Login failed');
+      if (!error?.status) {
+        toast.error(typeof msg === 'string' ? msg : 'Login failed');
+      }
     }
   });
 

@@ -53,10 +53,13 @@ export function getOwnerOrganizationName(user) {
   return user?.organization?.name ?? '';
 }
 
-/**
- * @param {object} request
- * @returns {string} the requesting staff member's name, or a fallback label
- */
 export function getLeaveRequestStaffName(request) {
-  return request?.staff?.name || request?.staff?.email || 'Unknown';
+  return (
+    request?.staff?.name ||
+    request?.staff?.user?.name ||
+    request?.staffId?.name ||
+    request?.staffId?.userId?.name ||
+    request?.staff?.email ||
+    'Unknown'
+  );
 }

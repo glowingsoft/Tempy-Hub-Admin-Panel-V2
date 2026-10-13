@@ -27,13 +27,12 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetLeaveRequestsQuery } from 'src/store/Reducer/leave-requests-api';
-import { LEAVE_REQUEST_STATUS_OPTIONS, mockLeaveRequestsResponse } from '../mocks/data';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetLeaveRequestsQuery } from 'src/store/Reducer/leave-requests-api';
+import { LEAVE_REQUEST_STATUS_OPTIONS } from '../mocks/data';
 import {
   getLeaveRequestContext,
   getLeaveRequestStaffName,
-  getOwnerOrganizationId,
-  getOwnerOrganizationName,
 } from '../utils';
 import { useLeaveRequestActions } from '../use-leave-request-actions';
 import { LeaveRequestActionDialog } from '../leave-request-action-dialog';
@@ -87,21 +86,32 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
 
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
-  const orgName = getOwnerOrganizationName(user);
+  const { organizationId, organizationName: orgName } = useCurrentOrganization();
   const { branchId, onBranchChange } = useOwnerBranchFilter();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
 
   const entitlementModal = useBoolean();
-  const [reloadKey, setReloadKey] = useState(0);
-  const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
+
+  const {
+    data: apiResponse,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useGetLeaveRequestsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      status: filters.state.status,
+    },
+    { skip: !organizationId }
+  );
 
   const { askApprove, askReject, dialogProps } = useLeaveRequestActions({
     organizationId,
-    onChanged: refresh,
+    onChanged: refetch,
   });
 
   const statusFilterField = useMemo(
@@ -113,50 +123,48 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
     []
   );
 
-  // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetLeaveRequestsQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage, status: filters.state.status },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockLeaveRequestsResponse;
+  const allRequests = useMemo(() => apiResponse?.data ?? [], [apiResponse]);
 
-  const allRequests = useMemo(
-    () =>
-      (data?.data ?? []).filter(
-        (request) =>
-          (!organizationId || request.organizationId === organizationId) &&
-          (!ownerDashboard || branchId === 'all' || request.branchId === branchId)
-      ),
-    [branchId, data, organizationId, ownerDashboard, reloadKey]
-  );
-
-  // Client-side filtering (mock only — the API filters server-side).
+  // Client-side branch filter & keyword search
   const filteredRequests = useMemo(() => {
     const search = keyword.trim().toLowerCase();
 
     return allRequests.filter((request) => {
-      const matchesStatus =
-        filters.state.status === 'all' || request.status === filters.state.status;
+      const curBranchId =
+        (typeof request.branchId === 'object' ? request.branchId?._id : request.branchId) ||
+        request.branch?._id;
+
+      const matchesBranch =
+        !ownerDashboard || branchId === 'all' || curBranchId === branchId;
 
       const matchesSearch =
         !search ||
         getLeaveRequestStaffName(request).toLowerCase().includes(search) ||
-        request.staff?.email?.toLowerCase().includes(search) ||
-        request.reason?.toLowerCase().includes(search);
+        (request.staff?.email || '').toLowerCase().includes(search) ||
+        (request.staff?.employeeCode || '').toLowerCase().includes(search) ||
+        (request.branch?.name || '').toLowerCase().includes(search) ||
+        (request.reason || '').toLowerCase().includes(search);
 
-      return matchesStatus && matchesSearch;
+      return matchesBranch && matchesSearch;
     });
-  }, [allRequests, filters.state.status, keyword]);
+  }, [allRequests, branchId, keyword, ownerDashboard]);
 
-  // Pagination metadata (mirrors the API `meta`).
-  const totalRecords = filteredRequests.length;
+  const totalRecords = apiResponse?.meta?.totalRecords ?? filteredRequests.length;
   const paginatedRequests = useMemo(() => {
+    if (apiResponse?.meta?.totalRecords !== undefined) {
+      return filteredRequests;
+    }
     const start = table.page * table.rowsPerPage;
     return filteredRequests.slice(start, start + table.rowsPerPage);
-  }, [filteredRequests, table.page, table.rowsPerPage]);
+  }, [apiResponse, filteredRequests, table.page, table.rowsPerPage]);
+
+  const detailHref = useCallback(
+    (rowId) => {
+      const base = ctx.detailHref(rowId);
+      return organizationId ? `${base}?orgId=${organizationId}` : base;
+    },
+    [ctx, organizationId]
+  );
 
   const getStatusCount = useCallback(
     (status) =>
@@ -253,7 +261,7 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
                         key={row._id}
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
-                        detailHref={ctx.detailHref}
+                        detailHref={detailHref}
                         onApprove={askApprove}
                         onReject={askReject}
                       />

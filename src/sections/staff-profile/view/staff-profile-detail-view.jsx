@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
@@ -20,6 +21,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetOrganizationByIdQuery } from 'src/store/Reducer/organizations-api';
 import { useGetStaffProfileQuery } from 'src/store/Reducer/staff-profiles-api';
 import { getMockStaffProfileById } from '../mocks/data';
 
@@ -29,19 +31,26 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
   const { id } = useParams();
   const router = useRouter();
 
-  const { organizationId: resolvedOrgId, isOwner } = useCurrentOrganization(propOrgId);
+  const { organizationId: resolvedOrgId, isOwner, organizationName: resolvedOrgName } =
+    useCurrentOrganization(propOrgId);
 
   const resolvedPaths = useMemo(
     () => ({
       dashboardRoot: isOwner ? paths.owner.root : paths.dashboard.root,
-      root: isOwner ? paths.owner.staffProfiles.root : paths.dashboard.staffProfiles.root,
+      root: isOwner
+        ? paths.owner.staffProfiles.root
+        : resolvedOrgId
+          ? `${paths.dashboard.organizations.detail(resolvedOrgId)}?tab=staff-profiles`
+          : paths.dashboard.staffProfiles.root,
       edit: (profileId) =>
         isOwner
           ? paths.owner.staffProfiles.edit(profileId)
-          : paths.dashboard.staffProfiles.edit(profileId),
+          : resolvedOrgId
+            ? `${paths.dashboard.staffProfiles.edit(profileId)}?orgId=${resolvedOrgId}`
+            : paths.dashboard.staffProfiles.edit(profileId),
       ...pathsConfig,
     }),
-    [isOwner, pathsConfig]
+    [isOwner, pathsConfig, resolvedOrgId]
   );
 
   const {
@@ -58,7 +67,16 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
   // Handle cases where response might be wrapped in data or direct object
   const profile = rawProfile?.data && !rawProfile?._id ? rawProfile.data : rawProfile;
 
-  const orgIdForLookups = profile?.organizationId || resolvedOrgId;
+  const orgIdForLookups =
+    (typeof profile?.organizationId === 'object'
+      ? profile.organizationId._id
+      : profile?.organizationId) || resolvedOrgId;
+
+  const { data: orgData } = useGetOrganizationByIdQuery(orgIdForLookups, {
+    skip: !orgIdForLookups,
+  });
+  const organization = orgData?.data || orgData;
+
   const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(orgIdForLookups);
 
   if (isLoading || isFetching) {
@@ -89,32 +107,38 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
   // Site / Branch name
   const branchName =
     profile.branch?.name ||
+    (typeof profile.branchId === 'object' && profile.branchId?.name) ||
     profile.branchName ||
     (typeof profile.branch === 'string' && branchesMap[profile.branch]?.name) ||
-    (profile.branchId && branchesMap[profile.branchId]?.name) ||
+    (typeof profile.branchId === 'string' && branchesMap[profile.branchId]?.name) ||
     '—';
 
   // Job title name
   const jobTitleName =
     profile.jobTitle?.name ||
+    (typeof profile.jobTitleId === 'object' && profile.jobTitleId?.name) ||
     profile.jobTitleName ||
     (typeof profile.jobTitle === 'string' && jobTitlesMap[profile.jobTitle]?.name) ||
-    (profile.jobTitleId && jobTitlesMap[profile.jobTitleId]?.name) ||
+    (typeof profile.jobTitleId === 'string' && jobTitlesMap[profile.jobTitleId]?.name) ||
     '—';
 
   // Departments
   const departmentNames = (() => {
-    if (Array.isArray(profile.departments) && profile.departments.length > 0) {
-      if (typeof profile.departments[0] === 'object' && profile.departments[0]?.name) {
-        return profile.departments.map((d) => d.name).filter(Boolean).join(', ');
-      }
-      if (typeof profile.departments[0] === 'string') {
-        const names = profile.departments.map((depId) => departmentsMap[depId]?.name || depId).filter(Boolean);
-        if (names.length > 0) return names.join(', ');
-      }
-    }
-    if (Array.isArray(profile.departmentIds) && profile.departmentIds.length > 0) {
-      const names = profile.departmentIds.map((depId) => departmentsMap[depId]?.name || depId).filter(Boolean);
+    const list =
+      Array.isArray(profile.departments) && profile.departments.length > 0
+        ? profile.departments
+        : Array.isArray(profile.departmentIds) && profile.departmentIds.length > 0
+          ? profile.departmentIds
+          : [];
+
+    if (list.length > 0) {
+      const names = list
+        .map((d) => {
+          if (typeof d === 'object' && d?.name) return d.name;
+          const id = typeof d === 'object' ? d?._id : d;
+          return departmentsMap[id]?.name || id;
+        })
+        .filter(Boolean);
       if (names.length > 0) return names.join(', ');
     }
     if (profile.department?.name) {
@@ -123,9 +147,34 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
     return '—';
   })();
 
-  const staffName = profile.user?.name || profile.userName || profile.name || '—';
-  const staffEmail = profile.user?.email || profile.userEmail || profile.email || '—';
-  const orgName = profile.organization?.name || profile.organizationName || '—';
+  const staffName =
+    profile.userId?.name ||
+    profile.user?.name ||
+    profile.userName ||
+    profile.name ||
+    '—';
+
+  const staffEmail =
+    profile.userId?.email ||
+    profile.user?.email ||
+    profile.userEmail ||
+    profile.email ||
+    '—';
+
+  const reportsTo =
+    (typeof profile.reportsToStaffId === 'object'
+      ? profile.reportsToStaffId?.employeeCode ||
+        profile.reportsToStaffId?.userId?.name ||
+        profile.reportsToStaffId?._id
+      : profile.reportsToStaffId) || '—';
+
+  const orgName =
+    profile.organization?.name ||
+    (typeof profile.organizationId === 'object' && profile.organizationId?.name) ||
+    organization?.name ||
+    profile.organizationName ||
+    resolvedOrgName ||
+    '—';
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
@@ -139,7 +188,20 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
         heading={staffName !== '—' ? staffName : 'Staff profile'}
         links={[
           { name: 'Dashboard', href: resolvedPaths.dashboardRoot },
-          { name: 'Staff Profiles', href: resolvedPaths.root },
+          ...(isOwner
+            ? [{ name: 'Staff Profiles', href: resolvedPaths.root }]
+            : [
+                { name: 'Organizations', href: paths.dashboard.organizations.root },
+                ...(orgIdForLookups && orgName !== '—'
+                  ? [
+                      {
+                        name: orgName,
+                        href: `${paths.dashboard.organizations.detail(orgIdForLookups)}?tab=staff-profiles`,
+                      },
+                    ]
+                  : []),
+                { name: 'Staff Profiles', href: resolvedPaths.root },
+              ]),
           { name: staffName !== '—' ? staffName : 'Staff profile' },
         ]}
         action={
@@ -159,28 +221,56 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
         <DetailCard title="User">
           <DetailItem label="Name" value={staffName} />
           <DetailItem label="Email" value={staffEmail} />
+          <DetailItem label="Phone" value={profile.phone || '—'} />
+          <DetailItem label="Employee Code" value={profile.employeeCode || '—'} />
+          <DetailItem label="Status" value={profile.status ? profile.status.toUpperCase() : '—'} />
         </DetailCard>
 
         <DetailCard title="Assignment">
-          <DetailItem label="Site" value={branchName} />
-          <DetailItem label="Job title" value={jobTitleName} />
+          <DetailItem label="Site / Branch" value={branchName} />
+          <DetailItem label="Job Title" value={jobTitleName} />
           <DetailItem label="Departments" value={departmentNames} />
-          <DetailItem label="Start date" value={fDate(profile.startDate)} />
-          <DetailItem label="PIN" value={profile.pin || '—'} />
+          <DetailItem label="Start Date" value={fDate(profile.startDate)} />
           <DetailItem
-            label="Hourly rate"
+            label="Weekly Hours"
             value={
-              profile.hourlyRate != null
-                ? fCurrency(profile.hourlyRate, { code: 'en-GB', currency: 'GBP' })
+              profile.contractedWeeklyHours != null
+                ? `${profile.contractedWeeklyHours} hrs`
                 : '—'
             }
           />
-          <DetailItem label="Organization" value={orgName} />
+          <DetailItem label="Ward" value={profile.ward || '—'} />
+          <DetailItem label="Location Label" value={profile.locationLabel || '—'} />
+          <DetailItem label="Reports To" value={reportsTo} />
+          {profile.pin && <DetailItem label="PIN" value={profile.pin} />}
+          {profile.hourlyRate != null && (
+            <DetailItem
+              label="Hourly Rate"
+              value={fCurrency(profile.hourlyRate, { code: 'en-GB', currency: 'GBP' })}
+            />
+          )}
+          <DetailItem
+            label="Organization"
+            value={
+              !isOwner && orgIdForLookups && orgName !== '—' ? (
+                <Link
+                  component={RouterLink}
+                  href={`${paths.dashboard.organizations.detail(orgIdForLookups)}?tab=staff-profiles`}
+                  color="inherit"
+                  sx={{ textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  {orgName}
+                </Link>
+              ) : (
+                orgName
+              )
+            }
+          />
         </DetailCard>
 
         <DetailCard title="Record">
-          <DetailItem label="Created at" value={fDateTime(profile.createdAt)} />
-          <DetailItem label="Updated at" value={fDateTime(profile.updatedAt)} />
+          <DetailItem label="Created At" value={fDateTime(profile.createdAt)} />
+          <DetailItem label="Updated At" value={fDateTime(profile.updatedAt)} />
         </DetailCard>
       </Stack>
     </Box>

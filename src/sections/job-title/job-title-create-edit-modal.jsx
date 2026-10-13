@@ -57,6 +57,7 @@ export function JobTitleCreateEditModal({
     organizationId,
     branches: open && !!organizationId,
     departments: open && !!organizationId,
+    jobTitles: false,
     limit: 100,
   });
 

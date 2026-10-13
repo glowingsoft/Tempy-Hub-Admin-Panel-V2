@@ -80,9 +80,9 @@ export const staffProfilesApi = createApi({
       providesTags: (result, error, { organizationId }) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'StaffProfile', id: _id })),
-              listTag(organizationId),
-            ]
+            ...result.data.map(({ _id }) => ({ type: 'StaffProfile', id: _id })),
+            listTag(organizationId),
+          ]
           : [listTag(organizationId)],
     }),
 
@@ -109,17 +109,21 @@ export const staffProfilesApi = createApi({
       query: ({ organizationId, ...body }) => ({
         url: API_ROUTES.ORGANIZATION_STAFF_PROFILES(organizationId),
         method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { organizationId }) => [listTag(organizationId)],
     }),
 
     updateStaffProfile: builder.mutation({
-      query: ({ staffProfileId, ...body }) => ({
+      query: ({ staffProfileId, organizationId, ...body }) => ({
         url: API_ROUTES.STAFF_PROFILE_BY_ID(staffProfileId),
-        method: 'PUT',
+        method: 'PATCH',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { staffProfileId, organizationId }) => [
         { type: 'StaffProfile', id: staffProfileId },
         ...(organizationId ? [listTag(organizationId)] : []),

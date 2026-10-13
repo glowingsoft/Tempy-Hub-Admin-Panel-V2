@@ -52,10 +52,15 @@ export const shiftsApi = createApi({
     tagTypes: ['Shift'],
     endpoints: (builder) => ({
         getShifts: builder.query({
-            query: ({ organizationId, page = 1, limit = 10 }) => ({
+            query: ({ organizationId, page = 1, limit = 10, status }) => ({
                 url: API_ROUTES.ORGANIZATION_SHIFTS(organizationId),
                 method: 'GET',
-                params: { page, limit },
+                headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+                params: {
+                    page,
+                    limit,
+                    ...(status && status !== 'all' ? { status } : {}),
+                },
             }),
             transformResponse: (res) => ({ data: res?.data ?? [], meta: res?.meta ?? {} }),
             providesTags: (result, error, { organizationId }) =>
@@ -64,25 +69,42 @@ export const shiftsApi = createApi({
                     : [listTag(organizationId)],
         }),
         getShift: builder.query({
-            query: (shiftId) => ({ url: API_ROUTES.SHIFT_BY_ID(shiftId), method: 'GET' }),
+            query: (arg) => {
+                const shiftId = typeof arg === 'string' ? arg : arg?.shiftId;
+                const organizationId = typeof arg === 'object' ? arg?.organizationId : undefined;
+                return {
+                    url: API_ROUTES.SHIFT_BY_ID(shiftId),
+                    method: 'GET',
+                    params: organizationId ? { organizationId } : undefined,
+                    headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+                };
+            },
             transformResponse: (res) => res?.data ?? res,
-            providesTags: (result, error, shiftId) => [{ type: 'Shift', id: shiftId }],
+            providesTags: (result, error, arg) => {
+                const shiftId = typeof arg === 'string' ? arg : arg?.shiftId;
+                return [{ type: 'Shift', id: shiftId }];
+            },
         }),
         createShift: builder.mutation({
             query: ({ organizationId, ...body }) => ({
                 url: API_ROUTES.ORGANIZATION_SHIFTS(organizationId),
                 method: 'POST',
+                headers: organizationId ? { 'x-org-id': organizationId } : undefined,
                 body,
             }),
+            transformResponse: (res) => res?.data ?? res,
             invalidatesTags: (result, error, { organizationId }) => [listTag(organizationId)],
         }),
         updateShift: builder.mutation({
-            // `organizationId` is only used for cache invalidation, keep it out of the body.
+            // `organizationId` is only used for cache invalidation & headers, keep it out of the body.
             query: ({ shiftId, organizationId, ...body }) => ({
                 url: API_ROUTES.SHIFT_BY_ID(shiftId),
-                method: 'PUT',
+                method: 'PATCH',
+                params: organizationId ? { organizationId } : undefined,
+                headers: organizationId ? { 'x-org-id': organizationId } : undefined,
                 body,
             }),
+            transformResponse: (res) => res?.data ?? res,
             invalidatesTags: (result, error, { shiftId, organizationId }) => [
                 { type: 'Shift', id: shiftId },
                 ...(organizationId ? [listTag(organizationId)] : []),

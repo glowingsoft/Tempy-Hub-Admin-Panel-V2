@@ -19,6 +19,6 @@ export const extractErrorMessage = (error) => {
 
 export const handleApiError = (error) => {
     const message = extractErrorMessage(error);
-    toast.error(message);
+    toast.apiError(message);
     console.error('API Error:', error);
 };

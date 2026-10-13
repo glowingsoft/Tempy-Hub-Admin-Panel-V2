@@ -44,7 +44,7 @@ export const createCustomFetchBaseQuery = () => {
       }
 
       if (!extraOptions?.disableToast) {
-        toast.error(message);
+        toast.apiError(message);
       }
     }
 

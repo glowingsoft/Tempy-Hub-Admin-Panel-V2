@@ -65,12 +65,12 @@ export function LeaveRequestTableRow({ row, serialNumber, detailHref, onApprove,
             {getLeaveRequestStaffName(row)}
           </Link>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {row.staff?.email || '—'}
+            {row.staff?.email || row.staffId?.userId?.email || '—'}
           </Typography>
         </Stack>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch?.name || row.branchId?.name || '—'}</TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{getLeaveTypeLabel(row.leaveType)}</TableCell>
 

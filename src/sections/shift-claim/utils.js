@@ -24,5 +24,13 @@ export function getOwnerOrganizationName(user) {
  * @returns {string} the claiming staff member's name, or a fallback label
  */
 export function getShiftClaimStaffName(claim) {
-  return claim?.staff?.name || claim?.staff?.user?.name || 'Unassigned';
+  if (!claim) return 'Unassigned';
+  if (typeof claim.staff === 'string') return claim.staff;
+  return (
+    claim?.staff?.name ||
+    claim?.staff?.user?.name ||
+    (claim?.staff?.firstName ? `${claim.staff.firstName} ${claim?.staff?.lastName || ''}`.trim() : null) ||
+    claim?.staff?.employeeCode ||
+    'Unassigned'
+  );
 }

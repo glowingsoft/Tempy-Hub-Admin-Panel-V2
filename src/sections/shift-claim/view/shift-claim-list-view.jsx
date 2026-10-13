@@ -1,5 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useCallback, useMemo } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -10,6 +9,7 @@ import { paths } from 'src/routes/paths';
 
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -26,11 +26,11 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetShiftClaimsQuery } from 'src/store/Reducer/shift-claims-api';
+import { useGetShiftClaimsQuery } from 'src/store/Reducer/shift-claims-api';
 import { useTempyConnection } from 'src/sections/tempy-connection/use-tempy-connection';
 
-import { SHIFT_CLAIM_STATUS_OPTIONS, mockShiftClaimsResponse } from '../mocks/data';
-import { getOwnerOrganizationId, getOwnerOrganizationName, getShiftClaimStaffName } from '../utils';
+import { SHIFT_CLAIM_STATUS_OPTIONS } from '../mocks/data';
+import { getShiftClaimStaffName } from '../utils';
 import { useShiftClaimActions } from '../use-shift-claim-actions';
 import { ShiftClaimActionDialog } from '../shift-claim-action-dialog';
 import { ShiftClaimTableRow } from '../shift-claim-table-row';
@@ -55,8 +55,6 @@ const TABLE_HEAD = [
   { id: 'actions', label: 'Actions', width: 90, align: 'center' },
 ];
 
-// TODO: confirm whether the list endpoint supports a keyword/search param — the
-// search below is client-side only against the current page of mock data.
 const FILTER_FIELDS = [
   createFilterField.status({ options: STATUS_OPTIONS, showCounts: true }),
   createFilterField.search({ placeholder: 'Search site or staff...' }),
@@ -67,17 +65,30 @@ const FILTER_FIELDS = [
 export function ShiftClaimListView() {
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
-  const orgName = getOwnerOrganizationName(user);
+  const { organizationId, organizationName: orgName } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
 
-  const [reloadKey, setReloadKey] = useState(0);
-  const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
+  const {
+    data: apiResponse,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useGetShiftClaimsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      status: filters.state.status,
+    },
+    { skip: !organizationId }
+  );
 
-  const { askApprove, confirmProps } = useShiftClaimActions({ organizationId, onChanged: refresh });
+  const { askApprove, confirmProps } = useShiftClaimActions({
+    organizationId,
+    onChanged: refetch,
+  });
 
   const { connected: tempyConnected, requestShift } = useTempyConnection();
 
@@ -104,25 +115,12 @@ export function ShiftClaimListView() {
     []
   );
 
-  // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetShiftClaimsQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage, status: filters.state.status },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockShiftClaimsResponse;
-
   const allClaims = useMemo(
-    () =>
-      (data?.data ?? []).filter(
-        (claim) => !organizationId || claim.organizationId === organizationId
-      ),
-    [data, organizationId, reloadKey]
+    () => apiResponse?.data ?? [],
+    [apiResponse]
   );
 
-  // Client-side filtering (mock only — the API filters server-side).
+  // Client-side filtering for keyword search across staff & site
   const filteredClaims = useMemo(() => {
     const search = keyword.trim().toLowerCase();
 
@@ -138,22 +136,25 @@ export function ShiftClaimListView() {
     });
   }, [allClaims, filters.state.status, keyword]);
 
-  // Pagination metadata (mirrors the API `meta`).
-  const totalRecords = filteredClaims.length;
+  const totalRecords = apiResponse?.meta?.totalRecords ?? filteredClaims.length;
+
   const paginatedClaims = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return filteredClaims.slice(start, start + table.rowsPerPage);
-  }, [filteredClaims, table.page, table.rowsPerPage]);
+    if (keyword.trim()) {
+      const start = table.page * table.rowsPerPage;
+      return filteredClaims.slice(start, start + table.rowsPerPage);
+    }
+    return allClaims;
+  }, [allClaims, filteredClaims, keyword, table.page, table.rowsPerPage]);
 
   const getStatusCount = useCallback(
     (status) =>
       status === 'all'
-        ? allClaims.length
+        ? (apiResponse?.meta?.totalRecords ?? allClaims.length)
         : allClaims.filter((claim) => claim.status === status).length,
-    [allClaims]
+    [allClaims, apiResponse]
   );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && (paginatedClaims.length === 0 || totalRecords === 0);
 
   const handleFilterChange = useCallback(
     (key, value) => {

@@ -182,7 +182,9 @@ export function AdminSignInView() {
         error?.message ||
         'Login failed. Please check your credentials.';
       setErrorMsg(typeof msg === 'string' ? msg : JSON.stringify(msg));
-      toast.error(typeof msg === 'string' ? msg : 'Login failed');
+      if (!error?.status) {
+        toast.error(typeof msg === 'string' ? msg : 'Login failed');
+      }
     }
   });
 

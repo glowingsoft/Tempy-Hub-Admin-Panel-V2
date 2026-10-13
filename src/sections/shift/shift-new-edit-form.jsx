@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -18,11 +18,10 @@ import { useRouter } from 'src/routes/hooks';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { mockStaffProfiles } from 'src/sections/staff-profile/mocks/data';
-
-// import { useCreateShiftMutation, useUpdateShiftMutation } from 'src/store/Reducer/shifts-api';
-import { createMockShift, updateMockShift } from './mocks/data';
+import { useCreateShiftMutation, useUpdateShiftMutation } from 'src/store/Reducer/shifts-api';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 // ----------------------------------------------------------------------
 
@@ -32,10 +31,18 @@ export const ShiftSchema = zod
     staffId: zod.string().optional(),
     startsAt: zod
       .union([zod.string(), zod.null()])
-      .refine((value) => !!value, { message: 'Start date and time is required!' }),
+      .refine((value) => !!value, { message: 'Start date and time is required!' })
+      .refine(
+        (value) => !value || !dayjs(value).isBefore(dayjs().startOf('day')),
+        { message: 'Start date must be today or a future date!' }
+      ),
     endsAt: zod
       .union([zod.string(), zod.null()])
-      .refine((value) => !!value, { message: 'End date and time is required!' }),
+      .refine((value) => !!value, { message: 'End date and time is required!' })
+      .refine(
+        (value) => !value || !dayjs(value).isBefore(dayjs().startOf('day')),
+        { message: 'End date must be today or a future date!' }
+      ),
   })
   .refine(
     (values) =>
@@ -45,34 +52,67 @@ export const ShiftSchema = zod
 
 // ----------------------------------------------------------------------
 
-export function ShiftNewEditForm({ organizationId, currentShift }) {
+export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
   const router = useRouter();
+
+  const shiftOrgId =
+    currentShift?.organizationId?._id || currentShift?.organizationId || undefined;
+
+  const { organizationId: resolvedOrgId } = useCurrentOrganization(propOrgId || shiftOrgId);
+  const targetOrgId = propOrgId || shiftOrgId || resolvedOrgId;
+
+  const [createShift, { isLoading: isCreating }] = useCreateShiftMutation();
+  const [updateShift, { isLoading: isUpdating }] = useUpdateShiftMutation();
 
   const isEdit = !!currentShift;
 
-  const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !organizationId || branch.organizationId === organizationId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [organizationId]
+  const { branchOptions: lookupBranchOptions } = useOrganizationLookups({
+    organizationId: targetOrgId,
+    limit: 100,
+  });
+
+  const branchOptions = useMemo(() => {
+    const list = [...lookupBranchOptions];
+    const curBranchId = currentShift?.branchId?._id || currentShift?.branchId || '';
+    const curBranchName = currentShift?.branch?.name || currentShift?.branchId?.name || '';
+    if (curBranchId && !list.some((b) => b.value === curBranchId)) {
+      list.unshift({ value: curBranchId, label: curBranchName || curBranchId });
+    }
+    return list;
+  }, [lookupBranchOptions, currentShift]);
+
+  const { data: staffData } = useGetStaffProfilesQuery(
+    { organizationId: targetOrgId, limit: 100 },
+    { skip: !targetOrgId }
   );
 
-  const staffOptions = useMemo(
-    () =>
-      mockStaffProfiles
-        .filter((profile) => !organizationId || profile.organizationId === organizationId)
-        .map((profile) => ({
-          value: profile._id,
-          label: profile.user?.name || profile.user?.email || profile._id,
-        })),
-    [organizationId]
-  );
+  const staffProfiles = useMemo(() => staffData?.data || [], [staffData]);
+
+  const staffOptions = useMemo(() => {
+    const list = staffProfiles.map((p) => {
+      const name = p.userId?.name || p.user?.name || p.employeeCode || p._id;
+      const email = p.userId?.email || p.user?.email;
+      return {
+        value: p._id,
+        label: email ? `${name} (${email})` : name,
+      };
+    });
+    const curStaffId = currentShift?.staffId?._id || currentShift?.staffId || '';
+    const curStaffName =
+      currentShift?.staff?.user?.name ||
+      currentShift?.staff?.name ||
+      currentShift?.staffId?.name ||
+      '';
+    if (curStaffId && !list.some((s) => s.value === curStaffId)) {
+      list.unshift({ value: curStaffId, label: curStaffName || curStaffId });
+    }
+    return list;
+  }, [staffProfiles, currentShift]);
 
   const defaultValues = useMemo(
     () => ({
-      branchId: currentShift?.branchId || '',
-      staffId: currentShift?.staffId || '',
+      branchId: currentShift?.branchId?._id || currentShift?.branchId || '',
+      staffId: currentShift?.staffId?._id || currentShift?.staffId || '',
       startsAt: currentShift?.startsAt || null,
       endsAt: currentShift?.endsAt || null,
     }),
@@ -86,39 +126,55 @@ export function ShiftNewEditForm({ organizationId, currentShift }) {
   });
 
   const {
+    watch,
+    reset,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  const startsAtValue = watch('startsAt');
+
+  useEffect(() => {
+    if (currentShift) {
+      reset(defaultValues);
+    }
+  }, [currentShift, reset, defaultValues]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       const payload = {
         branchId: data.branchId,
-        ...(data.staffId ? { staffId: data.staffId } : { staffId: null }),
         startsAt: dayjs(data.startsAt).toISOString(),
         endsAt: dayjs(data.endsAt).toISOString(),
+        ...(data.staffId ? { staffId: data.staffId } : (isEdit ? { staffId: null } : {})),
       };
-
-      // TODO: replace with the real mutation once the endpoints are wired up.
-      // if (isEdit) {
-      //   await updateShift({ shiftId: currentShift._id, organizationId, ...payload }).unwrap();
-      // } else {
-      //   await createShift({ organizationId, ...payload }).unwrap();
-      // }
 
       let shiftId = currentShift?._id;
 
       if (isEdit) {
-        updateMockShift(currentShift._id, payload);
+        await updateShift({
+          shiftId: currentShift._id,
+          organizationId: targetOrgId,
+          ...payload,
+        }).unwrap();
       } else {
-        const created = createMockShift({ organizationId, ...payload });
-        shiftId = created._id;
+        const res = await createShift({ organizationId: targetOrgId, ...payload }).unwrap();
+        shiftId = res?.data?._id || res?._id;
       }
 
       toast.success(isEdit ? 'Shift updated successfully!' : 'Shift created successfully!');
-      router.push(paths.owner.shifts.detail(shiftId));
+      const targetShiftId = shiftId || currentShift?._id;
+      if (targetShiftId) {
+        const query = targetOrgId ? `?orgId=${targetOrgId}` : '';
+        router.push(`${paths.owner.shifts.detail(targetShiftId)}${query}`);
+      } else {
+        router.push(paths.owner.shifts.root);
+      }
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      console.error('Failed to save shift:', error);
+      if (!error?.status) {
+        toast.error(error?.message || 'Something went wrong. Please try again.');
+      }
     }
   });
 
@@ -153,8 +209,22 @@ export function ShiftNewEditForm({ organizationId, currentShift }) {
               ))}
             </Field.Select>
 
-            <Field.MobileDateTimePicker name="startsAt" label="Start date & time" />
-            <Field.MobileDateTimePicker name="endsAt" label="End date & time" />
+            <Field.MobileDateTimePicker
+              name="startsAt"
+              label="Start date & time"
+              disablePast
+              minDate={dayjs().startOf('day')}
+            />
+            <Field.MobileDateTimePicker
+              name="endsAt"
+              label="End date & time"
+              disablePast
+              minDate={
+                startsAtValue && dayjs(startsAtValue).isValid()
+                  ? dayjs(startsAtValue)
+                  : dayjs().startOf('day')
+              }
+            />
           </Box>
         </Card>
 
@@ -172,7 +242,7 @@ export function ShiftNewEditForm({ organizationId, currentShift }) {
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton type="submit" variant="contained" loading={isSubmitting || isCreating || isUpdating}>
             {isEdit ? 'Save changes' : 'Create shift'}
           </LoadingButton>
         </Stack>

@@ -128,3 +128,4 @@ cursor/rules/
 
 # Local API implementation notes
 /API_IMPLEMENTATION_DETAILS.md
+/api-integration.md

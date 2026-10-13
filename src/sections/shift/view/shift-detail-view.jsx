@@ -18,7 +18,8 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 
-// import { useGetShiftQuery } from 'src/store/Reducer/shifts-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetShiftQuery } from 'src/store/Reducer/shifts-api';
 import { getMockShiftById, getShiftStatusMeta, getShiftVisibilityLabel } from '../mocks/data';
 import { getShiftStaffName } from '../utils';
 
@@ -28,9 +29,24 @@ export function ShiftDetailView() {
   const { id } = useParams();
   const router = useRouter();
 
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data: shift, isLoading } = useGetShiftQuery(id, { skip: !id });
-  const shift = useMemo(() => getMockShiftById(id), [id]);
+  const { organizationId } = useCurrentOrganization();
+  const { data: apiShift, isLoading } = useGetShiftQuery(
+    { shiftId: id, organizationId },
+    { skip: !id }
+  );
+
+  const mockShift = useMemo(() => getMockShiftById(id), [id]);
+  const shift = apiShift?.data || apiShift || mockShift;
+
+  if (isLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', py: 4 }}>
+          Loading shift...
+        </Typography>
+      </Box>
+    );
+  }
 
   if (!shift) {
     return (
@@ -70,7 +86,13 @@ export function ShiftDetailView() {
           !isCancelled && (
             <Button
               component={RouterLink}
-              href={paths.owner.shifts.edit(shift._id)}
+              href={
+                shift?.organizationId?._id || shift?.organizationId || organizationId
+                  ? `${paths.owner.shifts.edit(shift._id)}?orgId=${
+                      shift?.organizationId?._id || shift?.organizationId || organizationId
+                    }`
+                  : paths.owner.shifts.edit(shift._id)
+              }
               variant="contained"
               startIcon={<Iconify icon="solar:pen-bold" />}
             >
@@ -83,7 +105,10 @@ export function ShiftDetailView() {
 
       <Stack spacing={3}>
         <DetailCard title="Shift">
-          <DetailItem label="Site" value={shift.branch?.name || '—'} />
+          <DetailItem
+            label="Site"
+            value={shift.branch?.name || shift.branchId?.name || '—'}
+          />
           <DetailItem label="Staff" value={getShiftStaffName(shift)} />
           <DetailItem
             label="Status"

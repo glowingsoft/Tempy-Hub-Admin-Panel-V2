@@ -33,32 +33,38 @@ export function StaffProfileTableRow({
   // Site / Branch name
   const branchName =
     row.branch?.name ||
+    (typeof row.branchId === 'object' && row.branchId?.name) ||
     row.branchName ||
     (typeof row.branch === 'string' && branchesMap[row.branch]?.name) ||
-    (row.branchId && branchesMap[row.branchId]?.name) ||
+    (typeof row.branchId === 'string' && branchesMap[row.branchId]?.name) ||
     '—';
 
   // Job title name
   const jobTitleName =
     row.jobTitle?.name ||
+    (typeof row.jobTitleId === 'object' && row.jobTitleId?.name) ||
     row.jobTitleName ||
     (typeof row.jobTitle === 'string' && jobTitlesMap[row.jobTitle]?.name) ||
-    (row.jobTitleId && jobTitlesMap[row.jobTitleId]?.name) ||
+    (typeof row.jobTitleId === 'string' && jobTitlesMap[row.jobTitleId]?.name) ||
     '—';
 
   // Departments
   const departmentNames = (() => {
-    if (Array.isArray(row.departments) && row.departments.length > 0) {
-      if (typeof row.departments[0] === 'object' && row.departments[0]?.name) {
-        return row.departments.map((d) => d.name).filter(Boolean).join(', ');
-      }
-      if (typeof row.departments[0] === 'string') {
-        const names = row.departments.map((id) => departmentsMap[id]?.name || id).filter(Boolean);
-        if (names.length > 0) return names.join(', ');
-      }
-    }
-    if (Array.isArray(row.departmentIds) && row.departmentIds.length > 0) {
-      const names = row.departmentIds.map((id) => departmentsMap[id]?.name || id).filter(Boolean);
+    const list =
+      Array.isArray(row.departments) && row.departments.length > 0
+        ? row.departments
+        : Array.isArray(row.departmentIds) && row.departmentIds.length > 0
+          ? row.departmentIds
+          : [];
+
+    if (list.length > 0) {
+      const names = list
+        .map((d) => {
+          if (typeof d === 'object' && d?.name) return d.name;
+          const id = typeof d === 'object' ? d?._id : d;
+          return departmentsMap[id]?.name || id;
+        })
+        .filter(Boolean);
       if (names.length > 0) return names.join(', ');
     }
     if (row.department?.name) {
@@ -67,8 +73,19 @@ export function StaffProfileTableRow({
     return '—';
   })();
 
-  const staffName = row.user?.name || row.userName || row.name || '—';
-  const staffEmail = row.user?.email || row.userEmail || row.email || '—';
+  const staffName =
+    row.userId?.name ||
+    row.user?.name ||
+    row.userName ||
+    row.name ||
+    '—';
+
+  const staffEmail =
+    row.userId?.email ||
+    row.user?.email ||
+    row.userEmail ||
+    row.email ||
+    '—';
 
   const actions = [
     {

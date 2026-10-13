@@ -36,7 +36,6 @@ const TABLE_HEAD = [
   { id: 'startsAt', label: 'Start Date/Time', minWidth: 170 },
   { id: 'endsAt', label: 'End Date/Time', minWidth: 170 },
   { id: 'status', label: 'Status', width: 130, align: 'center' },
-  { id: 'urgentCover', label: 'Urgent Cover', width: 120, align: 'center' },
   { id: 'actions', label: 'Action', width: 140, align: 'center' },
 ];
 

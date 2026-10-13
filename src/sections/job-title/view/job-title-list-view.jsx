@@ -243,20 +243,24 @@ export function JobTitleListView() {
         />
       </Card>
 
-      <JobTitleCreateEditModal
-        open={createModal.value}
-        onClose={createModal.onFalse}
-        organizationId={organizationId}
-        currentJobTitle={null}
-        onSuccess={handleCreateSuccess}
-      />
+      {createModal.value && (
+        <JobTitleCreateEditModal
+          open={createModal.value}
+          onClose={createModal.onFalse}
+          organizationId={organizationId}
+          currentJobTitle={null}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
 
-      <JobTitleCreateEditModal
-        open={editModal.value}
-        onClose={handleCloseEdit}
-        organizationId={organizationId}
-        currentJobTitle={selectedJobTitle}
-      />
+      {editModal.value && (
+        <JobTitleCreateEditModal
+          open={editModal.value}
+          onClose={handleCloseEdit}
+          organizationId={organizationId}
+          currentJobTitle={selectedJobTitle}
+        />
+      )}
     </DashboardContent>
   );
 }

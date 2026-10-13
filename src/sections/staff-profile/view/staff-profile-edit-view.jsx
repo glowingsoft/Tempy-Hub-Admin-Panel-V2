@@ -33,12 +33,20 @@ export function StaffProfileEditView({ staffProfile: propStaffProfile, pathsConf
   const resolvedPaths = useMemo(
     () => ({
       dashboardRoot: isOwner ? paths.owner.root : paths.dashboard.root,
-      root: isOwner ? paths.owner.staffProfiles.root : paths.dashboard.staffProfiles.root,
+      root: isOwner
+        ? paths.owner.staffProfiles.root
+        : organizationId
+          ? `${paths.dashboard.organizations.detail(organizationId)}?tab=staff-profiles`
+          : paths.dashboard.staffProfiles.root,
       detail: (detailId) =>
-        isOwner ? paths.owner.staffProfiles.detail(detailId) : paths.dashboard.staffProfiles.detail(detailId),
+        isOwner
+          ? paths.owner.staffProfiles.detail(detailId)
+          : organizationId
+            ? `${paths.dashboard.staffProfiles.detail(detailId)}?orgId=${organizationId}`
+            : paths.dashboard.staffProfiles.detail(detailId),
       ...pathsConfig,
     }),
-    [isOwner, pathsConfig]
+    [isOwner, pathsConfig, organizationId]
   );
 
   if (isLoading || isFetching) {
@@ -64,7 +72,7 @@ export function StaffProfileEditView({ staffProfile: propStaffProfile, pathsConf
         links={[
           { name: 'Dashboard', href: resolvedPaths.dashboardRoot },
           { name: 'Staff Profiles', href: resolvedPaths.root },
-          { name: currentStaffProfile?.user?.name || 'Edit' },
+          { name: currentStaffProfile?.userId?.name || currentStaffProfile?.user?.name || 'Edit' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
