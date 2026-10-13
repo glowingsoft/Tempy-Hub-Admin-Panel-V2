@@ -142,7 +142,6 @@ const layoutContent = (
 export const siteManagerDashboardRoutes = [
   {
     path: 'site-manager',
-    // element: CONFIG.auth.skip ? <>{layoutContent}</> : <>{layoutContent}</>,
     element: CONFIG.auth.skip ? <>{layoutContent}</> : <ProtectedRoute requiredPermission={[2]}>{layoutContent}</ProtectedRoute>,
     children: [
       { element: <IndexPage />, index: true },
