@@ -19,6 +19,7 @@ import { useRouter } from 'src/routes/hooks';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+import { LoadingScreen } from 'src/components/loading-screen';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
@@ -163,6 +164,7 @@ export function StaffProfileNewEditForm({
     branchOptions: rawBranchOptions,
     jobTitleOptions: rawJobTitleOptions,
     departmentOptions: rawDepartmentOptions,
+    isLoading: isLookupsLoading,
   } = useOrganizationLookups({
     organizationId: activeOrgId,
     limit: 100,
@@ -263,6 +265,11 @@ export function StaffProfileNewEditForm({
       }
     }
   });
+
+  // Wait for Site / Job title / Department options so the selects open with labels, not raw ids.
+  if (isLookupsLoading) {
+    return <LoadingScreen sx={{ py: 10 }} />;
+  }
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>

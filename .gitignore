@@ -129,3 +129,7 @@ cursor/rules/
 # Local API implementation notes
 /API_IMPLEMENTATION_DETAILS.md
 /api-integration.md
+
+# Claude Code project configuration
+CLAUDE.md
+.claude/

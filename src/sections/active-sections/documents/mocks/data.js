@@ -137,6 +137,63 @@ export function getDocumentById(id) {
   return getAllDocuments().find((doc) => doc._id === id) || null;
 }
 
+export function getAcknowledgementRecords(documentId) {
+  const document = getDocumentById(documentId);
+  if (!document) return [];
+
+  const stats = document.acknowledgementStats || {};
+  const assignedCount = Math.max(stats.assigned || 0, 0);
+  const acknowledgedCount = Math.min(stats.acknowledged || 0, assignedCount);
+  const pendingCount = assignedCount - acknowledgedCount;
+  const overdueCount = Math.min(stats.overdue || 0, pendingCount);
+  const sampleSize = Math.min(assignedCount, 5, mockEmployees.length);
+  const remainingByStatus = {
+    acknowledged: acknowledgedCount,
+    pending: pendingCount - overdueCount,
+    overdue: overdueCount,
+  };
+  const sampleStatuses = [];
+
+  Object.keys(remainingByStatus).forEach((status) => {
+    if (remainingByStatus[status] > 0 && sampleStatuses.length < sampleSize) {
+      sampleStatuses.push(status);
+      remainingByStatus[status] -= 1;
+    }
+  });
+
+  while (sampleStatuses.length < sampleSize) {
+    Object.keys(remainingByStatus).forEach((status) => {
+      if (remainingByStatus[status] > 0 && sampleStatuses.length < sampleSize) {
+        sampleStatuses.push(status);
+        remainingByStatus[status] -= 1;
+      }
+    });
+  }
+  const assignedDates = [
+    'Sep 24, 2026',
+    'Sep 25, 2026',
+    'Sep 26, 2026',
+    'Sep 27, 2026',
+    'Sep 28, 2026',
+  ];
+
+  return mockEmployees.slice(0, sampleSize).map((employee, index) => {
+    const status = sampleStatuses[index] || 'pending';
+
+    return {
+      id: `${documentId}-${employee.id}`,
+      staffId: employee.id,
+      name: employee.name,
+      image: employee.image,
+      role: employee.role || 'Staff member',
+      department: employee.department || '—',
+      assignedAt: assignedDates[index],
+      respondedAt: status === 'acknowledged' ? `Sep ${29 - index}, 2026` : null,
+      status,
+    };
+  });
+}
+
 export function updateDocument(id, updates) {
   const uploadedIdx = _uploadedDocuments.findIndex((doc) => doc._id === id);
   if (uploadedIdx !== -1) {

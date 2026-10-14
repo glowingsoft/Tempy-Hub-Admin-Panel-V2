@@ -24,6 +24,7 @@ import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
+import { AppSurface } from 'src/auth/constants';
 
 // ----------------------------------------------------------------------
 
@@ -83,6 +84,7 @@ export function OwnerSignInView() {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
       deviceId: '123',
       deviceType: deviceType || 'desktop',
+      surface: AppSurface.OWNER_ADMIN,
     };
 
     try {
@@ -97,6 +99,19 @@ export function OwnerSignInView() {
 
       if (user?.accountState?.status === false || user?.accountState?.status === 'inactive') {
         toast.error('Your account is inactive. Please contact support.');
+        return null;
+      }
+
+      const isOwner =
+        user?.role?.toLowerCase() === 'owner' ||
+        user?.accountState?.role?.toLowerCase() === 'owner' ||
+        user?.accountState?.userType?.toLowerCase() === 'owner' ||
+        (user?.access?.memberships ?? []).some((m) => m.role?.toLowerCase() === 'owner');
+
+      if (!isOwner) {
+        const errorText = 'Access denied. This portal is for Organization Owners only.';
+        setErrorMsg(errorText);
+        toast.error(errorText);
         return null;
       }
 
@@ -130,9 +145,8 @@ export function OwnerSignInView() {
         apiMessage.toLowerCase().includes('platform admin account')
           ? 'Wrong credentials'
           : apiMessage;
-      if (!error?.status) {
-        toast.error(typeof msg === 'string' ? msg : 'Login failed');
-      }
+      setErrorMsg(typeof msg === 'string' ? msg : 'Login failed');
+      toast.error(typeof msg === 'string' ? msg : 'Login failed');
     }
   });
 

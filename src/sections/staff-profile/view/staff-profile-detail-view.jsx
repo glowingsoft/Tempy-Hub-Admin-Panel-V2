@@ -18,6 +18,7 @@ import { fCurrency } from 'src/utils/format-number';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
+import { LoadingScreen } from 'src/components/loading-screen';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
@@ -72,19 +73,26 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
       ? profile.organizationId._id
       : profile?.organizationId) || resolvedOrgId;
 
-  const { data: orgData } = useGetOrganizationByIdQuery(orgIdForLookups, {
+  const { data: orgData, isLoading: isOrgLoading } = useGetOrganizationByIdQuery(orgIdForLookups, {
     skip: !orgIdForLookups,
   });
   const organization = orgData?.data || orgData;
 
-  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(orgIdForLookups);
+  const {
+    branchesMap,
+    jobTitlesMap,
+    departmentsMap,
+    isLoading: isLookupsLoading,
+  } = useOrganizationLookups({
+    organizationId: orgIdForLookups,
+    limit: 100,
+  });
 
-  if (isLoading || isFetching) {
+  // Keep the loader up until the profile and everything it resolves names from has loaded.
+  if (isLoading || isFetching || isOrgLoading || isLookupsLoading) {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary', py: 4 }}>
-          Loading staff profile...
-        </Typography>
+        <LoadingScreen sx={{ py: 10 }} />
       </Box>
     );
   }

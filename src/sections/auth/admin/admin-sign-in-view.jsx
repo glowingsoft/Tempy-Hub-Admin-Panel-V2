@@ -26,6 +26,7 @@ import { useAdminLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
+import { AppSurface } from 'src/auth/constants';
 
 // ----------------------------------------------------------------------
 
@@ -143,6 +144,7 @@ export function AdminSignInView() {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
       deviceId: '123',
       deviceType: deviceType || 'desktop',
+      surface: AppSurface.PLATFORM_ADMIN,
     };
 
     try {

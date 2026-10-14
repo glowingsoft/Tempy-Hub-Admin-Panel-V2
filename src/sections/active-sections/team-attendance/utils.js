@@ -9,9 +9,10 @@ export function getPunctualityLabel(status) {
 }
 
 export function getAttendanceSummary(records) {
-  const onTime = records.filter((row) => row.punctualityStatus === 'onTime').length;
-  const late = records.filter((row) => row.punctualityStatus === 'late').length;
-  const total = records.length;
+  const safeRecords = Array.isArray(records) ? records : [];
+  const onTime = safeRecords.filter((row) => row?.punctualityStatus === 'onTime').length;
+  const late = safeRecords.filter((row) => row?.punctualityStatus === 'late').length;
+  const total = safeRecords.length;
   const attendanceRate = total ? Math.round((onTime / total) * 100) : null;
 
   return { total, onTime, late, attendanceRate };

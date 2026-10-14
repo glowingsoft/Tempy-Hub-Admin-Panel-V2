@@ -26,6 +26,7 @@ import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
+import { AppSurface } from 'src/auth/constants';
 
 // ----------------------------------------------------------------------
 
@@ -153,6 +154,7 @@ export function JwtSignInView() {
       userType: data.email.includes('admin') ? 'admin' : 'user',
       deviceType: deviceType || 'desktop',
       deviceId: '123',
+      surface: AppSurface.MANAGER_APP,
     };
 
     try {

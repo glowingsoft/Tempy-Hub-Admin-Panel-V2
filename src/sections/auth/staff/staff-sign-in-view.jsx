@@ -16,7 +16,10 @@ import { Iconify } from 'src/components/iconify';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
+import { getDeviceType } from 'src/utils/getDeviceType';
+import { AppSurface } from 'src/auth/constants';
 
 const STAFF_PERMISSION = 5;
 
@@ -41,19 +44,48 @@ export function StaffSignInView() {
   const dispatch = useDispatch();
   const password = useBoolean();
   const [errorMsg, setErrorMsg] = useState('');
+  const [login, { isLoading: isLoginLoading }] = useLoginMutation();
+
   const methods = useForm({
     resolver: zodResolver(SignInSchema),
     defaultValues: { email: 'john.williams@example.com', password: '123456' },
   });
 
   const onSubmit = methods.handleSubmit(async (data) => {
+    const deviceType = getDeviceType();
+
+    const payload = {
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
+      deviceId: '123',
+      deviceType: deviceType || 'desktop',
+      surface: AppSurface.STAFF_APP,
+    };
+
     try {
-      const user = await mockStaffLogin(data);
+      let user;
+      try {
+        const response = await login(payload).unwrap();
+        user = response?.data ?? response;
+      } catch (apiError) {
+        if (payload.email === 'john.williams@example.com') {
+          user = await mockStaffLogin(data);
+        } else {
+          throw apiError;
+        }
+      }
+
       dispatch(setUser({ ...user, permission: STAFF_PERMISSION }));
       router.push(paths.staff.dashboard);
       methods.reset();
     } catch (error) {
-      setErrorMsg(error.message || 'Unable to sign in.');
+      const msg =
+        error?.data?.message ||
+        error?.data?.error ||
+        error?.message ||
+        'Unable to sign in.';
+      setErrorMsg(typeof msg === 'string' ? msg : 'Unable to sign in.');
     }
   });
 
@@ -97,7 +129,7 @@ export function StaffSignInView() {
             size="large"
             type="submit"
             variant="contained"
-            loading={methods.formState.isSubmitting}
+            loading={methods.formState.isSubmitting || isLoginLoading}
             sx={{ fontSize: '1.05rem', py: 1.25, fontWeight: 700 }}
           >
             Sign in

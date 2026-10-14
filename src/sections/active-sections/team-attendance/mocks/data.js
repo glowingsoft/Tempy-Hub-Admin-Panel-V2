@@ -142,3 +142,39 @@ export const mockAttendanceResponse = {
     ],
     meta: { currentPage: 1, totalPages: 1, totalRecords: 6, limit: 10 },
 };
+
+export const mockAttendanceChangeRequestsResponse = {
+    message: 'Data fetched successfully',
+    data: [
+        {
+            _id: 'cr-001',
+            attendanceId: '6a9963b9841eecaf6091337b',
+            workDate: '2026-09-03T00:00:00.000Z',
+            staff: { _id: '6a9963b9841eecaf6091333f', employeeCode: 'EMP-SEED3', name: 'Amara Silva', email: 'carer3.smoke@tempyhub.com' },
+            branch: { _id: '6a966660a84bca033b0d34d6', name: 'Smoke Site' },
+            originalClockIn: '2026-09-03T08:22:00.000Z',
+            originalClockOut: '2026-09-03T16:05:00.000Z',
+            requestedClockIn: '2026-09-03T08:00:00.000Z',
+            requestedClockOut: '2026-09-03T16:05:00.000Z',
+            reason: 'Kiosk scanner was unresponsive when arriving at 08:00',
+            status: 'pending',
+            createdAt: '2026-09-03T17:15:00.000Z',
+        },
+        {
+            _id: 'cr-002',
+            attendanceId: '6a9963b9841eecaf6091337d',
+            workDate: '2026-09-01T00:00:00.000Z',
+            staff: { _id: '6a9963b9841eecaf60913341', employeeCode: 'EMP-SEED5', name: 'Grace Owusu', email: 'carer5.smoke@tempyhub.com' },
+            branch: { _id: '6a966660a84bca033b0d34d6', name: 'Smoke Site' },
+            originalClockIn: '2026-09-01T09:15:00.000Z',
+            originalClockOut: '2026-09-01T17:20:00.000Z',
+            requestedClockIn: '2026-09-01T09:00:00.000Z',
+            requestedClockOut: '2026-09-01T17:20:00.000Z',
+            reason: 'Assisted resident transfer immediately on arrival before clocking in',
+            status: 'approved',
+            createdAt: '2026-09-01T18:00:00.000Z',
+        },
+    ],
+    meta: { currentPage: 1, totalPages: 1, totalRecords: 2, limit: 10 },
+};
+

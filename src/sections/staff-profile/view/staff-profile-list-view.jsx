@@ -78,7 +78,15 @@ export function StaffProfileListView({
     [isOwner, pathsConfig]
   );
 
-  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
+  const {
+    branchesMap,
+    jobTitlesMap,
+    departmentsMap,
+    isLoading: isLookupsLoading,
+  } = useOrganizationLookups({
+    organizationId,
+    limit: 100,
+  });
 
   const filters = useSetState({ search: '' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -134,7 +142,9 @@ export function StaffProfileListView({
     ? apiData?.meta?.totalRecords ?? apiData?.data?.length ?? 0
     : mockFilteredProfiles.length;
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  // Rows resolve Site / Job Title / Department names from the lookups, so wait for those too.
+  const isTableLoading = isLoading || isFetching || isLookupsLoading;
+  const notFound = !isTableLoading && totalRecords === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -207,7 +217,7 @@ export function StaffProfileListView({
               <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
 
               <TableBody>
-                {isLoading || isFetching ? (
+                {isTableLoading ? (
                   [...Array(table.rowsPerPage)].map((_, index) => <TableSkeleton key={index} />)
                 ) : (
                   <>

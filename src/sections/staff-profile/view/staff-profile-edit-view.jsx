@@ -7,6 +7,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { LoadingScreen } from 'src/components/loading-screen';
 import { useGetStaffProfileQuery } from 'src/store/Reducer/staff-profiles-api';
 
 import { StaffProfileNewEditForm } from '../staff-profile-new-edit-form';
@@ -61,6 +62,7 @@ export function StaffProfileEditView({ staffProfile: propStaffProfile, pathsConf
           ]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
+        <LoadingScreen sx={{ py: 10 }} />
       </DashboardContent>
     );
   }

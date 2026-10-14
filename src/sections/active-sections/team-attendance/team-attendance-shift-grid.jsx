@@ -25,18 +25,22 @@ const formatTime = (value) => (value ? dayjs(value).format('hh:mm A') : null);
 
 // ----------------------------------------------------------------------
 
-export function TeamAttendanceShiftGrid({ records }) {
+export function TeamAttendanceShiftGrid({ records = [], onViewRecord }) {
+  const safeRecords = Array.isArray(records) ? records : [];
+
   const staffList = useMemo(() => {
     const byId = new Map();
-    records.forEach((row) => {
-      if (row.staff?._id && !byId.has(row.staff._id)) byId.set(row.staff._id, row.staff);
+    safeRecords.forEach((row) => {
+      if (row?.staff?._id && !byId.has(row.staff._id)) {
+        byId.set(row.staff._id, row.staff);
+      }
     });
     return [...byId.values()].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [records]);
+  }, [safeRecords]);
 
   const dates = useMemo(
-    () => [...new Set(records.map((row) => row.workDate))].sort(),
-    [records]
+    () => [...new Set(safeRecords.map((row) => row?.workDate).filter(Boolean))].sort(),
+    [safeRecords]
   );
 
   if (!staffList.length) {
@@ -70,8 +74,8 @@ export function TeamAttendanceShiftGrid({ records }) {
 
           <TableBody>
             {staffList.map((staff) => {
-              const staffRecords = records.filter((row) => row.staff?._id === staff._id);
-              const lateCount = staffRecords.filter((row) => row.punctualityStatus === 'late').length;
+              const staffRecords = safeRecords.filter((row) => row?.staff?._id === staff._id);
+              const lateCount = staffRecords.filter((row) => row?.punctualityStatus === 'late').length;
 
               return (
                 <TableRow key={staff._id} hover>
@@ -90,7 +94,7 @@ export function TeamAttendanceShiftGrid({ records }) {
                   </TableCell>
 
                   {dates.map((date) => {
-                    const record = staffRecords.find((row) => row.workDate === date);
+                    const record = staffRecords.find((row) => row?.workDate === date);
 
                     if (!record) {
                       return (
@@ -107,7 +111,12 @@ export function TeamAttendanceShiftGrid({ records }) {
                       : formatTime(record.clockInAt) || '—';
 
                     return (
-                      <TableCell key={date} align="center">
+                      <TableCell
+                        key={date}
+                        align="center"
+                        sx={{ cursor: onViewRecord ? 'pointer' : 'default' }}
+                        onClick={() => onViewRecord?.(record._id || record.id, record)}
+                      >
                         <Stack spacing={0.5} alignItems="center">
                           <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>
                             {timeRange}
