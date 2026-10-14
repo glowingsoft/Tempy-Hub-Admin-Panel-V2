@@ -1,25 +1,38 @@
 
-import { IconButton, Switch, Tooltip } from '@mui/material';
+import { useState, useMemo } from 'react';
+
+import { alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
+import Tooltip from '@mui/material/Tooltip';
+import Divider from '@mui/material/Divider';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
-import { alpha } from "@mui/material/styles";
-import { useState } from 'react';
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { ConfirmDialog } from 'src/components/custom-dialog';
-import { Iconify } from 'src/components/iconify';
+import IconButton from '@mui/material/IconButton';
+
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+import { useParams, usePathname, useRouter } from 'src/routes/hooks';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useTabs } from 'src/hooks/use-tabs';
-import { usePathname, useRouter } from 'src/routes/hooks';
-import { paths } from 'src/routes/paths';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetExternalPersonQuery } from 'src/store/Reducer/general-directory-api';
+
+import { fDate } from 'src/utils/format-time';
+import { Iconify } from 'src/components/iconify';
+import { Label } from 'src/components/label';
+import { LoadingScreen } from 'src/components/loading-screen';
+import { EmptyContent } from 'src/components/empty-content';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { ConfirmDialog } from 'src/components/custom-dialog';
+
 import { AttendanceView } from '../attendance-view';
 import { EmployeeActivity } from '../employee-activity';
-import { employeeData, MOCK_ACTIVITY } from '../mocks/data';
 import { ProfileCover } from '../profile-cover';
 import QuickStatusChangeModal from '../user-status-dialog';
 
@@ -29,90 +42,175 @@ const TABS = [
   {
     value: 'details',
     label: 'Details',
-    icon: "solar:user-id-bold",
+    icon: 'solar:user-id-bold',
   },
   {
     value: 'attendance',
     label: 'Attendance',
-    icon: "uim:clock",
+    icon: 'uim:clock',
   },
   {
     value: 'activity',
     label: 'Activity',
-    icon: "mynaui:activity-square-solid",
+    icon: 'mynaui:activity-square-solid',
   },
   {
     value: 'items',
     label: 'Items',
-    icon: "solar:archive-down-bold",
+    icon: 'solar:archive-down-bold',
   },
 ];
 
 // ----------------------------------------------------------------------
 
 function EmployeeProfileView() {
-
-  // const [currentTab, setCurrentTab] = useState('details');
-  const { value, onChange } = useTabs("details");
+  const { id } = useParams();
+  const router = useRouter();
   const pathname = usePathname();
-
-  const employee = employeeData;
+  const { value, onChange } = useTabs('details');
 
   const openModal = useBoolean();
-
   const archiveModal = useBoolean();
 
-  const router = useRouter();
+  const { organizationId } = useCurrentOrganization();
+  const { getBranchName, getDepartmentNames, branchesMap, departmentsMap } =
+    useOrganizationLookups({
+      organizationId,
+      limit: 100,
+    });
+
+  const {
+    data: apiPerson,
+    isLoading,
+    isFetching,
+    isError,
+  } = useGetExternalPersonQuery(
+    { externalPersonId: id, organizationId },
+    {
+      skip: !id || !organizationId,
+    }
+  );
+
+  const rawPerson = apiPerson?.data ?? apiPerson;
+  const person = rawPerson?._id ? rawPerson : rawPerson?.data ? rawPerson.data : rawPerson;
+
   const isOwnerDirectory = pathname.startsWith(paths.owner.root);
   const dashboardPath = isOwnerDirectory ? paths.owner.root : paths.siteManager.root;
-  const directoryPath = isOwnerDirectory ? paths.owner.directory.root : paths.siteManager.directory.root;
+  const directoryPath = isOwnerDirectory
+    ? paths.owner.directory.root
+    : paths.siteManager.directory.root;
+
+  const currentUserForEdit = useMemo(
+    () => ({
+      id: person?._id || person?.id || id,
+      name: person?.name || '',
+      status: person?.status || 'active',
+      phone: person?.phone || '',
+      carRegistration: person?.carRegistration || '',
+    }),
+    [id, person]
+  );
+
+  const branchName = useMemo(() => {
+    if (!person) return '—';
+    return (
+      person?.branch?.name ||
+      branchesMap[person?.branchId]?.name ||
+      getBranchName(person) ||
+      '—'
+    );
+  }, [branchesMap, getBranchName, person]);
+
+  const departmentName = useMemo(() => {
+    if (!person) return '—';
+    return (
+      person?.department?.name ||
+      departmentsMap[person?.departmentId]?.name ||
+      getDepartmentNames(person) ||
+      '—'
+    );
+  }, [departmentsMap, getDepartmentNames, person]);
+
+  if ((isLoading || isFetching || !organizationId) && !person && !isError) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <LoadingScreen sx={{ py: 10 }} />
+      </Box>
+    );
+  }
+
+  if (isError || (!person && !isLoading && !isFetching && organizationId)) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <EmptyContent
+          filled
+          title="Person not found"
+          description="The requested person could not be found or has been removed."
+          action={
+            <Button
+              component={RouterLink}
+              href={directoryPath}
+              variant="contained"
+              startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+              sx={{ mt: 3 }}
+            >
+              Back to Directory
+            </Button>
+          }
+          sx={{ py: 10 }}
+        />
+      </Box>
+    );
+  }
+
+  const personRole = person?.type
+    ? person.type.charAt(0).toUpperCase() + person.type.slice(1)
+    : person?.status || 'External';
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
-
       <Box sx={{ mb: 2 }}>
-        <Button
-          onClick={router.back}
-          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+        <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
           Back
         </Button>
       </Box>
 
       <CustomBreadcrumbs
-        heading="Employee Profile"
+        heading={person?.name || 'Employee Profile'}
         links={[
           { name: 'Dashboard', href: dashboardPath },
           { name: 'Directory', href: directoryPath },
-          { name: 'Employee Profile' },
+          { name: person?.name || 'Employee Profile' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
       <Card sx={{ mb: 3, height: 290 }}>
         <ProfileCover
-          role={employee?.profile?.role}
-          name={employee?.profile.name}
-          avatarUrl={employee?.profile?.avatarUrl}
+          role={personRole}
+          name={person?.name}
+          avatarUrl={person?.image}
         />
 
-        <Box sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 1,
-          width: 1,
-          top: 20,
-          zIndex: 9,
-          px: { md: 3 },
-          position: 'absolute',
-        }}>
-
-          <Tooltip title="Edit" arrow placement='top'>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 1,
+            width: 1,
+            top: 20,
+            zIndex: 9,
+            px: { md: 3 },
+            position: 'absolute',
+          }}
+        >
+          <Tooltip title="Edit" arrow placement="top">
             <IconButton onClick={openModal.onTrue}>
               <Iconify icon="solar:pen-bold" />
             </IconButton>
           </Tooltip>
 
-          <Tooltip title="Archive" arrow placement='top'>
+          <Tooltip title="Archive" arrow placement="top">
             <IconButton color="error" onClick={archiveModal.onTrue}>
               <Iconify icon="solar:archive-down-bold" />
             </IconButton>
@@ -145,83 +243,141 @@ function EmployeeProfileView() {
       </Card>
 
       {/* Tab content */}
-      {value === 'details' && <EmployeeDetails employee={employee} />}
+      {value === 'details' && (
+        <EmployeeDetails
+          person={person}
+          branchName={branchName}
+          departmentName={departmentName}
+        />
+      )}
 
-      {value === 'attendance' && <AttendanceView attendance={employee.attendance} />}
+      {value === 'attendance' && (
+        person?.attendance ? (
+          <AttendanceView attendance={person.attendance} />
+        ) : (
+          <EmptyTab
+            title="Attendance"
+            description="No attendance records available for this person."
+            icon="uim:clock"
+          />
+        )
+      )}
 
-      {value === 'activity' && <EmployeeActivity
-        title={"Activity"}
-        list={MOCK_ACTIVITY}
-        icon="mynaui:activity-square-solid"
-      />
-      }
+      {value === 'activity' && (
+        Array.isArray(person?.activities) && person.activities.length ? (
+          <EmployeeActivity
+            title="Activity"
+            list={person.activities}
+            icon="mynaui:activity-square-solid"
+          />
+        ) : (
+          <EmptyTab
+            title="Activity"
+            description="No recent activity recorded for this person."
+            icon="mynaui:activity-square-solid"
+          />
+        )
+      )}
 
-      {value === 'items' &&
+      {value === 'items' && (
         <EmptyTab
           title="Items"
           description="No items found"
           icon="solar:archive-down-bold"
         />
-      }
+      )}
 
       <QuickStatusChangeModal
         open={openModal.value}
         onClose={openModal.onFalse}
-        currentUser={{}}
+        currentUser={currentUserForEdit}
       />
+
       <ConfirmDialog
         open={archiveModal.value}
         onClose={archiveModal.onFalse}
         title="Confirm Archive"
-        content={"Are you sure you want to archive this employee?"}
+        content="Are you sure you want to archive this person?"
         action={
           <Button
             variant="contained"
             color="error"
             onClick={archiveModal.onFalse}
-          // startIcon={isDeleting && <CircularProgress size={20} color="inherit" />}
           >
-            {/* {isDeleting ? 'Deleting...' : 'Delete'} */}
             Archive
           </Button>
         }
       />
-
-
-    </Box >
+    </Box>
   );
 }
 
 export default EmployeeProfileView;
+
 // ----------------------------------------------------------------------
 
-function EmployeeDetails({ employee }) {
-  const [phoneCheckIn, setPhoneCheckIn] = useState(employee?.settings?.phoneCheckIn ?? true);
+function EmployeeDetails({ person, branchName, departmentName }) {
+  const [phoneCheckIn, setPhoneCheckIn] = useState(true);
+
+  const formattedType = person?.type
+    ? person.type.charAt(0).toUpperCase() + person.type.slice(1)
+    : '—';
 
   return (
     <Stack spacing={2}>
       <Box>
-        <Typography variant="h6">Employee details</Typography>
+        <Typography variant="h6">Personal & Assignment details</Typography>
         <Typography variant="body2" color="text.secondary">
-          Basic information about the employee.
+          Basic information about the person and their site access.
         </Typography>
       </Box>
 
       <Card>
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 2.5, md: 3 } }}>
           <DetailSection label="Identity">
-            <DetailItem label="Name" value={employee.profile.name} icon="solar:user-bold" />
-            <DetailItem label="Employee ID" value={employee.id} icon="solar:card-bold" />
+            <DetailItem label="Full Name" value={person?.name} icon="solar:user-bold" />
+            <DetailItem label="Type" icon="solar:shield-user-bold">
+              <Label
+                variant="soft"
+                color={person?.type === 'visitor' ? 'info' : 'warning'}
+              >
+                {formattedType}
+              </Label>
+            </DetailItem>
+            <DetailItem label="Status" icon="solar:check-circle-bold">
+              <Label
+                variant="soft"
+                color={
+                  person?.status === 'On site' || person?.status === 'active'
+                    ? 'success'
+                    : person?.status === 'On leave'
+                      ? 'warning'
+                      : 'default'
+                }
+              >
+                {person?.status || 'Active'}
+              </Label>
+            </DetailItem>
           </DetailSection>
 
-          <DetailSection label="Employment" sx={{ mt: 3 }}>
-            <DetailItem label="Department" value={employee.profile.department} icon="solar:buildings-2-bold" />
-            <DetailItem label="Role" value={employee.profile.role} icon="solar:shield-user-bold" />
-            <DetailItem label="Start Date" value={employee.profile.startDate} icon="solar:calendar-bold" />
+          <DetailSection label="Contact Information" sx={{ mt: 3.5 }}>
+            <DetailItem label="Email" value={person?.email} icon="solar:letter-bold" />
+            <DetailItem label="Phone Number" value={person?.phone} icon="solar:phone-bold" />
+            <DetailItem
+              label="Car Registration"
+              value={person?.carRegistration || '—'}
+              icon="solar:car-bold"
+            />
           </DetailSection>
 
-          <DetailSection label="Equipment" sx={{ mt: 3 }}>
-            <DetailItem label="Device" value={employee.device.deviceName} icon="solar:smartphone-bold" />
+          <DetailSection label="Site & Department" sx={{ mt: 3.5 }}>
+            <DetailItem label="Site / Branch" value={branchName} icon="solar:buildings-2-bold" />
+            <DetailItem label="Department" value={departmentName} icon="solar:users-group-rounded-bold" />
+            <DetailItem
+              label="Registered On"
+              value={person?.createdAt ? fDate(person.createdAt) : '—'}
+              icon="solar:calendar-bold"
+            />
           </DetailSection>
         </Box>
       </Card>
@@ -242,7 +398,7 @@ function EmployeeDetails({ employee }) {
               Phone check-in
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Allow this employee to check in using their mobile phone.
+              Allow this person to check in using their mobile phone or kiosk.
             </Typography>
           </Box>
 
@@ -327,10 +483,9 @@ function DetailSection({ label, children, sx }) {
 
 // ----------------------------------------------------------------------
 
-function DetailItem({ label, value, icon }) {
+function DetailItem({ label, value, icon, children }) {
   return (
     <Stack direction="row" spacing={1.5} alignItems="flex-start">
-
       <Stack
         alignItems="center"
         justifyContent="center"
@@ -349,14 +504,16 @@ function DetailItem({ label, value, icon }) {
         />
       </Stack>
 
-      <Stack spacing={0.5}>
+      <Stack spacing={0.5} alignItems="flex-start">
         <Typography variant="caption" color="text.secondary">
           {label}
         </Typography>
 
-        <Typography variant="body2" fontWeight={600}>
-          {value}
-        </Typography>
+        {children || (
+          <Typography variant="body2" fontWeight={600}>
+            {value || '—'}
+          </Typography>
+        )}
       </Stack>
     </Stack>
   );

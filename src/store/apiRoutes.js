@@ -76,4 +76,9 @@ export const API_ROUTES = {
     RESIDENT_BY_ID: (residentId) => `/admin/residents/${residentId}`,
     RESIDENT_VISITOR_PASSCODE: (residentId) => `/admin/residents/${residentId}/visitor-passcode`,
     RESIDENT_VERIFY_PASSCODE: (residentId) => `/admin/residents/${residentId}/verify-passcode`,
+
+    // External people (visitors / contractors) — General Directory.
+    ORGANIZATION_EXTERNAL_PEOPLE: (organizationId) =>
+        `/admin/organizations/${organizationId}/external-people`,
+    EXTERNAL_PERSON_BY_ID: (externalPersonId) => `/admin/external-people/${externalPersonId}`,
 };

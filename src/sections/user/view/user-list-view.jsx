@@ -34,9 +34,9 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { useDebounce } from 'src/hooks/use-debounce';
-import { mockEmployees } from '../mocks/data';
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetExternalPeopleQuery } from 'src/store/Reducer/general-directory-api';
 import QuickAddUserModal from '../quick-add-user-modal';
 import UserLoadingSkeleton from '../user-loading-skeleton';
 import QuickStatusChangeModal from '../user-status-dialog';
@@ -45,10 +45,8 @@ import QuickStatusChangeModal from '../user-status-dialog';
 
 const USER_TYPE_OPTION = [
   { value: 'all', label: 'All', color: 'default' },
-  { value: 'staff', label: 'Staff' },
-  { value: 'contractors', label: 'Contractors' },
-  { value: 'professionals', label: 'Professionals' },
-  { value: 'visitors', label: 'Visitors' },
+  { value: 'visitor', label: 'Visitors' },
+  { value: 'contractor', label: 'Contractors' },
 ];
 const DEPARTMENT_OPTION = [
   { value: 'all', label: 'All' },
@@ -114,8 +112,13 @@ export function UserListView() {
 
   const table = useTable();
   const location = useLocation();
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId } = useCurrentOrganization();
+  const { branchOptions: siteOptions, getBranchName } = useOrganizationLookups({
+    organizationId,
+    jobTitles: false,
+    departments: false,
+    limit: 100,
+  });
   const isOwnerDirectory = location.pathname.startsWith(paths.owner.root);
 
   const filters = useSetState({
@@ -133,65 +136,46 @@ export function UserListView() {
 
   const keyword = useDebounce(filters.state.search, 500);
 
-  const isLoading = false;
-
-  const isFetching = false;
-
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((f) => f.type === 'status'),
     []
   );
 
-  // const { data, isLoading, isFetching } = useGetUsersQuery({
-  //   page: table.page + 1,
-  //   limit: table.rowsPerPage,
-  //   keyword: keyword.length > 0 ?
-  //     keyword.startsWith('+')
-  //       ? keyword.slice(1)
-  //       : keyword : undefined,
-  //   status: filters.state.status !== "all" ? filters.state.status : undefined,
-  // });
+  const { branchId, userType } = filters.state;
 
-  // const apiUsers = data?.data || [];
-  const apiUsers = mockEmployees || [];
-
-  const branchOptions = useMemo(() => {
-    const branches = mockBranches.filter(
-      (branch) => !organizationId || branch.organizationId === organizationId
-    );
-
-    return [
-      { value: 'all', label: 'All Sites' },
-      ...branches.map((branch) => ({ value: branch._id, label: branch.name })),
-    ];
-  }, [organizationId]);
-
-  const visibleBranchIds = useMemo(
-    () => new Set(mockBranches
-      .filter((branch) => !organizationId || branch.organizationId === organizationId)
-      .map((branch) => branch._id)),
-    [organizationId]
+  const { data, isLoading, isFetching } = useGetExternalPeopleQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      branchId: branchId && branchId !== 'all' ? branchId : undefined,
+      type: userType && userType !== 'all' ? userType : undefined,
+    },
+    { skip: !organizationId }
   );
 
-  const branchById = useMemo(
-    () => new Map(mockBranches.map((branch) => [branch._id, branch.name])),
-    []
+  const apiUsers = data?.data || [];
+
+  const branchOptions = useMemo(
+    () => [{ value: 'all', label: 'All Sites' }, ...siteOptions],
+    [siteOptions]
   );
 
-  // const meta = data?.meta||{};
-  const meta = {};
+  const meta = data?.meta || {};
 
   const tableData = apiUsers
-    .filter((user) => !organizationId || visibleBranchIds.has(user.branchId))
     .map((user) => ({
-      id: user.id,
+      id: user._id,
       image: user.image,
       name: user.name,
       email: user.email,
-      role: user.role,
-      department: user.department,
+      phone: user.phone,
+      carRegistration: user.carRegistration || '',
+      // The "Role" column shows the external person type (visitor / contractor).
+      role: user.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : '—',
+      department: user.department?.name || '—',
       branchId: user.branchId,
-      branch: branchById.get(user.branchId) || '—',
+      branch: getBranchName(user),
       status: user.status || 'Active',
       indicators: {
         attendance: user.indicators?.attendance || 'Good',
@@ -203,7 +187,7 @@ export function UserListView() {
   const getStatusCount = useCallback((status) => {
     const statusCounts = meta?.usersCount || {};
     if (status === 'all') {
-      return statusCounts.total || 0;
+      return statusCounts.total || meta?.totalRecords || 0;
     }
 
 

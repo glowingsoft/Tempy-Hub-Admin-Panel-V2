@@ -17,6 +17,7 @@ import { shiftClaimsApi } from './Reducer/shift-claims-api';
 import { leaveRequestsApi } from './Reducer/leave-requests-api';
 import { residentsApi } from './Reducer/residents-api';
 import { attendanceApi } from './Reducer/attendance-api';
+import { generalDirectoryApi } from './Reducer/general-directory-api';
 
 // Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
@@ -76,6 +77,7 @@ export const store = configureStore({
     [leaveRequestsApi.reducerPath]: leaveRequestsApi.reducer,
     [residentsApi.reducerPath]: residentsApi.reducer,
     [attendanceApi.reducerPath]: attendanceApi.reducer,
+    [generalDirectoryApi.reducerPath]: generalDirectoryApi.reducer,
     user: persistedUserReducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -98,7 +100,8 @@ export const store = configureStore({
       shiftClaimsApi.middleware,
       leaveRequestsApi.middleware,
       residentsApi.middleware,
-      attendanceApi.middleware
+      attendanceApi.middleware,
+      generalDirectoryApi.middleware
     ),
 });
 

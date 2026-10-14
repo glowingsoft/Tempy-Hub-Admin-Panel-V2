@@ -7,56 +7,41 @@ import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { toast } from 'src/components/snackbar';
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { USER_STATUS_OPTIONS } from 'src/_mock';
-// import { useSupportReplyMutation } from 'src/store/Reducer/adminSetting';
+import { useCreateExternalPersonMutation } from 'src/store/Reducer/general-directory-api';
 import { z as zod } from 'zod';
 
-const ROLE_OPTIONS = [
-    // Care
-    { value: "deputy", label: "Deputy" },
-    { value: "head_of_care", label: "Head of Care" },
-    { value: "senior_care", label: "Senior Care" },
-    { value: "lead_care_assistant", label: "Lead Care Assistant" },
-    { value: "care_assistant", label: "Care Assistant" },
-
-    // Support / Admin
-    { value: "maintenance", label: "Maintenance" },
-    { value: "administrator", label: "Administrator" },
-
-    // Kitchen
-    { value: "head_cook", label: "Head Cook" },
-    { value: "cook", label: "Cook" },
-    { value: "kitchen_assistant", label: "Kitchen Assistant" },
-
-    // Housekeeping
-    { value: "head_housekeeper", label: "Head Housekeeper" },
-    { value: "domestic_assistant", label: "Domestic Assistant" },
-
-    // Activities
-    { value: "lead_activities", label: "Lead Activities" },
-    { value: "activities", label: "Activities" }
-]
-const DEPARTMENT_OPTIONS = [
-    { value: "management", label: "Management" },
-    { value: "accounting", label: "Accounting" },
-    { value: "sales", label: "Sales" },
-    { value: "support", label: "Support" },
-    { value: "kitchen", label: "Kitchen" },
-    { value: "activities", label: "Activities" },
-    { value: "maintenance", label: "Maintenance" },
-    { value: "administrative", label: "Administrative" },
+const TYPE_OPTIONS = [
+    { value: "visitor", label: "Visitor" },
+    { value: "contractor", label: "Contractor" },
 ]
 
 const QuickAddUserModal = ({ open, onClose, currentUser }) => {
+
+    const { organizationId } = useCurrentOrganization();
+
+    const { branchOptions, departmentOptions } = useOrganizationLookups({
+        organizationId,
+        branches: open,
+        departments: open,
+        jobTitles: false,
+        limit: 100,
+    });
+
+    const [createExternalPerson] = useCreateExternalPersonMutation();
 
     const defaultValues = useMemo(() => ({
         image: currentUser?.image || '',
         name: currentUser?.name || '',
         email: currentUser?.email || '',
+        phone: currentUser?.phone || '',
         password: currentUser?.password || '',
         status: currentUser?.status || 'active',
-        role: currentUser?.role || 'administrator',
-        department: currentUser?.department || 'management',
+        type: currentUser?.type || 'visitor',
+        branchId: currentUser?.branchId || '',
+        departmentId: currentUser?.departmentId || '',
 
     }), [currentUser]);
 
@@ -65,14 +50,14 @@ const QuickAddUserModal = ({ open, onClose, currentUser }) => {
     const schema = zod.object({
         image: zod.any().optional(),
         name: zod.string().min(1, 'Name is required'),
-        email: zod.string().min(1, 'Email is required'),
+        email: zod.string().min(1, 'Email is required').email('Email must be a valid email address'),
+        phone: zod.string().min(1, 'Phone is required'),
         password: zod.string().min(1, 'Password is required'),
         status: zod.string().min(1, 'Status is required'),
-        role: zod.string().min(1, 'Role is required'),
-        department: zod.string().min(1, 'Department is required'),
+        type: zod.enum(['visitor', 'contractor'], { message: 'Type is required' }),
+        branchId: zod.string().min(1, 'Site is required'),
+        departmentId: zod.string().min(1, 'Department is required'),
     });
-
-    // const [supportReply] = useSupportReplyMutation();
 
     const methods = useForm({
         resolver: zodResolver(schema),
@@ -84,17 +69,26 @@ const QuickAddUserModal = ({ open, onClose, currentUser }) => {
     }
 
     const onSubmit = async (data) => {
+        try {
+            await createExternalPerson({
+                organizationId,
+                branchId: data.branchId,
+                type: data.type,
+                name: data.name,
+                email: data.email,
+                phone: data.phone,
+                departmentId: data.departmentId,
+                password: data.password,
+                status: data.status,
+                // A picked File can't go in a JSON body; only an existing URL is sent until upload exists.
+                image: typeof data.image === 'string' ? data.image : '',
+            }).unwrap();
 
-        // let response = await supportReply({
-        //     id: currentUser._id, data: {
-        //         response: data.message
-        //     }
-        // });
-
-        // if (!response?.error) {
-        //     toast.success("Reply sent successfully");
-        //     handleClose();
-        // }
+            toast.success("User created successfully");
+            handleClose();
+        } catch (error) {
+            // Error toast is shown by the base query.
+        }
     }
     return (
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
@@ -113,6 +107,8 @@ const QuickAddUserModal = ({ open, onClose, currentUser }) => {
 
                         <Field.Text name="email" label="Email" />
 
+                        <Field.Phone name="phone" label="Phone" />
+
                         <Field.Text
                             name="password"
                             label="Password"
@@ -130,14 +126,20 @@ const QuickAddUserModal = ({ open, onClose, currentUser }) => {
                             }}
                         />
 
-                        <Field.Select name="role" label="Role">
-                            {ROLE_OPTIONS.map((option) => (
+                        <Field.Select name="type" label="Type">
+                            {TYPE_OPTIONS.map((option) => (
                                 <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
                             ))}
                         </Field.Select>
 
-                        <Field.Select name="department" label="Department">
-                            {DEPARTMENT_OPTIONS.map((option) => (
+                        <Field.Select name="branchId" label="Site">
+                            {branchOptions.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                            ))}
+                        </Field.Select>
+
+                        <Field.Select name="departmentId" label="Department">
+                            {departmentOptions.map((option) => (
                                 <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
                             ))}
                         </Field.Select>
