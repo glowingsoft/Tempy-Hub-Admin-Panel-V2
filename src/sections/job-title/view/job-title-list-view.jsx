@@ -62,7 +62,6 @@ export function JobTitleListView() {
   const table = useTable({
     defaultOrderBy: 'name',
     defaultOrder: 'asc',
-    defaultRowsPerPage: 10,
   });
 
   const { organizationId, organizationName, user } = useCurrentOrganization();

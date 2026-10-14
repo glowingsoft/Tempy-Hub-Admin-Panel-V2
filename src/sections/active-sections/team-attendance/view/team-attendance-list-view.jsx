@@ -10,6 +10,7 @@ import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
 
 import { paths } from 'src/routes/paths';
 import { CONFIG } from 'src/config-global';
@@ -144,14 +145,17 @@ export function TeamAttendanceListView({ ownerDashboard = false }) {
     { skip: !organizationId }
   );
 
+  const isAttendanceLoading = isLoading || isFetching || (!apiResponse && !isError);
+
   const rawRecords = useMemo(() => {
     const list = extractRecordsArray(apiResponse?.data ?? apiResponse);
     if (Array.isArray(list) && list.length > 0) return list;
-    if (!organizationId || (!apiResponse && !isError)) {
+    if (isAttendanceLoading) return [];
+    if (!organizationId) {
       return Array.isArray(mockAttendanceResponse?.data) ? mockAttendanceResponse.data : [];
     }
     return Array.isArray(list) ? list : [];
-  }, [apiResponse, isError, organizationId]);
+  }, [apiResponse, isAttendanceLoading, organizationId]);
 
   const totalRecords =
     apiResponse?.meta?.totalRecords ?? (Array.isArray(rawRecords) ? rawRecords.length : 0);
@@ -322,7 +326,7 @@ export function TeamAttendanceListView({ ownerDashboard = false }) {
     [detailDrawer]
   );
 
-  const notFound = !isLoading && !isFetching && !filteredRecords.length;
+  const notFound = !isAttendanceLoading && !filteredRecords.length;
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
@@ -363,7 +367,7 @@ export function TeamAttendanceListView({ ownerDashboard = false }) {
         <Grid xs={12} sm={4}>
           <CourseWidgetSummary
             title="On time"
-            total={summary.onTime}
+            total={isAttendanceLoading ? <Skeleton sx={{ width: 48, height: 40 }} /> : summary.onTime}
             color="success"
             icon={icon('ic-check')}
           />
@@ -372,7 +376,7 @@ export function TeamAttendanceListView({ ownerDashboard = false }) {
         <Grid xs={12} sm={4}>
           <CourseWidgetSummary
             title="Late"
-            total={summary.late}
+            total={isAttendanceLoading ? <Skeleton sx={{ width: 48, height: 40 }} /> : summary.late}
             color="warning"
             icon={icon('ic-clock')}
           />
@@ -381,7 +385,15 @@ export function TeamAttendanceListView({ ownerDashboard = false }) {
         <Grid xs={12} sm={4}>
           <CourseWidgetSummary
             title="Attendance rate"
-            total={summary.attendanceRate === null ? '—' : `${summary.attendanceRate}%`}
+            total={
+              isAttendanceLoading ? (
+                <Skeleton sx={{ width: 48, height: 40 }} />
+              ) : summary.attendanceRate === null ? (
+                '—'
+              ) : (
+                `${summary.attendanceRate}%`
+              )
+            }
             color="info"
             icon={icon('ic-analytics')}
           />
@@ -425,6 +437,7 @@ export function TeamAttendanceListView({ ownerDashboard = false }) {
           <TeamAttendanceShiftGrid
             records={shiftRecords}
             onViewRecord={handleViewRecord}
+            loading={isAttendanceLoading}
           />
         </Card>
       )}
@@ -461,7 +474,7 @@ export function TeamAttendanceListView({ ownerDashboard = false }) {
                 <TableHeadCustom headLabel={TABLE_HEAD} />
 
                 <TableBody>
-                  {isLoading || isFetching ? (
+                  {isAttendanceLoading ? (
                     [...Array(table.rowsPerPage || 5)].map((_, i) => (
                       <TableSkeleton key={i} />
                     ))

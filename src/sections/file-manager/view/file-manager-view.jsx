@@ -30,7 +30,7 @@ import { FileManagerNewFolderDialog } from '../file-manager-new-folder-dialog';
 // ----------------------------------------------------------------------
 
 export function FileManagerView() {
-  const table = useTable({ defaultRowsPerPage: 10 });
+  const table = useTable();
 
   const openDateRange = useBoolean();
 

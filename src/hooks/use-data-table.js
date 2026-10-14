@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSetState } from 'src/hooks/use-set-state';
-import { useTable } from 'src/components/table';
+import { useTable, DEFAULT_ROWS_PER_PAGE } from 'src/components/table';
 import { useDebouncedInput } from 'src/hooks/use-debounced-input';
 import { FILTER_FIELD_TYPES } from 'src/components/generic-table/table-filter-fields';
 import {
@@ -30,7 +30,7 @@ export function useDataTable({
     queryHook,
     defaultFilters = {},
     filterFields = [],
-    defaultRowsPerPage = 10,
+    defaultRowsPerPage = DEFAULT_ROWS_PER_PAGE,
     debounceMs = 500,
     transformFilters = null,
     enableSearch = true,

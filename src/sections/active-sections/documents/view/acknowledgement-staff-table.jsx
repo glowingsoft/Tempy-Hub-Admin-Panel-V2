@@ -41,7 +41,7 @@ const STATUS_META = {
 };
 
 export function AcknowledgementStaffTable({ documentId }) {
-    const table = useTable({ defaultRowsPerPage: 5 });
+    const table = useTable();
     const records = getAcknowledgementRecords(documentId);
     const [filters, setFilters] = useState({ search: '', status: 'all', role: 'all' });
 

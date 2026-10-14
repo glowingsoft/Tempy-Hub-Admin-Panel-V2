@@ -61,7 +61,6 @@ export function DepartmentListView() {
   const table = useTable({
     defaultOrderBy: 'sortOrder',
     defaultOrder: 'asc',
-    defaultRowsPerPage: 10,
   });
 
   const { organizationId, organizationName, user } = useCurrentOrganization();

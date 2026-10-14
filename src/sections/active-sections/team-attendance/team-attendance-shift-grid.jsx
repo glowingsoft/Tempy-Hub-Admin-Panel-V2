@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import dayjs from 'dayjs';
 
 import Avatar from '@mui/material/Avatar';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -25,7 +26,7 @@ const formatTime = (value) => (value ? dayjs(value).format('hh:mm A') : null);
 
 // ----------------------------------------------------------------------
 
-export function TeamAttendanceShiftGrid({ records = [], onViewRecord }) {
+export function TeamAttendanceShiftGrid({ records = [], onViewRecord, loading = false }) {
   const safeRecords = Array.isArray(records) ? records : [];
 
   const staffList = useMemo(() => {
@@ -43,11 +44,64 @@ export function TeamAttendanceShiftGrid({ records = [], onViewRecord }) {
     [safeRecords]
   );
 
+  if (loading) {
+    return (
+      <TableContainer sx={{ position: 'relative' }}>
+        <Scrollbar>
+          <Table sx={{ minWidth: 760 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ minWidth: 220 }}>Staff</TableCell>
+                {[...Array(7)].map((_, i) => (
+                  <TableCell key={i} align="center" sx={{ minWidth: 130 }}>
+                    <Skeleton sx={{ mx: 'auto', width: 72, height: 16 }} />
+                  </TableCell>
+                ))}
+                <TableCell align="center" sx={{ minWidth: 90 }}>
+                  Late
+                </TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {[...Array(5)].map((_, index) => (
+                <TableRow key={index}>
+                  <TableCell>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+                      <Skeleton variant="circular" width={36} height={36} sx={{ flexShrink: 0 }} />
+                      <Stack spacing={0.5} sx={{ minWidth: 0, flexGrow: 1 }}>
+                        <Skeleton sx={{ width: 120, height: 16 }} />
+                        <Skeleton sx={{ width: 160, height: 12 }} />
+                      </Stack>
+                    </Stack>
+                  </TableCell>
+
+                  {[...Array(7)].map((_, i) => (
+                    <TableCell key={i} align="center">
+                      <Stack spacing={0.5} alignItems="center">
+                        <Skeleton sx={{ width: 80, height: 14 }} />
+                        <Skeleton variant="rounded" sx={{ width: 60, height: 22, borderRadius: 0.75 }} />
+                      </Stack>
+                    </TableCell>
+                  ))}
+
+                  <TableCell align="center">
+                    <Skeleton variant="rounded" sx={{ mx: 'auto', width: 28, height: 22, borderRadius: 0.75 }} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Scrollbar>
+      </TableContainer>
+    );
+  }
+
   if (!staffList.length) {
     return (
       <EmptyContent
         filled
-        title="No shifts to show"
+        title="No shifts available"
         description="Attendance for this period will appear here once staff clock in."
         sx={{ py: 8 }}
       />

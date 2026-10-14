@@ -15,3 +15,5 @@ export * from './ellipsis-cell-with-tooltip';
 export * from './table-selected-action';
 
 export * from './table-pagination-custom';
+
+export * from './table-config';

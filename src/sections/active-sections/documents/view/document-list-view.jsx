@@ -88,7 +88,7 @@ const DEFAULT_FILTERS = FILTER_FIELDS.reduce((acc, field) => {
 // ----------------------------------------------------------------------
 
 export function DocumentListView({ ownerDashboard = false }) {
-  const table = useTable({ defaultRowsPerPage: 5 });
+  const table = useTable();
   const pathname = usePathname();
   const { branchId, onBranchChange } = useOwnerBranchFilter();
 
@@ -274,7 +274,6 @@ export function DocumentListView({ ownerDashboard = false }) {
           dense={table.dense}
           count={meta?.totalRecords || tableData.length}
           rowsPerPage={table.rowsPerPage}
-          rowsPerPageOptions={[5, 10, 25]}
           onPageChange={table.onChangePage}
           onChangeDense={table.onChangeDense}
           onRowsPerPageChange={table.onChangeRowsPerPage}

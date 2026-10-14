@@ -67,7 +67,7 @@ const COLUMNS = [
 // ----------------------------------------------------------------------
 
 export function GroupingFixedHeaderTable() {
-  const table = useTable({ defaultRowsPerPage: 10 });
+  const table = useTable();
 
   return (
     <>

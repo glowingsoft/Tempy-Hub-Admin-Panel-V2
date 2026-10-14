@@ -75,6 +75,7 @@ const MuiTablePagination = {
    * DEFAULT PROPS
    *************************************** */
   defaultProps: {
+    rowsPerPageOptions: [5, 10, 15, 20, 25],
     backIconButtonProps: { size: 'small' },
     nextIconButtonProps: { size: 'small' },
     slotProps: { select: { name: 'table-pagination-select' } },

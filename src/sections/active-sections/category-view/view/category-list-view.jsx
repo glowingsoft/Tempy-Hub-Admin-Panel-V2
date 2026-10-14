@@ -61,13 +61,10 @@ const TABLE_HEAD = [
   { id: 'action', label: 'Action', width: 100 },
 ];
 
-const ROWS_PER_PAGE_OPTIONS = [5, 10, 25, 50];
-const DEFAULT_ROWS_PER_PAGE = 10;
-
 // ----------------------------------------------------------------------
 
 export function CategoryListView({ categoryType }) {
-  const table = useTable({ defaultRowsPerPage: DEFAULT_ROWS_PER_PAGE });
+  const table = useTable();
   const confirm = useBoolean();
 
   // Filter state
@@ -79,7 +76,7 @@ export function CategoryListView({ categoryType }) {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
+  const [itemsPerPage, setItemsPerPage] = useState(table.rowsPerPage);
   const [searchQuery, setSearchQuery] = useState('');
   const [itemToDelete, setItemToDelete] = useState(null);
 
@@ -366,7 +363,6 @@ export function CategoryListView({ categoryType }) {
             onPageChange={handlePageChange}
             onChangeDense={table.onChangeDense}
             onRowsPerPageChange={handleRowsPerPageChange}
-            rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
           />
         </Card>
       </Box>

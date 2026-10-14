@@ -3,13 +3,15 @@ import Switch from '@mui/material/Switch';
 import TablePagination from '@mui/material/TablePagination';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+import { DEFAULT_ROWS_PER_PAGE_OPTIONS } from './table-config';
+
 // ----------------------------------------------------------------------
 
 export function TablePaginationCustom({
   sx,
   dense,
   onChangeDense,
-  rowsPerPageOptions = [2, 5, 10, 25],
+  rowsPerPageOptions = DEFAULT_ROWS_PER_PAGE_OPTIONS,
   ...other
 }) {
   return (

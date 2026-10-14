@@ -65,7 +65,7 @@ const DEFAULT_ROWS_PER_PAGE = 10;
 // ----------------------------------------------------------------------
 
 export function WalletListView() {
-  const table = useTable({ defaultRowsPerPage: DEFAULT_ROWS_PER_PAGE });
+  const table = useTable();
   const confirm = useBoolean();
 
   // Filter state
@@ -78,6 +78,7 @@ export function WalletListView() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
+  const [itemsPerPage, setItemsPerPage] = useState(table.rowsPerPage);
   const [searchQuery, setSearchQuery] = useState('');
   const [itemToDelete, setItemToDelete] = useState(null);
 

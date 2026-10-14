@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 
+import { DEFAULT_ROWS_PER_PAGE } from './table-config';
+
 // ----------------------------------------------------------------------
 
 export function useTable(props) {
@@ -9,7 +11,7 @@ export function useTable(props) {
 
   const [orderBy, setOrderBy] = useState(props?.defaultOrderBy || 'name');
 
-  const [rowsPerPage, setRowsPerPage] = useState(props?.defaultRowsPerPage || 5);
+  const [rowsPerPage, setRowsPerPage] = useState(props?.defaultRowsPerPage || DEFAULT_ROWS_PER_PAGE);
 
   const [order, setOrder] = useState(props?.defaultOrder || 'asc');
 
