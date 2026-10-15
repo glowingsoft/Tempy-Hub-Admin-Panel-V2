@@ -11,13 +11,14 @@ export const generalDirectoryApi = createApi({
 
   endpoints: (builder) => ({
     getExternalPeople: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, branchId, type }) => ({
+      query: ({ organizationId, page = 1, limit = 10, branchId, departmentId, type }) => ({
         url: API_ROUTES.ORGANIZATION_EXTERNAL_PEOPLE(organizationId),
         method: 'GET',
         params: {
           page,
           limit,
           ...(branchId ? { branchId } : {}),
+          ...(departmentId ? { departmentId } : {}),
           ...(type ? { type } : {}),
         },
       }),

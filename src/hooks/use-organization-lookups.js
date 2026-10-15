@@ -3,6 +3,7 @@ import { useMemo, useCallback } from 'react';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
 import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import { useGetMembersQuery } from 'src/store/Reducer/members-api';
 
 import { mockBranches } from 'src/sections/branch/mocks/data';
 import { mockJobTitles } from 'src/sections/job-title/mocks/data';
@@ -68,6 +69,15 @@ export function resolveDepartmentNames(row, departmentsMap = {}) {
   return names.length > 0 ? names.join(', ') : '—';
 }
 
+/**
+ * Resolves a row's role: its own `role`, else the role of the membership with the same userId.
+ */
+export function resolveMemberRole(row, membersMap = {}) {
+  if (row?.role) return row.role;
+  const userId = typeof row?.userId === 'object' ? row.userId?._id : row?.userId || row?.user?._id;
+  return membersMap[userId]?.role;
+}
+
 // ----------------------------------------------------------------------
 
 /**
@@ -89,6 +99,8 @@ export function useOrganizationLookups(options) {
   const shouldSkipBranches = !organizationId || normalized.branches === false;
   const shouldSkipJobTitles = !organizationId || normalized.jobTitles === false;
   const shouldSkipDepartments = !organizationId || normalized.departments === false;
+  // Members are opt-in (`members: true`) so existing callers don't fetch them.
+  const shouldSkipMembers = !organizationId || normalized.members !== true;
 
   const {
     data: branchesData,
@@ -115,6 +127,11 @@ export function useOrganizationLookups(options) {
   } = useGetDepartmentsQuery(
     { organizationId, limit },
     { skip: shouldSkipDepartments }
+  );
+
+  const { data: membersData, isLoading: isMembersLoading } = useGetMembersQuery(
+    { organizationId, limit },
+    { skip: shouldSkipMembers }
   );
 
   // Normalized Arrays
@@ -168,6 +185,11 @@ export function useOrganizationLookups(options) {
     return Object.fromEntries(departments.map((item) => [item._id, item]));
   }, [departments]);
 
+  // Keyed by userId (the members slice normalizes it) so other resources can join on it.
+  const membersMap = useMemo(() => {
+    return Object.fromEntries((membersData?.data ?? []).map((item) => [item.userId, item]));
+  }, [membersData]);
+
   // Bound Resolvers
   const getBranchName = useCallback(
     (row) => resolveBranchName(row, branchesMap),
@@ -194,6 +216,7 @@ export function useOrganizationLookups(options) {
     branchesMap,
     jobTitlesMap,
     departmentsMap,
+    membersMap,
     getBranchName,
     getJobTitleName,
     getDepartmentNames,
@@ -206,6 +229,7 @@ export function useOrganizationLookups(options) {
     isJobTitlesFetching,
     isDepartmentsLoading,
     isDepartmentsFetching,
-    isLoading: isBranchesLoading || isJobTitlesLoading || isDepartmentsLoading,
+    isMembersLoading,
+    isLoading: isBranchesLoading || isJobTitlesLoading || isDepartmentsLoading || isMembersLoading,
   };
 }

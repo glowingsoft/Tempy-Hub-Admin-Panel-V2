@@ -19,6 +19,7 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
+import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import {
   TableHeadCustom,
   TableNoData,
@@ -28,16 +29,28 @@ import {
 } from 'src/components/table';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useOrganizationLookups, resolveMemberRole } from 'src/hooks/use-organization-lookups';
 import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
+import { MEMBERSHIP_ROLE_OPTIONS } from 'src/sections/membership/mocks/data';
 import { mockStaffProfilesResponse } from '../mocks/data';
 import { StaffProfileTableRow } from '../staff-profile-table-row';
 
 // ----------------------------------------------------------------------
 
+const ROLE_OPTIONS = [{ value: 'all', label: 'All', color: 'default' }, ...MEMBERSHIP_ROLE_OPTIONS];
+
+// Role tabs filter the loaded rows only (UI-side) — no role param is sent to the API.
+const ROLE_FILTER_FIELD = createFilterField.status({
+  key: 'role',
+  label: 'Role',
+  options: ROLE_OPTIONS,
+  showCounts: true,
+});
+
 const TABLE_HEAD = [
   { id: 'sr', label: 'Sr#', width: 60 },
   { id: 'user', label: 'Staff', minWidth: 220 },
+  { id: 'role', label: 'Role', minWidth: 120 },
   { id: 'branch', label: 'Site', minWidth: 140 },
   { id: 'jobTitle', label: 'Job Title', minWidth: 140 },
   { id: 'departments', label: 'Departments', minWidth: 160 },
@@ -82,13 +95,15 @@ export function StaffProfileListView({
     branchesMap,
     jobTitlesMap,
     departmentsMap,
+    membersMap,
     isLoading: isLookupsLoading,
   } = useOrganizationLookups({
     organizationId,
     limit: 100,
+    members: true,
   });
 
-  const filters = useSetState({ search: '' });
+  const filters = useSetState({ search: '', role: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
 
   const [reloadKey] = useState(0);
@@ -121,30 +136,47 @@ export function StaffProfileListView({
     [data, organizationId, reloadKey]
   );
 
+  const matchesRole = useCallback(
+    (profile) =>
+      filters.state.role === 'all' || resolveMemberRole(profile, membersMap) === filters.state.role,
+    [filters.state.role, membersMap]
+  );
+
   const mockFilteredProfiles = useMemo(() => {
     const search = keyword.trim().toLowerCase();
 
     return allProfiles.filter(
       (profile) =>
-        !search ||
-        profile.user?.name?.toLowerCase().includes(search) ||
-        profile.user?.email?.toLowerCase().includes(search)
+        matchesRole(profile) &&
+        (!search ||
+          profile.user?.name?.toLowerCase().includes(search) ||
+          profile.user?.email?.toLowerCase().includes(search))
     );
-  }, [allProfiles, keyword]);
+  }, [allProfiles, keyword, matchesRole]);
 
   const mockPaginatedProfiles = useMemo(() => {
     const start = table.page * table.rowsPerPage;
     return mockFilteredProfiles.slice(start, start + table.rowsPerPage);
   }, [mockFilteredProfiles, table.page, table.rowsPerPage]);
 
-  const paginatedProfiles = usesApi ? (data?.data ?? []) : mockPaginatedProfiles;
+  const paginatedProfiles = usesApi
+    ? (data?.data ?? []).filter(matchesRole)
+    : mockPaginatedProfiles;
   const totalRecords = usesApi
     ? apiData?.meta?.totalRecords ?? apiData?.data?.length ?? 0
     : mockFilteredProfiles.length;
 
+  const getRoleCount = useCallback(
+    (role) =>
+      role === 'all'
+        ? allProfiles.length
+        : allProfiles.filter((profile) => resolveMemberRole(profile, membersMap) === role).length,
+    [allProfiles, membersMap]
+  );
+
   // Rows resolve Site / Job Title / Department names from the lookups, so wait for those too.
   const isTableLoading = isLoading || isFetching || isLookupsLoading;
-  const notFound = !isTableLoading && totalRecords === 0;
+  const notFound = !isTableLoading && (totalRecords === 0 || paginatedProfiles.length === 0);
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -204,6 +236,13 @@ export function StaffProfileListView({
       )} */}
 
       <Card>
+        <StatusTabsFilterWrapper
+          filterField={ROLE_FILTER_FIELD}
+          value={filters.state.role}
+          onChange={handleFilterChange}
+          getCount={getRoleCount}
+        />
+
         <FlexibleTableToolbar
           filterFields={FILTER_FIELDS}
           filterValues={filters.state}
@@ -232,6 +271,7 @@ export function StaffProfileListView({
                         branchesMap={branchesMap}
                         jobTitlesMap={jobTitlesMap}
                         departmentsMap={departmentsMap}
+                        membersMap={membersMap}
                       />
                     ))}
 

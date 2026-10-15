@@ -174,10 +174,16 @@ export const siteManagerDashboardRoutes = [
         path: "rota", element: <RotaPage />
       },
       {
-        path: "invitaions", children: [
-
+        path: "invitations",
+        children: [
           { index: true, element: <InvitationsPage /> },
-
+          { path: "new", element: <InvitationPage /> }
+        ]
+      },
+      {
+        path: "invitaions",
+        children: [
+          { index: true, element: <InvitationsPage /> },
           { path: "new", element: <InvitationPage /> }
         ]
       },

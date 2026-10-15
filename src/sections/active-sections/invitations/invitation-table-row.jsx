@@ -21,6 +21,8 @@ import { Label } from 'src/components/label';
 
 const STATUS_COLOR = {
     pending: 'warning',
+    accepted: 'success',
+    revoked: 'error',
     checked_in: 'success',
     expired: 'error',
     cancelled: 'default',
@@ -28,6 +30,8 @@ const STATUS_COLOR = {
 
 const STATUS_LABEL = {
     pending: 'Pending',
+    accepted: 'Accepted',
+    revoked: 'Revoked',
     checked_in: 'Checked in',
     expired: 'Expired',
     cancelled: 'Cancelled',
@@ -82,10 +86,10 @@ export function InvitationTableRow({ row, selected, serialNumber, onResend, onCa
                 {/* Sr# */}
                 <TableCell>{serialNumber}</TableCell>
 
-                {/* Visitor name + email */}
+                {/* Name + email */}
                 <TableCell>
                     <Stack spacing={2} direction="row" alignItems="center">
-                        <Avatar alt={row.visitorName}>{row.visitorName?.charAt(0)}</Avatar>
+                        <Avatar alt={row.name || row.visitorName}>{(row.name || row.visitorName)?.charAt(0)}</Avatar>
 
                         <Stack
                             sx={{
@@ -94,24 +98,24 @@ export function InvitationTableRow({ row, selected, serialNumber, onResend, onCa
                                 alignItems: 'flex-start',
                             }}
                         >
-                            <Link color="inherit" sx={{ cursor: 'pointer' }}>
-                                {row.visitorName || '—'}
+                            <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600 }}>
+                                {row.name || row.visitorName || '—'}
                             </Link>
 
                             <Box sx={{ color: 'text.secondary', typography: 'caption' }}>
-                                {row.visitorEmail || '—'}
+                                {row.email || row.visitorEmail || '—'}
                             </Box>
                         </Stack>
                     </Stack>
                 </TableCell>
 
-                {/* Host */}
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.host || '—'}</TableCell>
+                {/* Role */}
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.role || row.host || '—'}</TableCell>
 
-                {/* Badge type */}
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.badgeType || '—'}</TableCell>
+                {/* Site */}
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.site || row.badgeType || '—'}</TableCell>
 
-                {/* Arrival */}
+                {/* Date */}
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.arrivalTime || '—'}</TableCell>
 
                 {/* Status */}
@@ -142,20 +146,20 @@ export function InvitationTableRow({ row, selected, serialNumber, onResend, onCa
                         rowGap={3}
                         columnGap={2}
                         display="grid"
-                        sx={{mt:2}}
+                        sx={{ mt: 2 }}
                         gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
                     >
                         <ReadOnlyField label="Status" value={STATUS_LABEL[row.status] || row.status} />
-                        <ReadOnlyField label="Badge type" value={row.badgeType} />
+                        <ReadOnlyField label="Site" value={row.site || row.badgeType} />
 
-                        <ReadOnlyField label="Visitor name" value={row.visitorName} />
-                        <ReadOnlyField label="Visitor email" value={row.visitorEmail} type="email" />
+                        <ReadOnlyField label="Name" value={row.name || row.visitorName} />
+                        <ReadOnlyField label="Email" value={row.email || row.visitorEmail} type="email" />
 
-                        <ReadOnlyField label="Host" value={row.host} />
+                        <ReadOnlyField label="Role" value={row.role || row.host} />
                         <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
 
-                        <ReadOnlyField label="Arrival time" value={row.arrivalTime} />
-                        <ReadOnlyField label="Visiting until" value={row.visitingUntil} />
+                        <ReadOnlyField label="Date" value={row.arrivalTime} />
+                        <ReadOnlyField label="Expires at" value={row.visitingUntil} />
 
                         <Box sx={{ gridColumn: { xs: 'auto', sm: '1 / -1' } }}>
                             <ReadOnlyField

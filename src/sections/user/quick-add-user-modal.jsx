@@ -16,6 +16,7 @@ import { z as zod } from 'zod';
 const TYPE_OPTIONS = [
     { value: "visitor", label: "Visitor" },
     { value: "contractor", label: "Contractor" },
+    { value: "professional", label: "Professional" },
 ]
 
 const QuickAddUserModal = ({ open, onClose, currentUser }) => {
@@ -54,7 +55,7 @@ const QuickAddUserModal = ({ open, onClose, currentUser }) => {
         phone: zod.string().min(1, 'Phone is required'),
         password: zod.string().min(1, 'Password is required'),
         status: zod.string().min(1, 'Status is required'),
-        type: zod.enum(['visitor', 'contractor'], { message: 'Type is required' }),
+        type: zod.enum(['visitor', 'contractor', 'professional'], { message: 'Type is required' }),
         branchId: zod.string().min(1, 'Site is required'),
         departmentId: zod.string().min(1, 'Department is required'),
     });

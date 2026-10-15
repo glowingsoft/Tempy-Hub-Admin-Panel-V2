@@ -47,17 +47,7 @@ const USER_TYPE_OPTION = [
   { value: 'all', label: 'All', color: 'default' },
   { value: 'visitor', label: 'Visitors' },
   { value: 'contractor', label: 'Contractors' },
-];
-const DEPARTMENT_OPTION = [
-  { value: 'all', label: 'All' },
-  { value: 'management', label: 'Management' },
-  { value: 'accounting', label: 'Accounting' },
-  { value: 'sales', label: 'Sales' },
-  { value: 'support', label: 'Support' },
-  { value: 'kitchen', label: 'Kitchen' },
-  { value: 'activities', label: 'Activities' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'administrative', label: 'Administrative' },
+  { value: 'professional', label: 'Professionals' },
 ];
 const SITE_STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -93,13 +83,6 @@ const FILTER_FIELDS = [
     options: USER_TYPE_OPTION,
     defaultValue: 'all',
   }),
-
-  createFilterField.select({
-    key: 'department',
-    label: 'Department',
-    options: DEPARTMENT_OPTION,
-    defaultValue: 'all',
-  }),
 ];
 
 const DEFAULT_FILTERS = FILTER_FIELDS.reduce((acc, field) => {
@@ -113,10 +96,10 @@ export function UserListView() {
   const table = useTable();
   const location = useLocation();
   const { organizationId } = useCurrentOrganization();
-  const { branchOptions: siteOptions, getBranchName } = useOrganizationLookups({
+  const { branchOptions: siteOptions, departmentOptions, getBranchName } = useOrganizationLookups({
     organizationId,
     jobTitles: false,
-    departments: false,
+    departments: true,
     limit: 100,
   });
   const isOwnerDirectory = location.pathname.startsWith(paths.owner.root);
@@ -125,6 +108,7 @@ export function UserListView() {
     search: '',
     status: 'all',
     branchId: 'all',
+    departmentId: 'all',
     siteStatus: 'all',
   });
 
@@ -141,7 +125,7 @@ export function UserListView() {
     []
   );
 
-  const { branchId, userType } = filters.state;
+  const { branchId, departmentId, userType } = filters.state;
 
   const { data, isLoading, isFetching } = useGetExternalPeopleQuery(
     {
@@ -149,6 +133,7 @@ export function UserListView() {
       page: table.page + 1,
       limit: table.rowsPerPage,
       branchId: branchId && branchId !== 'all' ? branchId : undefined,
+      departmentId: departmentId && departmentId !== 'all' ? departmentId : undefined,
       type: userType && userType !== 'all' ? userType : undefined,
     },
     { skip: !organizationId }
@@ -161,6 +146,11 @@ export function UserListView() {
     [siteOptions]
   );
 
+  const departmentFilterOptions = useMemo(
+    () => [{ value: 'all', label: 'All Departments' }, ...departmentOptions],
+    [departmentOptions]
+  );
+
   const meta = data?.meta || {};
 
   const tableData = apiUsers
@@ -171,7 +161,7 @@ export function UserListView() {
       email: user.email,
       phone: user.phone,
       carRegistration: user.carRegistration || '',
-      // The "Role" column shows the external person type (visitor / contractor).
+      // The "Role" column shows the external person type (visitor / contractor / professional).
       role: user.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : '—',
       department: user.department?.name || '—',
       branchId: user.branchId,
@@ -260,13 +250,19 @@ export function UserListView() {
         defaultValue: 'all',
       }),
       createFilterField.select({
+        key: 'departmentId',
+        label: 'Department',
+        options: departmentFilterOptions,
+        defaultValue: 'all',
+      }),
+      createFilterField.select({
         key: 'siteStatus',
         label: 'Site Status',
         options: SITE_STATUS_OPTIONS,
         defaultValue: 'all',
       }),
     ],
-    [branchOptions]
+    [branchOptions, departmentFilterOptions]
   );
 
   return (

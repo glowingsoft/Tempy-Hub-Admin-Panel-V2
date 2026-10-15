@@ -23,6 +23,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useUpdateMembershipMutation } from 'src/store/Reducer/members-api';
 import { MEMBER_ROLE_OPTIONS, MEMBER_PERMISSION_OPTIONS } from './mocks/data';
+import { useGetGrantablePermissionsQuery } from 'src/store/Reducer/invitations-api';
 
 // ----------------------------------------------------------------------
 
@@ -94,6 +95,21 @@ export function MemberEditForm({ organizationId, currentMember }) {
     });
     return opts;
   }, [departments, currentMember]);
+
+  const { data: grantablePermissions } = useGetGrantablePermissionsQuery(
+    { organizationId: resolvedOrganizationId },
+    { skip: !resolvedOrganizationId }
+  );
+
+  // Values are permission keys (sent to the API); labels come from grantable-permissions.
+  // Permissions already on the member stay selectable even if no longer grantable.
+  const permissionOptions = useMemo(() => {
+    const opts = [...(grantablePermissions?.options ?? [])];
+    (currentMember?.permissions || []).forEach((key) => {
+      if (!opts.some((o) => o.value === key)) opts.push({ value: key, label: key });
+    });
+    return opts;
+  }, [grantablePermissions, currentMember]);
 
   const defaultValues = useMemo(
     () => ({
@@ -237,7 +253,17 @@ export function MemberEditForm({ organizationId, currentMember }) {
               name="permissions"
               label="Permissions"
               placeholder="Select permissions"
-              options={MEMBER_PERMISSION_OPTIONS}
+              options={permissionOptions}
+              // Open the menu below the field instead of over it.
+              slotProps={{
+                select: {
+                  MenuProps: {
+                    anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+                    transformOrigin: { vertical: 'top', horizontal: 'left' },
+                    PaperProps: { sx: { maxHeight: 320 } },
+                  },
+                },
+              }}
             />
 
             <Field.MultiSelect

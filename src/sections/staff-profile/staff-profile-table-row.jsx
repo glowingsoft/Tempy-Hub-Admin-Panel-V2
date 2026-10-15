@@ -13,6 +13,9 @@ import { fDate } from 'src/utils/format-time';
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { TableCellWithTooltip } from 'src/components/table';
 
+import { resolveMemberRole } from 'src/hooks/use-organization-lookups';
+import { getRoleLabel } from 'src/sections/membership/mocks/data';
+
 // ----------------------------------------------------------------------
 
 export function StaffProfileTableRow({
@@ -24,6 +27,7 @@ export function StaffProfileTableRow({
   branchesMap = {},
   jobTitlesMap = {},
   departmentsMap = {},
+  membersMap = {},
 }) {
   const router = useRouter();
 
@@ -121,6 +125,10 @@ export function StaffProfileTableRow({
             {staffEmail}
           </Typography>
         </Stack>
+      </TableCell>
+
+      <TableCell sx={{ whiteSpace: 'nowrap', pl: 1 }}>
+        {getRoleLabel(resolveMemberRole(row, membersMap))}
       </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{branchName}</TableCell>

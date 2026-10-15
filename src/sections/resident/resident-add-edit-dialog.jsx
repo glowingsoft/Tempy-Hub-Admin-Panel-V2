@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -16,7 +15,6 @@ import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useCreateResidentMutation, useUpdateResidentMutation } from 'src/store/Reducer/residents-api';
 import {
     RESIDENT_CARE_LEVEL_OPTIONS,
-    RESIDENT_STATUS_OPTIONS,
     RESIDENT_ADMISSION_STATUS_OPTIONS,
 } from './mocks/data';
 
@@ -53,10 +51,9 @@ export function ResidentAddEditDialog({
     const [formData, setFormData] = useState(DEFAULT_FORM_VALUES);
     const [errors, setErrors] = useState({});
 
-    // For Owner Dashboard, load real branches from the organization; for site/line manager, fallback to mock.
     const { branches, isBranchesLoading: isBranchesFetching } = useOrganizationLookups({
-        organizationId: ownerDashboard ? organizationId : null,
-        branches: open && !!organizationId && ownerDashboard,
+        organizationId: organizationId || null,
+        branches: open && !!organizationId,
         jobTitles: false,
         departments: false,
         limit: 100,
@@ -67,14 +64,19 @@ export function ResidentAddEditDialog({
     const isSaving = isCreating || isUpdating;
 
     useEffect(() => {
+        if (!open) return;
         if (currentResident) {
+            const resBranchId =
+                currentResident.branchId ||
+                (typeof currentResident.branch === 'object' ? currentResident.branch?._id : currentResident.branch) ||
+                '';
             setFormData({
                 name: currentResident.name || '',
                 email: currentResident.email || '',
                 phone: currentResident.phone || '',
                 roomNumber: currentResident.roomNumber || '',
                 careLevel: currentResident.careLevel || 'low',
-                branchId: currentResident.branchId || branches[0]?._id || '',
+                branchId: resBranchId,
                 visitorPasscode: currentResident.visitorPasscode || currentResident.securityPassword || '',
                 admissionStatus: currentResident.admissionStatus || (currentResident.status === 'inactive' ? 'discharged' : 'admitted'),
                 status: currentResident.status || (currentResident.admissionStatus === 'discharged' ? 'inactive' : 'active'),
@@ -82,12 +84,21 @@ export function ResidentAddEditDialog({
         } else {
             setFormData({
                 ...DEFAULT_FORM_VALUES,
-                branchId: branches[0]?._id || '',
+                branchId: '',
                 visitorPasscode: `PASS-${Math.floor(1000 + Math.random() * 9000)}`,
             });
         }
         setErrors({});
-    }, [currentResident, open, branches]);
+    }, [currentResident, open]);
+
+    useEffect(() => {
+        if (open && branches.length > 0) {
+            setFormData((prev) => {
+                if (prev.branchId) return prev;
+                return { ...prev, branchId: branches[0]._id };
+            });
+        }
+    }, [branches, open]);
 
     const handleChange = (field) => (event) => {
         setFormData((prev) => ({ ...prev, [field]: event.target.value }));
@@ -99,7 +110,7 @@ export function ResidentAddEditDialog({
     const handleSubmit = async () => {
         const newErrors = {};
         if (!formData.roomNumber.trim()) newErrors.roomNumber = 'Room number is required';
-        if (!ownerDashboard || !currentResident) {
+        if (!currentResident) {
             if (!formData.name.trim()) newErrors.name = 'Full name is required';
             if (!formData.branchId) newErrors.branchId = 'Site / Branch is required';
         }
@@ -109,7 +120,7 @@ export function ResidentAddEditDialog({
             return;
         }
 
-        if (ownerDashboard && !currentResident) {
+        if (!currentResident) {
             try {
                 const payload = {
                     organizationId,
@@ -134,7 +145,7 @@ export function ResidentAddEditDialog({
             return;
         }
 
-        if (ownerDashboard && currentResident) {
+        if (currentResident) {
             const payload = {
                 residentId: currentResident._id,
                 organizationId,
@@ -158,32 +169,19 @@ export function ResidentAddEditDialog({
                 console.error('Update resident error:', error);
                 toast.error(getErrorMessage(error, 'Failed to update resident.'));
             }
-            return;
         }
-
-        // Mock / non-owner update flow
-        const selectedBranch = branches.find((b) => b._id === formData.branchId);
-
-        onSave?.({
-            ...(currentResident || { _id: `resident-${Date.now()}` }),
-            ...formData,
-            securityPassword: formData.visitorPasscode,
-            branch: selectedBranch ? selectedBranch.name : (currentResident?.branch || 'Willow House'),
-        });
-
-        onClose();
     };
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>
-                {currentResident ? 'Edit Resident Details' : 'Add New Resident'}
+                {currentResident ? `Edit Resident Details (${currentResident.name || 'Resident'})` : 'Add New Resident'}
             </DialogTitle>
 
             <DialogContent dividers>
                 <Grid container spacing={2} sx={{ pt: 1 }}>
                     {/* Name */}
-                    {!(ownerDashboard && currentResident) && (
+                    {!currentResident && (
                         <Grid xs={12} sm={6}>
                             <TextField
                                 fullWidth
@@ -211,7 +209,7 @@ export function ResidentAddEditDialog({
                     </Grid>
 
                     {/* Email */}
-                    {!(ownerDashboard && currentResident) && (
+                    {!currentResident && (
                         <Grid xs={12} sm={6}>
                             <TextField
                                 fullWidth
@@ -225,7 +223,7 @@ export function ResidentAddEditDialog({
                     )}
 
                     {/* Phone */}
-                    {!(ownerDashboard && currentResident) && (
+                    {!currentResident && (
                         <Grid xs={12} sm={6}>
                             <TextField
                                 fullWidth
@@ -238,7 +236,7 @@ export function ResidentAddEditDialog({
                     )}
 
                     {/* Site / Branch */}
-                    {!(ownerDashboard && currentResident) && (
+                    {!currentResident && (
                         <Grid xs={12} sm={6}>
                             <TextField
                                 fullWidth
@@ -276,7 +274,7 @@ export function ResidentAddEditDialog({
                     </Grid>
 
                     {/* Visitor Passcode */}
-                    {!(ownerDashboard && currentResident) && (
+                    {!currentResident && (
                         <Grid xs={12} sm={6}>
                             <TextField
                                 fullWidth

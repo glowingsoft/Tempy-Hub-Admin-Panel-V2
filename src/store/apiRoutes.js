@@ -36,6 +36,8 @@ export const API_ROUTES = {
     INVITATION_BY_ID: (invitationId) => `/admin/invitations/${invitationId}`,
     INVITATION_RESEND: (invitationId) => `/admin/invitations/${invitationId}/resend`,
     INVITATION_REVOKE: (invitationId) => `/admin/invitations/${invitationId}/revoke`,
+    ORGANIZATION_GRANTABLE_PERMISSIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/grantable-permissions`,
 
     // Members / memberships — kept separate from the invitation flow.
     ORGANIZATION_MEMBERS: (organizationId) => `/admin/organizations/${organizationId}/members`,
@@ -77,8 +79,9 @@ export const API_ROUTES = {
     RESIDENT_VISITOR_PASSCODE: (residentId) => `/admin/residents/${residentId}/visitor-passcode`,
     RESIDENT_VERIFY_PASSCODE: (residentId) => `/admin/residents/${residentId}/verify-passcode`,
 
-    // External people (visitors / contractors) — General Directory.
+    // External people (visitors / contractors / professionals) — General Directory.
     ORGANIZATION_EXTERNAL_PEOPLE: (organizationId) =>
         `/admin/organizations/${organizationId}/external-people`,
     EXTERNAL_PERSON_BY_ID: (externalPersonId) => `/admin/external-people/${externalPersonId}`,
+
 };

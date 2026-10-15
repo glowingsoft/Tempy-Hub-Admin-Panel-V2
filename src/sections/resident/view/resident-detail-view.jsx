@@ -40,8 +40,7 @@ export function ResidentDetailView() {
     const isOwner = pathname.startsWith(paths.owner.root);
     const isLineManager = pathname.startsWith(paths.lineManager.root);
 
-    const { organizationId: currentOrgId } = useCurrentOrganization();
-    const organizationId = isOwner ? currentOrgId : null;
+    const { organizationId } = useCurrentOrganization();
 
     const {
         data: apiResident,
@@ -49,7 +48,7 @@ export function ResidentDetailView() {
         isFetching,
     } = useGetResidentQuery(
         { residentId: id, organizationId },
-        { skip: !isOwner || !id }
+        { skip: !organizationId || !id }
     );
 
     const securityDialog = useBoolean();
@@ -60,7 +59,7 @@ export function ResidentDetailView() {
     const [localResident, setLocalResident] = useState(null);
     const [peepResident, setPeepResident] = useState(() => getResidentPeepById(id));
 
-    const resident = isOwner ? (localResident || apiResident) : (localResident || mockResident);
+    const resident = localResident || apiResident || mockResident;
 
     // This view is mounted under three different dashboards (site manager,
     // line manager, owner) — resolve the right breadcrumb/back links from the
@@ -77,7 +76,7 @@ export function ResidentDetailView() {
         RESIDENT_STATUS_OPTIONS.find((option) => option.value === statusValue);
     const careLevel = RESIDENT_CARE_LEVEL_OPTIONS.find((option) => option.value === resident?.careLevel);
 
-    if (isOwner && (isLoading || isFetching) && !resident) {
+    if ((isLoading || isFetching) && !resident) {
         return (
             <DashboardContent>
                 <Box sx={{ mb: 2 }}>

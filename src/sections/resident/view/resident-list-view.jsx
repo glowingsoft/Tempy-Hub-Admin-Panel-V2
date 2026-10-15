@@ -8,6 +8,7 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { toast } from 'src/components/snackbar';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -29,8 +30,8 @@ import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 import { useBoolean } from 'src/hooks/use-boolean';
 
-import { useGetResidentsQuery } from 'src/store/Reducer/residents-api';
-import { mockResidentsResponse, RESIDENT_STATUS_OPTIONS } from '../mocks/data';
+import { useGetResidentsQuery, useCreateResidentMutation } from 'src/store/Reducer/residents-api';
+import { RESIDENT_STATUS_OPTIONS } from '../mocks/data';
 import { ResidentTableRow } from '../resident-table-row';
 import { ResidentImportDialog } from '../resident-import-dialog';
 import { ResidentSecurityDialog } from '../resident-security-dialog';
@@ -57,8 +58,7 @@ const FILTER_FIELDS = [
 
 export function ResidentListView({ ownerDashboard = false }) {
     const table = useTable({ defaultOrderBy: 'name', defaultOrder: 'asc' });
-    const { organizationId: currentOrgId, user } = useCurrentOrganization();
-    const organizationId = ownerDashboard ? currentOrgId : null;
+    const { organizationId, user } = useCurrentOrganization();
     const { branchId, onBranchChange } = useOwnerBranchFilter();
 
     const importDialog = useBoolean();
@@ -68,12 +68,12 @@ export function ResidentListView({ ownerDashboard = false }) {
     const [selectedResident, setSelectedResident] = useState(null);
     const [selectedResidentForEdit, setSelectedResidentForEdit] = useState(null);
 
-    // Mock state for Site Manager & Line Manager
-    const [residents, setResidents] = useState(mockResidentsResponse.data);
+    const [createResident] = useCreateResidentMutation();
+
     const filters = useSetState({ search: '', status: 'all' });
     const keyword = useDebounce(filters.state.search, 500);
 
-    // API Query for Owner Dashboard
+    // API Query for all roles using the active organization
     const {
         currentData: liveData,
         isLoading: isLiveLoading,
@@ -88,49 +88,47 @@ export function ResidentListView({ ownerDashboard = false }) {
             limit: table.rowsPerPage,
             keyword,
         },
-        { skip: !ownerDashboard || !organizationId }
+        { skip: !organizationId }
     );
 
     const statusFilterField = useMemo(() => FILTER_FIELDS.find((field) => field.type === 'status'), []);
     const toolbarFilterFields = useMemo(() => FILTER_FIELDS.filter((field) => field.type !== 'status'), []);
 
-    // Source residents: Live data for Owner; in-memory mock for site/line manager
-    const sourceResidents = useMemo(() => {
-        if (ownerDashboard) {
-            return liveData?.data ?? [];
-        }
-        return residents.filter((resident) => !organizationId || resident.organizationId === organizationId);
-    }, [liveData?.data, ownerDashboard, organizationId, residents]);
+    // Source residents: Live data from the database
+    const sourceResidents = useMemo(() => liveData?.data ?? [], [liveData?.data]);
 
-    const handleImport = useCallback((rows) => {
-        const defaultBranchId = branchId !== 'all' ? branchId : sourceResidents[0]?.branchId;
-        const importedResidents = rows.map((row, index) => ({
-            _id: `resident-import-${Date.now()}-${index}`,
-            name: row.name,
-            email: row.email,
-            phone: row.phone || '',
-            roomNumber: row.roomNumber,
-            careLevel: ['low', 'medium', 'high'].includes(row.careLevel) ? row.careLevel : 'low',
-            status: ['active', 'inactive'].includes(row.status) ? row.status : 'active',
-            image: '',
-            organizationId,
-            branchId: row.branchId || defaultBranchId,
-            branch: row.branch || '—',
-            securityPassword: `PASS-${Math.floor(1000 + Math.random() * 9000)}`,
-            hasRestrictions: false,
-            approvedCallers: [],
-            restrictionNotes: '',
-        }));
+    const handleImport = useCallback(
+        async (rows) => {
+            const defaultBranchId = branchId !== 'all' ? branchId : undefined;
+            let successCount = 0;
+            for (const row of rows) {
+                try {
+                    await createResident({
+                        organizationId,
+                        name: row.name,
+                        email: row.email,
+                        phone: row.phone || '',
+                        roomNumber: row.roomNumber,
+                        careLevel: ['low', 'medium', 'high'].includes(row.careLevel) ? row.careLevel : 'low',
+                        admissionStatus: ['active', 'admitted'].includes(row.status) ? 'admitted' : 'discharged',
+                        branchId: row.branchId || defaultBranchId,
+                        visitorPasscode: `PASS-${Math.floor(1000 + Math.random() * 9000)}`,
+                    }).unwrap();
+                    successCount += 1;
+                } catch (err) {
+                    console.error('Import resident failed for row:', row, err);
+                }
+            }
+            if (successCount > 0) {
+                toast.success(`Successfully imported ${successCount} resident${successCount > 1 ? 's' : ''}!`);
+                table.onResetPage();
+            }
+        },
+        [branchId, createResident, organizationId, table]
+    );
 
-        setResidents((current) => [...current, ...importedResidents]);
-    }, [branchId, organizationId, sourceResidents]);
-
-    const handleSaveSecurity = useCallback((updatedResident) => {
-        setResidents((current) =>
-            current.map((resident) =>
-                resident._id === updatedResident._id ? updatedResident : resident
-            )
-        );
+    const handleSaveSecurity = useCallback(() => {
+        // Redux RTK Query automatically invalidates tags on visitor passcode update
     }, []);
 
     const handleOpenSecurity = useCallback((resident) => {
@@ -148,26 +146,16 @@ export function ResidentListView({ ownerDashboard = false }) {
         addEditDialog.onTrue();
     }, [addEditDialog]);
 
-    const handleSaveResident = useCallback((residentData) => {
-        if (ownerDashboard) {
-            table.onResetPage();
-            return;
-        }
-        setResidents((current) => {
-            const exists = current.some((r) => r._id === residentData._id);
-            if (exists) {
-                return current.map((r) => (r._id === residentData._id ? residentData : r));
-            }
-            return [residentData, ...current];
-        });
-    }, [ownerDashboard, table]);
+    const handleSaveResident = useCallback(() => {
+        table.onResetPage();
+    }, [table]);
 
     const filteredResidents = useMemo(() => {
         const search = keyword.trim().toLowerCase();
         return sourceResidents
             .filter((resident) => {
                 const resBranchId = resident.branchId || resident.branch?._id;
-                const matchesBranch = !ownerDashboard || branchId === 'all' || resBranchId === branchId;
+                const matchesBranch = branchId === 'all' || resBranchId === branchId;
                 const resStatus = resident.admissionStatus || resident.status;
                 const matchesStatus =
                     filters.state.status === 'all' ||
@@ -186,13 +174,13 @@ export function ResidentListView({ ownerDashboard = false }) {
                 return matchesBranch && matchesStatus && matchesSearch;
             })
             .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    }, [branchId, filters.state.status, keyword, ownerDashboard, sourceResidents]);
+    }, [branchId, filters.state.status, keyword, sourceResidents]);
 
     const getStatusCount = useCallback(
         (status) => {
             const list = sourceResidents.filter((resident) => {
                 const resBranchId = resident.branchId || resident.branch?._id;
-                return !ownerDashboard || branchId === 'all' || resBranchId === branchId;
+                return branchId === 'all' || resBranchId === branchId;
             });
             if (status === 'all') return list.length;
             return list.filter((resident) => {
@@ -204,19 +192,14 @@ export function ResidentListView({ ownerDashboard = false }) {
                 );
             }).length;
         },
-        [branchId, ownerDashboard, sourceResidents]
+        [branchId, sourceResidents]
     );
 
-    const displayResidents = useMemo(() => {
-        if (ownerDashboard) return filteredResidents;
-        const start = table.page * table.rowsPerPage;
-        return filteredResidents.slice(start, start + table.rowsPerPage);
-    }, [filteredResidents, ownerDashboard, table.page, table.rowsPerPage]);
+    const displayResidents = filteredResidents;
 
-    const totalRecords =
-        ownerDashboard && Number.isFinite(liveData?.meta?.totalRecords)
-            ? liveData.meta.totalRecords
-            : filteredResidents.length;
+    const totalRecords = Number.isFinite(liveData?.meta?.totalRecords)
+        ? liveData.meta.totalRecords
+        : filteredResidents.length;
 
     const notFound = !isLiveLoading && !isLiveFetching && displayResidents.length === 0;
 
@@ -247,7 +230,7 @@ export function ResidentListView({ ownerDashboard = false }) {
                 ]}
                 action={
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                        {ownerDashboard && <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />}
+                        <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />
                         <Button variant="outlined" onClick={importDialog.onTrue} startIcon={<Iconify icon="solar:upload-bold" />}>
                             Import CSV
                         </Button>
@@ -260,7 +243,7 @@ export function ResidentListView({ ownerDashboard = false }) {
             />
 
             <Card>
-                {ownerDashboard && isLiveError && (
+                {isLiveError && (
                     <Alert severity="error" sx={{ m: 2 }}>
                         {liveError?.data?.message || liveError?.error || 'Failed to load residents.'}
                     </Alert>
@@ -274,7 +257,7 @@ export function ResidentListView({ ownerDashboard = false }) {
                         <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 980 }}>
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
                             <TableBody>
-                                {ownerDashboard && (isLiveLoading || isLiveFetching) ? (
+                                {(isLiveLoading || isLiveFetching) ? (
                                     [...Array(table.rowsPerPage)].map((_, index) => (
                                         <TableSkeleton key={index} />
                                     ))

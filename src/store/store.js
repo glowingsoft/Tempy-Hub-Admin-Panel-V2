@@ -78,6 +78,7 @@ export const store = configureStore({
     [residentsApi.reducerPath]: residentsApi.reducer,
     [attendanceApi.reducerPath]: attendanceApi.reducer,
     [generalDirectoryApi.reducerPath]: generalDirectoryApi.reducer,
+
     user: persistedUserReducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -101,7 +102,8 @@ export const store = configureStore({
       leaveRequestsApi.middleware,
       residentsApi.middleware,
       attendanceApi.middleware,
-      generalDirectoryApi.middleware
+      generalDirectoryApi.middleware,
+
     ),
 });
 
