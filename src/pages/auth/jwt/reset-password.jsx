@@ -6,7 +6,7 @@ import { JwtResetPasswordView } from 'src/sections/auth/jwt';
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Reset password | Jwt - ${CONFIG.site.name}` };
+const metadata = { title: `Reset password | ${CONFIG.site.name}` };
 
 export default function Page() {
   return (

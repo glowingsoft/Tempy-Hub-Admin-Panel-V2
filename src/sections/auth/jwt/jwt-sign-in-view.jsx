@@ -24,9 +24,9 @@ import { Iconify } from 'src/components/iconify';
 import { useDispatch } from 'react-redux';
 import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
-import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
 import { AppSurface } from 'src/auth/constants';
+import { getPasswordResetHref } from './password-reset-flow';
 
 // ----------------------------------------------------------------------
 
@@ -92,7 +92,13 @@ const mockLogin = async (payload) => {
 
 // ----------------------------------------------------------------------
 
-export function JwtSignInView() {
+export function JwtSignInView({
+  surface = AppSurface.MANAGER_APP,
+  forgotReturnPath = '/',
+  title = 'Sign in to your account',
+  defaultEmail = 'linemanager@tempy.com',
+  defaultPassword = '123456',
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
@@ -106,8 +112,8 @@ export function JwtSignInView() {
   const queryEmail = searchParams.get('email') || '';
 
   const defaultValues = {
-    email: queryEmail || 'linemanager@tempy.com',
-    password: queryEmail ? '' : '123456',
+    email: queryEmail || defaultEmail,
+    password: queryEmail ? '' : defaultPassword,
   };
 
   const methods = useForm({
@@ -120,6 +126,8 @@ export function JwtSignInView() {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  const forgotPasswordHref = getPasswordResetHref(forgotReturnPath);
 
   const goTo = (permission) => {
     switch (permission) {
@@ -154,7 +162,7 @@ export function JwtSignInView() {
       userType: data.email.includes('admin') ? 'admin' : 'user',
       deviceType: deviceType || 'desktop',
       deviceId: '123',
-      surface: AppSurface.MANAGER_APP,
+      surface,
     };
 
     try {
@@ -191,7 +199,7 @@ export function JwtSignInView() {
 
       let user_type =
         ((user?.basicInfo?.email === "sitemanager@tempy.com" && 2) ||
-        (user?.basicInfo?.email === "linemanager@tempy.com" && 3));
+          (user?.basicInfo?.email === "linemanager@tempy.com" && 3));
 
       if (!user_type) {
         const role =
@@ -244,17 +252,7 @@ export function JwtSignInView() {
 
   const renderHead = (
     <Stack spacing={1.5} sx={{ mb: 5 }}>
-      <Typography variant="h5">Sign in to your account</Typography>
-
-      <Stack direction="row" spacing={0.5}>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {`Don't have an account?`}
-        </Typography>
-
-        <Link component={RouterLink} href={paths.auth.jwt.signUp} variant="subtitle2">
-          Get started
-        </Link>
-      </Stack>
+      <Typography variant="h5">{title}</Typography>
     </Stack>
   );
 
@@ -280,7 +278,13 @@ export function JwtSignInView() {
           }}
         />
 
-        <Link component={RouterLink} href="#" variant="body2" color="inherit" sx={{ alignSelf: 'flex-end' }}>
+        <Link
+          component={RouterLink}
+          href={forgotPasswordHref}
+          variant="body2"
+          color="inherit"
+          sx={{ alignSelf: 'flex-end' }}
+        >
           Forgot password?
         </Link>
       </Stack>

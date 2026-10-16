@@ -8,8 +8,11 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import Alert from '@mui/material/Alert';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+
+import { RouterLink } from 'src/routes/components';
 
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
@@ -25,6 +28,7 @@ import { setUser } from 'src/store/slices/userSlice';
 import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
 import { AppSurface } from 'src/auth/constants';
+import { getPasswordResetHref } from '../jwt/password-reset-flow';
 
 // ----------------------------------------------------------------------
 
@@ -72,6 +76,8 @@ export function OwnerSignInView() {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  const forgotPasswordHref = getPasswordResetHref(paths.auth.owner.signIn);
 
   const isButtonLoading = isSubmitting || isLoginLoading;
 
@@ -190,6 +196,16 @@ export function OwnerSignInView() {
             ),
           }}
         />
+
+        <Link
+          component={RouterLink}
+          href={forgotPasswordHref}
+          variant="body2"
+          color="inherit"
+          sx={{ alignSelf: 'flex-end', fontSize: '1rem' }}
+        >
+          Forgot password?
+        </Link>
       </Stack>
 
       <LoadingButton

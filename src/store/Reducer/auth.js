@@ -72,6 +72,33 @@ export const authApi = createApi({
       }),
       transformResponse: (res) => res?.data ?? res,
     }),
+
+    resendOtpEmail: builder.mutation({
+      query: ({ email }) => ({
+        url: API_ROUTES.AUTH.RESEND_OTP_EMAIL,
+        method: "POST",
+        body: { email },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+    }),
+
+    verifyOtpEmail: builder.mutation({
+      query: ({ email, otp }) => ({
+        url: API_ROUTES.AUTH.VERIFY_OTP_EMAIL,
+        method: "POST",
+        body: { email, otp },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+    }),
+
+    resetPassword: builder.mutation({
+      query: ({ email, newPassword, resetToken }) => ({
+        url: API_ROUTES.AUTH.RESET_PASSWORD,
+        method: "POST",
+        body: { email, newPassword, resetToken },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+    }),
   }),
 });
 
@@ -80,4 +107,7 @@ export const {
   useAdminLoginMutation,
   useGetInvitationByTokenQuery,
   useAcceptInvitationMutation,
+  useResendOtpEmailMutation,
+  useVerifyOtpEmailMutation,
+  useResetPasswordMutation,
 } = authApi;

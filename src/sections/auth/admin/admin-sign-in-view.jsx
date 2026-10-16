@@ -8,11 +8,9 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import Alert from '@mui/material/Alert';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
-import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { RouterLink } from 'src/routes/components';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
@@ -195,16 +193,6 @@ export function AdminSignInView() {
       <Typography variant="h5" sx={{ fontSize: '1.65rem', fontWeight: 700, lineHeight: 1.2 }}>
         Sign in to your account
       </Typography>
-
-      <Stack direction="row" spacing={0.5} alignItems="center">
-        <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
-          {`Don't have an account?`}
-        </Typography>
-
-        <Link component={RouterLink} href={paths.auth.jwt.signUp} variant="subtitle2" sx={{ fontSize: '1rem' }}>
-          Get started
-        </Link>
-      </Stack>
     </Stack>
   );
 
@@ -237,16 +225,6 @@ export function AdminSignInView() {
             ),
           }}
         />
-
-        <Link
-          component={RouterLink}
-          href="#"
-          variant="body2"
-          color="inherit"
-          sx={{ alignSelf: 'flex-end', fontSize: '1rem' }}
-        >
-          Forgot password?
-        </Link>
       </Stack>
 
       <LoadingButton

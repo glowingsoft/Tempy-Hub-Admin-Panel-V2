@@ -29,11 +29,12 @@ export function AuthSplitLayout({ sx, section, hideSection=false, children }) {
           layoutQuery={layoutQuery}
           logoWidth={64}
           logoHeight={52}
-          reloadLogoOnClick
           onOpenNav={mobileNavOpen.onTrue}
           slotsDisplay={{
             signIn: false,
             account: false,
+            helpLink: false,
+            settings: false,
             purchase: false,
             contacts: false,
             searchbar: false,

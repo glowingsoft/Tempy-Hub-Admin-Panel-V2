@@ -19,7 +19,21 @@ export function RHFCode({ name, ...other }) {
             autoFocus
             gap={1.5}
             length={6}
-            TextFieldsProps={{ error: !!error, placeholder: '-' }}
+            value={field.value || ''}
+            onChange={(value) => field.onChange(String(value || '').replace(/\D/g, '').slice(0, 6))}
+            validateChar={(character) => /^\d$/.test(character)}
+            TextFieldsProps={{
+              error: !!error,
+              placeholder: '-',
+              type: 'tel',
+              inputMode: 'numeric',
+              inputProps: {
+                inputMode: 'numeric',
+                pattern: '[0-9]*',
+                maxLength: 1,
+                autoComplete: 'one-time-code',
+              },
+            }}
             {...other}
           />
 

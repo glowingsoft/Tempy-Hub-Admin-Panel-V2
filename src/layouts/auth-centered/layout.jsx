@@ -29,6 +29,8 @@ export function AuthCenteredLayout({ sx, children }) {
           slotsDisplay={{
             signIn: false,
             account: false,
+            helpLink: false,
+            settings: false,
             purchase: false,
             contacts: false,
             searchbar: false,

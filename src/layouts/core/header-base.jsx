@@ -57,7 +57,7 @@ export function HeaderBase({
   layoutQuery,
   logoWidth = 40,
   logoHeight = 40,
-  reloadLogoOnClick = false,
+  disableLogoLink = false,
 
   slotsDisplay: {
     signIn = true,
@@ -104,16 +104,10 @@ export function HeaderBase({
             {/* -- Logo -- */}
             <Logo
               data-slot="logo"
+              href="/"
               width={logoWidth}
               height={logoHeight}
-              onClick={
-                reloadLogoOnClick
-                  ? (event) => {
-                    event.preventDefault();
-                    window.location.reload();
-                  }
-                  : undefined
-              }
+              disableLink={disableLogoLink}
             />
 
             {/* -- Divider -- */}

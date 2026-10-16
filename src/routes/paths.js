@@ -81,6 +81,7 @@ export const paths = {
       signIn: `${ROOTS.AUTH}/jwt/sign-in`,
       signUp: `${ROOTS.AUTH}/jwt/sign-up`,
       resetPassword: `${ROOTS.AUTH}/jwt/reset-password`,
+      verify: `${ROOTS.AUTH}/jwt/verify`,
       updatePassword: `${ROOTS.AUTH}/jwt/update-password`,
     },
     firebase: {

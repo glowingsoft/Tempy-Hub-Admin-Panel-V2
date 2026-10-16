@@ -2,6 +2,9 @@ export const API_ROUTES = {
     AUTH: {
         LOGIN: '/auth/login',
         ADMIN_LOGIN: 'admin/login',
+        RESEND_OTP_EMAIL: '/auth/resend-otp/email',
+        VERIFY_OTP_EMAIL: '/auth/verify-otp/email',
+        RESET_PASSWORD: '/auth/reset-password',
         INVITATION_BY_TOKEN: (token) => `/auth/invitations/${token}`,
         ACCEPT_INVITATION: (token) => `/auth/invitations/${token}/accept`,
     },

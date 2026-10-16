@@ -1,5 +1,5 @@
 import { z as zod } from 'zod';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -15,11 +15,19 @@ import { RouterLink } from 'src/routes/components';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { useBoolean } from 'src/hooks/use-boolean';
-import { NewPasswordIcon } from 'src/assets/icons';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
+import { useResetPasswordMutation } from 'src/store/Reducer/auth';
+
+import {
+  clearPasswordResetFlow,
+  getPasswordResetEmail,
+  getPasswordResetReturnPath,
+  getPasswordResetToken,
+  isPasswordResetOtpVerified,
+} from './password-reset-flow';
 
 // ----------------------------------------------------------------------
 
@@ -30,13 +38,17 @@ export const createUpdatePasswordSchema = (showNameField = false) =>
         ? { name: zod.string().min(1, { message: 'Name is required!' }) }
         : {}),
       password: zod
-        .string()
-        .min(1, { message: 'Password is required!' })
-        .min(6, { message: 'Password must be at least 6 characters!' }),
-      confirmPassword: zod.string().min(1, { message: 'Please confirm your password!' }),
+        .string({ required_error: 'Password is required' })
+        .trim()
+        .min(1, { message: 'Password is required' })
+        .min(6, { message: 'Password must be at least 6 characters' })
+        .max(72, { message: 'Password must be 72 characters or fewer' }),
+      confirmPassword: zod
+        .string({ required_error: 'Please confirm your password' })
+        .min(1, { message: 'Please confirm your password' }),
     })
     .refine((data) => data.password === data.confirmPassword, {
-      message: 'Passwords do not match!',
+      message: 'Passwords do not match',
       path: ['confirmPassword'],
     });
 
@@ -63,7 +75,23 @@ export function JwtUpdatePasswordView({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const queryEmail = emailValue || searchParams.get('email') || '';
+  const queryEmail = emailValue || searchParams.get('email') || getPasswordResetEmail();
+
+  useEffect(() => {
+    if (onSubmitCustom) {
+      return;
+    }
+
+    if (!queryEmail) {
+      router.replace(paths.auth.jwt.resetPassword);
+      return;
+    }
+
+    if (!isPasswordResetOtpVerified(queryEmail)) {
+      const search = new URLSearchParams({ email: queryEmail }).toString();
+      router.replace(`${paths.auth.jwt.verify}?${search}`);
+    }
+  }, [onSubmitCustom, queryEmail, router]);
 
   const passwordVisibility = useBoolean();
   const confirmPasswordVisibility = useBoolean();
@@ -90,40 +118,46 @@ export function JwtUpdatePasswordView({
     formState: { isSubmitting },
   } = methods;
 
-  const isButtonLoading = isLoading || isSubmitting;
+  const [resetPassword, { isLoading: isResettingPassword }] = useResetPasswordMutation();
+
+  const isButtonLoading = isLoading || isSubmitting || isResettingPassword;
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       if (onSubmitCustom) {
         await onSubmitCustom(data);
-      } else {
-        // Default standalone simulation if no custom handler provided
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        toast.success('Password updated successfully!');
-        router.push(paths.auth.jwt.signIn);
+        return;
       }
+
+      const resetToken = getPasswordResetToken();
+
+      if (!queryEmail || !resetToken) {
+        toast.error('Your reset session expired. Please verify the code again.');
+        router.replace(`${paths.auth.jwt.verify}?email=${encodeURIComponent(queryEmail || '')}`);
+        return;
+      }
+
+      await resetPassword({
+        email: queryEmail.trim().toLowerCase(),
+        newPassword: data.password,
+        resetToken,
+      }).unwrap();
+
+      const returnPath = getPasswordResetReturnPath('/');
+      clearPasswordResetFlow();
+      toast.success('Password has been reset');
+      router.push(returnPath);
     } catch (error) {
       console.error('Update password error:', error);
-      const msg =
-        error?.data?.message ||
-        error?.data?.msg ||
-        error?.error ||
-        error?.message ||
-        'Failed to update password. Please try again.';
-      toast.error(msg);
     }
   });
 
   const renderHead = (
     <>
-      {headerIcon !== undefined ? (
-        headerIcon
-      ) : (
-        <NewPasswordIcon sx={{ mx: 'auto' }} />
-      )}
+      {headerIcon}
 
       {headerContent || (
-        <Stack spacing={1} sx={{ mt: 3, mb: 4, textAlign: 'center', whiteSpace: 'pre-line' }}>
+        <Stack spacing={1} sx={{ mb: 5, whiteSpace: 'pre-line' }}>
           <Typography variant="h5">{title}</Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -225,7 +259,7 @@ export function JwtUpdatePasswordView({
       ) : (
         <Link
           component={RouterLink}
-          href={backLink?.href || paths.auth.jwt.signIn}
+          href={backLink?.href || getPasswordResetReturnPath('/')}
           color="inherit"
           variant="subtitle2"
           sx={{ mx: 'auto', alignItems: 'center', display: 'inline-flex' }}

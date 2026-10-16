@@ -8,8 +8,11 @@ import Alert from '@mui/material/Alert';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
 import LoadingButton from '@mui/lab/LoadingButton';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+
+import { RouterLink } from 'src/routes/components';
 
 import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
@@ -20,6 +23,7 @@ import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { getDeviceType } from 'src/utils/getDeviceType';
 import { AppSurface } from 'src/auth/constants';
+import { getPasswordResetHref } from '../jwt/password-reset-flow';
 
 const STAFF_PERMISSION = 5;
 
@@ -50,6 +54,8 @@ export function StaffSignInView() {
     resolver: zodResolver(SignInSchema),
     defaultValues: { email: 'john.williams@example.com', password: '123456' },
   });
+
+  const forgotPasswordHref = getPasswordResetHref(paths.auth.staff.signIn);
 
   const onSubmit = methods.handleSubmit(async (data) => {
     const deviceType = getDeviceType();
@@ -124,6 +130,15 @@ export function StaffSignInView() {
               ),
             }}
           />
+          <Link
+            component={RouterLink}
+            href={forgotPasswordHref}
+            variant="body2"
+            color="inherit"
+            sx={{ alignSelf: 'flex-end', fontSize: '1rem' }}
+          >
+            Forgot password?
+          </Link>
           <LoadingButton
             fullWidth
             size="large"

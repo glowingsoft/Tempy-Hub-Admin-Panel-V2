@@ -1,64 +1,84 @@
-export function handleApiError(error) {
-  if (!error) return 'Unknown error occurred.';
-
-  // 1. Nested error object message: e.g. { message: "...", error: { message: "keywordOr is not defined" } }
-  if (error?.data?.error?.message && typeof error.data.error.message === 'string') {
-    return error.data.error.message;
+function asText(value) {
+  if (typeof value !== 'string') {
+    return '';
   }
 
-  // 2. Nested error string: e.g. { message: "...", error: "keywordOr is not defined" }
-  if (typeof error?.data?.error === 'string') {
-    return error.data.error;
+  const text = value.trim();
+  if (!text) {
+    return '';
   }
 
-  // 3. Top-level message: e.g. { message: "Some thing went wrong" }
-  if (error?.data?.message && typeof error.data.message === 'string') {
-    return error.data.message;
+  if (text.includes('\n')) {
+    return text.split('\n')[0].replace(/^AppError:\s*/i, '').trim();
   }
 
-  // 4. Top-level msg: e.g. { msg: "Some thing went wrong" }
-  if (error?.data?.msg && typeof error.data.msg === 'string') {
-    return error.data.msg;
-  }
-
-  // 5. Validation errors array: e.g. { errors: [{ message: "..." }] }
-  if (Array.isArray(error?.data?.errors) && error.data.errors.length > 0) {
-    return error.data.errors
-      .map((item) => (typeof item === 'object' ? item.message || item.msg || JSON.stringify(item) : item))
-      .filter(Boolean)
-      .join(', ');
-  }
-
-  // 6. Validation errors object: e.g. { errors: { email: "Required" } }
-  if (error?.data?.errors && typeof error.data.errors === 'object') {
-    const errorValues = Object.values(error.data.errors);
-    if (errorValues.length > 0) {
-      return errorValues.join(', ');
-    }
-  }
-
-  // 7. Status-based standard fallbacks
-  if (error.status === 401) {
-    return 'Unauthorized. Please login again.';
-  }
-  if (error.status === 404) {
-    return 'Resource not found.';
-  }
-  if (error.status === 500) {
-    return 'Internal server error. Please try again.';
-  }
-
-  // 8. General error string fallbacks
-  if (typeof error?.error === 'string') {
-    return error.error;
-  }
-  if (typeof error?.message === 'string') {
-    return error.message;
-  }
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  return 'An error occurred. Please try again.';
+  return text;
 }
 
+function isCodeLike(text) {
+  if (!text) {
+    return true;
+  }
+
+  return /^[a-zA-Z][a-zA-Z0-9]*(_[a-zA-Z0-9]+)+$/.test(text);
+}
+
+function flattenValidationErrors(errors) {
+  if (!errors) {
+    return [];
+  }
+
+  if (typeof errors === 'string') {
+    return [errors];
+  }
+
+  if (Array.isArray(errors)) {
+    return errors.flatMap((item) => {
+      if (typeof item === 'string') {
+        return [item];
+      }
+      if (item && typeof item === 'object') {
+        return [item.message, item.msg, item.detail].filter((value) => typeof value === 'string');
+      }
+      return [];
+    });
+  }
+
+  if (typeof errors === 'object') {
+    return Object.values(errors).flatMap((value) => flattenValidationErrors(value));
+  }
+
+  return [];
+}
+
+function collectBackendMessages(error) {
+  const data = error?.data ?? error?.response?.data ?? error?.body ?? error;
+
+  const candidates = [
+    data?.message,
+    data?.msg,
+    data?.errorMessage,
+    data?.error_message,
+    data?.detail,
+    typeof data?.error === 'string' ? data.error : undefined,
+    ...flattenValidationErrors(data?.errors),
+    data?.data?.message,
+    data?.data?.msg,
+    typeof data?.error?.message === 'string' ? data.error.message : undefined,
+    typeof error?.error === 'string' ? error.error : undefined,
+    typeof error?.message === 'string' ? error.message : undefined,
+  ];
+
+  return candidates.map(asText).filter(Boolean);
+}
+
+export function handleApiError(error) {
+  if (!error) {
+    return '';
+  }
+
+  const messages = collectBackendMessages(error);
+  const readable = messages.find((message) => !isCodeLike(message));
+
+  return readable || messages[0] || '';
+}

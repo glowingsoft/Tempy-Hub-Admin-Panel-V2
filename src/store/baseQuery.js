@@ -21,7 +21,7 @@ export const createCustomFetchBaseQuery = () => {
 
     if (result.error) {
       const message = handleApiError(result.error);
-      console.error('API Error:', message);
+      console.error('API Error:', message || result.error);
 
       const { status } = result.error;
 
@@ -43,7 +43,7 @@ export const createCustomFetchBaseQuery = () => {
         }
       }
 
-      if (!extraOptions?.disableToast) {
+      if (message && !extraOptions?.disableToast) {
         toast.apiError(message);
       }
     }

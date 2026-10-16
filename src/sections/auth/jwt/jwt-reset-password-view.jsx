@@ -1,39 +1,52 @@
-import { z as zod } from 'zod';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { z as zod } from 'zod';
 
+import LoadingButton from '@mui/lab/LoadingButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 
-import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { useRouter } from 'src/routes/hooks';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { PasswordIcon } from 'src/assets/icons';
+import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
-import { Form, Field } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
+import { useResendOtpEmailMutation } from 'src/store/Reducer/auth';
+
+import { strictEmailSchema } from './auth-validation';
+import {
+  getPasswordResetReturnPath,
+  rememberGeneratedOtp,
+  rememberPasswordResetReturnPath,
+  startPasswordReset,
+  startResendCooldown,
+} from './password-reset-flow';
 
 // ----------------------------------------------------------------------
 
 export const ResetPasswordSchema = zod.object({
-  email: zod
-    .string()
-    .min(1, { message: 'Email is required!' })
-    .email({ message: 'Email must be a valid email address!' }),
+  email: strictEmailSchema,
 });
 
 // ----------------------------------------------------------------------
 
 export function JwtResetPasswordView({
   title = 'Forgot your password?',
-  description = "Please enter the email address associated with your account and we'll send you instructions to reset your password.",
+  description = "Please enter the email address associated with your account and we'll send you a 6-digit code to reset your password.",
   onSuccess,
-  signInPath = paths.auth.jwt.signIn,
+  signInPath = '/',
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnToParam = searchParams.get('returnTo');
+  const returnPath = getPasswordResetReturnPath(returnToParam || signInPath);
+
+  useEffect(() => {
+    rememberPasswordResetReturnPath(returnToParam || returnPath);
+  }, [returnPath, returnToParam]);
 
   const defaultValues = {
     email: '',
@@ -49,34 +62,34 @@ export function JwtResetPasswordView({
     formState: { isSubmitting },
   } = methods;
 
+  const [resendOtpEmail, { isLoading: isSendingOtp }] = useResendOtpEmailMutation();
+
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      toast.success('Password reset instructions sent to your email.');
+      const email = data.email.trim().toLowerCase();
+      const response = await resendOtpEmail({ email }).unwrap();
+      rememberGeneratedOtp(email, response?.otp);
+      startResendCooldown();
+      toast.success('A 6-digit code has been sent to your email.');
       if (onSuccess) {
         onSuccess(data);
-      } else if (paths.auth.jwt.updatePassword) {
-        const searchParams = new URLSearchParams({ email: data.email }).toString();
-        router.push(`${paths.auth.jwt.updatePassword}?${searchParams}`);
+        return;
       }
+
+      router.push(startPasswordReset(email));
     } catch (error) {
       console.error(error);
-      toast.error('Failed to send reset email.');
     }
   });
 
   const renderHead = (
-    <>
-      <PasswordIcon sx={{ mx: 'auto' }} />
+    <Stack spacing={1} sx={{ mb: 5, whiteSpace: 'pre-line' }}>
+      <Typography variant="h5">{title}</Typography>
 
-      <Stack spacing={1} sx={{ mt: 3, mb: 4, textAlign: 'center', whiteSpace: 'pre-line' }}>
-        <Typography variant="h5">{title}</Typography>
-
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {description}
-        </Typography>
-      </Stack>
-    </>
+      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        {description}
+      </Typography>
+    </Stack>
   );
 
   const renderForm = (
@@ -85,8 +98,15 @@ export function JwtResetPasswordView({
         autoFocus
         name="email"
         label="Email address"
-        placeholder="example@gmail.com"
+        placeholder="name@example.com"
+        type="email"
+        inputProps={{ autoComplete: 'email', inputMode: 'email', spellCheck: false }}
         InputLabelProps={{ shrink: true }}
+        onKeyDown={(event) => {
+          if (event.key === ' ') {
+            event.preventDefault();
+          }
+        }}
       />
 
       <LoadingButton
@@ -94,7 +114,7 @@ export function JwtResetPasswordView({
         size="large"
         type="submit"
         variant="contained"
-        loading={isSubmitting}
+        loading={isSubmitting || isSendingOtp}
         loadingIndicator="Sending..."
       >
         Send request
@@ -102,7 +122,7 @@ export function JwtResetPasswordView({
 
       <Link
         component={RouterLink}
-        href={signInPath}
+        href={returnPath}
         color="inherit"
         variant="subtitle2"
         sx={{ mx: 'auto', alignItems: 'center', display: 'inline-flex' }}

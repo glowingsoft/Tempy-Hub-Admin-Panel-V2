@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 
 import { AuthSplitLayout } from 'src/layouts/auth-split';
-import { AuthCenteredLayout } from 'src/layouts/auth-centered';
 
 import { SplashScreen } from 'src/components/loading-screen';
 
@@ -17,6 +16,7 @@ const Jwt = {
   SignInPage: lazy(() => import('src/pages/auth/jwt/sign-in')),
   SignUpPage: lazy(() => import('src/pages/auth/jwt/sign-up')),
   ResetPasswordPage: lazy(() => import('src/pages/auth/jwt/reset-password')),
+  VerifyPage: lazy(() => import('src/pages/auth/jwt/verify')),
   UpdatePasswordPage: lazy(() => import('src/pages/auth/jwt/update-password')),
 };
 
@@ -51,17 +51,40 @@ const authJwt = {
     {
       path: 'reset-password',
       element: (
-        <AuthCenteredLayout>
+        <AuthSplitLayout
+          section={{
+            title: 'Manager Portal',
+            subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+          }}
+        >
           <Jwt.ResetPasswordPage />
-        </AuthCenteredLayout>
+        </AuthSplitLayout>
+      ),
+    },
+    {
+      path: 'verify',
+      element: (
+        <AuthSplitLayout
+          section={{
+            title: 'Manager Portal',
+            subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+          }}
+        >
+          <Jwt.VerifyPage />
+        </AuthSplitLayout>
       ),
     },
     {
       path: 'update-password',
       element: (
-        <AuthCenteredLayout>
+        <AuthSplitLayout
+          section={{
+            title: 'Manager Portal',
+            subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+          }}
+        >
           <Jwt.UpdatePasswordPage />
-        </AuthCenteredLayout>
+        </AuthSplitLayout>
       ),
     },
   ],

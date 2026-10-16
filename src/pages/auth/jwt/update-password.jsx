@@ -6,7 +6,7 @@ import { JwtUpdatePasswordView } from 'src/sections/auth/jwt';
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Update password | Jwt - ${CONFIG.site.name}` };
+const metadata = { title: `Update password | ${CONFIG.site.name}` };
 
 export default function Page() {
   return (

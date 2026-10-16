@@ -1,24 +1,12 @@
 import { toast } from 'src/components/snackbar';
+import { handleApiError as extractBackendError } from 'src/store/handleApiError';
 
-export const extractErrorMessage = (error) => {
-    if (!error) return 'An unexpected error occurred';
-
-    const possibleErrorPaths = [
-        error?.data?.message,
-        error?.data?.msg,
-        error?.message,
-        error?.msg,
-        error?.error,
-    ];
-
-    return (
-        possibleErrorPaths.find((msg) => typeof msg === 'string') ||
-        'An unexpected error occurred'
-    );
-};
+export const extractErrorMessage = (error) => extractBackendError(error);
 
 export const handleApiError = (error) => {
     const message = extractErrorMessage(error);
-    toast.apiError(message);
+    if (message) {
+        toast.apiError(message);
+    }
     console.error('API Error:', error);
 };
