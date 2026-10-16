@@ -17,6 +17,12 @@ const StaffDocumentDetailPage = lazy(() => import('src/pages/staff/documents/det
 // rota — shared page, same as Site Manager / Line Manager.
 // TODO: scope RotaView to the signed-in staff member's own shifts.
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
+const UserAccountPage = lazy(() => import('src/pages/dashboard/user/account'));
+const CommunityWallPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/community-wall'));
+const StaffPhotoUploadsPage = lazy(() => import('src/pages/staff/family-engagement/photo-uploads'));
+const StaffMyResidentsPage = lazy(() => import('src/pages/staff/family-engagement/my-residents'));
+const StaffMyResidentDetailPage = lazy(() => import('src/pages/staff/family-engagement/my-resident-detail'));
+const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
 
 const layoutContent = (
   <DashboardLayout>
@@ -36,6 +42,18 @@ export const staffDashboardRoutes = [
     ),
     children: [
       { path: 'dashboard', element: <StaffDashboardPage /> },
+      { path: 'account', element: <UserAccountPage /> },
+      { path: 'profile', element: <UserAccountPage /> },
+      {
+        path: 'family-engagement',
+        children: [
+          { path: 'my-residents', element: <StaffMyResidentsPage /> },
+          { path: 'my-residents/:id', element: <StaffMyResidentDetailPage /> },
+          { path: 'photo-uploads', element: <StaffPhotoUploadsPage /> },
+          { path: 'community-wall', element: <CommunityWallPage /> },
+          { path: 'gazettes', element: <GazettesPage /> },
+        ],
+      },
       { path: 'attendance', element: <StaffAttendancePage /> },
       { path: 'leave-requests', element: <StaffLeaveRequestsPage /> },
       { path: 'shifts', element: <StaffShiftsPage /> },

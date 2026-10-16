@@ -78,7 +78,7 @@ export function GazettesView() {
   const familyPaths = useFamilyEngagementPaths();
 
   const [tableData, setTableData] = useState(mockGazettesData.residents);
-  const [activeResident, setActiveResident] = useState(mockGazettesData.residents[0]);
+  const [activeResident, setActiveResident] = useState(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
 
   // Filters using project's useSetState (matches Uploaded Photos)

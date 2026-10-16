@@ -67,7 +67,7 @@ const CommunityWallPage = lazy(() => import('src/pages/dashboard/active-routes/f
 const NewslettersPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/newsletters'));
 const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
 const FamilyGroupsPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/family-groups'));
-const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/active-routes/documents/acknowledgements'));
+const UserAccountPage = lazy(() => import('src/pages/dashboard/user/account'));
 
 // ----------------------------------------------------------------------
 
@@ -137,8 +137,8 @@ export const lineManagerDashboardRoutes = [
                     { path: 'family-groups', element: <FamilyGroupsPage /> },
                 ],
             },
-            { path: "documents/:id/acknowledgements", element: <DocumentAcknowledgementsPage /> },
-
+            { path: 'account', element: <UserAccountPage /> },
+            { path: 'profile', element: <UserAccountPage /> },
         ]
     }
 

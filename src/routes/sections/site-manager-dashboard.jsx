@@ -243,7 +243,8 @@ export const siteManagerDashboardRoutes = [
       { path: 'banking', element: <OverviewBankingPage /> },
       { path: 'booking', element: <OverviewBookingPage /> },
       { path: 'file', element: <OverviewFilePage /> },
-      { path: 'course', element: <OverviewCoursePage /> },
+      { path: 'account', element: <UserAccountPage /> },
+      { path: 'profile', element: <UserAccountPage /> },
       {
         path: 'user',
         children: [

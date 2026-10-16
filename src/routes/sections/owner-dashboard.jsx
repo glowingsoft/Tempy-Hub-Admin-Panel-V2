@@ -67,6 +67,7 @@ const SiteDetailPage = lazy(() => import('src/pages/owner-dashboard/peep-and-flo
 const TempyConnectionPage = lazy(() => import('src/pages/dashboard/active-routes/tempy-connection'));
 const DataUsagePage = lazy(() => import('src/pages/dashboard/active-routes/data-usage'));
 const DataUsageDetailPage = lazy(() => import('src/pages/dashboard/active-routes/data-usage/detail'));
+const UserAccountPage = lazy(() => import('src/pages/dashboard/user/account'));
 
 // family engagement
 const FamilyOverviewPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/overview'));
@@ -284,6 +285,8 @@ export const ownerDashboardRoutes = [
           { path: 'family-groups', element: <FamilyGroupsPage /> },
         ],
       },
+      { path: 'account', element: <UserAccountPage /> },
+      { path: 'profile', element: <UserAccountPage /> },
     ],
   },
 ];

@@ -84,19 +84,7 @@ export function GazetteTableRow({
         onSelectRow?.(row);
         onPreview?.(row);
       }}
-      sx={{
-        cursor: 'pointer',
-        bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
-        borderLeft: isSelected ? `4px solid ${theme.palette.primary.main}` : '4px solid transparent',
-        transition: theme.transitions.create(['background-color', 'border-color'], {
-          duration: theme.transitions.duration.shorter,
-        }),
-        '&:hover': {
-          bgcolor: isSelected
-            ? alpha(theme.palette.primary.main, 0.12)
-            : alpha(theme.palette.action.hover, 0.6),
-        },
-      }}
+      sx={{ cursor: 'pointer' }}
     >
       {/* Sr# */}
       <TableCell>{serialNumber}</TableCell>
