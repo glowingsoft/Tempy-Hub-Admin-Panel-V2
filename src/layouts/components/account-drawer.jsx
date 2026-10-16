@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
@@ -55,6 +56,26 @@ export function AccountDrawer({ data = [], sx, ...other }) {
     },
     [handleCloseDrawer, router]
   );
+
+  const handleClickProfile = useCallback(() => {
+    handleCloseDrawer();
+
+    let targetPath = paths.dashboard.user.account || '/dashboard/user/account';
+
+    if (pathname.startsWith('/owner-dashboard')) {
+      targetPath = paths.owner?.account || '/owner-dashboard/account';
+    } else if (pathname.startsWith('/site-manager')) {
+      targetPath = paths.siteManager?.account || '/site-manager/account';
+    } else if (pathname.startsWith('/line-manager')) {
+      targetPath = paths.lineManager?.account || '/line-manager/account';
+    } else if (pathname.startsWith('/admin-dashboard')) {
+      targetPath = paths.adminDashboard?.account || '/admin-dashboard/account';
+    } else if (pathname.startsWith('/staff')) {
+      targetPath = paths.staff?.account || '/staff/account';
+    }
+
+    router.push(targetPath);
+  }, [handleCloseDrawer, pathname, router]);
 
   const renderAvatar = (
     <AnimateAvatar
@@ -181,6 +202,27 @@ export function AccountDrawer({ data = [], sx, ...other }) {
           </Box> */}
 
           <Box sx={{ p: 2.5 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              color="inherit"
+              size="large"
+              startIcon={<Iconify icon="solar:user-id-bold" width={22} />}
+              onClick={handleClickProfile}
+              sx={{
+                mb: 1.5,
+                justifyContent: 'center',
+                fontWeight: 600,
+                borderColor: 'divider',
+                '&:hover': {
+                  borderColor: 'text.primary',
+                  bgcolor: 'action.hover',
+                },
+              }}
+            >
+              Profile
+            </Button>
+
             <SignOutButton onClose={handleCloseDrawer} />
           </Box>
 

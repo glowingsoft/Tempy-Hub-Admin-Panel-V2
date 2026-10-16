@@ -40,6 +40,25 @@ export function useFamilyEngagementPaths() {
       };
     }
 
+    if (pathname.startsWith(paths.staff.root)) {
+      return {
+        dashboardRoot: paths.staff.dashboard || paths.staff.root,
+        familyOverview: paths.staff.familyEngagement?.myResidents,
+        moderation: paths.staff.familyEngagement?.myResidents,
+        communityWall: paths.staff.familyEngagement?.communityWall,
+        photoUploads: paths.staff.familyEngagement?.photoUploads,
+        myResidents: paths.staff.familyEngagement?.myResidents,
+        myResidentDetail: paths.staff.familyEngagement?.myResidentDetail,
+        newsletters: paths.staff.familyEngagement?.communityWall,
+        gazettes: paths.staff.familyEngagement?.gazettes,
+        familyGroups: paths.staff.familyEngagement?.communityWall,
+        directory: paths.staff.dashboard,
+        residents: paths.staff.dashboard,
+        documents: paths.staff.documents.root,
+        rota: paths.staff.rota,
+      };
+    }
+
     return {
       dashboardRoot: paths.siteManager.root,
       familyOverview: paths.siteManager.familyEngagement.overview,
