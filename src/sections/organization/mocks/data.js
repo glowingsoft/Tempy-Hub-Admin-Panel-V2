@@ -4,8 +4,8 @@
 // way the real response is structured.
 
 export const ORGANIZATION_STATUS_OPTIONS = [
+  { value: 'pendingActivation', label: 'Pending Activation', color: 'warning' },
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'inactive', label: 'Inactive', color: 'warning' },
   { value: 'suspended', label: 'Suspended', color: 'error' },
 ];
 
@@ -55,7 +55,7 @@ export const mockOrganizationsResponse = {
       _id: '6a9576de4f38edb8df164091',
       name: 'Demo Care Group',
       ownerUserId: '6a9576de4f38edb8df16408d',
-      status: 'inactive',
+      status: 'pendingActivation',
       moduleAccess: [
         { moduleSlug: 'signInAttendance', enabled: true, purchasedAt: '2026-08-31T12:43:10.784Z', expiresAt: null },
         { moduleSlug: 'rotaScheduling', enabled: true, purchasedAt: '2026-08-31T12:43:10.784Z', expiresAt: null },

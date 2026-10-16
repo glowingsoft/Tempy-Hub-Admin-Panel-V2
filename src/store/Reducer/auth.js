@@ -40,6 +40,7 @@ export const authApi = createApi({
         method: "POST",
         body: loginData,
       }),
+      extraOptions: { disableToast: true },
       transformResponse: (res) => res?.data ?? res,
     }),
 
@@ -50,6 +51,7 @@ export const authApi = createApi({
         body: loginData,
         ...(ADMIN_ACCESS_TOKEN ? { headers: { 'x-admin-access-token': ADMIN_ACCESS_TOKEN } } : {}),
       }),
+      extraOptions: { disableToast: true },
       transformResponse: (res) => res?.data ?? res,
     }),
 

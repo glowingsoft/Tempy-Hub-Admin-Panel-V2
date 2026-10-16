@@ -1,0 +1,3 @@
+<Avatar alt={row.name} sx={{ bgcolor: 'primary.lighter', color: 'primary.dark', width: 36, height: 36, fontSize: 16 }}>
+    {row.name?.charAt(0)?.toUpperCase()}
+</Avatar>

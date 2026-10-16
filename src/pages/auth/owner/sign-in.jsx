@@ -19,8 +19,6 @@ export default function Page() {
       <JwtSignInView
         surface={AppSurface.OWNER_ADMIN}
         forgotReturnPath={paths.auth.owner.signIn}
-        defaultEmail={import.meta.env.VITE_OWNER_LOGIN_EMAIL || ''}
-        defaultPassword={import.meta.env.VITE_OWNER_LOGIN_PASSWORD || ''}
       />
     </>
   );

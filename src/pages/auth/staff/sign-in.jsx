@@ -12,8 +12,6 @@ export default function Page() {
       <JwtSignInView
         surface={AppSurface.STAFF_APP}
         forgotReturnPath={paths.auth.staff.signIn}
-        defaultEmail="john.williams@example.com"
-        defaultPassword="123456"
       />
     </>
   );

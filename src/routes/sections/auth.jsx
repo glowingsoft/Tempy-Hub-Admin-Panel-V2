@@ -379,18 +379,22 @@ export const authRoutes = [
   {
     path: 'auth',
     element: (
-      <Suspense fallback={<SplashScreen />}>
-        <Outlet />
-      </Suspense>
+      <GuestGuard>
+        <Suspense fallback={<SplashScreen />}>
+          <Outlet />
+        </Suspense>
+      </GuestGuard>
     ),
     children: [authJwt, authAmplify, authFirebase, authAuth0, authSupabase, authAdmin, authOwner, authStaff],
   },
   {
     path: '',
     element: (
-      <Suspense fallback={<SplashScreen />}>
-        <Outlet />
-      </Suspense>
+      <GuestGuard>
+        <Suspense fallback={<SplashScreen />}>
+          <Outlet />
+        </Suspense>
+      </GuestGuard>
     ),
     children: [authJwt, authAmplify, authFirebase, authAuth0, authSupabase, authAdmin, authOwner, authStaff],
   },

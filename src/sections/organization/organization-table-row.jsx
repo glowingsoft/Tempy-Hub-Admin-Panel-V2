@@ -4,11 +4,13 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
-import { fDate, fDateTime } from 'src/utils/format-time';
+import { fDate } from 'src/utils/format-time';
 
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Label } from 'src/components/label';
@@ -19,6 +21,11 @@ import { ORGANIZATION_STATUS_OPTIONS } from './mocks/data';
 
 const STATUS_COLOR = ORGANIZATION_STATUS_OPTIONS.reduce((acc, option) => {
   acc[option.value] = option.color;
+  return acc;
+}, {});
+
+const STATUS_LABEL = ORGANIZATION_STATUS_OPTIONS.reduce((acc, option) => {
+  acc[option.value] = option.label;
   return acc;
 }, {});
 
@@ -53,7 +60,7 @@ export function OrganizationTableRow({ row, serialNumber, canEdit, onEditRow }) 
 
       <TableCell>
         <Stack spacing={2} direction="row" alignItems="center">
-          <Avatar alt={row.name} sx={{ bgcolor: 'primary.lighter', color: 'primary.dark' }}>
+          <Avatar alt={row.name} sx={{ bgcolor: 'primary.lighter', color: 'primary.dark', width: 36, height: 36, fontSize: 16 }}>
             {row.name?.charAt(0)?.toUpperCase()}
           </Avatar>
 
@@ -65,11 +72,17 @@ export function OrganizationTableRow({ row, serialNumber, canEdit, onEditRow }) 
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.owner?.name || '—'}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.owner?.email || '—'}</TableCell>
+      <TableCell sx={{ maxWidth: 220 }}>
+        <Tooltip title={row.owner?.email || ''} disableHoverListener={!row.owner?.email}>
+          <Typography variant="body2" noWrap>
+            {row.owner?.email || '—'}
+          </Typography>
+        </Tooltip>
+      </TableCell>
 
       <TableCell align="center">
         <Label variant="soft" color={STATUS_COLOR[row.status] || 'default'}>
-          {row.status || '—'}
+          {STATUS_LABEL[row.status] || row.status || '—'}
         </Label>
       </TableCell>
 
