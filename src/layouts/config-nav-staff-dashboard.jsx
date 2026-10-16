@@ -14,6 +14,9 @@ const ICONS = {
   supervision: icon('ic-users'),
   document: icon('ic-document'),
   rota: icon('ic-rota'),
+  blog: icon('ic-blog'),
+  check: icon('ic-check'),
+  user: icon('ic-user'),
 };
 
 export const navDataStaff = [
@@ -28,6 +31,15 @@ export const navDataStaff = [
       { title: 'My Competencies', path: paths.staff.competencies, icon: ICONS.competencies },
       { title: 'Supervision & Appraisal', path: paths.staff.supervision, icon: ICONS.supervision },
       { title: 'Documents', path: paths.staff.documents.root, icon: ICONS.document },
+    ],
+  },
+  {
+    subheader: 'FAMILY ENGAGEMENT',
+    items: [
+      { title: 'My Residents', path: paths.staff.familyEngagement.myResidents, icon: ICONS.user },
+      { title: 'Photo Uploads', path: paths.staff.familyEngagement.photoUploads, icon: ICONS.check },
+      { title: 'Community Wall', path: paths.staff.familyEngagement.communityWall, icon: ICONS.blog },
+      { title: 'Gazettes', path: paths.staff.familyEngagement.gazettes, icon: ICONS.document },
     ],
   },
 ];

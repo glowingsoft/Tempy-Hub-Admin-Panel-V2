@@ -122,3 +122,16 @@ firebase-debug.log
 
 # Turbo
 .turbo
+.turbo
+
+# AI & Documentation files
+.claude/
+CLAUDE.md
+claude.md
+api-integration.md
+api-integration/
+settings.json
+SKILL.md
+skill.md
+security-reviewer.md
+security-reviewer/

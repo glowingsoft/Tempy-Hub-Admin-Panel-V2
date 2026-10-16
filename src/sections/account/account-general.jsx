@@ -1,12 +1,12 @@
 import { z as zod } from 'zod';
+import { useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useDispatch } from 'react-redux';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -14,9 +14,10 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { fData } from 'src/utils/format-number';
 
 import { toast } from 'src/components/snackbar';
-import { Form, Field, schemaHelper } from 'src/components/hook-form';
+import { Form, Field } from 'src/components/hook-form';
 
 import { useMockedUser } from 'src/auth/hooks';
+import { setUser } from 'src/store/slices/userSlice';
 
 // ----------------------------------------------------------------------
 
@@ -26,38 +27,25 @@ export const UpdateUserSchema = zod.object({
     .string()
     .min(1, { message: 'Email is required!' })
     .email({ message: 'Email must be a valid email address!' }),
-  photoURL: schemaHelper.file({
-    message: { required_error: 'Avatar is required!' },
-  }),
-  phoneNumber: schemaHelper.phoneNumber({ isValidPhoneNumber }),
-  country: schemaHelper.objectOrNull({
-    message: { required_error: 'Country is required!' },
-  }),
-  address: zod.string().min(1, { message: 'Address is required!' }),
-  state: zod.string().min(1, { message: 'State is required!' }),
-  city: zod.string().min(1, { message: 'City is required!' }),
-  zipCode: zod.string().min(1, { message: 'Zip code is required!' }),
-  about: zod.string().min(1, { message: 'About is required!' }),
-  // Not required
-  isPublic: zod.boolean(),
+  photoURL: zod.any().nullable().optional(),
+  phoneNumber: zod.string().optional(),
+  country: zod.any().optional(),
 });
 
 export function AccountGeneral() {
   const { user } = useMockedUser();
+  const dispatch = useDispatch();
 
-  const defaultValues = {
-    displayName: user?.displayName || '',
-    email: user?.email || '',
-    photoURL: user?.photoURL || null,
-    phoneNumber: user?.phoneNumber || '',
-    country: user?.country || '',
-    address: user?.address || '',
-    state: user?.state || '',
-    city: user?.city || '',
-    zipCode: user?.zipCode || '',
-    about: user?.about || '',
-    isPublic: user?.isPublic || false,
-  };
+  const defaultValues = useMemo(
+    () => ({
+      displayName: user?.displayName || user?.basicInfo?.name || user?.name || '',
+      email: user?.basicInfo?.email || user?.email || '',
+      photoURL: user?.photoURL || null,
+      phoneNumber: user?.basicInfo?.phoneNumber || user?.phoneNumber || '',
+      country: user?.country || '',
+    }),
+    [user]
+  );
 
   const methods = useForm({
     mode: 'all',
@@ -66,17 +54,46 @@ export function AccountGeneral() {
   });
 
   const {
+    reset,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
+  useEffect(() => {
+    if (user) {
+      reset(defaultValues);
+    }
+  }, [user, defaultValues, reset]);
+
   const onSubmit = handleSubmit(async (data) => {
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success('Update success!');
-      console.info('DATA', data);
+
+      const updatedUser = {
+        ...user,
+        name: data.displayName,
+        displayName: data.displayName,
+        email: data.email,
+        photoURL: data.photoURL,
+        phoneNumber: data.phoneNumber,
+        country: data.country,
+        basicInfo: {
+          ...(user?.basicInfo || {}),
+          name: data.displayName,
+          email: data.email,
+          phoneNumber: data.phoneNumber,
+        },
+      };
+
+      dispatch(setUser(updatedUser));
+      try {
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      } catch (_) {}
+
+      toast.success('Account updated successfully!');
     } catch (error) {
       console.error(error);
+      toast.error(error?.message || 'Failed to update account.');
     }
   });
 
@@ -111,17 +128,6 @@ export function AccountGeneral() {
                 </Typography>
               }
             />
-
-            <Field.Switch
-              name="isPublic"
-              labelPlacement="start"
-              label="Public profile"
-              sx={{ mt: 5 }}
-            />
-
-            <Button variant="soft" color="error" sx={{ mt: 3 }}>
-              Delete user
-            </Button>
           </Card>
         </Grid>
 
@@ -139,18 +145,10 @@ export function AccountGeneral() {
               <Field.Text name="displayName" label="Name" />
               <Field.Text name="email" label="Email address" />
               <Field.Phone name="phoneNumber" label="Phone number" />
-              <Field.Text name="address" label="Address" />
-
               <Field.CountrySelect name="country" label="Country" placeholder="Choose a country" />
-
-              <Field.Text name="state" label="State/region" />
-              <Field.Text name="city" label="City" />
-              <Field.Text name="zipCode" label="Zip/code" />
             </Box>
 
             <Stack spacing={3} alignItems="flex-end" sx={{ mt: 3 }}>
-              <Field.Text name="about" multiline rows={4} label="About" />
-
               <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
                 Save changes
               </LoadingButton>
