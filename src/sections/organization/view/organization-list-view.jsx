@@ -17,16 +17,15 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
@@ -46,6 +45,7 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
   ...ORGANIZATION_STATUS_OPTIONS,
 ];
+const ROWS_PER_PAGE = 10;
 
 const TABLE_HEAD = [
   { id: 'sr', label: 'Sr#', width: 60 },
@@ -65,7 +65,12 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function OrganizationListView() {
-  const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: ROWS_PER_PAGE,
+    defaultOrderBy: 'createdAt',
+    defaultOrder: 'desc',
+  });
   const router = useRouter();
 
   const { user } = useCurrentOrganization();
@@ -91,6 +96,7 @@ export function OrganizationListView() {
 
   const organizations = useMemo(() => data?.data ?? [], [data]);
   const totalRecords = data?.meta?.totalRecords ?? organizations.length;
+  const statusCounts = data?.meta?.counts ?? {};
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -102,14 +108,20 @@ export function OrganizationListView() {
   );
 
   const getStatusCount = useCallback(
-    (status) =>
-      status === 'all'
-        ? totalRecords
-        : organizations.filter((org) => org.status === status).length,
-    [organizations, totalRecords]
+    (status) => {
+      if (status === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[status] ?? 0;
+    },
+    [statusCounts, totalRecords]
   );
 
-  const canReset = !!filters.state.search || filters.state.status !== 'all';
   const notFound = !isLoading && !isFetching && organizations.length === 0;
 
   const handleFilterChange = useCallback(
@@ -177,8 +189,9 @@ export function OrganizationListView() {
         action={
           <Button
             variant="contained"
+            color="primary"
             onClick={createModal.onTrue}
-            startIcon={<Iconify icon="mingcute:add-line" />}
+          // startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Organization
           </Button>
@@ -212,9 +225,11 @@ export function OrganizationListView() {
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => (
-                    <TableSkeleton key={index} />
-                  ))
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
                     {organizations.map((row, index) => (

@@ -18,11 +18,15 @@ import { SettingsDrawer, defaultSettings, SettingsProvider } from 'src/component
 
 import { CheckoutProvider } from 'src/sections/checkout/context';
 
+import { PersistGate } from 'redux-persist/integration/react';
+
 import { AuthProvider as JwtAuthProvider } from 'src/auth/context/jwt';
 import { AuthProvider as Auth0AuthProvider } from 'src/auth/context/auth0';
 import { AuthProvider as AmplifyAuthProvider } from 'src/auth/context/amplify';
 import { AuthProvider as SupabaseAuthProvider } from 'src/auth/context/supabase';
 import { AuthProvider as FirebaseAuthProvider } from 'src/auth/context/firebase';
+import { SplashScreen } from 'src/components/loading-screen';
+import { persistor } from 'src/store/store';
 
 // ----------------------------------------------------------------------
 
@@ -42,14 +46,16 @@ export default function App() {
         <AuthProvider>
           <SettingsProvider settings={defaultSettings}>
             <ThemeProvider>
-              <MotionLazy>
-                <CheckoutProvider>
-                  <Snackbar />
-                  <ProgressBar />
-                  <SettingsDrawer />
-                  <Router />
-                </CheckoutProvider>
-              </MotionLazy>
+              <PersistGate loading={<SplashScreen />} persistor={persistor}>
+                <MotionLazy>
+                  <CheckoutProvider>
+                    <Snackbar />
+                    <ProgressBar />
+                    <SettingsDrawer />
+                    <Router />
+                  </CheckoutProvider>
+                </MotionLazy>
+              </PersistGate>
             </ThemeProvider>
           </SettingsProvider>
         </AuthProvider>

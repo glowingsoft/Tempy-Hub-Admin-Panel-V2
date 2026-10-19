@@ -72,11 +72,24 @@ export const branchesApi = createApi({
 
   endpoints: (builder) => ({
     getBranches: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, keyword = '' }) => ({
-        url: API_ROUTES.ORGANIZATION_BRANCHES(organizationId),
-        method: 'GET',
-        params: { page, limit, keyword },
-      }),
+      query: ({ organizationId, page = 1, limit = 10, keyword, status }) => {
+        const params = { page, limit };
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        if (trimmedKeyword) {
+          params.keyword = trimmedKeyword;
+        }
+
+        if (status) {
+          params.status = status;
+        }
+
+        return {
+          url: API_ROUTES.ORGANIZATION_BRANCHES(organizationId),
+          method: 'GET',
+          params,
+        };
+      },
       transformResponse: (res) => ({
         data: res?.data ?? [],
         meta: res?.meta ?? {},
@@ -125,6 +138,20 @@ export const branchesApi = createApi({
         ...(organizationId ? [{ type: 'Branch', id: `LIST-${organizationId}` }] : []),
       ],
     }),
+
+    createBranchActivationCode: builder.mutation({
+      query: ({ branchId, organizationId, expiresInHours }) => ({
+        url: API_ROUTES.BRANCH_ACTIVATION_CODES(branchId),
+        method: 'POST',
+        headers: { 'x-org-id': organizationId },
+        body: { expiresInHours },
+      }),
+      transformResponse: (res) => res,
+      invalidatesTags: (result, error, { branchId, organizationId }) => [
+        { type: 'Branch', id: branchId },
+        ...(organizationId ? [{ type: 'Branch', id: `LIST-${organizationId}` }] : []),
+      ],
+    }),
   }),
 });
 
@@ -133,4 +160,5 @@ export const {
   useGetBranchQuery,
   useCreateBranchMutation,
   useUpdateBranchMutation,
+  useCreateBranchActivationCodeMutation,
 } = branchesApi;

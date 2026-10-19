@@ -59,6 +59,7 @@ export function DepartmentDetailView() {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <Button
+          color="primary"
           onClick={() => router.push(paths.owner.departments.root)}
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           sx={{ mb: 2 }}
@@ -74,6 +75,7 @@ export function DepartmentDetailView() {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <Button
+          color="primary"
           onClick={() => router.push(paths.owner.departments.root)}
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           sx={{ mb: 2 }}
@@ -88,7 +90,7 @@ export function DepartmentDetailView() {
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ mb: 2 }}>
-        <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+        <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
           Back
         </Button>
       </Box>
@@ -103,6 +105,7 @@ export function DepartmentDetailView() {
         action={
           <Button
             variant="contained"
+            color="primary"
             onClick={editModal.onTrue}
             startIcon={<Iconify icon="solar:pen-bold" />}
           >
@@ -129,8 +132,8 @@ export function DepartmentDetailView() {
           <DetailItem
             label="Status"
             value={
-              <Label variant="soft" color={department.isActive ? 'success' : 'default'}>
-                {department.isActive ? 'Active' : 'Inactive'}
+              <Label variant="soft" color={department.active ? 'success' : 'error'}>
+                {department.active ? 'Active' : 'Inactive'}
               </Label>
             }
           />

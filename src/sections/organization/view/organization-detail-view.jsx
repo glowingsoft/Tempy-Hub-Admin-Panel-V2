@@ -39,6 +39,11 @@ const STATUS_COLOR = ORGANIZATION_STATUS_OPTIONS.reduce((acc, option) => {
   return acc;
 }, {});
 
+const STATUS_LABEL = ORGANIZATION_STATUS_OPTIONS.reduce((acc, option) => {
+  acc[option.value] = option.label;
+  return acc;
+}, {});
+
 // `value` also doubles as the `?tab=` query param used to deep-link a tab.
 const TABS = [
   { value: 'details', label: 'Details', icon: 'solar:buildings-3-bold' },
@@ -196,7 +201,7 @@ function OrganizationDetails({ organization }) {
           label="Status"
           value={
             <Label variant="soft" color={STATUS_COLOR[organization.status] || 'default'}>
-              {organization.status}
+              {STATUS_LABEL[organization.status] || organization.status}
             </Label>
           }
         />

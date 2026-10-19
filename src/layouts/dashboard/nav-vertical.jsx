@@ -1,25 +1,31 @@
 import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
+import { useSelector } from 'react-redux';
 
 import { varAlpha, hideScrollY } from 'src/theme/styles';
 
 import { Logo } from 'src/components/logo';
 import { Scrollbar } from 'src/components/scrollbar';
 import { NavSectionMini, NavSectionVertical } from 'src/components/nav-section';
+import { getDashboardPath } from 'src/auth/utils/get-dashboard-path';
 
 import { NavUpgrade } from '../components/nav-upgrade';
 import { NavToggleButton } from '../components/nav-toggle-button';
 
 // ----------------------------------------------------------------------
 
+const AUTH_LOGO = { width: 64, height: 52 };
+
 export function NavVertical({ sx, data, slots, isNavMini, layoutQuery, onToggleNav, ...other }) {
   const theme = useTheme();
+  const user = useSelector((state) => state.user?.user);
+  const logoHref = getDashboardPath(user);
 
   const renderNavVertical = (
     <>
       {slots?.topArea ?? (
         <Box sx={{ pl: 3.5, pt: 2.5, pb: 2.5 }}>
-          <Logo width={65} height={65} />
+          <Logo href={logoHref} width={AUTH_LOGO.width} height={AUTH_LOGO.height} />
         </Box>
       )}
 
@@ -35,7 +41,7 @@ export function NavVertical({ sx, data, slots, isNavMini, layoutQuery, onToggleN
     <>
       {slots?.topArea ?? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 2.5 }}>
-          <Logo width={65} height={65} />
+          <Logo href={logoHref} width={AUTH_LOGO.width} height={AUTH_LOGO.height} />
         </Box>
       )}
 

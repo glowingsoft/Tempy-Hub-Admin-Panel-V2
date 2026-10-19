@@ -64,15 +64,24 @@ export const staffProfilesApi = createApi({
 
   endpoints: (builder) => ({
     getStaffProfiles: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, keyword }) => ({
-        url: API_ROUTES.ORGANIZATION_STAFF_PROFILES(organizationId),
-        method: 'GET',
-        params: {
-          page,
-          limit,
-          ...(keyword ? { keyword } : {}),
-        },
-      }),
+      query: ({ organizationId, page = 1, limit = 10, keyword, role }) => {
+        const params = { page, limit };
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        if (trimmedKeyword) {
+          params.keyword = trimmedKeyword;
+        }
+
+        if (role) {
+          params.role = role;
+        }
+
+        return {
+          url: API_ROUTES.ORGANIZATION_STAFF_PROFILES(organizationId),
+          method: 'GET',
+          params,
+        };
+      },
       transformResponse: (res) => ({
         data: res?.data ?? [],
         meta: res?.meta ?? {},

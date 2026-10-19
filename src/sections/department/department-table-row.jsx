@@ -6,6 +6,8 @@ import TableRow from '@mui/material/TableRow';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
+import { fDate } from 'src/utils/format-time';
+
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Label } from 'src/components/label';
 
@@ -25,7 +27,7 @@ export function DepartmentTableRow({ row, serialNumber, onEditRow }) {
 
   const detailPath = paths.owner.departments.detail(row._id);
 
-  const statusValue = row.isActive ? 'active' : 'inactive';
+  const statusValue = row.active ? 'active' : 'inactive';
 
   const actions = [
     {
@@ -50,16 +52,21 @@ export function DepartmentTableRow({ row, serialNumber, onEditRow }) {
       <TableCell>{serialNumber}</TableCell>
 
       <TableCell>
-        <Link color="inherit" sx={{ cursor: 'pointer' }}>
+        <Link color="inherit" sx={{ cursor: 'pointer', textTransform: 'capitalize' }}>
           {row.name || '—'}
         </Link>
       </TableCell>
 
-      <TableCell align="center">{row.sortOrder ?? '—'}</TableCell>
+      <TableCell sx={{ textTransform: 'capitalize' }}>{row.branch?.name || '—'}</TableCell>
+
+
+      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+        {row.createdAt ? fDate(row.createdAt) : '—'}
+      </TableCell>
 
       <TableCell align="center">
         <Label variant="soft" color={STATUS_COLOR[statusValue] || 'default'}>
-          {row.isActive ? 'Active' : 'Inactive'}
+          {row.active ? 'Active' : 'Inactive'}
         </Label>
       </TableCell>
 

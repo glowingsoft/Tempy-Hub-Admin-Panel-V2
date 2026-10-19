@@ -9,7 +9,7 @@ import { mockOrganizations } from 'src/sections/organization/mocks/data';
 
 export const DEPARTMENT_STATUS_OPTIONS = [
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'inactive', label: 'Inactive', color: 'default' },
+  { value: 'inactive', label: 'Inactive', color: 'error' },
 ];
 
 const orgRef = (id) => {
@@ -33,7 +33,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000001',
       name: 'Kitchen',
       sortOrder: 1,
-      isActive: true,
+      active: true,
       organizationId: ORG_A,
       organization: orgRef(ORG_A),
       branchId: '6a98c1000000000000000001',
@@ -45,7 +45,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000002',
       name: 'Care',
       sortOrder: 2,
-      isActive: true,
+      active: true,
       organizationId: ORG_A,
       organization: orgRef(ORG_A),
       createdAt: '2026-09-01T10:05:00.000Z',
@@ -55,7 +55,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000003',
       name: 'Housekeeping',
       sortOrder: 3,
-      isActive: false,
+      active: false,
       organizationId: ORG_A,
       organization: orgRef(ORG_A),
       createdAt: '2026-09-01T10:10:00.000Z',
@@ -65,7 +65,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000006',
       name: 'Maintenance',
       sortOrder: 4,
-      isActive: true,
+      active: true,
       organizationId: ORG_A,
       organization: orgRef(ORG_A),
       createdAt: '2026-09-03T09:00:00.000Z',
@@ -75,7 +75,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000007',
       name: 'Administration',
       sortOrder: 5,
-      isActive: true,
+      active: true,
       organizationId: ORG_A,
       organization: orgRef(ORG_A),
       createdAt: '2026-09-03T09:05:00.000Z',
@@ -85,7 +85,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000008',
       name: 'Management',
       sortOrder: 6,
-      isActive: true,
+      active: true,
       organizationId: ORG_A,
       organization: orgRef(ORG_A),
       createdAt: '2026-09-03T09:10:00.000Z',
@@ -95,7 +95,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000009',
       name: 'Finance',
       sortOrder: 7,
-      isActive: true,
+      active: true,
       organizationId: ORG_A,
       organization: orgRef(ORG_A),
       createdAt: '2026-09-03T09:15:00.000Z',
@@ -105,7 +105,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000010',
       name: 'Support',
       sortOrder: 8,
-      isActive: true,
+      active: true,
       organizationId: ORG_A,
       organization: orgRef(ORG_A),
       createdAt: '2026-09-03T09:20:00.000Z',
@@ -115,7 +115,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000004',
       name: 'Maintenance',
       sortOrder: 4,
-      isActive: true,
+      active: true,
       organizationId: ORG_B,
       organization: orgRef(ORG_B),
       createdAt: '2026-09-01T11:00:00.000Z',
@@ -125,7 +125,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000005',
       name: 'Administration',
       sortOrder: 5,
-      isActive: true,
+      active: true,
       organizationId: ORG_B,
       organization: orgRef(ORG_B),
       createdAt: '2026-09-01T11:15:00.000Z',
@@ -135,7 +135,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000011',
       name: 'Management',
       sortOrder: 3,
-      isActive: true,
+      active: true,
       organizationId: ORG_B,
       organization: orgRef(ORG_B),
       createdAt: '2026-09-03T09:25:00.000Z',
@@ -145,7 +145,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000012',
       name: 'Finance',
       sortOrder: 4,
-      isActive: true,
+      active: true,
       organizationId: ORG_B,
       organization: orgRef(ORG_B),
       createdAt: '2026-09-03T09:30:00.000Z',
@@ -155,7 +155,7 @@ export const mockDepartmentsResponse = {
       _id: '6aa1b1000000000000000013',
       name: 'Support',
       sortOrder: 5,
-      isActive: true,
+      active: true,
       organizationId: ORG_B,
       organization: orgRef(ORG_B),
       createdAt: '2026-09-03T09:35:00.000Z',
@@ -177,7 +177,7 @@ export function createMockDepartment({
   sortOrder,
   organizationId,
   branchId = null,
-  isActive = true,
+  active = true,
 } = {}) {
   const now = new Date().toISOString();
   const rand = Math.random().toString(36).slice(2, 10);
@@ -186,7 +186,7 @@ export function createMockDepartment({
     _id: `mock-dept-${rand}`,
     name,
     sortOrder: Number(sortOrder) || 0,
-    isActive,
+    active,
     organizationId,
     organization: orgRef(organizationId),
     branchId: branchId || null,
@@ -203,14 +203,14 @@ export function createMockDepartment({
 
 export function updateMockDepartment(
   id,
-  { name, sortOrder, organizationId, branchId, isActive } = {}
+  { name, sortOrder, organizationId, branchId, active } = {}
 ) {
   const department = mockDepartments.find((d) => d._id === id);
   if (!department) return null;
 
   if (name !== undefined) department.name = name;
   if (sortOrder !== undefined) department.sortOrder = Number(sortOrder) || 0;
-  if (isActive !== undefined) department.isActive = isActive;
+  if (active !== undefined) department.active = active;
   if (organizationId !== undefined) {
     department.organizationId = organizationId;
     department.organization = orgRef(organizationId);

@@ -8,8 +8,6 @@ import { useRouter } from 'src/routes/hooks';
 
 import { CONFIG } from 'src/config-global';
 
-import { toast } from 'src/components/snackbar';
-
 import { signOut as amplifySignOut } from 'src/auth/context/amplify/action';
 import { signOut as firebaseSignOut } from 'src/auth/context/firebase/action';
 import { signOut as jwtSignOut } from 'src/auth/context/jwt/action';
@@ -55,11 +53,8 @@ export function SignOutButton({ onClose, ...other }) {
 
       // Redirect to login
       router.replace('/');
-
-      toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
-      toast.error('Unable to logout!');
     }
   }, [dispatch, onClose, router]);
 
@@ -75,11 +70,8 @@ export function SignOutButton({ onClose, ...other }) {
 
       onClose?.();
       router.refresh();
-
-      toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
-      toast.error('Unable to logout!');
     }
   }, [onClose, router, signOutAuth0, dispatch]);
 

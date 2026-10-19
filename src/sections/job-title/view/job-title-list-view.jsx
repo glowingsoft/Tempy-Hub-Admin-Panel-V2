@@ -22,10 +22,10 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
@@ -39,11 +39,11 @@ import { JobTitleTableRow } from '../job-title-table-row';
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'inactive', label: 'Inactive', color: 'default' },
+  { value: 'inactive', label: 'Inactive', color: 'error' },
 ];
 
 const TABLE_HEAD = [
-  { id: 'sr', label: 'Sr#', width: 60 },
+  { id: 'sr', label: 'Sr#', width: 56 },
   { id: 'name', label: 'Name', width: 220, minWidth: 220 },
   { id: 'level', label: 'Level', width: 160, minWidth: 160 },
   { id: 'branch', label: 'Site', width: 140, minWidth: 140 },
@@ -60,30 +60,34 @@ const FILTER_FIELDS = [
 
 export function JobTitleListView() {
   const table = useTable({
-    defaultOrderBy: 'name',
-    defaultOrder: 'asc',
+    defaultDense: true,
+    defaultRowsPerPage: 10,
   });
 
   const { organizationId, organizationName, user } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
 
   const createModal = useBoolean();
   const editModal = useBoolean();
   const [selectedJobTitle, setSelectedJobTitle] = useState(null);
 
-  const { currentData: data, isLoading, isFetching, isError, error } = useGetJobTitlesQuery(
+  const { data, isLoading, isFetching, isError, error } = useGetJobTitlesQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      keyword: keyword.trim(),
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
     },
     { skip: !organizationId }
   );
 
-  const allJobTitles = data?.data ?? [];
+  const jobTitles = useMemo(() => data?.data ?? [], [data]);
+  const totalRecords = data?.meta?.totalRecords ?? jobTitles.length;
+  const statusCounts = data?.meta?.counts ?? {};
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -94,34 +98,22 @@ export function JobTitleListView() {
     []
   );
 
-  // Status filtering applies to the current API page; keyword search is server-side.
-  const filteredJobTitles = useMemo(() => {
-    return allJobTitles
-      .filter((jobTitle) => {
-        const matchesStatus =
-          filters.state.status === 'all' ||
-          (filters.state.status === 'active') === !!jobTitle.active;
-
-        return matchesStatus;
-      })
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [allJobTitles, filters.state.status]);
-
-  const totalRecords =
-    filters.state.status === 'all' && Number.isFinite(data?.meta?.totalRecords)
-      ? data.meta.totalRecords
-      : filteredJobTitles.length;
-
   const getStatusCount = useCallback(
     (status) => {
-      if (status === 'all') return allJobTitles.length;
-      if (status === 'active') return allJobTitles.filter((jt) => jt.active).length;
-      return allJobTitles.filter((jt) => !jt.active).length;
+      if (status === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[status] ?? 0;
     },
-    [allJobTitles]
+    [statusCounts, totalRecords]
   );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && jobTitles.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -168,6 +160,7 @@ export function JobTitleListView() {
         action={
           <Button
             variant="contained"
+            color="primary"
             onClick={createModal.onTrue}
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
@@ -201,20 +194,18 @@ export function JobTitleListView() {
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headLabel={TABLE_HEAD}
-              />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => (
-                    <TableSkeleton key={index} />
-                  ))
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {filteredJobTitles.map((row, index) => (
+                    {jobTitles.map((row, index) => (
                       <JobTitleTableRow
                         key={row._id}
                         row={row}

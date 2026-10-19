@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'src/components/snackbar';
 import { z as zod } from 'zod';
 
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -22,10 +21,10 @@ import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { useDispatch } from 'react-redux';
+import { AppSurface } from 'src/auth/constants';
 import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { getDeviceType } from 'src/utils/getDeviceType';
-import { AppSurface } from 'src/auth/constants';
 import { getPasswordResetHref } from './password-reset-flow';
 
 // ----------------------------------------------------------------------
@@ -37,67 +36,10 @@ export const SignInSchema = zod.object({
 
 // ----------------------------------------------------------------------
 
-// Mock login function
-const mockLogin = async (payload) => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // Mock response data
-  const mockResponse = {
-    message: 'Login success',
-    data: {
-      basicInfo: {
-        _id: '692c5523e446ec147ce153aa',
-        profileIcon: 'https://dummybucket.s3.us-east-1.amazonaws.com/noimage.png',
-        name: payload.userType === 'admin' ? 'Admin User' : 'Suheer',
-        email: payload.email,
-        phoneNumber: null,
-        language: 'en',
-      },
-      accountState: {
-        userType: payload.userType,
-        status: 'active',
-        verificationStatus: {
-          email: 'verified',
-          phoneNumber: 'pending',
-        },
-      },
-      metadata: {
-        timezone: payload.timezone,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        __v: 0,
-      },
-      otpInfo: {
-        emailOtp: {
-          otp: '835987',
-          otpUsed: false,
-          otpRequestCount: 1,
-          otpRequestTimestamp: new Date().toISOString(),
-          otpExpires: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-        },
-        phoneNumberOtp: {
-          otp: '',
-          otpUsed: false,
-          otpRequestCount: 0,
-          otpRequestTimestamp: new Date().toISOString(),
-        },
-      },
-      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTJjNTUyM2U0NDZlYzE0N2NlMTUzYWEiLCJpYXQiOjE3NjUxNzM1MjB9.WpcTqWkmgAVpx-mn9KNvNIPjPlwO6aONXKJvu30AvZU',
-    },
-  };
-
-  return mockResponse;
-};
-
-// ----------------------------------------------------------------------
-
 export function JwtSignInView({
   surface = AppSurface.MANAGER_APP,
   forgotReturnPath = '/',
   title = 'Sign in to your account',
-  defaultEmail = 'linemanager@tempy.com',
-  defaultPassword = '123456',
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,8 +54,8 @@ export function JwtSignInView({
   const queryEmail = searchParams.get('email') || '';
 
   const defaultValues = {
-    email: queryEmail || defaultEmail,
-    password: queryEmail ? '' : defaultPassword,
+    email: queryEmail,
+    password: '',
   };
 
   const methods = useForm({
@@ -166,62 +108,37 @@ export function JwtSignInView({
     };
 
     try {
-      let response;
-      const isDemoAccount =
-        payload.email === 'linemanager@tempy.com' || payload.email === 'sitemanager@tempy.com';
-
-      try {
-        response = await login(payload).unwrap();
-      } catch (apiError) {
-        if (isDemoAccount) {
-          response = await mockLogin(payload);
-        } else {
-          throw apiError;
-        }
-      }
-
-      if (response?.error) {
-        return toast.error(response.error.data?.message || 'Login failed');
-      }
-
+      const response = await login(payload).unwrap();
       const user = response?.data ?? response;
 
       if (!user) {
-        toast.error('Login failed: No user data received');
-        router.push('/');
+        setErrorMsg('Login failed: No user data received');
         return null;
       }
 
       if (user?.accountState?.status === false || user?.accountState?.status === 'inactive') {
-        toast.error('Your account is inactive. Please contact support.');
+        setErrorMsg('Your account is inactive. Please contact support.');
         return null;
       }
 
-      let user_type =
-        ((user?.basicInfo?.email === "sitemanager@tempy.com" && 2) ||
-          (user?.basicInfo?.email === "linemanager@tempy.com" && 3));
+      const role =
+        user?.access?.memberships?.[0]?.role ||
+        user?.role ||
+        user?.basicInfo?.role ||
+        user?.accountState?.role;
 
-      if (!user_type) {
-        const role =
-          user?.access?.memberships?.[0]?.role ||
-          user?.role ||
-          user?.basicInfo?.role ||
-          user?.accountState?.role;
-
-        if (role === 'lineManager' || role === 'line_manager' || role === 'Line Manager') {
-          user_type = 3;
-        } else if (role === 'siteManager' || role === 'site_manager' || role === 'Site Manager') {
-          user_type = 2;
-        } else if (role === 'admin' || user?.accountState?.userType === 'admin') {
-          user_type = 1;
-        } else if (role === 'owner' || role === 'Owner') {
-          user_type = 4;
-        } else if (role === 'staff' || role === 'Staff') {
-          user_type = 5;
-        }
+      let user_type;
+      if (role === 'lineManager' || role === 'line_manager' || role === 'Line Manager') {
+        user_type = 3;
+      } else if (role === 'siteManager' || role === 'site_manager' || role === 'Site Manager') {
+        user_type = 2;
+      } else if (role === 'admin' || user?.accountState?.userType === 'admin') {
+        user_type = 1;
+      } else if (role === 'owner' || role === 'Owner') {
+        user_type = 4;
+      } else if (role === 'staff' || role === 'Staff') {
+        user_type = 5;
       }
-
-      console.log({ user_type });
 
       const permission = user_type;
 
@@ -237,7 +154,6 @@ export function JwtSignInView({
       goTo(user_type);
 
       reset();
-      toast.success('Login successful!');
     } catch (error) {
       console.error('Login error:', error);
       const msg =
@@ -246,7 +162,6 @@ export function JwtSignInView({
         error?.message ||
         'Login failed. Please check your credentials.';
       setErrorMsg(typeof msg === 'string' ? msg : JSON.stringify(msg));
-      toast.error(typeof msg === 'string' ? msg : 'Login failed');
     }
   });
 

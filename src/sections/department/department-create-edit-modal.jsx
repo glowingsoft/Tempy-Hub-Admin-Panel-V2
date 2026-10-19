@@ -24,11 +24,7 @@ import {
 
 const DepartmentSchema = zod.object({
   name: zod.string().min(1, 'Department name is required'),
-  sortOrder: zod.coerce
-    .number({ invalid_type_error: 'Sort order must be a number' })
-    .int('Sort order must be a whole number')
-    .min(0, 'Sort order cannot be negative'),
-  isActive: zod.boolean(),
+  active: zod.boolean(),
   branchId: zod
     .object({ value: zod.string(), label: zod.string() })
     .nullable(),
@@ -58,8 +54,7 @@ export function DepartmentCreateEditModal({
   const defaultValues = useMemo(
     () => ({
       name: currentDepartment?.name || '',
-      sortOrder: currentDepartment?.sortOrder ?? 0,
-      isActive: currentDepartment?.isActive ?? true,
+      active: currentDepartment?.active ?? true,
       branchId: currentDepartment?.branchId
         ? {
           value: currentDepartment.branchId,
@@ -91,29 +86,27 @@ export function DepartmentCreateEditModal({
 
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
-      const payload = isEdit
-        ? {
-          organizationId,
-          name: data.name,
-          sortOrder: data.sortOrder,
-          isActive: data.isActive,
-          branchId: data.branchId?.value || null,
-        }
-        : { organizationId, name: data.name, sortOrder: data.sortOrder };
+      const branchId = data.branchId?.value || null;
+      const payload = {
+        organizationId,
+        name: data.name,
+        active: data.active,
+        branchId,
+      };
 
       if (!isEdit) {
         await createDepartment({
           organizationId,
           name: data.name,
-          sortOrder: data.sortOrder,
+          active: data.active,
+          ...(branchId ? { branchId } : {}),
         }).unwrap();
       } else {
         await updateDepartment({
           organizationId,
           departmentId: currentDepartment._id,
           name: data.name,
-          sortOrder: data.sortOrder,
-          isActive: data.isActive,
+          active: data.active,
           branchId: data.branchId?.value || null,
         }).unwrap();
       }
@@ -152,8 +145,6 @@ export function DepartmentCreateEditModal({
           >
             <Field.Text name="name" label="Name" />
 
-            <Field.Text name="sortOrder" label="Sort Order" type="number" />
-
             <Field.Autocomplete
               name="branchId"
               label="Sites (optional)"
@@ -165,12 +156,12 @@ export function DepartmentCreateEditModal({
               helperText={isBranchesFetching ? 'Loading sites...' : undefined}
             />
 
-            <Field.Switch name="isActive" label="Active" />
+            <Field.Switch name="active" label="Active" />
           </Box>
         </DialogContent>
 
         <DialogActions>
-          <Button variant="outlined" onClick={handleClose}>
+          <Button variant="outlined" color="primary" onClick={handleClose}>
             Cancel
           </Button>
 

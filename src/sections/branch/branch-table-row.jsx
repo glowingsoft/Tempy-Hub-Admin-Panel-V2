@@ -18,7 +18,7 @@ import { getBranchStatusMeta } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
-export function BranchTableRow({ row, serialNumber }) {
+export function BranchTableRow({ row, serialNumber, onEmergencyPin, onActivationCode }) {
   const router = useRouter();
 
   const detailPath = paths.owner.sites.detail(row._id);
@@ -40,15 +40,33 @@ export function BranchTableRow({ row, serialNumber }) {
         router.push(paths.owner.sites.edit(row._id));
       },
     },
+    {
+      key: 'emergency-pin',
+      icon: 'solar:lock-password-bold',
+      tooltip: 'Emergency PIN',
+      onClick: (event) => {
+        event.stopPropagation();
+        onEmergencyPin?.(row);
+      },
+    },
+    {
+      key: 'activation-code',
+      icon: 'solar:qr-code-bold',
+      tooltip: 'Activation code',
+      onClick: (event) => {
+        event.stopPropagation();
+        onActivationCode?.(row);
+      },
+    },
   ];
 
   return (
     <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
-      <TableCell>{serialNumber}</TableCell>
+      <TableCell sx={{ width: 56, whiteSpace: 'nowrap' }}>{serialNumber}</TableCell>
 
       <TableCell>
         <Stack sx={{ typography: 'body2' }}>
-          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600 }}>
+          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600, textTransform: 'capitalize' }}>
             {row.name || '—'}
           </Link>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -57,9 +75,11 @@ export function BranchTableRow({ row, serialNumber }) {
         </Stack>
       </TableCell>
 
-      <TableCell>{row.code || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.code || '—'}</TableCell>
 
-      <TableCellWithTooltip maxWidth="100%">{row.address || '—'}</TableCellWithTooltip>
+      <TableCellWithTooltip maxWidth={280} title={row.address || ''}>
+        {row.address || '—'}
+      </TableCellWithTooltip>
 
       <TableCell align="center">
         <Label variant="soft" color={status.color}>
