@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -9,6 +9,7 @@ import TableBody from '@mui/material/TableBody';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 
+import { useBoolean } from 'src/hooks/use-boolean';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -30,6 +31,8 @@ import {
 
 import { Iconify } from 'src/components/iconify';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { BranchActivationCodeModal } from '../branch-activation-code-modal';
+import { BranchEmergencyPinModal } from '../branch-emergency-pin-modal';
 import { BranchTableRow } from '../branch-table-row';
 import { BRANCH_STATUS_OPTIONS } from '../mocks/data';
 
@@ -45,7 +48,7 @@ const TABLE_HEAD = [
   { id: 'address', label: 'Address', width: 280 },
   { id: 'status', label: 'Status', width: 160, align: 'center' },
   { id: 'createdAt', label: 'Created At', width: 140, align: 'center' },
-  { id: 'actions', label: 'Actions', width: 100, align: 'center' },
+  { id: 'actions', label: 'Actions', width: 164, align: 'center' },
 ];
 
 const FILTER_FIELDS = [
@@ -62,6 +65,10 @@ export function BranchListView() {
   });
 
   const { organizationId = '', organizationName = '', user } = useCurrentOrganization();
+
+  const pinModal = useBoolean();
+  const activationModal = useBoolean();
+  const [selectedBranch, setSelectedBranch] = useState(null);
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -124,6 +131,32 @@ export function BranchListView() {
     [filters, table]
   );
 
+  const handleOpenEmergencyPin = useCallback(
+    (branch) => {
+      setSelectedBranch(branch);
+      pinModal.onTrue();
+    },
+    [pinModal]
+  );
+
+  const handleCloseEmergencyPin = useCallback(() => {
+    pinModal.onFalse();
+    setSelectedBranch(null);
+  }, [pinModal]);
+
+  const handleOpenActivationCode = useCallback(
+    (branch) => {
+      setSelectedBranch(branch);
+      activationModal.onTrue();
+    },
+    [activationModal]
+  );
+
+  const handleCloseActivationCode = useCallback(() => {
+    activationModal.onFalse();
+    setSelectedBranch(null);
+  }, [activationModal]);
+
   const orgName = organizationName || user?.organization?.name;
 
   return (
@@ -183,6 +216,8 @@ export function BranchListView() {
                         key={row._id}
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
+                        onEmergencyPin={handleOpenEmergencyPin}
+                        onActivationCode={handleOpenActivationCode}
                       />
                     ))}
 
@@ -204,6 +239,20 @@ export function BranchListView() {
           onRowsPerPageChange={table.onChangeRowsPerPage}
         />
       </Card>
+
+      <BranchEmergencyPinModal
+        open={pinModal.value}
+        onClose={handleCloseEmergencyPin}
+        branch={selectedBranch}
+        organizationId={organizationId}
+      />
+
+      <BranchActivationCodeModal
+        open={activationModal.value}
+        onClose={handleCloseActivationCode}
+        branch={selectedBranch}
+        organizationId={organizationId}
+      />
     </DashboardContent>
   );
 }

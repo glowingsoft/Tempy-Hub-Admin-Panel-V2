@@ -33,6 +33,7 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/job-titles/${jobTitleId}`,
     ORGANIZATION_BRANCHES: (organizationId) => `/admin/organizations/${organizationId}/branches`,
     BRANCH_BY_ID: (branchId) => `/admin/branches/${branchId}`,
+    BRANCH_ACTIVATION_CODES: (branchId) => `/admin/branches/${branchId}/activation-codes`,
     ORGANIZATION_INVITATIONS: (organizationId) => `/admin/organizations/${organizationId}/invitations`,
     ORGANIZATION_INVITATION_BY_ID: (organizationId, invitationId) =>
         `/admin/organizations/${organizationId}/invitations/${invitationId}`,

@@ -30,6 +30,8 @@ export * from './rhf-phone-input';
 
 export * from './rhf-autocomplete';
 
+export * from './rhf-infinite-autocomplete';
+
 export * from './rhf-country-select';
 
 export * from './rhf-color-picker';

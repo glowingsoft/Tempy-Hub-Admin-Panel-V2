@@ -138,6 +138,20 @@ export const branchesApi = createApi({
         ...(organizationId ? [{ type: 'Branch', id: `LIST-${organizationId}` }] : []),
       ],
     }),
+
+    createBranchActivationCode: builder.mutation({
+      query: ({ branchId, organizationId, expiresInHours }) => ({
+        url: API_ROUTES.BRANCH_ACTIVATION_CODES(branchId),
+        method: 'POST',
+        headers: { 'x-org-id': organizationId },
+        body: { expiresInHours },
+      }),
+      transformResponse: (res) => res,
+      invalidatesTags: (result, error, { branchId, organizationId }) => [
+        { type: 'Branch', id: branchId },
+        ...(organizationId ? [{ type: 'Branch', id: `LIST-${organizationId}` }] : []),
+      ],
+    }),
   }),
 });
 
@@ -146,4 +160,5 @@ export const {
   useGetBranchQuery,
   useCreateBranchMutation,
   useUpdateBranchMutation,
+  useCreateBranchActivationCodeMutation,
 } = branchesApi;

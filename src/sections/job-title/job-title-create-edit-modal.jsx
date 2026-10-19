@@ -15,7 +15,8 @@ import MenuItem from '@mui/material/MenuItem';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
-import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import {
   useCreateJobTitleMutation,
   useUpdateJobTitleMutation,
@@ -29,10 +30,21 @@ const JobTitleSchema = zod.object({
   name: zod.string().min(1, 'Job title name is required'),
   level: zod.string().min(1, 'Level is required'),
   active: zod.boolean(),
-  branchId: zod.string().optional(),
+  branchId: zod
+    .object({ value: zod.string(), label: zod.string() })
+    .nullable(),
   departmentId: zod
     .object({ value: zod.string(), label: zod.string() })
     .nullable(),
+});
+
+const ALL_SITES_OPTION = { value: '__all_sites__', label: 'All sites' };
+const NONE_SITE_OPTION = { value: '__none__', label: 'None' };
+const SITE_EXTRA_OPTIONS = [ALL_SITES_OPTION, NONE_SITE_OPTION];
+
+const mapLookupOption = (item) => ({
+  value: item._id,
+  label: item.name,
 });
 
 // ----------------------------------------------------------------------
@@ -48,18 +60,7 @@ export function JobTitleCreateEditModal({
 }) {
   const isEdit = !!currentJobTitle;
 
-  const {
-    branchOptions,
-    departmentOptions,
-    isBranchesFetching,
-    isDepartmentsFetching,
-  } = useOrganizationLookups({
-    organizationId,
-    branches: open && !!organizationId,
-    departments: open && !!organizationId,
-    jobTitles: false,
-    limit: 100,
-  });
+  const lookupQueryArgs = useMemo(() => ({ organizationId }), [organizationId]);
 
   const defaultValues = useMemo(() => {
     const department =
@@ -69,11 +70,20 @@ export function JobTitleCreateEditModal({
         ? { _id: currentJobTitle.departmentId, name: currentJobTitle.departmentId }
         : null);
 
+    const branchOption = currentJobTitle?.branchId
+      ? {
+          value: currentJobTitle.branchId,
+          label: currentJobTitle.branch?.name || currentJobTitle.branchId,
+        }
+      : currentJobTitle?.siteScope === 'none'
+        ? NONE_SITE_OPTION
+        : ALL_SITES_OPTION;
+
     return {
       name: currentJobTitle?.name || '',
       level: currentJobTitle?.level || JOB_TITLE_LEVEL_OPTIONS[0]?.value || '',
       active: currentJobTitle?.active ?? true,
-      branchId: currentJobTitle?.branchId || (currentJobTitle?.siteScope === 'none' ? '__none__' : '__all_sites__'),
+      branchId: branchOption,
       departmentId: department
         ? { value: department._id, label: department.name || department._id }
         : null,
@@ -107,13 +117,15 @@ export function JobTitleCreateEditModal({
         level: data.level,
         active: data.active,
         branchId:
-          data.branchId && data.branchId !== '__all_sites__' && data.branchId !== '__none__'
-            ? data.branchId
+          data.branchId?.value &&
+          data.branchId.value !== '__all_sites__' &&
+          data.branchId.value !== '__none__'
+            ? data.branchId.value
             : null,
         siteScope:
-          data.branchId === '__none__'
+          data.branchId?.value === '__none__'
             ? 'none'
-            : data.branchId === '__all_sites__'
+            : data.branchId?.value === '__all_sites__'
               ? 'all'
               : 'branch',
         departmentId: data.departmentId?.value || null,
@@ -179,30 +191,25 @@ export function JobTitleCreateEditModal({
               ))}
             </Field.Select>
 
-            <Field.Select
+            <Field.InfiniteAutocomplete
               name="branchId"
               label="Site (optional)"
-              disabled={isBranchesFetching}
-              helperText={isBranchesFetching ? 'Loading sites...' : undefined}
-            >
-              <MenuItem value="__all_sites__">All sites</MenuItem>
-              <MenuItem value="__none__">None</MenuItem>
-              {branchOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+              placeholder="Search sites"
+              useQuery={useGetBranchesQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapLookupOption}
+              extraOptions={SITE_EXTRA_OPTIONS}
+              enabled={open && !!organizationId}
+            />
 
-            <Field.Autocomplete
+            <Field.InfiniteAutocomplete
               name="departmentId"
               label="Department (optional)"
-              placeholder={isDepartmentsFetching ? 'Loading departments...' : 'Search and select a department'}
-              options={departmentOptions}
-              loading={isDepartmentsFetching}
-              getOptionLabel={(option) => option.label || ''}
-              isOptionEqualToValue={(option, value) => option.value === value.value}
-              helperText={isDepartmentsFetching ? 'Loading departments...' : undefined}
+              placeholder="Search departments"
+              useQuery={useGetDepartmentsQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapLookupOption}
+              enabled={open && !!organizationId}
             />
 
             <Field.Switch name="active" label="Active" />

@@ -11,18 +11,10 @@ import { paths } from 'src/routes/paths';
 import { fDate } from 'src/utils/format-time';
 
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
-import { TableCellWithTooltip } from 'src/components/table';
 
 import { getRoleLabel } from 'src/sections/membership/mocks/data';
 
 // ----------------------------------------------------------------------
-
-function getDepartmentNames(row) {
-  const list = Array.isArray(row.departments) ? row.departments : [];
-  const names = list.map((department) => department?.name).filter(Boolean);
-  if (names.length) return names.join(', ');
-  return row.department?.name || '—';
-}
 
 function getStaffRole(row) {
   return row.role || row.membership?.role || row.user?.role || '';
@@ -35,7 +27,6 @@ export function StaffProfileTableRow({
   serialNumber,
   detailPath: customDetailPath,
   editPath: customEditPath,
-  hideViewAction = false,
 }) {
   const router = useRouter();
 
@@ -49,6 +40,15 @@ export function StaffProfileTableRow({
 
   const actions = [
     {
+      key: 'view',
+      icon: 'solar:eye-bold',
+      tooltip: 'View',
+      onClick: (event) => {
+        event.stopPropagation();
+        router.push(detailPath);
+      },
+    },
+    {
       key: 'edit',
       icon: 'solar:pen-bold',
       tooltip: 'Edit',
@@ -58,15 +58,6 @@ export function StaffProfileTableRow({
       },
     },
   ];
-
-  if (!hideViewAction) {
-    actions.unshift({
-      key: 'view',
-      icon: 'solar:eye-bold',
-      tooltip: 'View',
-      onClick: () => router.push(detailPath),
-    });
-  }
 
   return (
     <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
@@ -91,9 +82,9 @@ export function StaffProfileTableRow({
 
       <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{jobTitleName}</TableCell>
 
-      <TableCellWithTooltip maxWidth={200} sx={{ textTransform: 'capitalize' }}>
+      {/* <TableCellWithTooltip maxWidth={200} sx={{ textTransform: 'capitalize' }}>
         {getDepartmentNames(row)}
-      </TableCellWithTooltip>
+      </TableCellWithTooltip> */}
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.startDate ? fDate(row.startDate) : '—'}</TableCell>
 

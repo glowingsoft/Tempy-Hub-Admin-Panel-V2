@@ -37,7 +37,7 @@ const ICONS = {
 
 export const navDataOwner = [
   {
-    subheader: 'Overview',
+    subheader: '',
     items: [
       { title: 'Dashboard', path: paths.owner.root, icon: ICONS.dashboard },
       { title: 'Sites', path: paths.owner.sites.root, icon: ICONS.booking },

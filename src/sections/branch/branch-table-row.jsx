@@ -18,7 +18,7 @@ import { getBranchStatusMeta } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
-export function BranchTableRow({ row, serialNumber }) {
+export function BranchTableRow({ row, serialNumber, onEmergencyPin, onActivationCode }) {
   const router = useRouter();
 
   const detailPath = paths.owner.sites.detail(row._id);
@@ -38,6 +38,24 @@ export function BranchTableRow({ row, serialNumber }) {
       onClick: (event) => {
         event.stopPropagation();
         router.push(paths.owner.sites.edit(row._id));
+      },
+    },
+    {
+      key: 'emergency-pin',
+      icon: 'solar:lock-password-bold',
+      tooltip: 'Emergency PIN',
+      onClick: (event) => {
+        event.stopPropagation();
+        onEmergencyPin?.(row);
+      },
+    },
+    {
+      key: 'activation-code',
+      icon: 'solar:qr-code-bold',
+      tooltip: 'Activation code',
+      onClick: (event) => {
+        event.stopPropagation();
+        onActivationCode?.(row);
       },
     },
   ];

@@ -57,7 +57,7 @@ const TABLE_HEAD = [
   { id: 'role', label: 'Role', minWidth: 120 },
   { id: 'branch', label: 'Site', minWidth: 140 },
   { id: 'jobTitle', label: 'Job Title', minWidth: 140 },
-  { id: 'departments', label: 'Departments', minWidth: 160 },
+  // { id: 'departments', label: 'Departments', minWidth: 160 },
   { id: 'startDate', label: 'Start Date', width: 130 },
   { id: 'createdAt', label: 'Created', width: 130 },
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
@@ -72,7 +72,6 @@ export function StaffProfileListView({
   organizationName: propOrgName,
   pathsConfig,
   embedded = false,
-  hideViewAction = false,
 } = {}) {
   const table = useTable({
     defaultDense: true,
@@ -198,7 +197,6 @@ export function StaffProfileListView({
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         detailPath={resolvedPaths.detail(row._id)}
                         editPath={resolvedPaths.edit(row._id)}
-                        hideViewAction={hideViewAction}
                       />
                     ))}
 
