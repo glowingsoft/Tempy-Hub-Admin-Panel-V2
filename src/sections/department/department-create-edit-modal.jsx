@@ -10,25 +10,24 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import MenuItem from '@mui/material/MenuItem';
 
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-
-// import { useCreateDepartmentMutation, useUpdateDepartmentMutation } from 'src/store/Reducer/departments-api';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import {
+  useCreateDepartmentMutation,
+  useUpdateDepartmentMutation,
+} from 'src/store/Reducer/departments-api';
 
 // ----------------------------------------------------------------------
 
 const DepartmentSchema = zod.object({
   name: zod.string().min(1, 'Department name is required'),
-  sortOrder: zod.coerce
-    .number({ invalid_type_error: 'Sort order must be a number' })
-    .int('Sort order must be a whole number')
-    .min(0, 'Sort order cannot be negative'),
-  isActive: zod.boolean(),
-  branchId: zod.string().optional(),
+  active: zod.boolean(),
+  branchId: zod
+    .object({ value: zod.string(), label: zod.string() })
+    .nullable(),
 });
 
 // ----------------------------------------------------------------------
@@ -44,21 +43,24 @@ export function DepartmentCreateEditModal({
 }) {
   const isEdit = !!currentDepartment;
 
-  // Optional branch scope — branches for the owner's organization.
-  const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !organizationId || branch.organizationId === organizationId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [organizationId]
-  );
+  const { branchOptions, isBranchesFetching } = useOrganizationLookups({
+    organizationId,
+    branches: open && !!organizationId,
+    jobTitles: false,
+    departments: false,
+    limit: 100,
+  });
 
   const defaultValues = useMemo(
     () => ({
       name: currentDepartment?.name || '',
-      sortOrder: currentDepartment?.sortOrder ?? 0,
-      isActive: currentDepartment?.isActive ?? true,
-      branchId: currentDepartment?.branchId || '',
+      active: currentDepartment?.active ?? true,
+      branchId: currentDepartment?.branchId
+        ? {
+          value: currentDepartment.branchId,
+          label: currentDepartment.branch?.name || currentDepartment.branchId,
+        }
+        : null,
     }),
     [currentDepartment]
   );
@@ -67,6 +69,9 @@ export function DepartmentCreateEditModal({
     resolver: zodResolver(DepartmentSchema),
     defaultValues,
   });
+
+  const [createDepartment, { isLoading: isCreating }] = useCreateDepartmentMutation();
+  const [updateDepartment, { isLoading: isUpdating }] = useUpdateDepartmentMutation();
 
   useEffect(() => {
     if (open) {
@@ -81,28 +86,44 @@ export function DepartmentCreateEditModal({
 
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
-      // Payload kept decoupled from the wire format. The API slice picks
-      // `{ name, sortOrder, branchId? }` for the body and `organizationId` for the URL.
+      const branchId = data.branchId?.value || null;
       const payload = {
         organizationId,
         name: data.name,
-        sortOrder: data.sortOrder,
-        isActive: data.isActive,
-        branchId: data.branchId || null,
+        active: data.active,
+        branchId,
       };
 
-      // TODO: replace with the real mutation once the endpoint is wired up.
-      // if (isEdit) {
-      //   await updateDepartment({ departmentId: currentDepartment._id, ...payload }).unwrap();
-      // } else {
-      //   await createDepartment(payload).unwrap();
-      // }
+      if (!isEdit) {
+        await createDepartment({
+          organizationId,
+          name: data.name,
+          active: data.active,
+          ...(branchId ? { branchId } : {}),
+        }).unwrap();
+      } else {
+        await updateDepartment({
+          organizationId,
+          departmentId: currentDepartment._id,
+          name: data.name,
+          active: data.active,
+          branchId: data.branchId?.value || null,
+        }).unwrap();
+      }
 
       onSuccess?.(payload);
       toast.success(isEdit ? 'Department updated successfully!' : 'Department created successfully!');
       handleClose();
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      console.error(isEdit ? 'Update department error:' : 'Create department error:', error);
+      const errorMessage =
+        error?.data?.message ||
+        error?.data?.msg ||
+        error?.data?.error ||
+        error?.error ||
+        error?.message ||
+        'Something went wrong. Please try again.';
+      toast.error(errorMessage);
     }
   });
 
@@ -124,23 +145,23 @@ export function DepartmentCreateEditModal({
           >
             <Field.Text name="name" label="Name" />
 
-            <Field.Text name="sortOrder" label="Sort Order" type="number" />
+            <Field.Autocomplete
+              name="branchId"
+              label="Sites (optional)"
+              placeholder={isBranchesFetching ? 'Loading sites...' : 'Search and select sites'}
+              options={branchOptions}
+              loading={isBranchesFetching}
+              getOptionLabel={(option) => option.label || ''}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
+              helperText={isBranchesFetching ? 'Loading sites...' : undefined}
+            />
 
-            <Field.Select name="branchId" label="Site (optional)">
-              <MenuItem value="">None</MenuItem>
-              {branchOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
-
-            <Field.Switch name="isActive" label="Active" />
+            <Field.Switch name="active" label="Active" />
           </Box>
         </DialogContent>
 
         <DialogActions>
-          <Button variant="outlined" onClick={handleClose}>
+          <Button variant="outlined" color="primary" onClick={handleClose}>
             Cancel
           </Button>
 
@@ -148,7 +169,7 @@ export function DepartmentCreateEditModal({
             type="submit"
             variant="contained"
             color="primary"
-            loading={methods.formState.isSubmitting}
+            loading={methods.formState.isSubmitting || isCreating || isUpdating}
           >
             {isEdit ? 'Save Changes' : 'Create Department'}
           </LoadingButton>

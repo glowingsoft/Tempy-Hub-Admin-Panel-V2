@@ -134,7 +134,7 @@ export const dashboardRoutes = [
           { path: ':id/edit', element: <StaffProfileEditPage /> },
         ],
       },
-      { path: 'fire-drills', element: <FireDrillsPage /> },
+      // { path: 'fire-drills', element: <FireDrillsPage /> },
       {
         path: 'data-usage',
         children: [

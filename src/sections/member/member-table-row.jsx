@@ -80,7 +80,9 @@ export function MemberTableRow({ row, serialNumber, onDeactivate }) {
 
       <TableCellWithTooltip maxWidth={200}>{departmentNames || '—'}</TableCellWithTooltip>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.startDate)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {fDate(row.startDate || row.staffProfile?.startDate) || '—'}
+      </TableCell>
 
       <TableCell align="center">
         <Label variant="soft" color={status.color}>

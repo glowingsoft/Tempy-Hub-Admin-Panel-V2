@@ -14,14 +14,23 @@ import { GenericTableRowActions } from 'src/components/generic-table/table-row-a
 import { usePathname, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
-import { RESIDENT_CARE_LEVEL_OPTIONS, RESIDENT_STATUS_OPTIONS } from './mocks/data';
+import {
+    RESIDENT_CARE_LEVEL_OPTIONS,
+    RESIDENT_STATUS_OPTIONS,
+    RESIDENT_ADMISSION_STATUS_OPTIONS,
+} from './mocks/data';
 
 export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) {
     const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
-    const status = RESIDENT_STATUS_OPTIONS.find((option) => option.value === row.status);
+    const statusValue = row.admissionStatus || row.status;
+    const status =
+        RESIDENT_ADMISSION_STATUS_OPTIONS.find((option) => option.value === statusValue) ||
+        RESIDENT_STATUS_OPTIONS.find((option) => option.value === statusValue);
     const careLevel = RESIDENT_CARE_LEVEL_OPTIONS.find((option) => option.value === row.careLevel);
+    const branchName = row.branch?.name || row.branchName || row.branch || '—';
+    const passcode = row.visitorPasscode || row.securityPassword;
 
     // Shared across the site manager, line manager and owner dashboards, so
     // the detail route is resolved from the current URL rather than a prop.
@@ -59,7 +68,7 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             </TableCell>
 
             {/* Branch / Site */}
-            <TableCell>{row.branch || '—'}</TableCell>
+            <TableCell>{branchName}</TableCell>
 
             {/* Room Number */}
             <TableCell>{row.roomNumber || '—'}</TableCell>
@@ -75,7 +84,7 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             <TableCell align="center" onClick={(event) => event.stopPropagation()}>
                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                        {showPassword ? (row.securityPassword || '—') : '••••••••'}
+                        {showPassword ? (passcode || '—') : '••••••••'}
                     </Typography>
                     <IconButton size="small" onClick={() => setShowPassword((prev) => !prev)}>
                         <Iconify icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'} width={16} />

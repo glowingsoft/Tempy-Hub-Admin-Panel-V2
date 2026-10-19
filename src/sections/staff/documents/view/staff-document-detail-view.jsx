@@ -241,8 +241,9 @@ export function StaffDocumentDetailView() {
   // Local state initialized from document record:
   // acknowledged  — whether the staff member has already acknowledged / signed
   // signature     — data URL of the drawn signature, set after signing
+  const [isSigned, setIsSigned] = useState(() => Boolean(document_?.signed || document_?.isSigned));
   const [acknowledged, setAcknowledged] = useState(
-    () => Boolean(document_?.signed || document_?.isSigned || document_?.acknowledged)
+    () => Boolean(document_?.acknowledged)
   );
   const [signature, setSignature] = useState(
     () => document_?.signature || null
@@ -267,7 +268,7 @@ export function StaffDocumentDetailView() {
 
   const handleSign = useCallback((dataUrl) => {
     setSignature(dataUrl);
-    setAcknowledged(true);
+    setIsSigned(true);
     if (document_?._id) {
       updateDocument(document_._id, {
         signed: true,
@@ -378,11 +379,11 @@ export function StaffDocumentDetailView() {
                     />
                   </Box>
                   <Typography variant="h6" textAlign="center">
-                    {requiresSignature ? 'Document signed' : 'Document acknowledged'}
+                    {isSigned ? 'Document signed and acknowledged' : 'Document acknowledged'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" textAlign="center">
-                    {requiresSignature
-                      ? 'Your signature has been recorded. Thank you.'
+                    {isSigned
+                      ? 'Your signature and acknowledgment have been recorded. Thank you.'
                       : 'You have acknowledged this document. Thank you.'}
                   </Typography>
 
@@ -417,16 +418,51 @@ export function StaffDocumentDetailView() {
                 {requiresSignature ? (
                   <Stack spacing={3}>
                     <Stack spacing={0.5}>
-                      <Typography variant="subtitle1">Sign document</Typography>
+                      <Typography variant="subtitle1">
+                        {isSigned ? 'Signature saved' : 'Sign document'}
+                      </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Please read the document above carefully, then draw your signature below to confirm you
-                        have read and agree to its contents.
+                        {isSigned
+                          ? 'Your signature is saved. Acknowledge below to complete this document.'
+                          : 'Please read the document above carefully, then draw your signature below to confirm you have read and agree to its contents.'}
                       </Typography>
                     </Stack>
 
                     <Divider />
 
-                    <SignaturePad onSign={handleSign} />
+                    {isSigned && signature ? (
+                      <Box
+                        sx={{
+                          border: (theme) => `1px solid ${theme.palette.divider}`,
+                          borderRadius: 1,
+                          p: 1.5,
+                          bgcolor: 'background.neutral',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                          Signature saved
+                        </Typography>
+                        <Box
+                          component="img"
+                          src={signature}
+                          alt="Saved signature"
+                          sx={{ width: 1, height: 100, objectFit: 'contain' }}
+                        />
+                      </Box>
+                    ) : (
+                      <SignaturePad onSign={handleSign} />
+                    )}
+
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      color="success"
+                      size="large"
+                      startIcon={<Iconify icon="solar:check-circle-bold" />}
+                      onClick={handleAcknowledge}
+                    >
+                      Acknowledge document
+                    </Button>
                   </Stack>
                 ) : (
                   <Stack spacing={2}>
@@ -472,27 +508,21 @@ export function StaffDocumentDetailView() {
               </MetaRow>
             )}
 
-            <MetaRow icon="solar:shield-check-bold" label="Required action">
-              {requiresSignature ? (
-                <Label variant="soft" color="error">
-                  Signature required
-                </Label>
-              ) : (
-                <Label variant="soft" color="info">
-                  Read & acknowledge
-                </Label>
-              )}
-            </MetaRow>
+            {requiresSignature && (
+              <MetaRow icon="solar:pen-new-square-bold" label="Signature status">
+                {isSigned ? (
+                  <Label variant="soft" color="success">Signed</Label>
+                ) : (
+                  <Label variant="soft" color="warning">Pending signature</Label>
+                )}
+              </MetaRow>
+            )}
 
-            <MetaRow icon="solar:shield-check-bold" label="Status">
+            <MetaRow icon="solar:check-read-bold" label="Acknowledgment status">
               {acknowledged ? (
-                <Label variant="soft" color="success">
-                  {requiresSignature ? 'Signed' : 'Acknowledged'}
-                </Label>
+                <Label variant="soft" color="success">Acknowledged</Label>
               ) : (
-                <Label variant="soft" color="warning">
-                  Pending
-                </Label>
+                <Label variant="soft" color="warning">Pending acknowledgment</Label>
               )}
             </MetaRow>
 

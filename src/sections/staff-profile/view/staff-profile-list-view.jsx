@@ -1,54 +1,68 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useCallback, useMemo } from 'react';
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Iconify } from 'src/components/iconify';
-import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
+import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
+import { Scrollbar } from 'src/components/scrollbar';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
-// import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
-import { mockOrganizations } from 'src/sections/organization/mocks/data';
-import { mockStaffProfilesResponse } from '../mocks/data';
-import { getOwnerOrganizationId, getOwnerOrganizationName } from '../utils';
+import { MEMBERSHIP_ROLE_OPTIONS } from 'src/sections/membership/mocks/data';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 import { StaffProfileTableRow } from '../staff-profile-table-row';
 
 // ----------------------------------------------------------------------
 
+const ROLE_OPTIONS = [
+  { value: 'all', label: 'All', color: 'default' },
+  ...MEMBERSHIP_ROLE_OPTIONS.map((option) => ({
+    ...option,
+    color:
+      (option.value === 'siteManager' && 'info') ||
+      (option.value === 'lineManager' && 'warning') ||
+      (option.value === 'staff' && 'success') ||
+      'default',
+  })),
+];
+
+const ROLE_FILTER_FIELD = createFilterField.status({
+  key: 'role',
+  label: 'Role',
+  options: ROLE_OPTIONS,
+  showCounts: true,
+});
+
 const TABLE_HEAD = [
-  { id: 'sr', label: 'Sr#', width: 60 },
+  { id: 'sr', label: 'Sr#', width: 56 },
   { id: 'user', label: 'Staff', minWidth: 220 },
+  { id: 'role', label: 'Role', minWidth: 120 },
   { id: 'branch', label: 'Site', minWidth: 140 },
   { id: 'jobTitle', label: 'Job Title', minWidth: 140 },
-  { id: 'departments', label: 'Departments', minWidth: 160 },
+  // { id: 'departments', label: 'Departments', minWidth: 160 },
   { id: 'startDate', label: 'Start Date', width: 130 },
   { id: 'createdAt', label: 'Created', width: 130 },
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
 ];
 
-// TODO: confirm whether the list endpoint supports a keyword/search param — the
-// search below is client-side only against the current page of mock data.
 const FILTER_FIELDS = [createFilterField.search({ placeholder: 'Search staff or email...' })];
 
 // ----------------------------------------------------------------------
@@ -58,17 +72,13 @@ export function StaffProfileListView({
   organizationName: propOrgName,
   pathsConfig,
   embedded = false,
-  hideViewAction = false,
 } = {}) {
-  const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
-  const { user } = useSelector((state) => state.user);
-  const isOwner = user?.permission === 4;
-
-  const defaultOrgId = getOwnerOrganizationId(user) || mockOrganizations[0]?._id;
-  const defaultOrgName = getOwnerOrganizationName(user) || mockOrganizations[0]?.name || '';
-
-  const organizationId = propOrgId !== undefined ? propOrgId : defaultOrgId;
+  const { organizationId, organizationName: defaultOrgName, isOwner } = useCurrentOrganization(propOrgId);
   const orgName = propOrgName !== undefined ? propOrgName : defaultOrgName;
 
   const resolvedPaths = useMemo(
@@ -85,48 +95,41 @@ export function StaffProfileListView({
     [isOwner, pathsConfig]
   );
 
-  const filters = useSetState({ search: '' });
+  const filters = useSetState({ search: '', role: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
 
-  const [reloadKey] = useState(0);
-
-  // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetStaffProfilesQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockStaffProfilesResponse;
-
-  const allProfiles = useMemo(
-    () =>
-      (data?.data ?? []).filter(
-        (profile) => !organizationId || profile.organizationId === organizationId
-      ),
-    [data, organizationId, reloadKey]
+  const { data, isLoading, isFetching } = useGetStaffProfilesQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(filters.state.role !== 'all' ? { role: filters.state.role } : {}),
+    },
+    { skip: !organizationId }
   );
 
-  const filteredProfiles = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
+  const profiles = useMemo(() => data?.data ?? [], [data]);
+  const totalRecords = data?.meta?.totalRecords ?? profiles.length;
+  const roleCounts = data?.meta?.counts ?? {};
 
-    return allProfiles.filter(
-      (profile) =>
-        !search ||
-        profile.user?.name?.toLowerCase().includes(search) ||
-        profile.user?.email?.toLowerCase().includes(search)
-    );
-  }, [allProfiles, keyword]);
+  const getRoleCount = useCallback(
+    (role) => {
+      if (role === 'all') {
+        const totalFromCounts = Object.values(roleCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
 
-  // Pagination metadata (mirrors the API `meta`).
-  const totalRecords = filteredProfiles.length;
-  const paginatedProfiles = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return filteredProfiles.slice(start, start + table.rowsPerPage);
-  }, [filteredProfiles, table.page, table.rowsPerPage]);
+      return roleCounts[role] ?? 0;
+    },
+    [roleCounts, totalRecords]
+  );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && profiles.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -144,8 +147,6 @@ export function StaffProfileListView({
     [filters, table]
   );
 
-  const newButtonDisabled = isOwner && !organizationId;
-
   const content = (
     <>
       {!embedded && (
@@ -156,36 +157,18 @@ export function StaffProfileListView({
             { name: 'Staff Profiles' },
             ...(orgName ? [{ name: orgName }] : []),
           ]}
-          action={
-            <Button
-              component={RouterLink}
-              href={resolvedPaths.new}
-              variant="contained"
-              disabled={newButtonDisabled}
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              New Staff Profile
-            </Button>
-          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
       )}
 
-      {embedded && (
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            component={RouterLink}
-            href={resolvedPaths.new}
-            variant="contained"
-            disabled={newButtonDisabled}
-            startIcon={<Iconify icon="mingcute:add-line" />}
-          >
-            New Staff Profile
-          </Button>
-        </Box>
-      )}
-
       <Card>
+        <StatusTabsFilterWrapper
+          filterField={ROLE_FILTER_FIELD}
+          value={filters.state.role}
+          onChange={handleFilterChange}
+          getCount={getRoleCount}
+        />
+
         <FlexibleTableToolbar
           filterFields={FILTER_FIELDS}
           filterValues={filters.state}
@@ -196,21 +179,24 @@ export function StaffProfileListView({
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-              <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => <TableSkeleton key={index} />)
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {paginatedProfiles.map((row, index) => (
+                    {profiles.map((row, index) => (
                       <StaffProfileTableRow
                         key={row._id}
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         detailPath={resolvedPaths.detail(row._id)}
                         editPath={resolvedPaths.edit(row._id)}
-                        hideViewAction={hideViewAction}
                       />
                     ))}
 

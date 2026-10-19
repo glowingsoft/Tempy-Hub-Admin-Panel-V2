@@ -56,6 +56,7 @@ export const leaveRequestsApi = createApi({
       query: ({ organizationId, page = 1, limit = 10, status }) => ({
         url: API_ROUTES.ORGANIZATION_LEAVE_REQUESTS(organizationId),
         method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         params: { page, limit, ...(status && status !== 'all' ? { status } : {}) },
       }),
       transformResponse: (res) => ({ data: res?.data ?? [], meta: res?.meta ?? {} }),
@@ -72,6 +73,7 @@ export const leaveRequestsApi = createApi({
       query: ({ organizationId, ...body }) => ({
         url: API_ROUTES.ORGANIZATION_LEAVE_ENTITLEMENTS(organizationId),
         method: 'PUT',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         body,
       }),
       invalidatesTags: (result, error, { organizationId }) => [
@@ -84,7 +86,7 @@ export const leaveRequestsApi = createApi({
       query: ({ leaveRequestId, organizationId }) => ({
         url: API_ROUTES.LEAVE_APPROVAL_APPROVE(leaveRequestId),
         method: 'POST',
-        headers: { 'x-org-id': organizationId },
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
       }),
       invalidatesTags: (result, error, { leaveRequestId, organizationId }) => [
         { type: 'LeaveRequest', id: leaveRequestId },
@@ -96,7 +98,7 @@ export const leaveRequestsApi = createApi({
       query: ({ leaveRequestId, organizationId, decisionNote }) => ({
         url: API_ROUTES.LEAVE_APPROVAL_REJECT(leaveRequestId),
         method: 'POST',
-        headers: { 'x-org-id': organizationId },
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         body: decisionNote ? { decisionNote } : undefined,
       }),
       invalidatesTags: (result, error, { leaveRequestId, organizationId }) => [

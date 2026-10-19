@@ -1,4 +1,4 @@
-import Button from '@mui/material/Button';
+import LoadingButton from '@mui/lab/LoadingButton';
 
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
@@ -7,7 +7,16 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 // Driven by `confirmProps` from `useInvitationActions`.
 // ----------------------------------------------------------------------
 
-export function InvitationActionDialog({ open, onClose, onConfirm, title, confirmLabel, name, isDelete }) {
+export function InvitationActionDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  confirmLabel,
+  name,
+  isDelete,
+  loading,
+}) {
   return (
     <ConfirmDialog
       open={open}
@@ -26,9 +35,14 @@ export function InvitationActionDialog({ open, onClose, onConfirm, title, confir
         )
       }
       action={
-        <Button variant="contained" color="error" onClick={onConfirm}>
+        <LoadingButton
+          variant="contained"
+          color="error"
+          loading={loading}
+          onClick={onConfirm}
+        >
           {confirmLabel}
-        </Button>
+        </LoadingButton>
       }
     />
   );

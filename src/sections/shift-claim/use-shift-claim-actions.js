@@ -4,12 +4,11 @@ import { useBoolean } from 'src/hooks/use-boolean';
 
 import { toast } from 'src/components/snackbar';
 
-// import { useApproveShiftClaimMutation } from 'src/store/Reducer/shift-claims-api';
-import { approveMockShiftClaim } from './mocks/data';
+import { useApproveShiftClaimMutation } from 'src/store/Reducer/shift-claims-api';
 
 // ----------------------------------------------------------------------
 // Shared approve behaviour for the shift-claim list and detail screens — keeps
-// the (mock) mutation + confirmation logic in one place.
+// the mutation + confirmation logic in one place.
 // ----------------------------------------------------------------------
 
 export function useShiftClaimActions({ organizationId, onChanged } = {}) {
@@ -17,7 +16,7 @@ export function useShiftClaimActions({ organizationId, onChanged } = {}) {
   const [pending, setPending] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // const [approveShiftClaim] = useApproveShiftClaimMutation();
+  const [approveShiftClaim] = useApproveShiftClaimMutation();
 
   const askApprove = useCallback(
     (row) => {
@@ -37,17 +36,26 @@ export function useShiftClaimActions({ organizationId, onChanged } = {}) {
 
     setIsSubmitting(true);
     try {
-      // TODO: await approveShiftClaim({ shiftClaimId: pending._id, organizationId }).unwrap();
-      const updated = approveMockShiftClaim(pending._id);
-      toast.success('Shift claim approved.');
-      onChanged?.(updated);
+      const activeOrgId =
+        organizationId ||
+        (typeof pending.organizationId === 'object' ? pending.organizationId?._id : pending.organizationId);
+
+      const res = await approveShiftClaim({
+        shiftClaimId: pending._id,
+        organizationId: activeOrgId,
+      }).unwrap();
+
+      toast.success(res?.message || 'Shift claim approved successfully.');
+      onChanged?.(res?.data || res);
       closeConfirm();
     } catch (error) {
-      toast.error(error?.data?.message || 'Could not approve the shift claim.');
+      if (!error?.status) {
+        toast.error(error?.data?.message || error?.message || 'Could not approve the shift claim.');
+      }
     } finally {
       setIsSubmitting(false);
     }
-  }, [pending, organizationId, onChanged, closeConfirm]);
+  }, [pending, organizationId, approveShiftClaim, onChanged, closeConfirm]);
 
   const confirmProps = useMemo(
     () => ({

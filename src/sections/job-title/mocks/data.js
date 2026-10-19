@@ -10,7 +10,7 @@ import { mockOrganizations } from 'src/sections/organization/mocks/data';
 
 export const JOB_TITLE_STATUS_OPTIONS = [
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'inactive', label: 'Inactive', color: 'default' },
+  { value: 'inactive', label: 'Inactive', color: 'error' },
 ];
 
 // `level` slugs (see the API sample: "siteManagement"). Placeholder set —

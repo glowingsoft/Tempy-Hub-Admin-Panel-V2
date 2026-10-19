@@ -11,6 +11,12 @@ export const RESIDENT_STATUS_OPTIONS = [
     { value: 'inactive', label: 'Inactive', color: 'default' },
 ];
 
+export const RESIDENT_ADMISSION_STATUS_OPTIONS = [
+    { value: 'admitted', label: 'Admitted', color: 'success' },
+    { value: 'pending', label: 'Pending', color: 'warning' },
+    { value: 'discharged', label: 'Discharged', color: 'default' },
+];
+
 export const RESIDENT_CARE_LEVEL_OPTIONS = [
     { value: 'low', label: 'Low' },
     { value: 'medium', label: 'Medium' },

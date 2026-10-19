@@ -1,25 +1,28 @@
 import dayjs from 'dayjs';
-import { Avatar, Stack, TableCell, TableRow, Typography } from '@mui/material';
+import { Avatar, IconButton, Stack, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
 import { TableInfo } from './view/team-attendance-list-view';
 import { AttendanceStatusChip } from 'src/sections/user/attendance-status-chip';
+import { Iconify } from 'src/components/iconify';
 import { fDate } from 'src/utils/format-time';
 
-const TeamAttendanceTableRow = ({ row, serialNumber }) => {
+const TeamAttendanceTableRow = ({ row, serialNumber, onViewRow }) => {
     const firstBreak = row.breaks?.[0];
     const formatTime = (value) => value ? dayjs(value).format('hh:mm A') : '—';
     const status = row.punctualityStatus === 'onTime' ? 'On time' : row.punctualityStatus || 'Unknown';
     const workedHours = `${Math.floor((row.workedMinutes || 0) / 60)}h ${(row.workedMinutes || 0) % 60}m`;
     return (
         <TableRow
-            key={row.id}
+            key={row._id || row.id}
             hover
+            sx={{ cursor: onViewRow ? 'pointer' : 'default' }}
+            onClick={() => onViewRow?.(row._id || row.id, row)}
         >
             <TableCell>{serialNumber}</TableCell>
 
             <TableCell>
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Avatar alt={row.name} src={row.image}>
-                        {row.name?.charAt(0)}
+                    <Avatar alt={row.staff?.name || row.name} src={row.image}>
+                        {(row.staff?.name || row.name)?.charAt(0)}
                     </Avatar>
 
                     <Stack>
@@ -84,8 +87,21 @@ const TeamAttendanceTableRow = ({ row, serialNumber }) => {
                     status={status}
                 />
             </TableCell>
+
+            <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                {onViewRow && (
+                    <Tooltip title="View Details">
+                        <IconButton
+                            size="small"
+                            onClick={() => onViewRow(row._id || row.id, row)}
+                        >
+                            <Iconify icon="solar:eye-bold" />
+                        </IconButton>
+                    </Tooltip>
+                )}
+            </TableCell>
         </TableRow>
-    )
-}
+    );
+};
 
 export default TeamAttendanceTableRow

@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useCallback, useEffect, useState } from 'react';
 
 import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
@@ -8,10 +7,8 @@ import TextField from '@mui/material/TextField';
 
 import { Iconify } from 'src/components/iconify';
 
-import { mockBranches } from './mocks/data';
-import { getOwnerOrganizationId } from './utils';
-
-// import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 
 // ----------------------------------------------------------------------
 
@@ -28,21 +25,15 @@ export function useOwnerBranchFilter() {
 }
 
 export function OwnerBranchSelect({ value, onChange }) {
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId } = useCurrentOrganization();
 
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data } = useGetBranchesQuery(
-  //   { organizationId, page: 1, limit: 100 },
-  //   { skip: !organizationId }
-  // );
-  // const branches = data?.data ?? [];
-
-  const branches = useMemo(
-    () =>
-      mockBranches.filter((branch) => !organizationId || branch.organizationId === organizationId),
-    [organizationId]
-  );
+  const { branches } = useOrganizationLookups({
+    organizationId,
+    branches: !!organizationId,
+    jobTitles: false,
+    departments: false,
+    limit: 100,
+  });
 
   useEffect(() => {
     if (!branches.length) {

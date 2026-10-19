@@ -1,5 +1,3 @@
-import { useMemo, useState } from 'react';
-
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -11,6 +9,7 @@ import { useParams, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { fDateTime } from 'src/utils/format-time';
 
@@ -18,9 +17,9 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { LoadingScreen } from 'src/components/loading-screen';
 
-// import { useGetDepartmentQuery } from 'src/store/Reducer/departments-api';
-import { mockDepartments, updateMockDepartment } from '../mocks/data';
+import { useGetDepartmentQuery } from 'src/store/Reducer/departments-api';
 import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 
 // ----------------------------------------------------------------------
@@ -28,27 +27,55 @@ import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 export function DepartmentDetailView() {
   const { id } = useParams();
   const router = useRouter();
+  const { organizationId } = useCurrentOrganization();
 
   const editModal = useBoolean();
-  const [reloadKey, setReloadKey] = useState(0);
-
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading } = useGetDepartmentQuery({ organizationId, departmentId: id });
-  // const department = data;
-  const department = useMemo(
-    () => mockDepartments.find((d) => d._id === id) ?? null,
-    [id, reloadKey]
+  const {
+    data: department,
+    isLoading,
+    isError,
+    error,
+  } = useGetDepartmentQuery(
+    { organizationId, departmentId: id },
+    { skip: !id || !organizationId }
   );
 
-  const handleEditSuccess = (payload) => {
-    updateMockDepartment(id, payload);
-    setReloadKey((key) => key + 1);
-  };
+  if (isLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <LoadingScreen sx={{ py: 10 }} />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    const errorMessage =
+      error?.data?.message ||
+      error?.data?.msg ||
+      error?.data?.error ||
+      error?.error ||
+      'Unable to load department details.';
+
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Button
+          color="primary"
+          onClick={() => router.push(paths.owner.departments.root)}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          sx={{ mb: 2 }}
+        >
+          Back
+        </Button>
+        <EmptyContent filled title={errorMessage} sx={{ py: 10 }} />
+      </Box>
+    );
+  }
 
   if (!department) {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <Button
+          color="primary"
           onClick={() => router.push(paths.owner.departments.root)}
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           sx={{ mb: 2 }}
@@ -63,7 +90,7 @@ export function DepartmentDetailView() {
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ mb: 2 }}>
-        <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+        <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
           Back
         </Button>
       </Box>
@@ -78,6 +105,7 @@ export function DepartmentDetailView() {
         action={
           <Button
             variant="contained"
+            color="primary"
             onClick={editModal.onTrue}
             startIcon={<Iconify icon="solar:pen-bold" />}
           >
@@ -104,8 +132,8 @@ export function DepartmentDetailView() {
           <DetailItem
             label="Status"
             value={
-              <Label variant="soft" color={department.isActive ? 'success' : 'default'}>
-                {department.isActive ? 'Active' : 'Inactive'}
+              <Label variant="soft" color={department.active ? 'success' : 'error'}>
+                {department.active ? 'Active' : 'Inactive'}
               </Label>
             }
           />
@@ -121,7 +149,6 @@ export function DepartmentDetailView() {
         onClose={editModal.onFalse}
         organizationId={department.organizationId}
         currentDepartment={department}
-        onSuccess={handleEditSuccess}
       />
     </Box>
   );

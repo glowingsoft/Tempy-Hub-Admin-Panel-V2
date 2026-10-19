@@ -188,7 +188,6 @@ export function SampleListView() {
     queryHook: useGetWalletsQuery,
     defaultFilters: DEFAULT_FILTERS,
     filterFields: WALLET_FILTER_FIELDS,
-    defaultRowsPerPage: 10,
     debounceMs: 500,
   });
 

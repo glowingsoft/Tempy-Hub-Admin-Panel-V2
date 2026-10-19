@@ -1,4 +1,5 @@
 import { fetchBaseQuery } from '@reduxjs/toolkit/query';
+import { toast } from 'src/components/snackbar';
 import { handleApiError } from './handleApiError';
 import { logout } from './slices/userSlice';
 
@@ -6,8 +7,7 @@ export const createCustomFetchBaseQuery = () => {
   const baseQuery = fetchBaseQuery({
     baseUrl: import.meta.env.VITE_BASE_URL,
     prepareHeaders: (headers, { getState }) => {
-      const state = getState();
-      const token = state?.user?.user?.token;
+      const token = getState()?.user?.user?.token;
 
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);
@@ -21,7 +21,7 @@ export const createCustomFetchBaseQuery = () => {
 
     if (result.error) {
       const message = handleApiError(result.error);
-      console.error('API Error:', message);
+      console.error('API Error:', message || result.error);
 
       const { status } = result.error;
 
@@ -31,7 +31,7 @@ export const createCustomFetchBaseQuery = () => {
         const isOnLoginPage =
           isBrowser &&
           (window.location.pathname === '/' ||
-            window.location.pathname === '/auth/jwt/sign-in');
+            window.location.pathname.startsWith('/auth'));
 
         if (!isOnLoginPage) {
           api.dispatch(logout());
@@ -39,7 +39,12 @@ export const createCustomFetchBaseQuery = () => {
           if (isBrowser) {
             window.location.replace('/');
           }
+          return result;
         }
+      }
+
+      if (message && !extraOptions?.disableToast) {
+        toast.apiError(message);
       }
     }
 

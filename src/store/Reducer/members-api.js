@@ -17,14 +17,12 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //     "data": [
 //       {
 //         "_id": "string",              // membershipId
-//         "membershipId": "string",
 //         "organizationId": "string",
 //         "userId": "string",
-//         "email": "string",
-//         "name": "string",
+//         "user": { "_id": "string", "name": "string", "email": "string" },
 //         "role": "staff",
 //         "branchId": "string" | null,
-//         "branch": { "_id": "string", "name": "string" } | null,
+//         "branch": { "_id": "string", "name": "string", "code": "string" } | null,
 //         "permissions": ["leave.approve"],
 //         "jobTitleId": "string" | null,
 //         "jobTitle": { "_id": "string", "name": "string" } | null,
@@ -40,9 +38,9 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //     "meta": { "currentPage": 1, "totalPages": 1, "totalRecords": 1, "limit": 10 }
 //   }
 //
-// GET  /admin/memberships/:membershipId          -> { "message": "string", "data": Membership }  (assumed)
+// GET  /admin/memberships/:membershipId          -> { "message": "string", "data": Membership }
 //
-// PUT  /admin/memberships/:membershipId
+// PATCH /admin/memberships/:membershipId
 //   request:
 //   {
 //     "name": "string", "role": "staff", "branchId": "string",
@@ -57,6 +55,16 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 
 const listTag = (organizationId) => ({ type: 'Member', id: `LIST-${organizationId}` });
 
+const normalizeMembership = (membership) => ({
+  ...membership,
+  membershipId: membership.membershipId ?? membership._id,
+  userId: membership.userId ?? membership.user?._id,
+  name: membership.name ?? membership.user?.name,
+  email: membership.email ?? membership.user?.email,
+  branchId: membership.branchId ?? membership.branch?._id ?? null,
+  startDate: membership.startDate ?? membership.staffProfile?.startDate ?? null,
+});
+
 export const membersApi = createApi({
   reducerPath: 'membersApi',
   baseQuery: createCustomFetchBaseQuery(),
@@ -70,7 +78,7 @@ export const membersApi = createApi({
         params: { page, limit, ...(keyword ? { keyword } : {}) },
       }),
       transformResponse: (res) => ({
-        data: res?.data ?? [],
+        data: (res?.data ?? []).map(normalizeMembership),
         meta: res?.meta ?? {},
       }),
       providesTags: (result, error, { organizationId }) =>
@@ -83,20 +91,33 @@ export const membersApi = createApi({
     }),
 
     getMember: builder.query({
-      query: (membershipId) => ({
-        url: API_ROUTES.MEMBERSHIP_BY_ID(membershipId),
-        method: 'GET',
-      }),
-      transformResponse: (res) => res?.data ?? res,
-      providesTags: (result, error, membershipId) => [{ type: 'Member', id: membershipId }],
+      query: (arg) => {
+        const membershipId = typeof arg === 'string' ? arg : arg?.membershipId;
+        const organizationId = typeof arg === 'object' ? arg?.organizationId : undefined;
+
+        return {
+          url: API_ROUTES.MEMBERSHIP_BY_ID(membershipId),
+          method: 'GET',
+          headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        };
+      },
+      transformResponse: (res) => {
+        const membership = res?.data ?? res;
+        return membership ? normalizeMembership(membership) : membership;
+      },
+      providesTags: (result, error, arg) => [
+        { type: 'Member', id: typeof arg === 'string' ? arg : arg?.membershipId },
+      ],
     }),
 
     updateMembership: builder.mutation({
-      query: ({ membershipId, ...body }) => ({
+      query: ({ membershipId, organizationId, ...body }) => ({
         url: API_ROUTES.MEMBERSHIP_BY_ID(membershipId),
-        method: 'PUT',
+        method: 'PATCH',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { membershipId, organizationId }) => [
         { type: 'Member', id: membershipId },
         ...(organizationId ? [listTag(organizationId)] : []),
@@ -104,13 +125,17 @@ export const membersApi = createApi({
     }),
 
     deactivateMembership: builder.mutation({
-      query: ({ membershipId }) => ({
+      query: ({ membershipId, organizationId }) => ({
         url: API_ROUTES.MEMBERSHIP_DEACTIVATE(membershipId),
         method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
       }),
+      transformResponse: (res) =>
+        res?.data ? { ...normalizeMembership(res.data), message: res?.message } : res,
       invalidatesTags: (result, error, { membershipId, organizationId }) => [
         { type: 'Member', id: membershipId },
         ...(organizationId ? [listTag(organizationId)] : []),
+        ...(result?.organizationId ? [listTag(result.organizationId)] : []),
       ],
     }),
   }),

@@ -29,9 +29,10 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetShiftsQuery } from 'src/store/Reducer/shifts-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetShiftsQuery } from 'src/store/Reducer/shifts-api';
 import { SHIFT_STATUS_OPTIONS, mockShiftsResponse } from '../mocks/data';
-import { getOwnerOrganizationId, getOwnerOrganizationName, getShiftStaffName } from '../utils';
+import { getShiftStaffName } from '../utils';
 import { ShiftTableRow } from '../shift-table-row';
 
 // ----------------------------------------------------------------------
@@ -46,7 +47,6 @@ const TABLE_HEAD = [
   { id: 'endsAt', label: 'End Date/Time', minWidth: 170 },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
   { id: 'visibility', label: 'Visibility', width: 120 },
-  { id: 'urgentCover', label: 'Urgent Cover', width: 120, align: 'center' },
   { id: 'createdAt', label: 'Created', width: 130 },
   { id: 'actions', label: 'Actions', width: 90, align: 'center' },
 ];
@@ -58,12 +58,13 @@ const FILTER_FIELDS = [
 
 // ----------------------------------------------------------------------
 
-export function ShiftListView() {
+export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
-  const orgName = getOwnerOrganizationName(user);
+  const { organizationId: resolvedOrgId, organizationName: resolvedOrgName } =
+    useCurrentOrganization(propOrgId);
+  const organizationId = propOrgId || resolvedOrgId;
+  const orgName = resolvedOrgName;
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -78,14 +79,21 @@ export function ShiftListView() {
   );
 
   // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetShiftsQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage, status: filters.state.status },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockShiftsResponse;
+  const {
+    data: apiData,
+    isLoading,
+    isFetching,
+  } = useGetShiftsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      status: filters.state.status,
+    },
+    { skip: !organizationId }
+  );
+
+  const data = apiData || mockShiftsResponse;
 
   const allShifts = useMemo(
     () =>
@@ -110,11 +118,14 @@ export function ShiftListView() {
   }, [allShifts, filters.state.status, keyword]);
 
   // Pagination metadata (mirrors the API `meta`).
-  const totalRecords = filteredShifts.length;
+  const totalRecords = apiData?.meta?.totalRecords ?? filteredShifts.length;
   const paginatedShifts = useMemo(() => {
+    if (apiData?.data) {
+      return filteredShifts;
+    }
     const start = table.page * table.rowsPerPage;
     return filteredShifts.slice(start, start + table.rowsPerPage);
-  }, [filteredShifts, table.page, table.rowsPerPage]);
+  }, [apiData, filteredShifts, table.page, table.rowsPerPage]);
 
   const getStatusCount = useCallback(
     (status) =>
@@ -142,6 +153,10 @@ export function ShiftListView() {
     [filters, table]
   );
 
+  const newShiftHref =
+    pathsConfig?.new ||
+    (organizationId ? `${paths.owner.shifts.new}?orgId=${organizationId}` : paths.owner.shifts.new);
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -155,9 +170,8 @@ export function ShiftListView() {
         action={
           <Button
             component={RouterLink}
-            href={paths.owner.shifts.new}
+            href={newShiftHref}
             variant="contained"
-            disabled={!organizationId}
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Shift

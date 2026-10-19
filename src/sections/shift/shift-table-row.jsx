@@ -18,8 +18,13 @@ import { getShiftStatusMeta, getShiftVisibilityLabel } from './mocks/data';
 export function ShiftTableRow({ row, serialNumber }) {
   const router = useRouter();
 
-  const detailPath = paths.owner.shifts.detail(row._id);
-  const editPath = paths.owner.shifts.edit(row._id);
+  const rowOrgId = row?.organizationId?._id || row?.organizationId || '';
+  const detailPath = rowOrgId
+    ? `${paths.owner.shifts.detail(row._id)}?orgId=${rowOrgId}`
+    : paths.owner.shifts.detail(row._id);
+  const editPath = rowOrgId
+    ? `${paths.owner.shifts.edit(row._id)}?orgId=${rowOrgId}`
+    : paths.owner.shifts.edit(row._id);
 
   const status = getShiftStatusMeta(row.status);
 
@@ -46,7 +51,9 @@ export function ShiftTableRow({ row, serialNumber }) {
     <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
       <TableCell>{serialNumber}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {row.branch?.name || (typeof row.branchId === 'object' && row.branchId?.name) || '—'}
+      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{getShiftStaffName(row)}</TableCell>
 
@@ -61,16 +68,6 @@ export function ShiftTableRow({ row, serialNumber }) {
       </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{getShiftVisibilityLabel(row.visibility)}</TableCell>
-
-      <TableCell align="center">
-        {row.urgentCover ? (
-          <Label variant="soft" color="error">
-            Urgent
-          </Label>
-        ) : (
-          '—'
-        )}
-      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.createdAt)}</TableCell>
 

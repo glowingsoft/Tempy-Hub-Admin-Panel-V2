@@ -19,7 +19,6 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 
-// import { useGetJobTitleQuery } from 'src/store/Reducer/job-titles-api';
 import { getJobTitleLevelLabel, mockJobTitles, updateMockJobTitle } from '../mocks/data';
 import { JobTitleCreateEditModal } from '../job-title-create-edit-modal';
 
@@ -32,9 +31,6 @@ export function JobTitleDetailView() {
   const editModal = useBoolean();
   const [reloadKey, setReloadKey] = useState(0);
 
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading } = useGetJobTitleQuery({ organizationId, jobTitleId: id });
-  // const jobTitle = data;
   const jobTitle = useMemo(
     () => mockJobTitles.find((jt) => jt._id === id) ?? null,
     [id, reloadKey]

@@ -12,7 +12,7 @@ export const EVACUATION_TYPE_OPTIONS = [
 
 export const EVACUATION_STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active', color: 'error' },
+  { value: 'active', label: 'Active', color: 'success' },
   { value: 'closed', label: 'Closed', color: 'default' },
 ];
 
@@ -157,9 +157,71 @@ export const mockEvacChecksByEventId = {
       markedAt: minutesAgo(4),
     },
   ],
-  'evac-2': [],
-  'evac-3': [],
+  'evac-2': [
+    {
+      _id: 'chk-201',
+      personKind: 'staff',
+      personName: 'Marcus Bell',
+      status: 'safe',
+      locationLabel: 'Assembly point',
+      markedAt: hoursAgo(71.8),
+    },
+    {
+      _id: 'chk-202',
+      personKind: 'resident',
+      personName: 'Room 4 — D. Miller',
+      status: 'safe',
+      locationLabel: 'Garden gate',
+      markedAt: hoursAgo(71.7),
+    },
+    {
+      _id: 'chk-203',
+      personKind: 'resident',
+      personName: 'Room 8 — H. Clark',
+      status: 'safe',
+      locationLabel: 'Garden gate',
+      markedAt: hoursAgo(71.6),
+    },
+    {
+      _id: 'chk-204',
+      personKind: 'visitor',
+      personName: 'Sarah Jenkins',
+      status: 'safe',
+      locationLabel: 'Rear gate',
+      markedAt: hoursAgo(71.5),
+    },
+  ],
+  'evac-3': [
+    {
+      _id: 'chk-301',
+      personKind: 'staff',
+      personName: 'Liam O’Connor',
+      status: 'safe',
+      locationLabel: 'Car park',
+      markedAt: hoursAgo(239.8),
+    },
+    {
+      _id: 'chk-302',
+      personKind: 'resident',
+      personName: 'Room 15 — M. Patel',
+      status: 'safe',
+      locationLabel: 'Assembly point',
+      markedAt: hoursAgo(239.5),
+    },
+    {
+      _id: 'chk-303',
+      personKind: 'visitor',
+      personName: 'George Edwards',
+      status: 'missing',
+      locationLabel: 'Lobby',
+      markedAt: hoursAgo(239.2),
+    },
+  ],
 };
+
+export function getMockEvacuationById(id) {
+  return mockEvacuations.find((e) => e._id === id) || null;
+}
 
 export function getMockEvacuations({ branchId, status = 'all' } = {}) {
   return mockEvacuations.filter((row) => {

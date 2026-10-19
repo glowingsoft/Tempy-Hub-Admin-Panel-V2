@@ -15,10 +15,13 @@ import MenuItem from '@mui/material/MenuItem';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import {
+  useCreateJobTitleMutation,
+  useUpdateJobTitleMutation,
+} from 'src/store/Reducer/job-titles-api';
 
-// import { useCreateJobTitleMutation, useUpdateJobTitleMutation } from 'src/store/Reducer/job-titles-api';
 import { JOB_TITLE_LEVEL_OPTIONS } from './mocks/data';
 
 // ----------------------------------------------------------------------
@@ -27,8 +30,21 @@ const JobTitleSchema = zod.object({
   name: zod.string().min(1, 'Job title name is required'),
   level: zod.string().min(1, 'Level is required'),
   active: zod.boolean(),
-  branchId: zod.string().optional(),
-  departmentId: zod.string().optional(),
+  branchId: zod
+    .object({ value: zod.string(), label: zod.string() })
+    .nullable(),
+  departmentId: zod
+    .object({ value: zod.string(), label: zod.string() })
+    .nullable(),
+});
+
+const ALL_SITES_OPTION = { value: '__all_sites__', label: 'All sites' };
+const NONE_SITE_OPTION = { value: '__none__', label: 'None' };
+const SITE_EXTRA_OPTIONS = [ALL_SITES_OPTION, NONE_SITE_OPTION];
+
+const mapLookupOption = (item) => ({
+  value: item._id,
+  label: item.name,
 });
 
 // ----------------------------------------------------------------------
@@ -44,38 +60,43 @@ export function JobTitleCreateEditModal({
 }) {
   const isEdit = !!currentJobTitle;
 
-  // Optional branch scope — branches for the owner's organization.
-  const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !organizationId || branch.organizationId === organizationId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [organizationId]
-  );
+  const lookupQueryArgs = useMemo(() => ({ organizationId }), [organizationId]);
 
-  const departmentOptions = useMemo(
-    () =>
-      mockDepartments
-        .filter((department) => !organizationId || department.organizationId === organizationId)
-        .map((department) => ({ value: department._id, label: department.name })),
-    [organizationId]
-  );
+  const defaultValues = useMemo(() => {
+    const department =
+      currentJobTitle?.department ??
+      currentJobTitle?.departments?.[0] ??
+      (currentJobTitle?.departmentId
+        ? { _id: currentJobTitle.departmentId, name: currentJobTitle.departmentId }
+        : null);
 
-  const defaultValues = useMemo(
-    () => ({
+    const branchOption = currentJobTitle?.branchId
+      ? {
+          value: currentJobTitle.branchId,
+          label: currentJobTitle.branch?.name || currentJobTitle.branchId,
+        }
+      : currentJobTitle?.siteScope === 'none'
+        ? NONE_SITE_OPTION
+        : ALL_SITES_OPTION;
+
+    return {
       name: currentJobTitle?.name || '',
       level: currentJobTitle?.level || JOB_TITLE_LEVEL_OPTIONS[0]?.value || '',
       active: currentJobTitle?.active ?? true,
-      branchId: currentJobTitle?.branchId || (currentJobTitle?.siteScope === 'none' ? '__none__' : '__all_sites__'),
-      departmentId: currentJobTitle?.departmentId || currentJobTitle?.department?._id || '',
-    }),
-    [currentJobTitle]
-  );
+      branchId: branchOption,
+      departmentId: department
+        ? { value: department._id, label: department.name || department._id }
+        : null,
+    };
+  }, [currentJobTitle]);
 
   const methods = useForm({
     resolver: zodResolver(JobTitleSchema),
     defaultValues,
   });
+
+  const [createJobTitle, { isLoading: isCreating }] = useCreateJobTitleMutation();
+  const [updateJobTitle, { isLoading: isUpdating }] = useUpdateJobTitleMutation();
 
   useEffect(() => {
     if (open) {
@@ -90,38 +111,57 @@ export function JobTitleCreateEditModal({
 
   const onSubmit = methods.handleSubmit(async (data) => {
     try {
-      // Payload kept decoupled from the wire format. The API slice picks
-      // `{ name, level, branchId? }` for the body and `organizationId` for the URL.
       const payload = {
         organizationId,
         name: data.name,
         level: data.level,
         active: data.active,
         branchId:
-          data.branchId && data.branchId !== '__all_sites__' && data.branchId !== '__none__'
-            ? data.branchId
+          data.branchId?.value &&
+          data.branchId.value !== '__all_sites__' &&
+          data.branchId.value !== '__none__'
+            ? data.branchId.value
             : null,
         siteScope:
-          data.branchId === '__none__'
+          data.branchId?.value === '__none__'
             ? 'none'
-            : data.branchId === '__all_sites__'
+            : data.branchId?.value === '__all_sites__'
               ? 'all'
               : 'branch',
-        departmentId: data.departmentId || null,
+        departmentId: data.departmentId?.value || null,
       };
 
-      // TODO: replace with the real mutation once the endpoint is wired up.
-      // if (isEdit) {
-      //   await updateJobTitle({ jobTitleId: currentJobTitle._id, ...payload }).unwrap();
-      // } else {
-      //   await createJobTitle(payload).unwrap();
-      // }
+      const result = isEdit
+        ? await updateJobTitle({
+          organizationId,
+          jobTitleId: currentJobTitle._id,
+          name: data.name,
+          level: data.level,
+          active: data.active,
+          branchId: payload.branchId,
+          departmentId: payload.departmentId,
+        }).unwrap()
+        : await createJobTitle({
+          organizationId,
+          name: data.name,
+          level: data.level,
+          branchId: payload.branchId,
+          departmentId: payload.departmentId,
+        }).unwrap();
 
-      onSuccess?.(payload);
+      onSuccess?.(isEdit ? payload : result);
       toast.success(isEdit ? 'Job title updated successfully!' : 'Job title created successfully!');
       handleClose();
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      console.error(isEdit ? 'Update job title error:' : 'Create job title error:', error);
+      const errorMessage =
+        error?.data?.message ||
+        error?.data?.msg ||
+        error?.data?.error ||
+        error?.error ||
+        error?.message ||
+        'Something went wrong. Please try again.';
+      toast.error(errorMessage);
     }
   });
 
@@ -151,31 +191,33 @@ export function JobTitleCreateEditModal({
               ))}
             </Field.Select>
 
-            <Field.Select name="branchId" label="Site (optional)">
-              <MenuItem value="__all_sites__">All sites</MenuItem>
-              <MenuItem value="__none__">None</MenuItem>
-              {branchOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            <Field.InfiniteAutocomplete
+              name="branchId"
+              label="Site (optional)"
+              placeholder="Search sites"
+              useQuery={useGetBranchesQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapLookupOption}
+              extraOptions={SITE_EXTRA_OPTIONS}
+              enabled={open && !!organizationId}
+            />
 
-            <Field.Select name="departmentId" label="Department (optional)">
-              <MenuItem value="">None</MenuItem>
-              {departmentOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            <Field.InfiniteAutocomplete
+              name="departmentId"
+              label="Department (optional)"
+              placeholder="Search departments"
+              useQuery={useGetDepartmentsQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapLookupOption}
+              enabled={open && !!organizationId}
+            />
 
             <Field.Switch name="active" label="Active" />
           </Box>
         </DialogContent>
 
         <DialogActions>
-          <Button variant="outlined" onClick={handleClose}>
+          <Button variant="outlined" color="primary" onClick={handleClose}>
             Cancel
           </Button>
 
@@ -183,7 +225,7 @@ export function JobTitleCreateEditModal({
             type="submit"
             variant="contained"
             color="primary"
-            loading={methods.formState.isSubmitting}
+            loading={methods.formState.isSubmitting || isCreating || isUpdating}
           >
             {isEdit ? 'Save Changes' : 'Create Job Title'}
           </LoadingButton>

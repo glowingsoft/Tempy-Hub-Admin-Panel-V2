@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 import { useParams, useRouter } from 'src/routes/hooks';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { fDateTime } from 'src/utils/format-time';
 
@@ -17,7 +18,7 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 
-// import { useGetShiftClaimQuery } from 'src/store/Reducer/shift-claims-api';
+import { useGetShiftClaimsQuery } from 'src/store/Reducer/shift-claims-api';
 import {
   getMockShiftClaimById,
   getShiftClaimStatusMeta,
@@ -33,14 +34,36 @@ export function ShiftClaimDetailView() {
   const { id } = useParams();
   const router = useRouter();
 
-  const [reloadKey, setReloadKey] = useState(0);
-  const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
+  const { organizationId } = useCurrentOrganization();
 
-  const { askApprove, confirmProps } = useShiftClaimActions({ onChanged: refresh });
+  const { data: apiResponse, isLoading, refetch } = useGetShiftClaimsQuery(
+    { organizationId, limit: 100 },
+    { skip: !organizationId }
+  );
 
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data: claim, isLoading } = useGetShiftClaimQuery(id, { skip: !id });
-  const claim = useMemo(() => getMockShiftClaimById(id), [id, reloadKey]);
+  const claim = useMemo(
+    () => apiResponse?.data?.find((c) => c._id === id) || getMockShiftClaimById(id),
+    [apiResponse, id]
+  );
+
+  const claimOrgId =
+    (typeof claim?.organizationId === 'object' ? claim?.organizationId?._id : claim?.organizationId) ||
+    organizationId;
+
+  const { askApprove, confirmProps } = useShiftClaimActions({
+    organizationId: claimOrgId,
+    onChanged: refetch,
+  });
+
+  if (isLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', py: 4 }}>
+          Loading shift claim...
+        </Typography>
+      </Box>
+    );
+  }
 
   if (!claim) {
     return (
@@ -58,7 +81,7 @@ export function ShiftClaimDetailView() {
   }
 
   const status = getShiftClaimStatusMeta(claim.status);
-  const canApprove = claim.status === 'open';
+  const canApprove = claim.status === 'open' || claim.status === 'pending';
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>

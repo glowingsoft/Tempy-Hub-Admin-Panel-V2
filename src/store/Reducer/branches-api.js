@@ -72,11 +72,24 @@ export const branchesApi = createApi({
 
   endpoints: (builder) => ({
     getBranches: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, keyword = '' }) => ({
-        url: API_ROUTES.ORGANIZATION_BRANCHES(organizationId),
-        method: 'GET',
-        params: { page, limit, ...(keyword ? { keyword } : {}) },
-      }),
+      query: ({ organizationId, page = 1, limit = 10, keyword, status }) => {
+        const params = { page, limit };
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        if (trimmedKeyword) {
+          params.keyword = trimmedKeyword;
+        }
+
+        if (status) {
+          params.status = status;
+        }
+
+        return {
+          url: API_ROUTES.ORGANIZATION_BRANCHES(organizationId),
+          method: 'GET',
+          params,
+        };
+      },
       transformResponse: (res) => ({
         data: res?.data ?? [],
         meta: res?.meta ?? {},
@@ -84,19 +97,20 @@ export const branchesApi = createApi({
       providesTags: (result, error, { organizationId }) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'Branch', id: _id })),
-              { type: 'Branch', id: `LIST-${organizationId}` },
-            ]
+            ...result.data.map(({ _id }) => ({ type: 'Branch', id: _id })),
+            { type: 'Branch', id: `LIST-${organizationId}` },
+          ]
           : [{ type: 'Branch', id: `LIST-${organizationId}` }],
     }),
 
     getBranch: builder.query({
-      query: (branchId) => ({
+      query: ({ branchId, organizationId }) => ({
         url: API_ROUTES.BRANCH_BY_ID(branchId),
         method: 'GET',
+        headers: { 'x-org-id': organizationId },
       }),
       transformResponse: (res) => res?.data ?? res,
-      providesTags: (result, error, branchId) => [{ type: 'Branch', id: branchId }],
+      providesTags: (result, error, { branchId }) => [{ type: 'Branch', id: branchId }],
     }),
 
     createBranch: builder.mutation({
@@ -105,17 +119,34 @@ export const branchesApi = createApi({
         method: 'POST',
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { organizationId }) => [
         { type: 'Branch', id: `LIST-${organizationId}` },
       ],
     }),
 
     updateBranch: builder.mutation({
-      query: ({ branchId, ...body }) => ({
+      query: ({ branchId, organizationId, ...body }) => ({
         url: API_ROUTES.BRANCH_BY_ID(branchId),
-        method: 'PUT',
+        method: 'PATCH',
+        headers: { 'x-org-id': organizationId },
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { branchId, organizationId }) => [
+        { type: 'Branch', id: branchId },
+        ...(organizationId ? [{ type: 'Branch', id: `LIST-${organizationId}` }] : []),
+      ],
+    }),
+
+    createBranchActivationCode: builder.mutation({
+      query: ({ branchId, organizationId, expiresInHours }) => ({
+        url: API_ROUTES.BRANCH_ACTIVATION_CODES(branchId),
+        method: 'POST',
+        headers: { 'x-org-id': organizationId },
+        body: { expiresInHours },
+      }),
+      transformResponse: (res) => res,
       invalidatesTags: (result, error, { branchId, organizationId }) => [
         { type: 'Branch', id: branchId },
         ...(organizationId ? [{ type: 'Branch', id: `LIST-${organizationId}` }] : []),
@@ -129,4 +160,5 @@ export const {
   useGetBranchQuery,
   useCreateBranchMutation,
   useUpdateBranchMutation,
+  useCreateBranchActivationCodeMutation,
 } = branchesApi;

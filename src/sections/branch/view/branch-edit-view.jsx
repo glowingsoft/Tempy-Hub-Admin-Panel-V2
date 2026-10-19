@@ -3,12 +3,16 @@ import { paths } from 'src/routes/paths';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { BranchNewEditForm } from '../branch-new-edit-form';
 
 // ----------------------------------------------------------------------
 
 export function BranchEditView({ branch: currentBranch }) {
+  const { organizationId: currentOrgId } = useCurrentOrganization();
+  const organizationId = currentOrgId ?? currentBranch?.organizationId;
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -22,7 +26,7 @@ export function BranchEditView({ branch: currentBranch }) {
       />
 
       <BranchNewEditForm
-        organizationId={currentBranch?.organizationId}
+        organizationId={organizationId}
         currentBranch={currentBranch}
       />
     </DashboardContent>

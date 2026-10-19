@@ -1,29 +1,37 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { toast } from 'src/components/snackbar';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
+import {
+    TableHeadCustom,
+    TableNoData,
+    TablePaginationCustom,
+    TableSkeleton,
+    useTable,
+} from 'src/components/table';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 import { useBoolean } from 'src/hooks/use-boolean';
 
-import { mockResidentsResponse, RESIDENT_STATUS_OPTIONS } from '../mocks/data';
+import { useGetResidentsQuery, useCreateResidentMutation } from 'src/store/Reducer/residents-api';
+import { RESIDENT_STATUS_OPTIONS } from '../mocks/data';
 import { ResidentTableRow } from '../resident-table-row';
 import { ResidentImportDialog } from '../resident-import-dialog';
 import { ResidentSecurityDialog } from '../resident-security-dialog';
@@ -41,65 +49,86 @@ const TABLE_HEAD = [
 ];
 
 const FILTER_FIELDS = [
-    createFilterField.status({ options: [{ value: 'all', label: 'All', color: 'default' }, ...RESIDENT_STATUS_OPTIONS], showCounts: true }),
+    createFilterField.status({
+        options: [{ value: 'all', label: 'All', color: 'default' }, ...RESIDENT_STATUS_OPTIONS],
+        showCounts: true,
+    }),
     createFilterField.search({ placeholder: 'Search resident, room, or password...' }),
 ];
 
 export function ResidentListView({ ownerDashboard = false }) {
     const table = useTable({ defaultOrderBy: 'name', defaultOrder: 'asc' });
-    const { user } = useSelector((state) => state.user);
-    const organizationId = ownerDashboard ? getOwnerOrganizationId(user) : null;
+    const { organizationId, user } = useCurrentOrganization();
     const { branchId, onBranchChange } = useOwnerBranchFilter();
 
     const importDialog = useBoolean();
     const securityDialog = useBoolean();
     const addEditDialog = useBoolean();
-    const deleteDialog = useBoolean();
 
     const [selectedResident, setSelectedResident] = useState(null);
     const [selectedResidentForEdit, setSelectedResidentForEdit] = useState(null);
-    const [selectedResidentForDelete, setSelectedResidentForDelete] = useState(null);
 
-    const [residents, setResidents] = useState(mockResidentsResponse.data);
+    const [createResident] = useCreateResidentMutation();
+
     const filters = useSetState({ search: '', status: 'all' });
     const keyword = useDebounce(filters.state.search, 500);
 
-    const statusFilterField = useMemo(() => FILTER_FIELDS.find((field) => field.type === 'status'), []);
-    const toolbarFilterFields = useMemo(() => FILTER_FIELDS.filter((field) => field.type !== 'status'), []);
-    const allResidents = useMemo(
-        () => residents.filter((resident) => !organizationId || resident.organizationId === organizationId),
-        [organizationId, residents]
+    // API Query for all roles using the active organization
+    const {
+        currentData: liveData,
+        isLoading: isLiveLoading,
+        isFetching: isLiveFetching,
+        isError: isLiveError,
+        error: liveError,
+    } = useGetResidentsQuery(
+        {
+            organizationId,
+            branchId: branchId === 'all' ? undefined : branchId,
+            page: table.page + 1,
+            limit: table.rowsPerPage,
+            keyword,
+        },
+        { skip: !organizationId }
     );
 
-    const handleImport = useCallback((rows) => {
-        const defaultBranchId = branchId !== 'all' ? branchId : allResidents[0]?.branchId;
-        const importedResidents = rows.map((row, index) => ({
-            _id: `resident-import-${Date.now()}-${index}`,
-            name: row.name,
-            email: row.email,
-            phone: row.phone || '',
-            roomNumber: row.roomNumber,
-            careLevel: ['low', 'medium', 'high'].includes(row.careLevel) ? row.careLevel : 'low',
-            status: ['active', 'inactive'].includes(row.status) ? row.status : 'active',
-            image: '',
-            organizationId,
-            branchId: row.branchId || defaultBranchId,
-            branch: row.branch || '—',
-            securityPassword: `PASS-${Math.floor(1000 + Math.random() * 9000)}`,
-            hasRestrictions: false,
-            approvedCallers: [],
-            restrictionNotes: '',
-        }));
+    const statusFilterField = useMemo(() => FILTER_FIELDS.find((field) => field.type === 'status'), []);
+    const toolbarFilterFields = useMemo(() => FILTER_FIELDS.filter((field) => field.type !== 'status'), []);
 
-        setResidents((current) => [...current, ...importedResidents]);
-    }, [allResidents, branchId, organizationId]);
+    // Source residents: Live data from the database
+    const sourceResidents = useMemo(() => liveData?.data ?? [], [liveData?.data]);
 
-    const handleSaveSecurity = useCallback((updatedResident) => {
-        setResidents((current) =>
-            current.map((resident) =>
-                resident._id === updatedResident._id ? updatedResident : resident
-            )
-        );
+    const handleImport = useCallback(
+        async (rows) => {
+            const defaultBranchId = branchId !== 'all' ? branchId : undefined;
+            let successCount = 0;
+            for (const row of rows) {
+                try {
+                    await createResident({
+                        organizationId,
+                        name: row.name,
+                        email: row.email,
+                        phone: row.phone || '',
+                        roomNumber: row.roomNumber,
+                        careLevel: ['low', 'medium', 'high'].includes(row.careLevel) ? row.careLevel : 'low',
+                        admissionStatus: ['active', 'admitted'].includes(row.status) ? 'admitted' : 'discharged',
+                        branchId: row.branchId || defaultBranchId,
+                        visitorPasscode: `PASS-${Math.floor(1000 + Math.random() * 9000)}`,
+                    }).unwrap();
+                    successCount += 1;
+                } catch (err) {
+                    console.error('Import resident failed for row:', row, err);
+                }
+            }
+            if (successCount > 0) {
+                toast.success(`Successfully imported ${successCount} resident${successCount > 1 ? 's' : ''}!`);
+                table.onResetPage();
+            }
+        },
+        [branchId, createResident, organizationId, table]
+    );
+
+    const handleSaveSecurity = useCallback(() => {
+        // Redux RTK Query automatically invalidates tags on visitor passcode update
     }, []);
 
     const handleOpenSecurity = useCallback((resident) => {
@@ -117,46 +146,62 @@ export function ResidentListView({ ownerDashboard = false }) {
         addEditDialog.onTrue();
     }, [addEditDialog]);
 
-    const handleSaveResident = useCallback((residentData) => {
-        setResidents((current) => {
-            const exists = current.some((r) => r._id === residentData._id);
-            if (exists) {
-                return current.map((r) => (r._id === residentData._id ? residentData : r));
-            }
-            return [residentData, ...current];
-        });
-    }, []);
+    const handleSaveResident = useCallback(() => {
+        table.onResetPage();
+    }, [table]);
 
     const filteredResidents = useMemo(() => {
         const search = keyword.trim().toLowerCase();
-        return allResidents
+        return sourceResidents
             .filter((resident) => {
-                const matchesBranch = !ownerDashboard || branchId === 'all' || resident.branchId === branchId;
-                const matchesStatus = filters.state.status === 'all' || resident.status === filters.state.status;
-                const matchesSearch = !search || [
-                    resident.name,
-                    resident.email,
-                    resident.roomNumber,
-                    resident.branch,
-                    resident.securityPassword,
-                ].some((value) => value?.toLowerCase().includes(search));
+                const resBranchId = resident.branchId || resident.branch?._id;
+                const matchesBranch = branchId === 'all' || resBranchId === branchId;
+                const resStatus = resident.admissionStatus || resident.status;
+                const matchesStatus =
+                    filters.state.status === 'all' ||
+                    resStatus === filters.state.status ||
+                    (filters.state.status === 'active' && resStatus === 'admitted') ||
+                    (filters.state.status === 'inactive' && (resStatus === 'discharged' || resStatus === 'inactive'));
+                const matchesSearch =
+                    !search ||
+                    [
+                        resident.name,
+                        resident.email,
+                        resident.roomNumber,
+                        resident.branch?.name || resident.branch,
+                        resident.visitorPasscode || resident.securityPassword,
+                    ].some((value) => value?.toLowerCase().includes(search));
                 return matchesBranch && matchesStatus && matchesSearch;
             })
-            .sort((a, b) => a.name.localeCompare(b.name));
-    }, [allResidents, branchId, filters.state.status, keyword, ownerDashboard]);
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    }, [branchId, filters.state.status, keyword, sourceResidents]);
 
     const getStatusCount = useCallback(
         (status) => {
-            const branchResidents = allResidents.filter((resident) => !ownerDashboard || branchId === 'all' || resident.branchId === branchId);
-            return status === 'all' ? branchResidents.length : branchResidents.filter((resident) => resident.status === status).length;
+            const list = sourceResidents.filter((resident) => {
+                const resBranchId = resident.branchId || resident.branch?._id;
+                return branchId === 'all' || resBranchId === branchId;
+            });
+            if (status === 'all') return list.length;
+            return list.filter((resident) => {
+                const resStatus = resident.admissionStatus || resident.status;
+                return (
+                    resStatus === status ||
+                    (status === 'active' && resStatus === 'admitted') ||
+                    (status === 'inactive' && (resStatus === 'discharged' || resStatus === 'inactive'))
+                );
+            }).length;
         },
-        [allResidents, branchId, ownerDashboard]
+        [branchId, sourceResidents]
     );
 
-    const paginatedResidents = useMemo(() => {
-        const start = table.page * table.rowsPerPage;
-        return filteredResidents.slice(start, start + table.rowsPerPage);
-    }, [filteredResidents, table.page, table.rowsPerPage]);
+    const displayResidents = filteredResidents;
+
+    const totalRecords = Number.isFinite(liveData?.meta?.totalRecords)
+        ? liveData.meta.totalRecords
+        : filteredResidents.length;
+
+    const notFound = !isLiveLoading && !isLiveFetching && displayResidents.length === 0;
 
     const handleFilterChange = useCallback((key, value) => {
         table.onResetPage();
@@ -172,10 +217,20 @@ export function ResidentListView({ ownerDashboard = false }) {
         <DashboardContent>
             <CustomBreadcrumbs
                 heading="Residents"
-                links={[{ name: 'Dashboard', href: ownerDashboard ? paths.owner.root : user?.permission === 3 ? paths.lineManager.root : paths.siteManager.root }, { name: 'Residents' }]}
+                links={[
+                    {
+                        name: 'Dashboard',
+                        href: ownerDashboard
+                            ? paths.owner.root
+                            : user?.permission === 3
+                                ? paths.lineManager.root
+                                : paths.siteManager.root,
+                    },
+                    { name: 'Residents' },
+                ]}
                 action={
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                        {ownerDashboard && <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />}
+                        <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />
                         <Button variant="outlined" onClick={importDialog.onTrue} startIcon={<Iconify icon="solar:upload-bold" />}>
                             Import CSV
                         </Button>
@@ -186,42 +241,73 @@ export function ResidentListView({ ownerDashboard = false }) {
                 }
                 sx={{ mb: { xs: 3, md: 5 } }}
             />
+
             <Card>
+                {isLiveError && (
+                    <Alert severity="error" sx={{ m: 2 }}>
+                        {liveError?.data?.message || liveError?.error || 'Failed to load residents.'}
+                    </Alert>
+                )}
+
                 <StatusTabsFilterWrapper filterField={statusFilterField} value={filters.state.status} onChange={handleFilterChange} getCount={getStatusCount} />
                 <FlexibleTableToolbar filterFields={toolbarFilterFields} filterValues={filters.state} onFilterChange={handleFilterChange} onSearchChange={handleSearchChange} />
+
                 <Box sx={{ position: 'relative' }}>
                     <Scrollbar>
                         <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 980 }}>
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
                             <TableBody>
-                                {paginatedResidents.map((row, index) => (
-                                    <ResidentTableRow
-                                        key={row._id}
-                                        row={row}
-                                        serialNumber={table.page * table.rowsPerPage + index + 1}
-                                        onEditSecurity={handleOpenSecurity}
-                                        onEdit={handleOpenEdit}
-                                    />
-                                ))}
-                                <TableNoData notFound={!paginatedResidents.length} title="No residents found" />
+                                {(isLiveLoading || isLiveFetching) ? (
+                                    [...Array(table.rowsPerPage)].map((_, index) => (
+                                        <TableSkeleton key={index} />
+                                    ))
+                                ) : (
+                                    <>
+                                        {displayResidents.map((row, index) => (
+                                            <ResidentTableRow
+                                                key={row._id}
+                                                row={row}
+                                                serialNumber={table.page * table.rowsPerPage + index + 1}
+                                                onEditSecurity={handleOpenSecurity}
+                                                onEdit={handleOpenEdit}
+                                            />
+                                        ))}
+                                        <TableNoData notFound={notFound} title="No residents found" />
+                                    </>
+                                )}
                             </TableBody>
                         </Table>
                     </Scrollbar>
                 </Box>
-                <TablePaginationCustom page={table.page} dense={table.dense} count={filteredResidents.length} rowsPerPage={table.rowsPerPage} onPageChange={table.onChangePage} onChangeDense={table.onChangeDense} onRowsPerPageChange={table.onChangeRowsPerPage} />
+
+                <TablePaginationCustom
+                    page={table.page}
+                    dense={table.dense}
+                    count={totalRecords}
+                    rowsPerPage={table.rowsPerPage}
+                    onPageChange={table.onChangePage}
+                    onChangeDense={table.onChangeDense}
+                    onRowsPerPageChange={table.onChangeRowsPerPage}
+                />
             </Card>
+
             <ResidentImportDialog open={importDialog.value} onClose={importDialog.onFalse} onImport={handleImport} />
+
             <ResidentSecurityDialog
                 open={securityDialog.value}
                 resident={selectedResident}
                 onClose={securityDialog.onFalse}
                 onSave={handleSaveSecurity}
+                organizationId={organizationId}
             />
+
             <ResidentAddEditDialog
                 open={addEditDialog.value}
                 currentResident={selectedResidentForEdit}
                 onClose={addEditDialog.onFalse}
                 onSave={handleSaveResident}
+                ownerDashboard={ownerDashboard}
+                organizationId={organizationId}
             />
         </DashboardContent>
     );

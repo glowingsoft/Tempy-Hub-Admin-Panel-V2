@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useCallback } from 'react';
 
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
@@ -10,9 +10,12 @@ import { paths } from 'src/routes/paths';
 
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
+import { useGetMembersQuery } from 'src/store/Reducer/members-api';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -25,9 +28,6 @@ import {
   useTable,
 } from 'src/components/table';
 
-// import { useGetMembersQuery } from 'src/store/Reducer/members-api';
-import { mockMembersResponse } from '../mocks/data';
-import { getOwnerOrganizationId, getOwnerOrganizationName } from '../utils';
 import { useMemberActions } from '../use-member-actions';
 import { MemberActionDialog } from '../member-action-dialog';
 import { MemberTableRow } from '../member-table-row';
@@ -54,54 +54,33 @@ const FILTER_FIELDS = [createFilterField.search({ placeholder: 'Search name or e
 export function MemberListView() {
   const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
-  const orgName = getOwnerOrganizationName(user);
+  const { organizationId, organizationName: orgName } = useCurrentOrganization();
+  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
 
   const filters = useSetState({ search: '' });
   const keyword = useDebounce(filters.state.search, 500);
 
-  const [reloadKey, setReloadKey] = useState(0);
-  const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
-
-  const { askDeactivate, confirmProps } = useMemberActions({ organizationId, onChanged: refresh });
-
-  // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetMembersQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage, keyword },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockMembersResponse;
-
-  const allMembers = useMemo(
-    () =>
-      (data?.data ?? []).filter((member) => !organizationId || member.organizationId === organizationId),
-    [data, organizationId, reloadKey]
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+  } = useGetMembersQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      keyword,
+    },
+    { skip: !organizationId }
   );
+  const paginatedMembers = data?.data ?? [];
+  const totalRecords = data?.meta?.totalRecords ?? paginatedMembers.length;
 
-  // Client-side filtering (mock only — the API filters server-side).
-  const filteredMembers = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
+  const { askDeactivate, confirmProps } = useMemberActions({ organizationId });
 
-    return allMembers.filter(
-      (member) =>
-        !search ||
-        member.name?.toLowerCase().includes(search) ||
-        member.email?.toLowerCase().includes(search)
-    );
-  }, [allMembers, keyword]);
-
-  // Pagination metadata (mirrors the API `meta`).
-  const totalRecords = filteredMembers.length;
-  const paginatedMembers = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return filteredMembers.slice(start, start + table.rowsPerPage);
-  }, [filteredMembers, table.page, table.rowsPerPage]);
-
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = Boolean(organizationId) && !isLoading && !isFetching && totalRecords === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -140,6 +119,18 @@ export function MemberListView() {
           onSearchChange={handleSearchChange}
         />
 
+        {!organizationId && (
+          <Alert severity="warning" sx={{ m: 2 }}>
+            Unable to determine the organization. Please sign in again or contact your administrator.
+          </Alert>
+        )}
+
+        {isError && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {error?.data?.message || 'Unable to load members. Please try again.'}
+          </Alert>
+        )}
+
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1080 }}>
@@ -156,6 +147,9 @@ export function MemberListView() {
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         onDeactivate={askDeactivate}
+                        branchesMap={branchesMap}
+                        jobTitlesMap={jobTitlesMap}
+                        departmentsMap={departmentsMap}
                       />
                     ))}
 

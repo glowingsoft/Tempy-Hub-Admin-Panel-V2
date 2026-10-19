@@ -17,7 +17,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //         "_id": "string",
 //         "name": "Kitchen",
 //         "sortOrder": 1,
-//         "isActive": true,
+//         "active": true,
 //         "organizationId": "string",
 //         "organization": { "_id": "string", "name": "string" },
 //         "createdAt": "ISO",
@@ -28,11 +28,11 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //   }
 //
 // POST /admin/organizations/:organizationId/departments
-//   request:  { "name": "Kitchen", "sortOrder": 1, "branchId"?: string }
+//   request:  { "name": "Kitchen", "sortOrder": 1 }
 //   response: { "message": "string", "data": Department }
 //
 // PATCH /admin/organizations/:organizationId/departments/:departmentId
-//   request:  { "name"?: string, "sortOrder"?: number, "isActive"?: boolean, "branchId"?: string | null }
+//   request:  { "name"?: string, "sortOrder"?: number, "active"?: boolean, "branchId"?: string | null }
 //   response: { "message": "string", "data": Department }
 //   (shape assumed — align with the backend when wired.)
 // ----------------------------------------------------------------------
@@ -44,11 +44,24 @@ export const departmentsApi = createApi({
 
   endpoints: (builder) => ({
     getDepartments: builder.query({
-      query: ({ organizationId, page = 1, limit = 10 }) => ({
-        url: API_ROUTES.ORGANIZATION_DEPARTMENTS(organizationId),
-        method: 'GET',
-        params: { page, limit },
-      }),
+      query: ({ organizationId, page = 1, limit = 10, keyword, status }) => {
+        const params = { page, limit };
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        if (trimmedKeyword) {
+          params.keyword = trimmedKeyword;
+        }
+
+        if (status) {
+          params.status = status;
+        }
+
+        return {
+          url: API_ROUTES.ORGANIZATION_DEPARTMENTS(organizationId),
+          method: 'GET',
+          params,
+        };
+      },
       transformResponse: (res) => ({
         data: res?.data ?? [],
         meta: res?.meta ?? {},
@@ -74,11 +87,23 @@ export const departmentsApi = createApi({
     }),
 
     createDepartment: builder.mutation({
-      query: ({ organizationId, name, sortOrder, branchId }) => ({
-        url: API_ROUTES.ORGANIZATION_DEPARTMENTS(organizationId),
-        method: 'POST',
-        body: { name, sortOrder, ...(branchId ? { branchId } : {}) },
-      }),
+      query: ({ organizationId, name, branchId, active }) => {
+        const body = { name };
+
+        if (branchId) {
+          body.branchId = branchId;
+        }
+
+        if (active !== undefined) {
+          body.active = active;
+        }
+
+        return {
+          url: API_ROUTES.ORGANIZATION_DEPARTMENTS(organizationId),
+          method: 'POST',
+          body,
+        };
+      },
       invalidatesTags: (result, error, { organizationId }) => [
         { type: 'Department', id: `LIST-${organizationId}` },
       ],

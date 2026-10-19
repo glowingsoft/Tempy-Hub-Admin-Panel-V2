@@ -7,6 +7,7 @@ import { SplashScreen } from 'src/components/loading-screen';
 
 import { GuestGuard } from 'src/auth/guard';
 import { AuthSplitLayout } from 'src/layouts/auth-split';
+import { AuthCenteredLayout } from 'src/layouts/auth-centered';
 import { adminDashboardRoutes } from './admin-dashboard';
 import { authRoutes } from './auth';
 import { authDemoRoutes } from './auth-demo';
@@ -21,6 +22,7 @@ import { staffDashboardRoutes } from './staff-dashboard';
 // ----------------------------------------------------------------------
 
 const HomePage = lazy(() => import('src/pages/home'));
+const InvitePage = lazy(() => import('src/pages/invite'));
 
 const Jwt = {
   SignInPage: lazy(() => import('src/pages/auth/jwt/sign-in')),
@@ -57,6 +59,28 @@ export function Router() {
     // Auth
     ...authRoutes,
     ...authDemoRoutes,
+
+    // Accept Invitation Onboarding
+    {
+      path: 'invite/:token',
+      element: (
+        <Suspense fallback={<SplashScreen />}>
+          <AuthCenteredLayout>
+            <InvitePage />
+          </AuthCenteredLayout>
+        </Suspense>
+      ),
+    },
+    {
+      path: 'invite/:token/*',
+      element: (
+        <Suspense fallback={<SplashScreen />}>
+          <AuthCenteredLayout>
+            <InvitePage />
+          </AuthCenteredLayout>
+        </Suspense>
+      ),
+    },
 
     // Dashboard
     ...dashboardRoutes,

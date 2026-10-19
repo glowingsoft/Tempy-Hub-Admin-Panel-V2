@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import { useSelector } from 'react-redux';
+import { useMemo, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -15,6 +14,7 @@ import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useTabs } from 'src/hooks/use-tabs';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { fDateTime } from 'src/utils/format-time';
 
@@ -23,9 +23,10 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 
+import { LoadingScreen } from 'src/components/loading-screen';
 import { StaffProfileListView } from 'src/sections/staff-profile/view';
 
-// import { useGetOrganizationQuery } from 'src/store/Reducer/organizations-api';
+import { useGetOrganizationByIdQuery } from 'src/store/Reducer/organizations-api';
 import { mockOrganizations, ORGANIZATION_STATUS_OPTIONS } from '../mocks/data';
 import { canEditOrganization } from '../utils';
 import { OrganizationCreateEditModal } from '../organization-create-edit-modal';
@@ -35,6 +36,11 @@ import { OrganizationModuleAccess } from '../organization-module-access';
 
 const STATUS_COLOR = ORGANIZATION_STATUS_OPTIONS.reduce((acc, option) => {
   acc[option.value] = option.color;
+  return acc;
+}, {});
+
+const STATUS_LABEL = ORGANIZATION_STATUS_OPTIONS.reduce((acc, option) => {
+  acc[option.value] = option.label;
   return acc;
 }, {});
 
@@ -59,16 +65,33 @@ export function OrganizationDetailView() {
   const tabs = useTabs(initialTab);
   const editModal = useBoolean();
 
-  const { user } = useSelector((state) => state.user);
+  const { user } = useCurrentOrganization();
   const canEdit = canEditOrganization(user);
 
-  // TODO: swap for the real query once the endpoint exists:
-  // const { data, isLoading } = useGetOrganizationQuery(id);
-  // const organization = data?.data;
+  const { data, isLoading } = useGetOrganizationByIdQuery(id, { skip: !id });
   const organization = useMemo(
-    () => mockOrganizations.find((org) => org._id === id) ?? null,
-    [id]
+    () => (data ? (data?.data ?? data) : (mockOrganizations.find((org) => org._id === id) ?? null)),
+    [data, id]
   );
+
+  useEffect(() => {
+    if (organization?._id) {
+      try {
+        localStorage.setItem('activeOrganizationId', organization._id);
+        if (organization.name) {
+          localStorage.setItem('activeOrganizationName', organization.name);
+        }
+      } catch (_) {}
+    }
+  }, [organization]);
+
+  if (isLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <LoadingScreen sx={{ py: 10 }} />
+      </Box>
+    );
+  }
 
   if (!organization) {
     return (
@@ -141,9 +164,9 @@ export function OrganizationDetailView() {
           pathsConfig={{
             dashboardRoot: paths.dashboard.root,
             root: `${paths.dashboard.organizations.detail(organization._id)}?tab=staff-profiles`,
-            new: paths.dashboard.staffProfiles.new,
-            detail: paths.dashboard.staffProfiles.detail,
-            edit: paths.dashboard.staffProfiles.edit,
+            new: `${paths.dashboard.staffProfiles.new}?orgId=${organization._id}`,
+            detail: (staffId) => `${paths.dashboard.staffProfiles.detail(staffId)}?orgId=${organization._id}`,
+            edit: (staffId) => `${paths.dashboard.staffProfiles.edit(staffId)}?orgId=${organization._id}`,
           }}
         />
       )}
@@ -178,7 +201,7 @@ function OrganizationDetails({ organization }) {
           label="Status"
           value={
             <Label variant="soft" color={STATUS_COLOR[organization.status] || 'default'}>
-              {organization.status}
+              {STATUS_LABEL[organization.status] || organization.status}
             </Label>
           }
         />

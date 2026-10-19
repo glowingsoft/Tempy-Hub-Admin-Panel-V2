@@ -64,11 +64,24 @@ export const staffProfilesApi = createApi({
 
   endpoints: (builder) => ({
     getStaffProfiles: builder.query({
-      query: ({ organizationId, page = 1, limit = 10 }) => ({
-        url: API_ROUTES.ORGANIZATION_STAFF_PROFILES(organizationId),
-        method: 'GET',
-        params: { page, limit },
-      }),
+      query: ({ organizationId, page = 1, limit = 10, keyword, role }) => {
+        const params = { page, limit };
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        if (trimmedKeyword) {
+          params.keyword = trimmedKeyword;
+        }
+
+        if (role) {
+          params.role = role;
+        }
+
+        return {
+          url: API_ROUTES.ORGANIZATION_STAFF_PROFILES(organizationId),
+          method: 'GET',
+          params,
+        };
+      },
       transformResponse: (res) => ({
         data: res?.data ?? [],
         meta: res?.meta ?? {},
@@ -76,38 +89,50 @@ export const staffProfilesApi = createApi({
       providesTags: (result, error, { organizationId }) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'StaffProfile', id: _id })),
-              listTag(organizationId),
-            ]
+            ...result.data.map(({ _id }) => ({ type: 'StaffProfile', id: _id })),
+            listTag(organizationId),
+          ]
           : [listTag(organizationId)],
     }),
 
     getStaffProfile: builder.query({
-      query: (staffProfileId) => ({
-        url: API_ROUTES.STAFF_PROFILE_BY_ID(staffProfileId),
-        method: 'GET',
-      }),
+      query: (arg) => {
+        const staffProfileId = typeof arg === 'string' ? arg : arg?.staffProfileId;
+        const organizationId = typeof arg === 'object' ? arg?.organizationId : undefined;
+
+        return {
+          url: API_ROUTES.STAFF_PROFILE_BY_ID(staffProfileId),
+          method: 'GET',
+          params: organizationId ? { organizationId } : undefined,
+          headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        };
+      },
       transformResponse: (res) => res?.data ?? res,
-      providesTags: (result, error, staffProfileId) => [
-        { type: 'StaffProfile', id: staffProfileId },
-      ],
+      providesTags: (result, error, arg) => {
+        const staffProfileId = typeof arg === 'string' ? arg : arg?.staffProfileId;
+        return [{ type: 'StaffProfile', id: staffProfileId }];
+      },
     }),
 
     createStaffProfile: builder.mutation({
       query: ({ organizationId, ...body }) => ({
         url: API_ROUTES.ORGANIZATION_STAFF_PROFILES(organizationId),
         method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { organizationId }) => [listTag(organizationId)],
     }),
 
     updateStaffProfile: builder.mutation({
-      query: ({ staffProfileId, ...body }) => ({
+      query: ({ staffProfileId, organizationId, ...body }) => ({
         url: API_ROUTES.STAFF_PROFILE_BY_ID(staffProfileId),
-        method: 'PUT',
+        method: 'PATCH',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { staffProfileId, organizationId }) => [
         { type: 'StaffProfile', id: staffProfileId },
         ...(organizationId ? [listTag(organizationId)] : []),

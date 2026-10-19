@@ -7,19 +7,29 @@ import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 import { USER_STATUS_OPTIONS } from 'src/_mock';
 // import { useUserStatusChangeMutation } from 'src/store/Reducer/user-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useUpdateExternalPersonMutation } from 'src/store/Reducer/general-directory-api';
 import { z as zod } from 'zod';
 
 const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
 
+    const { organizationId } = useCurrentOrganization();
+
     const defaultValues = useMemo(() => ({
-        // status: currentUser?.status ?? 'active'
-        status: 'active'
+        status: USER_STATUS_OPTIONS.some((option) => option.value === currentUser?.status)
+            ? currentUser.status
+            : 'active',
+        phone: currentUser?.phone || '',
+        carRegistration: currentUser?.carRegistration || '',
     }), [currentUser]);
 
     // const [updateUser] = useUserStatusChangeMutation();
+    const [updateExternalPerson] = useUpdateExternalPersonMutation();
 
     const schema = zod.object({
-        status: zod.string().min(1, 'Status is required')
+        status: zod.string().min(1, 'Status is required'),
+        phone: zod.string().min(1, 'Phone is required'),
+        carRegistration: zod.string().min(1, 'Car registration is required'),
     });
 
     const methods = useForm({
@@ -39,17 +49,20 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
     }
 
     const onSubmit = async (data) => {
+        try {
+            await updateExternalPerson({
+                externalPersonId: currentUser?.id,
+                organizationId,
+                status: data.status,
+                phone: data.phone,
+                carRegistration: data.carRegistration,
+            }).unwrap();
 
-        // let response = await updateUser({
-        //     id: currentUser?.id, body: {
-        //         status: data.status
-        //     }
-        // });
-
-        // if (!response?.error) {
-        //     toast.success("Status updated successfully");
-        //     handleClose();
-        // }
+            toast.success("User updated successfully");
+            handleClose();
+        } catch (error) {
+            // Error toast is shown by the base query.
+        }
     }
     return (
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
@@ -67,6 +80,10 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
                             </MenuItem>
                         ))}
                     </Field.Select>
+
+                    <Field.Phone name="phone" label="Phone" sx={{ mt: 2 }} />
+
+                    <Field.Text name="carRegistration" label="Car Registration" sx={{ mt: 2 }} />
                 </DialogContent>
                 <DialogActions>
 

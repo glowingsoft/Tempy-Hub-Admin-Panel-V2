@@ -1,8 +1,7 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
-import { useSelector } from 'react-redux';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
@@ -21,15 +20,16 @@ import { useRouter } from 'src/routes/hooks';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { mockJobTitles } from 'src/sections/job-title/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { mockOrganizations } from 'src/sections/organization/mocks/data';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
 
-// import {
-//   useCreateStaffProfileMutation,
-//   useUpdateStaffProfileMutation,
-// } from 'src/store/Reducer/staff-profiles-api';
+import {
+  useCreateStaffProfileMutation,
+  useUpdateStaffProfileMutation,
+} from 'src/store/Reducer/staff-profiles-api';
 import {
   mockStaffUsers,
   createMockStaffProfile,
@@ -38,19 +38,56 @@ import {
 
 // ----------------------------------------------------------------------
 
+function capitalizeLabel(value = '') {
+  return String(value)
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatUserLabel(name, email) {
+  const displayName = capitalizeLabel(name || '—');
+  const displayEmail = email ? String(email).toLowerCase() : '';
+  return displayEmail ? `${displayName} (${displayEmail})` : displayName;
+}
+
+function toLookupOption(id, name) {
+  if (!id) return null;
+  return { value: id, label: name || id };
+}
+
+function mapLookupOption(item) {
+  return {
+    value: item._id,
+    label: item.name,
+  };
+}
+
+const lookupOptionSchema = zod.object({
+  value: zod.string().min(1),
+  label: zod.string(),
+});
+
+// ----------------------------------------------------------------------
+
 export const StaffProfileSchema = zod.object({
   organizationId: zod.string().optional(),
   userId: zod.string().min(1, { message: 'User is required!' }),
-  branchId: zod.string().min(1, { message: 'Site is required!' }),
-  jobTitleId: zod.string().min(1, { message: 'Job title is required!' }),
-  departmentIds: zod.array(zod.string()),
+  branchId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
+    message: 'Site is required!',
+  }),
+  jobTitleId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
+    message: 'Job title is required!',
+  }),
+  departmentIds: zod.array(lookupOptionSchema),
   startDate: zod
     .union([zod.string(), zod.null()])
     .refine((value) => !!value, { message: 'Start date is required!' }),
   pin: zod
     .string()
-    .min(1, { message: 'PIN is required!' })
-    .regex(/^\d{4,6}$/, { message: 'PIN must be 4 to 6 digits.' }),
+    .optional()
+    .refine((value) => !value || /^\d{4,6}$/.test(value), {
+      message: 'PIN must be 4 to 6 digits.',
+    }),
   // Optional — used to show earnings alongside worked hours on the Staff Dashboard.
   hourlyRate: zod
     .string()
@@ -68,8 +105,7 @@ export function StaffProfileNewEditForm({
   pathsConfig,
 } = {}) {
   const router = useRouter();
-  const { user } = useSelector((state) => state.user);
-  const isOwner = user?.permission === 4;
+  const { organizationId: currentOrgId, isOwner } = useCurrentOrganization(organizationId);
 
   const resolvedPaths = useMemo(
     () => ({
@@ -88,11 +124,43 @@ export function StaffProfileNewEditForm({
   const defaultValues = useMemo(
     () => ({
       organizationId:
-        currentStaffProfile?.organizationId || organizationId || mockOrganizations[0]?._id || '',
-      userId: currentStaffProfile?.userId || '',
-      branchId: currentStaffProfile?.branchId || '',
-      jobTitleId: currentStaffProfile?.jobTitleId || '',
-      departmentIds: currentStaffProfile?.departmentIds || [],
+        (typeof currentStaffProfile?.organizationId === 'object'
+          ? currentStaffProfile.organizationId._id
+          : currentStaffProfile?.organizationId) ||
+        organizationId ||
+        mockOrganizations[0]?._id ||
+        '',
+      userId:
+        (typeof currentStaffProfile?.userId === 'object'
+          ? currentStaffProfile.userId._id
+          : currentStaffProfile?.userId) || '',
+      branchId: toLookupOption(
+        typeof currentStaffProfile?.branchId === 'object'
+          ? currentStaffProfile.branchId._id
+          : currentStaffProfile?.branchId,
+        (typeof currentStaffProfile?.branchId === 'object' && currentStaffProfile.branchId.name) ||
+          currentStaffProfile?.branch?.name
+      ),
+      jobTitleId: toLookupOption(
+        typeof currentStaffProfile?.jobTitleId === 'object'
+          ? currentStaffProfile.jobTitleId._id
+          : currentStaffProfile?.jobTitleId,
+        (typeof currentStaffProfile?.jobTitleId === 'object' && currentStaffProfile.jobTitleId.name) ||
+          currentStaffProfile?.jobTitle?.name
+      ),
+      departmentIds: Array.isArray(currentStaffProfile?.departments)
+        ? currentStaffProfile.departments
+            .map((department) => toLookupOption(department?._id, department?.name))
+            .filter(Boolean)
+        : Array.isArray(currentStaffProfile?.departmentIds)
+          ? currentStaffProfile.departmentIds
+              .map((department) =>
+                typeof department === 'object'
+                  ? toLookupOption(department._id, department.name)
+                  : toLookupOption(department, department)
+              )
+              .filter(Boolean)
+          : [],
       startDate: currentStaffProfile?.startDate || null,
       pin: currentStaffProfile?.pin || '',
       hourlyRate:
@@ -114,88 +182,73 @@ export function StaffProfileNewEditForm({
   } = methods;
 
   const watchedOrgId = watch('organizationId');
-  const activeOrgId = organizationId || watchedOrgId || mockOrganizations[0]?._id;
+  const resolvedOrgId =
+    typeof organizationId === 'object' ? organizationId?._id : organizationId;
+  const activeOrgId = resolvedOrgId || watchedOrgId || currentOrgId || mockOrganizations[0]?._id;
 
-  // const [createStaffProfile] = useCreateStaffProfileMutation();
-  // const [updateStaffProfile] = useUpdateStaffProfileMutation();
+  const [createStaffProfile, { isLoading: isCreating }] = useCreateStaffProfileMutation();
+  const [updateStaffProfile, { isLoading: isUpdating }] = useUpdateStaffProfileMutation();
+  const lookupQueryArgs = useMemo(() => ({ organizationId: activeOrgId }), [activeOrgId]);
 
-  const userOptions = useMemo(
-    () =>
-      mockStaffUsers
-        .filter((u) => !activeOrgId || u.organizationId === activeOrgId)
-        .map((u) => ({ value: u._id, label: `${u.name} (${u.email})` })),
-    [activeOrgId]
-  );
+  const userOptions = useMemo(() => {
+    const list = [...mockStaffUsers.filter((u) => !activeOrgId || u.organizationId === activeOrgId)];
+    const currentUser =
+      (typeof currentStaffProfile?.userId === 'object' && currentStaffProfile.userId) ||
+      currentStaffProfile?.user;
+    const currentUserId =
+      currentUser?._id ||
+      (typeof currentStaffProfile?.userId === 'string' ? currentStaffProfile.userId : '');
 
-  const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !activeOrgId || branch.organizationId === activeOrgId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [activeOrgId]
-  );
+    if (currentUserId && !list.some((u) => u._id === currentUserId)) {
+      list.unshift({
+        _id: currentUserId,
+        name: currentUser?.name || currentStaffProfile?.userName || currentUserId,
+        email: currentUser?.email || currentStaffProfile?.userEmail || '',
+      });
+    }
 
-  const jobTitleOptions = useMemo(
-    () =>
-      mockJobTitles
-        .filter((jt) => !activeOrgId || jt.organizationId === activeOrgId)
-        .map((jt) => ({ value: jt._id, label: jt.name })),
-    [activeOrgId]
-  );
-
-  const departmentOptions = useMemo(
-    () =>
-      mockDepartments
-        .filter((dep) => !activeOrgId || dep.organizationId === activeOrgId)
-        .map((dep) => ({ value: dep._id, label: dep.name })),
-    [activeOrgId]
-  );
-
-  // `departmentIds` stays a string[] — the Autocomplete works on id strings and
-  // resolves labels through this map.
-  const departmentIds = useMemo(() => departmentOptions.map((dep) => dep.value), [departmentOptions]);
-  const departmentLabelById = useMemo(
-    () => Object.fromEntries(departmentOptions.map((dep) => [dep.value, dep.label])),
-    [departmentOptions]
-  );
-  const getDepartmentLabel = useCallback(
-    (id) => departmentLabelById[id] ?? id,
-    [departmentLabelById]
-  );
+    return list.map((u) => ({
+      value: u._id,
+      label: formatUserLabel(u.name, u.email),
+    }));
+  }, [activeOrgId, currentStaffProfile]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
       const payload = {
-        branchId: data.branchId,
-        jobTitleId: data.jobTitleId,
-        departmentIds: data.departmentIds,
+        branchId: data.branchId?.value,
+        jobTitleId: data.jobTitleId?.value,
+        departmentIds: (data.departmentIds || []).map((department) => department.value),
         startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
-        pin: data.pin,
-        hourlyRate: data.hourlyRate ? Number(data.hourlyRate) : null,
+        ...(data.pin ? { pin: data.pin } : {}),
+        ...(data.hourlyRate ? { hourlyRate: Number(data.hourlyRate) } : {}),
       };
 
-      // TODO: replace with the real mutation once the endpoints are wired up.
-      // TODO: confirm whether `userId` is accepted on update — assumed create-only here.
       let profileId = staffProfileId;
       const targetOrgId = organizationId || data.organizationId || activeOrgId;
 
       if (isEdit) {
-        // await updateStaffProfile({ staffProfileId, organizationId: targetOrgId, ...payload }).unwrap();
-        updateMockStaffProfile(staffProfileId, payload);
+        await updateStaffProfile({
+          staffProfileId,
+          organizationId: targetOrgId,
+          ...payload,
+        }).unwrap();
       } else {
-        // await createStaffProfile({ organizationId: targetOrgId, userId: data.userId, ...payload }).unwrap();
-        const created = createMockStaffProfile({
+        const res = await createStaffProfile({
           organizationId: targetOrgId,
           userId: data.userId,
           ...payload,
-        });
-        profileId = created._id;
+        }).unwrap();
+        profileId = res?.data?._id || res?._id || staffProfileId;
       }
 
       toast.success(isEdit ? 'Staff profile updated successfully!' : 'Staff profile created successfully!');
       router.push(resolvedPaths.detail(profileId));
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      console.error('Failed to save staff profile:', error);
+      if (!error?.status) {
+        toast.error(error?.message || 'Something went wrong. Please try again.');
+      }
     }
   });
 
@@ -216,61 +269,71 @@ export function StaffProfileNewEditForm({
             {!organizationId && !isEdit && (
               <Field.Select name="organizationId" label="Organization">
                 {mockOrganizations.map((org) => (
-                  <MenuItem key={org._id} value={org._id}>
-                    {org.name}
+                  <MenuItem key={org._id} value={org._id} sx={{ textTransform: 'capitalize' }}>
+                    {capitalizeLabel(org.name)}
                   </MenuItem>
                 ))}
               </Field.Select>
             )}
 
-            <Field.Select name="userId" label="User" disabled={isEdit}>
+            <Field.Select
+              name="userId"
+              label="User"
+              disabled={isEdit}
+              SelectProps={{
+                MenuProps: { PaperProps: { sx: { maxHeight: 220 } } },
+                sx: { textTransform: 'none' },
+              }}
+            >
               {userOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
+                <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'none' }}>
                   {option.label}
                 </MenuItem>
               ))}
             </Field.Select>
 
-            <Field.Select name="branchId" label="Site">
-              {branchOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            <Field.InfiniteAutocomplete
+              name="branchId"
+              label="Site"
+              placeholder="Search sites"
+              useQuery={useGetBranchesQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapLookupOption}
+              enabled={!!activeOrgId}
+            />
 
-            <Field.Select name="jobTitleId" label="Job title">
-              {jobTitleOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            <Field.InfiniteAutocomplete
+              name="jobTitleId"
+              label="Job title"
+              placeholder="Search job titles"
+              useQuery={useGetJobTitlesQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapLookupOption}
+              enabled={!!activeOrgId}
+            />
 
             <Field.DatePicker name="startDate" label="Start date" />
 
-            <Field.Autocomplete
+            <Field.InfiniteAutocomplete
               multiple
               disableCloseOnSelect
               name="departmentIds"
               label="Departments"
               placeholder="Search departments"
-              options={departmentIds}
-              getOptionLabel={getDepartmentLabel}
-              isOptionEqualToValue={(option, value) => option === value}
-              renderOption={(props, option) => (
-                <li {...props} key={option}>
-                  {getDepartmentLabel(option)}
-                </li>
-              )}
+              useQuery={useGetDepartmentsQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapLookupOption}
+              enabled={!!activeOrgId}
               renderTags={(selected, getTagProps) =>
                 selected.map((option, index) => (
                   <Chip
                     {...getTagProps({ index })}
-                    key={option}
+                    key={option.value}
                     size="small"
                     variant="soft"
-                    label={getDepartmentLabel(option)}
+                    color="primary"
+                    label={option.label}
+                    sx={{ textTransform: 'capitalize' }}
                   />
                 ))
               }
@@ -295,7 +358,8 @@ export function StaffProfileNewEditForm({
 
         <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
           <Button
-            color="inherit"
+            variant="outlined"
+            color="primary"
             onClick={() =>
               router.push(
                 isEdit
@@ -307,7 +371,12 @@ export function StaffProfileNewEditForm({
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            color="primary"
+            loading={isSubmitting || isUpdating || isCreating}
+          >
             {isEdit ? 'Save changes' : 'Create staff profile'}
           </LoadingButton>
         </Stack>

@@ -14,7 +14,6 @@ const OwnerDashboardPage = lazy(() => import('src/pages/owner-dashboard'));
 const DepartmentListPage = lazy(() => import('src/pages/owner-dashboard/departments/list'));
 const DepartmentDetailPage = lazy(() => import('src/pages/owner-dashboard/departments/detail'));
 const JobTitleListPage = lazy(() => import('src/pages/owner-dashboard/job-titles/list'));
-const JobTitleDetailPage = lazy(() => import('src/pages/owner-dashboard/job-titles/detail'));
 const BranchListPage = lazy(() => import('src/pages/owner-dashboard/branches/list'));
 const BranchDetailPage = lazy(() => import('src/pages/owner-dashboard/branches/detail'));
 const BranchCreatePage = lazy(() => import('src/pages/owner-dashboard/branches/new'));
@@ -46,6 +45,7 @@ const KioskDetailPage = lazy(() => import('src/pages/dashboard/active-routes/kio
 //documents
 const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/documents'));
 const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
+const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/active-routes/documents/acknowledgements'));
 //reports
 const ReportsPage = lazy(() => import('src/pages/dashboard/active-routes/reports'));
 const PeepFloorPlanPage = lazy(() => import('src/pages/dashboard/active-routes/floor-plan'));
@@ -68,6 +68,7 @@ const TempyConnectionPage = lazy(() => import('src/pages/dashboard/active-routes
 const DataUsagePage = lazy(() => import('src/pages/dashboard/active-routes/data-usage'));
 const DataUsageDetailPage = lazy(() => import('src/pages/dashboard/active-routes/data-usage/detail'));
 const UserAccountPage = lazy(() => import('src/pages/dashboard/user/account'));
+const FireDrillsPage = lazy(() => import('src/pages/owner-dashboard/fire-drills'));
 
 // family engagement
 const FamilyOverviewPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/overview'));
@@ -122,7 +123,7 @@ export const ownerDashboardRoutes = [
         path: 'job-titles',
         children: [
           { index: true, element: <JobTitleListPage /> },
-          { path: ':id', element: <JobTitleDetailPage /> },
+          { path: ':id', element: <Navigate to="/owner-dashboard/job-titles" replace /> },
         ],
       },
       {
@@ -227,6 +228,7 @@ export const ownerDashboardRoutes = [
       { path: "documents/:id", element: <DocumentDetailPage ownerDashboard /> },
       { path: "reports", element: <ReportsPage ownerDashboard /> },
       { path: "messages", element: <MessagesPage /> },
+      { path: "documents/:id/acknowledgements", element: <DocumentAcknowledgementsPage /> },
       {
         path: 'directory',
         children: [
@@ -244,6 +246,7 @@ export const ownerDashboardRoutes = [
       { path: "statistics", element: <StatsPage /> },
       { path: "staff-dashboard-settings", element: <StaffDashboardSettingsPage /> },
       { path: "configuration", element: <ConfigurationPage /> },
+      { path: "fire-drills", element: <FireDrillsPage /> },
       {
         path: 'rota-management',
         children: [{ index: true, element: <RotaPage ownerDashboard /> }]

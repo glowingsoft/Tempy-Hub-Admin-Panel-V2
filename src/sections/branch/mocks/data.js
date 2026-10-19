@@ -9,9 +9,9 @@ import { mockOrganizations } from 'src/sections/organization/mocks/data';
 // ----------------------------------------------------------------------
 
 export const BRANCH_STATUS_OPTIONS = [
+  { value: 'pendingActivation', label: 'Pending Activation', color: 'warning' },
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'inactive', label: 'Inactive', color: 'default' },
-  { value: 'pendingActivation', label: 'Pending activation', color: 'warning' },
+  { value: 'suspended', label: 'Suspended', color: 'error' },
 ];
 
 export const getBranchStatusMeta = (value) =>

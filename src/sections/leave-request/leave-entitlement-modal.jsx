@@ -15,13 +15,11 @@ import MenuItem from '@mui/material/MenuItem';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
-import { mockStaffProfiles } from 'src/sections/staff-profile/mocks/data';
-
-// import { useSetLeaveEntitlementMutation } from 'src/store/Reducer/leave-requests-api';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
+import { useSetLeaveEntitlementMutation } from 'src/store/Reducer/leave-requests-api';
 import {
   LEAVE_TYPE_OPTIONS,
   LEAVE_ENTITLEMENT_YEAR_OPTIONS,
-  setMockLeaveEntitlement,
 } from './mocks/data';
 
 // ----------------------------------------------------------------------
@@ -41,15 +39,26 @@ const LeaveEntitlementSchema = zod.object({
 // `organizationId` comes from the authenticated owner (set on the user at login),
 // not from a form field.
 export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess }) {
+  const [setLeaveEntitlement, { isLoading: isSubmittingEntitlement }] = useSetLeaveEntitlementMutation();
+
+  const { data: staffData } = useGetStaffProfilesQuery(
+    { organizationId, limit: 100 },
+    { skip: !organizationId }
+  );
+
+  const staffProfiles = useMemo(() => staffData?.data || [], [staffData]);
+
   const staffOptions = useMemo(
     () =>
-      mockStaffProfiles
-        .filter((profile) => !organizationId || profile.organizationId === organizationId)
-        .map((profile) => ({
-          value: profile._id,
-          label: profile.user?.name || profile.user?.email || profile._id,
-        })),
-    [organizationId]
+      staffProfiles.map((p) => {
+        const name = p.userId?.name || p.user?.name || p.employeeCode || p._id;
+        const email = p.userId?.email || p.user?.email;
+        return {
+          value: p._id,
+          label: email ? `${name} (${email})` : name,
+        };
+      }),
+    [staffProfiles]
   );
 
   const defaultValues = useMemo(
@@ -85,18 +94,18 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
         staffId: data.staffId,
         year: data.year,
         leaveType: data.leaveType,
-        entitlementDays: data.entitlementDays,
+        entitlementDays: Number(data.entitlementDays),
       };
 
-      // TODO: replace with the real mutation once the endpoint is wired up.
-      // await setLeaveEntitlement(payload).unwrap();
+      const res = await setLeaveEntitlement(payload).unwrap();
 
-      const entitlement = setMockLeaveEntitlement(payload);
-      onSuccess?.(entitlement);
+      onSuccess?.(res?.data || res);
       toast.success('Leave entitlement updated.');
       handleClose();
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      if (!error?.status) {
+        toast.error(error?.message || 'Something went wrong. Please try again.');
+      }
     }
   });
 
@@ -144,7 +153,7 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
             type="submit"
             variant="contained"
             color="primary"
-            loading={methods.formState.isSubmitting}
+            loading={methods.formState.isSubmitting || isSubmittingEntitlement}
           >
             Save Entitlement
           </LoadingButton>

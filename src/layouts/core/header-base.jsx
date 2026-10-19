@@ -14,6 +14,7 @@ import { MenuButton } from '../components/menu-button';
 import { SignInButton } from '../components/sign-in-button';
 import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
+import { ThemeToggleButton } from '../components/theme-toggle-button';
 import { LanguagePopover } from '../components/language-popover';
 import { ContactsPopover } from '../components/contacts-popover';
 import { WorkspacesPopover } from '../components/workspaces-popover';
@@ -57,13 +58,15 @@ export function HeaderBase({
   layoutQuery,
   logoWidth = 40,
   logoHeight = 40,
-  reloadLogoOnClick = false,
+  logoHref = '/',
+  disableLogoLink = false,
 
   slotsDisplay: {
     signIn = true,
     account = true,
     helpLink = true,
     settings = true,
+    themeToggle = true,
     purchase = true,
     contacts = true,
     searchbar = true,
@@ -104,16 +107,10 @@ export function HeaderBase({
             {/* -- Logo -- */}
             <Logo
               data-slot="logo"
+              href={logoHref}
               width={logoWidth}
               height={logoHeight}
-              onClick={
-                reloadLogoOnClick
-                  ? (event) => {
-                    event.preventDefault();
-                    window.location.reload();
-                  }
-                  : undefined
-              }
+              disableLink={disableLogoLink}
             />
 
             {/* -- Divider -- */}
@@ -164,8 +161,11 @@ export function HeaderBase({
               {/* -- Contacts popover -- */}
               {/* {contacts && <ContactsPopover data-slot="contacts" data={data?.contacts} />} */}
 
+              {/* -- Theme toggle -- */}
+              {themeToggle && <ThemeToggleButton data-slot="theme-toggle" />}
+
               {/* -- Settings button -- */}
-              {settings && <SettingsButton data-slot="settings" />}
+              {/* {settings && <SettingsButton data-slot="settings" />} */}
 
               {/* -- Account drawer -- */}
               {account && <AccountDrawer data-slot="account" data={data?.account} />}

@@ -35,15 +35,6 @@ export function StaffShiftTableRow({ row, serialNumber, claimed = false, onClaim
         </Label>
       </TableCell>
 
-      <TableCell align="center">
-        {row.urgentCover ? (
-          <Label variant="soft" color="error">
-            Urgent
-          </Label>
-        ) : (
-          '—'
-        )}
-      </TableCell>
 
       <TableCell align="center">
         <Button

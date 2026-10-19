@@ -59,7 +59,7 @@ export const navDataLineManager = [
    * Overview
    */
   {
-    subheader: 'Overview',
+    subheader: 'Dashboard',
     items: [
       { title: 'Dashboard', path: paths.lineManager.root, icon: ICONS.dashboard },
 

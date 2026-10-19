@@ -87,6 +87,8 @@ export const employees = {
 
 export const INVITATION_STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending', color: 'warning' },
+  { value: 'accepted', label: 'Accepted', color: 'success' },
+  { value: 'revoked', label: 'Revoked', color: 'error' },
   { value: 'checked_in', label: 'Checked in', color: 'success' },
   { value: 'expired', label: 'Expired', color: 'error' },
   { value: 'cancelled', label: 'Cancelled', color: 'default' },
@@ -98,6 +100,23 @@ export const BADGE_TYPE_OPTIONS = [
   { value: 'vip', label: 'VIP' },
   { value: 'employee', label: 'Employee' },
 ];
+
+export const MEMBERSHIP_ROLES = [
+  { value: 'owner', label: 'Owner' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'siteManager', label: 'Site Manager' },
+  { value: 'lineManager', label: 'Line Manager' },
+  { value: 'staff', label: 'Staff' },
+];
+
+export function getRoleLabel(role) {
+  if (!role) return '—';
+  const match = MEMBERSHIP_ROLES.find(
+    (r) => r.value === role || r.label?.toLowerCase() === String(role).toLowerCase()
+  );
+  return match ? match.label : role;
+}
+
 
 export const mockInvitations = [
   {

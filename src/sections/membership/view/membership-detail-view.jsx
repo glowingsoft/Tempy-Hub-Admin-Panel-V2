@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
@@ -19,8 +20,15 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import {
+  useOrganizationLookups,
+  resolveBranchName,
+  resolveJobTitleName,
+  resolveDepartmentNames,
+} from 'src/hooks/use-organization-lookups';
+import { useGetInvitationQuery } from 'src/store/Reducer/invitations-api';
 
-// import { useGetInvitationQuery } from 'src/store/Reducer/invitations-api';
 import {
   getMembershipStatusMeta,
   getMockInvitationById,
@@ -35,6 +43,7 @@ import { InvitationActionDialog } from '../invitation-action-dialog';
 export function MembershipDetailView() {
   const { id } = useParams();
   const router = useRouter();
+  const { organizationId } = useCurrentOrganization();
 
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -50,12 +59,44 @@ export function MembershipDetailView() {
   );
 
   const { resend, askRevoke, askDelete, confirmProps } = useInvitationActions({
+    organizationId,
     onChanged: handleChanged,
   });
 
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data: invitation, isLoading } = useGetInvitationQuery(id);
-  const invitation = useMemo(() => getMockInvitationById(id), [id, reloadKey]);
+  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
+
+  const {
+    data: apiInvitation,
+    isLoading: isQueryLoading,
+    isError,
+    error,
+  } = useGetInvitationQuery(
+    { invitationId: id, organizationId },
+    { skip: !id || !organizationId }
+  );
+  const mockInvitation = useMemo(() => getMockInvitationById(id), [id, reloadKey]);
+  const invitation = apiInvitation || mockInvitation;
+
+  if (isQueryLoading) {
+    return null;
+  }
+
+  if (isError) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Button
+          onClick={() => router.push(paths.owner.memberships.invitations.root)}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          sx={{ mb: 2 }}
+        >
+          Back
+        </Button>
+        <Alert severity="error">
+          {error?.data?.message || 'Unable to load invitation details.'}
+        </Alert>
+      </Box>
+    );
+  }
 
   if (!invitation) {
     return (
@@ -74,7 +115,9 @@ export function MembershipDetailView() {
 
   const status = getMembershipStatusMeta(invitation.status);
   const permissionLabels = getPermissionLabels(invitation.permissions);
-  const departmentNames = (invitation.departments || []).map((dep) => dep.name).join(', ');
+  const branchName = resolveBranchName(invitation, branchesMap);
+  const jobTitleName = resolveJobTitleName(invitation, jobTitlesMap);
+  const departmentNames = resolveDepartmentNames(invitation, departmentsMap);
 
   const isPending = invitation.status === 'pending';
   const isRevoked = invitation.status === 'revoked';
@@ -155,9 +198,9 @@ export function MembershipDetailView() {
               </Label>
             }
           />
-          <DetailItem label="Site" value={invitation.branch?.name || '—'} />
-          <DetailItem label="Job title" value={invitation.jobTitle?.name || '—'} />
-          <DetailItem label="Departments" value={departmentNames || '—'} />
+          <DetailItem label="Site" value={branchName} />
+          <DetailItem label="Job title" value={jobTitleName} />
+          <DetailItem label="Departments" value={departmentNames} />
           <DetailItem label="Start date" value={fDate(invitation.startDate)} />
         </DetailCard>
 

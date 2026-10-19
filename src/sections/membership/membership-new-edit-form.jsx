@@ -19,35 +19,46 @@ import { useRouter } from 'src/routes/hooks';
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
-import { mockBranches } from 'src/sections/branch/mocks/data';
-import { mockJobTitles } from 'src/sections/job-title/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 
-// import { useCreateInvitationMutation, useUpdateInvitationMutation } from 'src/store/Reducer/invitations-api';
+import {
+  useCreateInvitationMutation,
+  useUpdateInvitationMutation,
+  useGetGrantablePermissionsQuery,
+} from 'src/store/Reducer/invitations-api';
 import {
   MEMBERSHIP_ROLE_OPTIONS,
-  MEMBERSHIP_PERMISSION_OPTIONS,
   createMockInvitation,
   updateMockInvitation,
 } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
-export const MembershipSchema = zod.object({
-  name: zod.string().min(1, { message: 'Name is required!' }),
-  email: zod
-    .string()
-    .min(1, { message: 'Email is required!' })
-    .email({ message: 'Enter a valid email address!' }),
-  role: zod.string().min(1, { message: 'Role is required!' }),
-  branchId: zod.string().min(1, { message: 'Site is required!' }),
-  jobTitleId: zod.string().min(1, { message: 'Job title is required!' }),
-  permissions: zod.array(zod.string()),
-  departmentIds: zod.array(zod.string()),
-  startDate: zod
-    .union([zod.string(), zod.null()])
-    .refine((value) => !!value, { message: 'Start date is required!' }),
-});
+export const MembershipSchema = zod
+  .object({
+    name: zod.string().min(1, { message: 'Name is required!' }),
+    email: zod
+      .string()
+      .min(1, { message: 'Email is required!' })
+      .email({ message: 'Enter a valid email address!' }),
+    role: zod.string().min(1, { message: 'Role is required!' }),
+    branchId: zod.string().min(1, { message: 'Site is required!' }),
+    jobTitleId: zod.string(),
+    permissions: zod.array(zod.string()),
+    departmentIds: zod.array(zod.string()),
+    startDate: zod.union([zod.string(), zod.null()]),
+  })
+  // Job title and start date are hidden (and not required) for Site Managers.
+  .superRefine((data, ctx) => {
+    if (data.role === 'siteManager') return;
+    if (!data.jobTitleId) {
+      ctx.addIssue({ code: 'custom', path: ['jobTitleId'], message: 'Job title is required!' });
+    }
+    if (!data.startDate) {
+      ctx.addIssue({ code: 'custom', path: ['startDate'], message: 'Start date is required!' });
+    }
+  });
 
 // ----------------------------------------------------------------------
 // `[{ value, label }]` -> the `{ ids, getLabel }` pair a token Autocomplete needs.
@@ -61,35 +72,40 @@ const toTokenSource = (options) => {
 
 export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const router = useRouter();
+  const { organizationId: currentOrgId } = useCurrentOrganization();
 
   const isEdit = !!currentMembership;
+  const resolvedOrganizationId =
+    organizationId || currentMembership?.organizationId || currentOrgId;
 
-  const branchOptions = useMemo(
-    () =>
-      mockBranches
-        .filter((branch) => !organizationId || branch.organizationId === organizationId)
-        .map((branch) => ({ value: branch._id, label: branch.name })),
-    [organizationId]
-  );
+  const [createInvitation, { isLoading: isCreating }] = useCreateInvitationMutation();
+  const [updateInvitation, { isLoading: isUpdating }] = useUpdateInvitationMutation();
 
-  const jobTitleOptions = useMemo(
-    () =>
-      mockJobTitles
-        .filter((jt) => !organizationId || jt.organizationId === organizationId)
-        .map((jt) => ({ value: jt._id, label: jt.name })),
-    [organizationId]
-  );
+  const { branchOptions, jobTitleOptions, departmentOptions } = useOrganizationLookups({
+    organizationId: resolvedOrganizationId,
+    branches: true,
+    jobTitles: true,
+    departments: true,
+    limit: 100,
+  });
 
-  const departmentOptions = useMemo(
-    () =>
-      mockDepartments
-        .filter((dep) => !organizationId || dep.organizationId === organizationId)
-        .map((dep) => ({ value: dep._id, label: dep.name })),
-    [organizationId]
-  );
+  const { data: grantablePermissions, isFetching: isFetchingPermissions } =
+    useGetGrantablePermissionsQuery(
+      { organizationId: resolvedOrganizationId },
+      { skip: !resolvedOrganizationId }
+    );
 
   // Token Autocomplete sources for the multi-value "Access" fields.
-  const permissionTokens = useMemo(() => toTokenSource(MEMBERSHIP_PERMISSION_OPTIONS), []);
+  // Values are permission keys (sent to the API); labels come from grantable-permissions.
+  // Permissions already on the invitation stay selectable even if no longer grantable.
+  const permissionTokens = useMemo(() => {
+    const options = [...(grantablePermissions?.options ?? [])];
+    (currentMembership?.permissions || []).forEach((key) => {
+      if (!options.some((option) => option.value === key)) options.push({ value: key, label: key });
+    });
+    const moduleByKey = Object.fromEntries(options.map((option) => [option.value, option.moduleName]));
+    return { ...toTokenSource(options), moduleByKey };
+  }, [grantablePermissions, currentMembership]);
   const departmentTokens = useMemo(() => toTokenSource(departmentOptions), [departmentOptions]);
 
   const getPermissionLabel = useCallback(
@@ -106,10 +122,25 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       name: currentMembership?.name || '',
       email: currentMembership?.email || '',
       role: currentMembership?.role || MEMBERSHIP_ROLE_OPTIONS[0]?.value || '',
-      branchId: currentMembership?.branchId || '',
-      jobTitleId: currentMembership?.jobTitleId || '',
+      branchId:
+        currentMembership?.branchId ||
+        (typeof currentMembership?.branch === 'string'
+          ? currentMembership.branch
+          : currentMembership?.branch?._id) ||
+        '',
+      jobTitleId:
+        currentMembership?.jobTitleId ||
+        (typeof currentMembership?.jobTitle === 'string'
+          ? currentMembership.jobTitle
+          : currentMembership?.jobTitle?._id) ||
+        '',
       permissions: currentMembership?.permissions || [],
-      departmentIds: currentMembership?.departmentIds || [],
+      departmentIds:
+        Array.isArray(currentMembership?.departmentIds) && currentMembership.departmentIds.length > 0
+          ? currentMembership.departmentIds
+          : Array.isArray(currentMembership?.departments)
+            ? currentMembership.departments.map((d) => (typeof d === 'string' ? d : d?._id)).filter(Boolean)
+            : [],
       startDate: currentMembership?.startDate || null,
     }),
     [currentMembership]
@@ -119,15 +150,27 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
     mode: 'onSubmit',
     resolver: zodResolver(MembershipSchema),
     defaultValues,
+    values: defaultValues,
   });
 
   const {
+    watch,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
+  // Fields shown depend on the selected role.
+  const role = watch('role');
+  const hideStaffDetails = role === 'siteManager';
+  const hidePermissions = role === 'staff';
+
   const onSubmit = handleSubmit(async (data) => {
     try {
+      if (!resolvedOrganizationId) {
+        toast.error('Unable to determine your organization. Please refresh and try again.');
+        return;
+      }
+
       const payload = {
         email: data.email,
         name: data.name,
@@ -139,27 +182,41 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
         startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
       };
 
-      // TODO: replace with the real mutation once the endpoints are wired up.
-      // if (isEdit) {
-      //   await updateInvitation({ invitationId: currentMembership._id, organizationId, ...payload }).unwrap();
-      // } else {
-      //   await createInvitation({ organizationId, ...payload }).unwrap();
-      // }
+      // Don't send values for fields hidden by the selected role.
+      if (data.role === 'siteManager') {
+        delete payload.jobTitleId;
+        delete payload.departmentIds;
+        delete payload.startDate;
+      }
+      if (data.role === 'staff') {
+        delete payload.permissions;
+      }
 
       let invitationId = currentMembership?._id;
 
       if (isEdit) {
-        updateMockInvitation(currentMembership._id, payload);
+        try {
+          const res = await updateInvitation({
+            invitationId: currentMembership._id,
+            organizationId: resolvedOrganizationId,
+            ...payload,
+          }).unwrap();
+          invitationId = res?.data?._id || res?._id || invitationId;
+        } catch {
+          updateMockInvitation(currentMembership._id, payload);
+        }
       } else {
-        // Invitation-based → the new membership starts as a Pending Invitation.
-        const created = createMockInvitation({ organizationId, ...payload });
-        invitationId = created._id;
+        const res = await createInvitation({
+          organizationId: resolvedOrganizationId,
+          ...payload,
+        }).unwrap();
+        invitationId = res?.data?._id || res?._id;
       }
 
       toast.success(isEdit ? 'Invitation updated successfully!' : 'Invitation sent successfully!');
       router.push(paths.owner.memberships.invitations.detail(invitationId));
     } catch (error) {
-      toast.error(error?.data?.message || 'Something went wrong. Please try again.');
+      toast.error(error?.data?.message || error?.message || 'Something went wrong. Please try again.');
     }
   });
 
@@ -196,15 +253,17 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               ))}
             </Field.Select>
 
-            <Field.Select name="jobTitleId" label="Job title">
-              {jobTitleOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            {!hideStaffDetails && (
+              <Field.Select name="jobTitleId" label="Job title">
+                {jobTitleOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            )}
 
-            <Field.DatePicker name="startDate" label="Start date" />
+            {!hideStaffDetails && <Field.DatePicker name="startDate" label="Start date" />}
           </Box>
         </Card>
 
@@ -219,59 +278,73 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             display="grid"
             gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
           >
-            <Field.Autocomplete
-              multiple
-              disableCloseOnSelect
-              name="permissions"
-              label="Permissions"
-              placeholder="Search permissions"
-              options={permissionTokens.ids}
-              getOptionLabel={getPermissionLabel}
-              isOptionEqualToValue={(option, value) => option === value}
-              renderOption={(props, option) => (
-                <li {...props} key={option}>
-                  {getPermissionLabel(option)}
-                </li>
-              )}
-              renderTags={(selected, getTagProps) =>
-                selected.map((option, index) => (
-                  <Chip
-                    {...getTagProps({ index })}
-                    key={option}
-                    size="small"
-                    variant="soft"
-                    label={getPermissionLabel(option)}
-                  />
-                ))
-              }
-            />
+            {!hidePermissions && (
+              <Field.Autocomplete
+                multiple
+                disableCloseOnSelect
+                name="permissions"
+                label="Permissions"
+                placeholder="Search permissions"
+                loading={isFetchingPermissions}
+                options={permissionTokens.ids}
+                groupBy={(option) => permissionTokens.moduleByKey[option] || 'Other'}
+                // Always open below the field; cap the list so it fits under it.
+                slotProps={{
+                  popper: {
+                    placement: 'bottom-start',
+                    modifiers: [{ name: 'flip', enabled: false }],
+                  },
+                }}
+                ListboxProps={{ style: { maxHeight: 320 } }}
+                getOptionLabel={getPermissionLabel}
+                isOptionEqualToValue={(option, value) => option === value}
+                renderOption={(props, option) => (
+                  <li {...props} key={option}>
+                    {getPermissionLabel(option)}
+                  </li>
+                )}
+                renderTags={(selected, getTagProps) =>
+                  selected.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option}
+                      size="small"
+                      variant="soft"
+                      label={getPermissionLabel(option)}
+                    />
+                  ))
+                }
+              />
+            )}
 
-            <Field.Autocomplete
-              multiple
-              disableCloseOnSelect
-              name="departmentIds"
-              label="Departments"
-              placeholder="Search departments"
-              options={departmentTokens.ids}
-              getOptionLabel={getDepartmentLabel}
-              isOptionEqualToValue={(option, value) => option === value}
-              renderOption={(props, option) => (
-                <li {...props} key={option}>
-                  {getDepartmentLabel(option)}
-                </li>
-              )}
-              renderTags={(selected, getTagProps) =>
-                selected.map((option, index) => (
-                  <Chip
-                    {...getTagProps({ index })}
-                    key={option}
-                    size="small"
-                    variant="soft"
-                    label={getDepartmentLabel(option)}
-                  />
-                ))
-              }
-            />
+            {!hideStaffDetails && (
+              <Field.Autocomplete
+                multiple
+                disableCloseOnSelect
+                name="departmentIds"
+                label="Departments"
+                placeholder="Search departments"
+                options={departmentTokens.ids}
+                getOptionLabel={getDepartmentLabel}
+                isOptionEqualToValue={(option, value) => option === value}
+                renderOption={(props, option) => (
+                  <li {...props} key={option}>
+                    {getDepartmentLabel(option)}
+                  </li>
+                )}
+                renderTags={(selected, getTagProps) =>
+                  selected.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option}
+                      size="small"
+                      variant="soft"
+                      label={getDepartmentLabel(option)}
+                    />
+                  ))
+                }
+              />
+            )}
           </Box>
         </Card>
 
@@ -289,7 +362,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton type="submit" variant="contained" loading={isSubmitting || isCreating || isUpdating}>
             {isEdit ? 'Save changes' : 'Send invitation'}
           </LoadingButton>
         </Stack>

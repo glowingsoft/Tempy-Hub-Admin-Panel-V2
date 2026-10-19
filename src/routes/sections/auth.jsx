@@ -15,6 +15,9 @@ import { GuestGuard } from 'src/auth/guard';
 const Jwt = {
   SignInPage: lazy(() => import('src/pages/auth/jwt/sign-in')),
   SignUpPage: lazy(() => import('src/pages/auth/jwt/sign-up')),
+  ResetPasswordPage: lazy(() => import('src/pages/auth/jwt/reset-password')),
+  VerifyPage: lazy(() => import('src/pages/auth/jwt/verify')),
+  UpdatePasswordPage: lazy(() => import('src/pages/auth/jwt/update-password')),
 };
 
 const authJwt = {
@@ -43,6 +46,45 @@ const authJwt = {
             <Jwt.SignUpPage />
           </AuthSplitLayout>
         </GuestGuard>
+      ),
+    },
+    {
+      path: 'reset-password',
+      element: (
+        <AuthSplitLayout
+          section={{
+            title: 'Manager Portal',
+            subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+          }}
+        >
+          <Jwt.ResetPasswordPage />
+        </AuthSplitLayout>
+      ),
+    },
+    {
+      path: 'verify',
+      element: (
+        <AuthSplitLayout
+          section={{
+            title: 'Manager Portal',
+            subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+          }}
+        >
+          <Jwt.VerifyPage />
+        </AuthSplitLayout>
+      ),
+    },
+    {
+      path: 'update-password',
+      element: (
+        <AuthSplitLayout
+          section={{
+            title: 'Manager Portal',
+            subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+          }}
+        >
+          <Jwt.UpdatePasswordPage />
+        </AuthSplitLayout>
       ),
     },
   ],
@@ -335,11 +377,24 @@ const authSupabase = {
 
 export const authRoutes = [
   {
+    path: 'auth',
+    element: (
+      <GuestGuard>
+        <Suspense fallback={<SplashScreen />}>
+          <Outlet />
+        </Suspense>
+      </GuestGuard>
+    ),
+    children: [authJwt, authAmplify, authFirebase, authAuth0, authSupabase, authAdmin, authOwner, authStaff],
+  },
+  {
     path: '',
     element: (
-      <Suspense fallback={<SplashScreen />}>
-        <Outlet />
-      </Suspense>
+      <GuestGuard>
+        <Suspense fallback={<SplashScreen />}>
+          <Outlet />
+        </Suspense>
+      </GuestGuard>
     ),
     children: [authJwt, authAmplify, authFirebase, authAuth0, authSupabase, authAdmin, authOwner, authStaff],
   },

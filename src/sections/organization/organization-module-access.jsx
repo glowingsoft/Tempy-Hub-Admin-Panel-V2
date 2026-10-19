@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import LoadingButton from '@mui/lab/LoadingButton';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -21,7 +22,10 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { toast } from 'src/components/snackbar';
 import { TableHeadCustom, TableSkeleton } from 'src/components/table';
 
-import { useGetOrganizationModuleAccessQuery } from 'src/store/Reducer/organizations-api';
+import {
+  useGetOrganizationModuleAccessQuery,
+  useUpdateOrganizationModuleAccessMutation,
+} from 'src/store/Reducer/organizations-api';
 
 import { MODULE_CATALOG, mockModuleAccessResponse } from './mocks/data';
 
@@ -62,6 +66,9 @@ export function OrganizationModuleAccess({ organizationId }) {
     organizationId,
     { skip: !organizationId }
   );
+
+  const [updateOrganizationModuleAccess, { isLoading: isUpdating }] =
+    useUpdateOrganizationModuleAccessMutation();
 
   const initialModules = useMemo(
     () => mergeWithCatalog(isError ? FALLBACK_MODULES : data ?? []),
@@ -107,11 +114,22 @@ export function OrganizationModuleAccess({ organizationId }) {
     }),
   });
 
-  const handleSave = () => {
-    const payload = buildPayload();
-    // TODO: call updateOrganizationModuleAccess({ organizationId, ...payload }) once wired.
-    console.log('[module-access] prepared payload', payload);
-    // toast.info('Module access payload prepared — update API is not wired up yet.');
+  const handleSave = async () => {
+    try {
+      const payload = buildPayload();
+      await updateOrganizationModuleAccess({ organizationId, ...payload }).unwrap();
+      toast.success('Module access updated successfully');
+    } catch (error) {
+      console.error('Update module access error:', error);
+      const errorMessage =
+        error?.data?.message ||
+        error?.data?.msg ||
+        error?.data?.error ||
+        error?.error ||
+        error?.message ||
+        'Failed to update module access';
+      toast.error(errorMessage);
+    }
   };
 
   const handleReset = () => setModules(initialModules);
@@ -123,12 +141,17 @@ export function OrganizationModuleAccess({ organizationId }) {
         subheader="Enable modules for this organization. Leave Activation At empty to activate immediately; set an optional expiry date."
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button color="inherit" disabled={!isDirty} onClick={handleReset}>
+            <Button color="inherit" disabled={!isDirty || isUpdating} onClick={handleReset}>
               Reset
             </Button>
-            <Button variant="contained" disabled={!isDirty} onClick={handleSave}>
+            <LoadingButton
+              variant="contained"
+              disabled={!isDirty}
+              loading={isUpdating}
+              onClick={handleSave}
+            >
               Save changes
-            </Button>
+            </LoadingButton>
           </Box>
         }
       />

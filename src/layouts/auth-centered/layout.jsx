@@ -29,6 +29,8 @@ export function AuthCenteredLayout({ sx, children }) {
           slotsDisplay={{
             signIn: false,
             account: false,
+            helpLink: false,
+            settings: false,
             purchase: false,
             contacts: false,
             searchbar: false,
@@ -56,7 +58,7 @@ export function AuthCenteredLayout({ sx, children }) {
        * Style
        *************************************** */
       cssVars={{
-        '--layout-auth-content-width': '420px',
+        '--layout-auth-content-width': '460px',
       }}
       sx={{
         '&::before': {

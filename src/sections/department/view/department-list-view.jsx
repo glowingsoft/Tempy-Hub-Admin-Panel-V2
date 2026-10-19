@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
@@ -12,6 +12,7 @@ import { paths } from 'src/routes/paths';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -22,16 +23,14 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
-// import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
-import { createMockDepartment, mockDepartmentsResponse } from '../mocks/data';
-import { getOwnerOrganizationId } from '../utils';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 import { DepartmentTableRow } from '../department-table-row';
 
@@ -40,13 +39,14 @@ import { DepartmentTableRow } from '../department-table-row';
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'inactive', label: 'Inactive', color: 'default' },
+  { value: 'inactive', label: 'Inactive', color: 'error' },
 ];
 
 const TABLE_HEAD = [
-  { id: 'sr', label: 'Sr#', width: 60 },
-  { id: 'name', label: 'Name', minWidth: 220 },
-  { id: 'sortOrder', label: 'Sort Order', width: 120, align: 'center' },
+  { id: 'sr', label: 'Sr#', width: 56 },
+  { id: 'name', label: 'Name', minWidth: 180 },
+  { id: 'branch', label: 'Site', minWidth: 160 },
+  { id: 'createdAt', label: 'Created At', width: 140, align: 'center' },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
 ];
@@ -59,35 +59,35 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function DepartmentListView() {
-  const table = useTable({ defaultOrderBy: 'sortOrder', defaultOrder: 'asc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId, organizationName, user } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
 
   const createModal = useBoolean();
   const editModal = useBoolean();
   const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
-  // --- Data source ---------------------------------------------------------
-  // TODO: swap for the real query once the endpoint is wired up:
-  // const { data, isLoading, isFetching } = useGetDepartmentsQuery(
-  //   { organizationId, page: table.page + 1, limit: table.rowsPerPage },
-  //   { skip: !organizationId }
-  // );
-  const isLoading = false;
-  const isFetching = false;
-  const data = mockDepartmentsResponse;
-
-  // Departments are scoped to the owner's organization.
-  // `reloadKey` bumps after a mock create/edit so the mutated list re-renders.
-  const allDepartments = useMemo(
-    () => (data?.data ?? []).filter((d) => !organizationId || d.organizationId === organizationId),
-    [data, organizationId, reloadKey]
+  const { data, isLoading, isFetching, isError, error } = useGetDepartmentsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
+    },
+    { skip: !organizationId }
   );
+
+  const departments = useMemo(() => data?.data ?? [], [data]);
+  const totalRecords = data?.meta?.totalRecords ?? departments.length;
+  const statusCounts = data?.meta?.counts ?? {};
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -98,40 +98,22 @@ export function DepartmentListView() {
     []
   );
 
-  // Client-side filtering (mock only — the API will do this server-side).
-  const filteredDepartments = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
-    return allDepartments
-      .filter((department) => {
-        const matchesStatus =
-          filters.state.status === 'all' ||
-          (filters.state.status === 'active') === !!department.isActive;
-
-        const matchesSearch = !search || department.name?.toLowerCase().includes(search);
-
-        return matchesStatus && matchesSearch;
-      })
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  }, [allDepartments, filters.state.status, keyword]);
-
-  const totalRecords = filteredDepartments.length;
-
-  const paginatedDepartments = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return filteredDepartments.slice(start, start + table.rowsPerPage);
-  }, [filteredDepartments, table.page, table.rowsPerPage]);
-
   const getStatusCount = useCallback(
     (status) => {
-      if (status === 'all') return allDepartments.length;
-      if (status === 'active') return allDepartments.filter((d) => d.isActive).length;
-      return allDepartments.filter((d) => !d.isActive).length;
+      if (status === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[status] ?? 0;
     },
-    [allDepartments]
+    [statusCounts, totalRecords]
   );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && departments.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -162,12 +144,9 @@ export function DepartmentListView() {
     setSelectedDepartment(null);
   }, [editModal]);
 
-  const handleCreateSuccess = useCallback((payload) => {
-    createMockDepartment(payload);
-    setReloadKey((key) => key + 1);
-  }, []);
+  const handleCreateSuccess = useCallback(() => table.onResetPage(), [table.onResetPage]);
 
-  const orgName = user?.organization?.name;
+  const orgName = organizationName || user?.organization?.name;
 
   return (
     <DashboardContent>
@@ -181,8 +160,8 @@ export function DepartmentListView() {
         action={
           <Button
             variant="contained"
+            color="primary"
             onClick={createModal.onTrue}
-            disabled={!organizationId}
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Department
@@ -192,6 +171,12 @@ export function DepartmentListView() {
       />
 
       <Card>
+        {isError && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {error?.data?.message || error?.error || 'Failed to load departments.'}
+          </Alert>
+        )}
+
         <StatusTabsFilterWrapper
           filterField={statusFilterField}
           value={filters.state.status}
@@ -209,20 +194,18 @@ export function DepartmentListView() {
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headLabel={TABLE_HEAD}
-              />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => (
-                    <TableSkeleton key={index} />
-                  ))
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {paginatedDepartments.map((row, index) => (
+                    {departments.map((row, index) => (
                       <DepartmentTableRow
                         key={row._id}
                         row={row}

@@ -28,6 +28,7 @@ import { Label } from 'src/components/label';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { convertPdfToImage } from 'src/utils/pdf-to-image';
 
+import { AcknowledgementTrackerCard } from './acknowledgement-tracker-card';
 import { getFolderLabel, getDocumentById } from '../mocks/data';
 import UploadDocumentModal from '../upload-document-modal';
 
@@ -282,6 +283,15 @@ export function DocumentDetailView({ ownerDashboard = false, basePath }) {
 
   const actionMeta = ACTION_TYPE_META[document_.actionType] || ACTION_TYPE_META.sign;
   const isSigned = Boolean(document_.isSigned || document_.signed);
+  const showAcknowledgementTracker =
+    pathname.startsWith('/line-manager') ||
+    pathname.startsWith('/site-manager') ||
+    pathname.startsWith('/owner-dashboard');
+  const acknowledgementTrackerPath = pathname.startsWith('/owner-dashboard')
+    ? paths.owner.documents.acknowledgements(id)
+    : pathname.startsWith('/line-manager')
+      ? paths.lineManager.documents.acknowledgements(id)
+      : paths.siteManager.documents.acknowledgements(id);
 
   return (
     <DashboardContent>

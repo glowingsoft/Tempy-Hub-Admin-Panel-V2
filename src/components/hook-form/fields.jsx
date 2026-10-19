@@ -6,6 +6,7 @@ import { RHFTextField } from './rhf-text-field';
 import { RHFRadioGroup } from './rhf-radio-group';
 import { RHFPhoneInput } from './rhf-phone-input';
 import { RHFAutocomplete } from './rhf-autocomplete';
+import { RHFInfiniteAutocomplete } from './rhf-infinite-autocomplete';
 import { RHFCountrySelect } from './rhf-country-select';
 import { RHFSwitch, RHFMultiSwitch } from './rhf-switch';
 import { RHFSelect, RHFMultiSelect } from './rhf-select';
@@ -33,6 +34,7 @@ export const Field = {
   MultiSwitch: RHFMultiSwitch,
   UploadAvatar: RHFUploadAvatar,
   Autocomplete: RHFAutocomplete,
+  InfiniteAutocomplete: RHFInfiniteAutocomplete,
   MultiCheckbox: RHFMultiCheckbox,
   CountrySelect: RHFCountrySelect,
   MobileDateTimePicker: RHFMobileDateTimePicker,

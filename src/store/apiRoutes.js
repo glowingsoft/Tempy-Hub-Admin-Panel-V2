@@ -2,6 +2,11 @@ export const API_ROUTES = {
     AUTH: {
         LOGIN: '/auth/login',
         ADMIN_LOGIN: 'admin/login',
+        RESEND_OTP_EMAIL: '/auth/resend-otp/email',
+        VERIFY_OTP_EMAIL: '/auth/verify-otp/email',
+        RESET_PASSWORD: '/auth/reset-password',
+        INVITATION_BY_TOKEN: (token) => `/auth/invitations/${token}`,
+        ACCEPT_INVITATION: (token) => `/auth/invitations/${token}/accept`,
     },
 
     WALLETS: '/wallets',
@@ -17,7 +22,9 @@ export const API_ROUTES = {
     CATEGORIES_BY_ID: (id) => `/categories/${id}`,
 
     ORGANIZATIONS: '/admin/organizations',
+    ORGANIZATION_BY_ID: (id) => `/admin/organizations/${id}`,
     ORGANIZATION_MODULE_ACCESS: (id) => `/admin/organizations/${id}/module-access`,
+    MODULE_DEFINITIONS: '/admin/module-definitions',
     ORGANIZATION_DEPARTMENTS: (organizationId) => `/admin/organizations/${organizationId}/departments`,
     ORGANIZATION_DEPARTMENT_BY_ID: (organizationId, departmentId) =>
         `/admin/organizations/${organizationId}/departments/${departmentId}`,
@@ -26,10 +33,15 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/job-titles/${jobTitleId}`,
     ORGANIZATION_BRANCHES: (organizationId) => `/admin/organizations/${organizationId}/branches`,
     BRANCH_BY_ID: (branchId) => `/admin/branches/${branchId}`,
+    BRANCH_ACTIVATION_CODES: (branchId) => `/admin/branches/${branchId}/activation-codes`,
     ORGANIZATION_INVITATIONS: (organizationId) => `/admin/organizations/${organizationId}/invitations`,
+    ORGANIZATION_INVITATION_BY_ID: (organizationId, invitationId) =>
+        `/admin/organizations/${organizationId}/invitations/${invitationId}`,
     INVITATION_BY_ID: (invitationId) => `/admin/invitations/${invitationId}`,
     INVITATION_RESEND: (invitationId) => `/admin/invitations/${invitationId}/resend`,
     INVITATION_REVOKE: (invitationId) => `/admin/invitations/${invitationId}/revoke`,
+    ORGANIZATION_GRANTABLE_PERMISSIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/grantable-permissions`,
 
     // Members / memberships — kept separate from the invitation flow.
     ORGANIZATION_MEMBERS: (organizationId) => `/admin/organizations/${organizationId}/members`,
@@ -62,4 +74,28 @@ export const API_ROUTES = {
     // Attendance (shared line-manager / owner listing).
     ORGANIZATION_ATTENDANCE: (organizationId) => `/admin/organizations/${organizationId}/attendance`,
     ATTENDANCE_BY_ID: (attendanceDayId) => `/admin/attendance/${attendanceDayId}`,
+    ORGANIZATION_ATTENDANCE_CHANGE_REQUESTS: (organizationId) =>
+        `/admin/organizations/${organizationId}/attendance-change-requests`,
+
+    // Residents
+    RESIDENTS: '/admin/residents',
+    RESIDENT_BY_ID: (residentId) => `/admin/residents/${residentId}`,
+    RESIDENT_VISITOR_PASSCODE: (residentId) => `/admin/residents/${residentId}/visitor-passcode`,
+    RESIDENT_VERIFY_PASSCODE: (residentId) => `/admin/residents/${residentId}/verify-passcode`,
+
+    // External people (visitors / contractors / professionals) — General Directory.
+    ORGANIZATION_EXTERNAL_PEOPLE: (organizationId) =>
+        `/admin/organizations/${organizationId}/external-people`,
+    EXTERNAL_PERSON_BY_ID: (externalPersonId) => `/admin/external-people/${externalPersonId}`,
+
+    // Evacuations & Fire Drills
+    ORGANIZATION_EVACUATIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/evacuations`,
+    ORGANIZATION_EVACUATIONS_ON_SITE_SUMMARY: (organizationId) =>
+        `/admin/organizations/${organizationId}/evacuations/on-site-summary`,
+    ORGANIZATION_EVACUATIONS_ACTIVE: (organizationId) =>
+        `/admin/organizations/${organizationId}/evacuations/active`,
+    EVACUATION_BY_ID: (id) => `/admin/evacuations/${id}`,
+    EVACUATION_CHECKS: (id) => `/admin/evacuations/${id}/checks`,
+    EVACUATION_CLOSE: (id) => `/admin/evacuations/${id}/close`,
 };

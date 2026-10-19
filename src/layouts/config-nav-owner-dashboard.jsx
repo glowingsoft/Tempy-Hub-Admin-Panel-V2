@@ -31,19 +31,20 @@ const ICONS = {
   blog: icon('ic-blog'),
   mail: icon('ic-mail'),
   pendingApproval: icon('ic-check'),
+  compliance: icon('ic-compliance'),
 };
 
 // ----------------------------------------------------------------------
 
 export const navDataOwner = [
   {
-    subheader: 'Overview',
+    subheader: '',
     items: [
       { title: 'Dashboard', path: paths.owner.root, icon: ICONS.dashboard },
       { title: 'Sites', path: paths.owner.sites.root, icon: ICONS.booking },
       { title: 'Departments', path: paths.owner.departments.root, icon: ICONS.folder },
       { title: 'Job Titles', path: paths.owner.jobTitles.root, icon: ICONS.label },
-      // { title: 'Staff Profiles', path: paths.owner.staffProfiles.root, icon: ICONS.user },
+      { title: 'Staff Profiles', path: paths.owner.staffProfiles.root, icon: ICONS.user },
       { title: 'Billing & Usage', path: paths.owner.dataUsage.root, icon: ICONS.folder },
       { title: 'Statistics', path: paths.owner.statistics, icon: ICONS.analytics },
       { title: 'General Directory', path: paths.owner.directory.root, icon: ICONS.directory },
@@ -57,13 +58,14 @@ export const navDataOwner = [
       },
       { title: 'Shifts', path: paths.owner.shifts.root, icon: ICONS.calendar },
       { title: 'Shift Claims', path: paths.owner.shiftClaims.root, icon: ICONS.check },
-      
+
       { title: 'Kiosk', path: paths.owner.kiosk, icon: ICONS.folder },
       {
         title: 'PEEP & Floor Plans',
         path: paths.owner.peepAndFloorPlans.root,
         icon: ICONS.plan,
       },
+      { title: 'Fire Drills', path: paths.owner.fireDrills, icon: ICONS.compliance },
       { title: 'Documents', path: paths.owner.documents.root, icon: ICONS.document },
       { title: 'Leave Requests', path: paths.owner.leaveRequests.root, icon: ICONS.calendar },
       { title: 'Attendance', path: paths.owner.attendance.root, icon: ICONS.clock },

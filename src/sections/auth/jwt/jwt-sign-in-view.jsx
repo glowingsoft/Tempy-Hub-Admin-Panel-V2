@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'src/components/snackbar';
 import { z as zod } from 'zod';
 
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -13,7 +12,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { RouterLink } from 'src/routes/components';
-import { useRouter } from 'src/routes/hooks';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
@@ -22,10 +21,11 @@ import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { useDispatch } from 'react-redux';
-// import { useAdminLoginMutation, useLoginMutation } from 'src/store/Reducer/auth';
+import { AppSurface } from 'src/auth/constants';
+import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
-import { handleApiError } from 'src/utils/errorHandler';
 import { getDeviceType } from 'src/utils/getDeviceType';
+import { getPasswordResetHref } from './password-reset-flow';
 
 // ----------------------------------------------------------------------
 
@@ -36,76 +36,26 @@ export const SignInSchema = zod.object({
 
 // ----------------------------------------------------------------------
 
-// Mock login function
-const mockLogin = async (payload) => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // Mock response data
-  const mockResponse = {
-    message: 'Login success',
-    data: {
-      basicInfo: {
-        _id: '692c5523e446ec147ce153aa',
-        profileIcon: 'https://dummybucket.s3.us-east-1.amazonaws.com/noimage.png',
-        name: payload.userType === 'admin' ? 'Admin User' : 'Suheer',
-        email: payload.email,
-        phoneNumber: null,
-        language: 'en',
-      },
-      accountState: {
-        userType: payload.userType,
-        status: 'active',
-        verificationStatus: {
-          email: 'verified',
-          phoneNumber: 'pending',
-        },
-      },
-      metadata: {
-        timezone: payload.timezone,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        __v: 0,
-      },
-      otpInfo: {
-        emailOtp: {
-          otp: '835987',
-          otpUsed: false,
-          otpRequestCount: 1,
-          otpRequestTimestamp: new Date().toISOString(),
-          otpExpires: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-        },
-        phoneNumberOtp: {
-          otp: '',
-          otpUsed: false,
-          otpRequestCount: 0,
-          otpRequestTimestamp: new Date().toISOString(),
-        },
-      },
-      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTJjNTUyM2U0NDZlYzE0N2NlMTUzYWEiLCJpYXQiOjE3NjUxNzM1MjB9.WpcTqWkmgAVpx-mn9KNvNIPjPlwO6aONXKJvu30AvZU',
-    },
-  };
-
-  return mockResponse;
-};
-
-// ----------------------------------------------------------------------
-
-export function JwtSignInView() {
+export function JwtSignInView({
+  surface = AppSurface.MANAGER_APP,
+  forgotReturnPath = '/',
+  title = 'Sign in to your account',
+}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch();
 
-  // API hooks commented out
-  // const [login] = useLoginMutation();
-  // const [adminLogin] = useAdminLoginMutation();
+  const [login, { isLoading: isLoginLoading }] = useLoginMutation();
 
   const [errorMsg, setErrorMsg] = useState('');
 
   const password = useBoolean();
 
+  const queryEmail = searchParams.get('email') || '';
+
   const defaultValues = {
-    email: 'linemanager@tempy.com',
-    password: '123456',
+    email: queryEmail,
+    password: '',
   };
 
   const methods = useForm({
@@ -119,6 +69,8 @@ export function JwtSignInView() {
     formState: { isSubmitting },
   } = methods;
 
+  const forgotPasswordHref = getPasswordResetHref(forgotReturnPath);
+
   const goTo = (permission) => {
     switch (permission) {
       case 1:
@@ -128,8 +80,14 @@ export function JwtSignInView() {
         router.push(paths.siteManager.root);
         break;
       case 3:
-        router.push(paths.lineManager.root)
-         break;
+        router.push(paths.lineManager.root);
+        break;
+      case 4:
+        router.push(paths.owner.root);
+        break;
+      case 5:
+        router.push(paths.staff.dashboard);
+        break;
       default:
         router.push('/');
         break;
@@ -142,59 +100,52 @@ export function JwtSignInView() {
     const payload = {
       email: data.email.trim().toLowerCase(),
       password: data.password,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
       userType: data.email.includes('admin') ? 'admin' : 'user',
-      deviceType,
+      deviceType: deviceType || 'desktop',
       deviceId: '123',
+      surface,
     };
 
     try {
-      // API calls commented out - using mock data instead
-      // let response;
-      // if (payload.userType === 'admin') {
-      //   response = await adminLogin(payload).unwrap();
-      // } else {
-      //   response = await login(payload).unwrap();
-      // }
-
-      // Using mock login function
-      const response = await mockLogin(payload);
-
-      if (response.error) {
-        return toast.error(response.error.data?.message);
-      }
-
-      if (!response.data) {
-        toast.error('Login failed: No user data received');
-        router.push('/');
-        return null;
-      }
-
-      const user = response.data;
+      const response = await login(payload).unwrap();
+      const user = response?.data ?? response;
 
       if (!user) {
-        return router.push('/404');
-      }
-
-      if (!user?.accountState?.status) {
-        toast.error('Your account is inactive. Please contact support.');
+        setErrorMsg('Login failed: No user data received');
         return null;
       }
 
-      // const user_type = user?.accountState?.userType === 'user' ? 2 : 1;
-      let user_type = null;
+      if (user?.accountState?.status === false || user?.accountState?.status === 'inactive') {
+        setErrorMsg('Your account is inactive. Please contact support.');
+        return null;
+      }
 
-      user_type = (
-        (user?.basicInfo?.email === "sitemanager@tempy.com" && 2) || user?.basicInfo?.email === "linemanager@tempy.com" && 3)
+      const role =
+        user?.access?.memberships?.[0]?.role ||
+        user?.role ||
+        user?.basicInfo?.role ||
+        user?.accountState?.role;
 
-
-      console.log({ user_type });
+      let user_type;
+      if (role === 'lineManager' || role === 'line_manager' || role === 'Line Manager') {
+        user_type = 3;
+      } else if (role === 'siteManager' || role === 'site_manager' || role === 'Site Manager') {
+        user_type = 2;
+      } else if (role === 'admin' || user?.accountState?.userType === 'admin') {
+        user_type = 1;
+      } else if (role === 'owner' || role === 'Owner') {
+        user_type = 4;
+      } else if (role === 'staff' || role === 'Staff') {
+        user_type = 5;
+      }
 
       const permission = user_type;
 
       const UpdatedUserData = {
         ...user,
         permission,
+        displayName: user?.basicInfo?.name || user?.name || 'Manager',
       };
 
       console.log('Updated User Data', UpdatedUserData);
@@ -203,26 +154,20 @@ export function JwtSignInView() {
       goTo(user_type);
 
       reset();
-      toast.success('Login successful!');
     } catch (error) {
-      setErrorMsg(typeof error === 'string' ? error : error.message);
-      handleApiError(error);
+      console.error('Login error:', error);
+      const msg =
+        error?.data?.message ||
+        error?.data?.error ||
+        error?.message ||
+        'Login failed. Please check your credentials.';
+      setErrorMsg(typeof msg === 'string' ? msg : JSON.stringify(msg));
     }
   });
 
   const renderHead = (
     <Stack spacing={1.5} sx={{ mb: 5 }}>
-      <Typography variant="h5">Sign in to your account</Typography>
-
-      <Stack direction="row" spacing={0.5}>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {`Don't have an account?`}
-        </Typography>
-
-        <Link component={RouterLink} href={paths.auth.jwt.signUp} variant="subtitle2">
-          Get started
-        </Link>
-      </Stack>
+      <Typography variant="h5">{title}</Typography>
     </Stack>
   );
 
@@ -248,12 +193,26 @@ export function JwtSignInView() {
           }}
         />
 
-        <Link component={RouterLink} href="#" variant="body2" color="inherit" sx={{ alignSelf: 'flex-end' }}>
+        <Link
+          component={RouterLink}
+          href={forgotPasswordHref}
+          variant="body2"
+          color="inherit"
+          sx={{ alignSelf: 'flex-end' }}
+        >
           Forgot password?
         </Link>
       </Stack>
 
-      <LoadingButton fullWidth color="inherit" size="large" type="submit" variant="contained" loading={isSubmitting} loadingIndicator="Sign in...">
+      <LoadingButton
+        fullWidth
+        color="inherit"
+        size="large"
+        type="submit"
+        variant="contained"
+        loading={isSubmitting || isLoginLoading}
+        loadingIndicator="Sign in..."
+      >
         Sign in
       </LoadingButton>
     </Stack>

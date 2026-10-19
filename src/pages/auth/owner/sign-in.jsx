@@ -1,7 +1,9 @@
 import { Helmet } from 'react-helmet-async';
 
 import { CONFIG } from 'src/config-global';
-import { OwnerSignInView } from 'src/sections/auth/owner/owner-sign-in-view';
+import { AppSurface } from 'src/auth/constants';
+import { paths } from 'src/routes/paths';
+import { JwtSignInView } from 'src/sections/auth/jwt';
 
 // ----------------------------------------------------------------------
 
@@ -14,7 +16,10 @@ export default function Page() {
         <title> {metadata.title}</title>
       </Helmet>
 
-      <OwnerSignInView />
+      <JwtSignInView
+        surface={AppSurface.OWNER_ADMIN}
+        forgotReturnPath={paths.auth.owner.signIn}
+      />
     </>
   );
 }
