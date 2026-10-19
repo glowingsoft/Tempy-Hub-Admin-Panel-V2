@@ -39,7 +39,7 @@ const COUNT_ITEMS = [
 /**
  * Headcount summary cards matching the main dashboard widget style.
  */
-export function OnSiteSummary({ summary, loading }) {
+export function OnSiteSummary({ summary, loading, hideSiteDetails = false }) {
   if (loading) {
     return (
       <Box sx={{ mb: 3 }}>
@@ -77,8 +77,24 @@ export function OnSiteSummary({ summary, loading }) {
           </Typography>
         </div>
 
-        <Stack direction="row" spacing={1} alignItems="center">
-          {summary?.assemblyPoint && (
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          {!hideSiteDetails && summary?.branchName && (
+            <Box
+              sx={{
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                bgcolor: 'action.hover',
+                typography: 'caption',
+                fontWeight: 600,
+                color: 'text.secondary',
+              }}
+            >
+              Site: {summary.branchName}
+            </Box>
+          )}
+
+          {!hideSiteDetails && summary?.assemblyPoint && (
             <Box
               sx={{
                 px: 1.5,

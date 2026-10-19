@@ -68,6 +68,7 @@ const TempyConnectionPage = lazy(() => import('src/pages/dashboard/active-routes
 const DataUsagePage = lazy(() => import('src/pages/dashboard/active-routes/data-usage'));
 const DataUsageDetailPage = lazy(() => import('src/pages/dashboard/active-routes/data-usage/detail'));
 const UserAccountPage = lazy(() => import('src/pages/dashboard/user/account'));
+const FireDrillsPage = lazy(() => import('src/pages/owner-dashboard/fire-drills'));
 
 // family engagement
 const FamilyOverviewPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/overview'));
@@ -245,6 +246,7 @@ export const ownerDashboardRoutes = [
       { path: "statistics", element: <StatsPage /> },
       { path: "staff-dashboard-settings", element: <StaffDashboardSettingsPage /> },
       { path: "configuration", element: <ConfigurationPage /> },
+      { path: "fire-drills", element: <FireDrillsPage /> },
       {
         path: 'rota-management',
         children: [{ index: true, element: <RotaPage ownerDashboard /> }]

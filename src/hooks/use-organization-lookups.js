@@ -186,8 +186,17 @@ export function useOrganizationLookups(options) {
   }, [departments]);
 
   // Keyed by userId (the members slice normalizes it) so other resources can join on it.
+  // Keyed by userId, user._id, and membershipId so lookups by any ID succeed
   const membersMap = useMemo(() => {
     return Object.fromEntries((membersData?.data ?? []).map((item) => [item.userId, item]));
+    const map = {};
+    (membersData?.data ?? []).forEach((item) => {
+      if (item.userId) map[item.userId] = item;
+      if (item._id) map[item._id] = item;
+      if (item.user?._id) map[item.user._id] = item;
+      if (item.membershipId) map[item.membershipId] = item;
+    });
+    return map;
   }, [membersData]);
 
   // Bound Resolvers

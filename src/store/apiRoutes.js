@@ -88,4 +88,14 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/external-people`,
     EXTERNAL_PERSON_BY_ID: (externalPersonId) => `/admin/external-people/${externalPersonId}`,
 
+    // Evacuations & Fire Drills
+    ORGANIZATION_EVACUATIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/evacuations`,
+    ORGANIZATION_EVACUATIONS_ON_SITE_SUMMARY: (organizationId) =>
+        `/admin/organizations/${organizationId}/evacuations/on-site-summary`,
+    ORGANIZATION_EVACUATIONS_ACTIVE: (organizationId) =>
+        `/admin/organizations/${organizationId}/evacuations/active`,
+    EVACUATION_BY_ID: (id) => `/admin/evacuations/${id}`,
+    EVACUATION_CHECKS: (id) => `/admin/evacuations/${id}/checks`,
+    EVACUATION_CLOSE: (id) => `/admin/evacuations/${id}/close`,
 };
