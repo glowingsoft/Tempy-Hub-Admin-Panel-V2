@@ -210,7 +210,7 @@ export function JobTitleCreateEditModal({
         </DialogContent>
 
         <DialogActions>
-          <Button variant="outlined" onClick={handleClose}>
+          <Button variant="outlined" color="primary" onClick={handleClose}>
             Cancel
           </Button>
 

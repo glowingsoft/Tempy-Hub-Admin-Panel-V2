@@ -35,7 +35,7 @@ export function JobTitleTableRow({ row, serialNumber, onEditRow }) {
     <TableRow hover tabIndex={-1}>
       <TableCell>{serialNumber}</TableCell>
 
-      <TableCell>{row.name || '—'}</TableCell>
+      <TableCell sx={{ textTransform: 'capitalize' }}>{row.name || '—'}</TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{getJobTitleLevelLabel(row.level)}</TableCell>
 

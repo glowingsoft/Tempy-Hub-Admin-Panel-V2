@@ -22,10 +22,10 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
@@ -225,9 +225,11 @@ export function OrganizationListView() {
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => (
-                    <TableSkeleton key={index} />
-                  ))
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
                     {organizations.map((row, index) => (

@@ -1,45 +1,49 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Iconify } from 'src/components/iconify';
-import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
+import { Scrollbar } from 'src/components/scrollbar';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
-import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useOrganizationLookups, resolveMemberRole } from 'src/hooks/use-organization-lookups';
-import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 import { MEMBERSHIP_ROLE_OPTIONS } from 'src/sections/membership/mocks/data';
-import { mockStaffProfilesResponse } from '../mocks/data';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 import { StaffProfileTableRow } from '../staff-profile-table-row';
 
 // ----------------------------------------------------------------------
 
-const ROLE_OPTIONS = [{ value: 'all', label: 'All', color: 'default' }, ...MEMBERSHIP_ROLE_OPTIONS];
+const ROLE_OPTIONS = [
+  { value: 'all', label: 'All', color: 'default' },
+  ...MEMBERSHIP_ROLE_OPTIONS.map((option) => ({
+    ...option,
+    color:
+      (option.value === 'siteManager' && 'info') ||
+      (option.value === 'lineManager' && 'warning') ||
+      (option.value === 'staff' && 'success') ||
+      'default',
+  })),
+];
 
-// Role tabs filter the loaded rows only (UI-side) — no role param is sent to the API.
 const ROLE_FILTER_FIELD = createFilterField.status({
   key: 'role',
   label: 'Role',
@@ -48,7 +52,7 @@ const ROLE_FILTER_FIELD = createFilterField.status({
 });
 
 const TABLE_HEAD = [
-  { id: 'sr', label: 'Sr#', width: 60 },
+  { id: 'sr', label: 'Sr#', width: 56 },
   { id: 'user', label: 'Staff', minWidth: 220 },
   { id: 'role', label: 'Role', minWidth: 120 },
   { id: 'branch', label: 'Site', minWidth: 140 },
@@ -59,8 +63,6 @@ const TABLE_HEAD = [
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
 ];
 
-// TODO: confirm whether the list endpoint supports a keyword/search param — the
-// search below is client-side only against the current page of mock data.
 const FILTER_FIELDS = [createFilterField.search({ placeholder: 'Search staff or email...' })];
 
 // ----------------------------------------------------------------------
@@ -72,7 +74,10 @@ export function StaffProfileListView({
   embedded = false,
   hideViewAction = false,
 } = {}) {
-  const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
   const { organizationId, organizationName: defaultOrgName, isOwner } = useCurrentOrganization(propOrgId);
   const orgName = propOrgName !== undefined ? propOrgName : defaultOrgName;
@@ -91,92 +96,41 @@ export function StaffProfileListView({
     [isOwner, pathsConfig]
   );
 
-  const {
-    branchesMap,
-    jobTitlesMap,
-    departmentsMap,
-    membersMap,
-    isLoading: isLookupsLoading,
-  } = useOrganizationLookups({
-    organizationId,
-    limit: 100,
-    members: true,
-  });
-
   const filters = useSetState({ search: '', role: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
 
-  const [reloadKey] = useState(0);
-
-  // --- Data source ---------------------------------------------------------
-  const {
-    data: apiData,
-    isLoading,
-    isFetching,
-    isError,
-    error: apiError,
-  } = useGetStaffProfilesQuery(
+  const { data, isLoading, isFetching } = useGetStaffProfilesQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      keyword,
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(filters.state.role !== 'all' ? { role: filters.state.role } : {}),
     },
     { skip: !organizationId }
   );
 
-  const usesApi = Boolean(organizationId);
-  const data = usesApi ? apiData : mockStaffProfilesResponse;
-
-  const allProfiles = useMemo(
-    () =>
-      (data?.data ?? []).filter(
-        (profile) => !organizationId || profile.organizationId === organizationId
-      ),
-    [data, organizationId, reloadKey]
-  );
-
-  const matchesRole = useCallback(
-    (profile) =>
-      filters.state.role === 'all' || resolveMemberRole(profile, membersMap) === filters.state.role,
-    [filters.state.role, membersMap]
-  );
-
-  const mockFilteredProfiles = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
-    return allProfiles.filter(
-      (profile) =>
-        matchesRole(profile) &&
-        (!search ||
-          profile.user?.name?.toLowerCase().includes(search) ||
-          profile.user?.email?.toLowerCase().includes(search))
-    );
-  }, [allProfiles, keyword, matchesRole]);
-
-  const mockPaginatedProfiles = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return mockFilteredProfiles.slice(start, start + table.rowsPerPage);
-  }, [mockFilteredProfiles, table.page, table.rowsPerPage]);
-
-  const paginatedProfiles = usesApi
-    ? (data?.data ?? []).filter(matchesRole)
-    : mockPaginatedProfiles;
-  const totalRecords = usesApi
-    ? apiData?.meta?.totalRecords ?? apiData?.data?.length ?? 0
-    : mockFilteredProfiles.length;
+  const profiles = useMemo(() => data?.data ?? [], [data]);
+  const totalRecords = data?.meta?.totalRecords ?? profiles.length;
+  const roleCounts = data?.meta?.counts ?? {};
 
   const getRoleCount = useCallback(
-    (role) =>
-      role === 'all'
-        ? allProfiles.length
-        : allProfiles.filter((profile) => resolveMemberRole(profile, membersMap) === role).length,
-    [allProfiles, membersMap]
+    (role) => {
+      if (role === 'all') {
+        const totalFromCounts = Object.values(roleCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return roleCounts[role] ?? 0;
+    },
+    [roleCounts, totalRecords]
   );
 
-  // Rows resolve Site / Job Title / Department names from the lookups, so wait for those too.
-  const isTableLoading = isLoading || isFetching || isLookupsLoading;
-  const notFound = !isTableLoading && (totalRecords === 0 || paginatedProfiles.length === 0);
+  const notFound = !isLoading && !isFetching && profiles.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -194,8 +148,6 @@ export function StaffProfileListView({
     [filters, table]
   );
 
-  const newButtonDisabled = isOwner && !organizationId;
-
   const content = (
     <>
       {!embedded && (
@@ -206,34 +158,9 @@ export function StaffProfileListView({
             { name: 'Staff Profiles' },
             ...(orgName ? [{ name: orgName }] : []),
           ]}
-          /* action={
-            <Button
-              component={RouterLink}
-              href={resolvedPaths.new}
-              variant="contained"
-              disabled={newButtonDisabled}
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              New Staff Profile
-            </Button>
-          } */
           sx={{ mb: { xs: 3, md: 5 } }}
         />
       )}
-
-      {/* {embedded && (
-        <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            component={RouterLink}
-            href={resolvedPaths.new}
-            variant="contained"
-            disabled={newButtonDisabled}
-            startIcon={<Iconify icon="mingcute:add-line" />}
-          >
-            New Staff Profile
-          </Button>
-        </Box>
-      )} */}
 
       <Card>
         <StatusTabsFilterWrapper
@@ -253,14 +180,18 @@ export function StaffProfileListView({
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-              <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
-                {isTableLoading ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => <TableSkeleton key={index} />)
+                {isLoading || isFetching ? (
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {paginatedProfiles.map((row, index) => (
+                    {profiles.map((row, index) => (
                       <StaffProfileTableRow
                         key={row._id}
                         row={row}
@@ -268,10 +199,6 @@ export function StaffProfileListView({
                         detailPath={resolvedPaths.detail(row._id)}
                         editPath={resolvedPaths.edit(row._id)}
                         hideViewAction={hideViewAction}
-                        branchesMap={branchesMap}
-                        jobTitlesMap={jobTitlesMap}
-                        departmentsMap={departmentsMap}
-                        membersMap={membersMap}
                       />
                     ))}
 

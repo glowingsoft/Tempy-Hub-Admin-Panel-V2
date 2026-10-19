@@ -67,6 +67,7 @@ export function BranchDetailView() {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <Button
+          color="primary"
           onClick={() => router.push(paths.owner.sites.root)}
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           sx={{ mb: 2 }}
@@ -82,6 +83,7 @@ export function BranchDetailView() {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <Button
+          color="primary"
           onClick={() => router.push(paths.owner.sites.root)}
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           sx={{ mb: 2 }}
@@ -99,7 +101,7 @@ export function BranchDetailView() {
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ mb: 2 }}>
-        <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+        <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
           Back
         </Button>
       </Box>
@@ -116,6 +118,7 @@ export function BranchDetailView() {
             component={RouterLink}
             href={paths.owner.sites.edit(branch._id)}
             variant="contained"
+            color="primary"
             startIcon={<Iconify icon="solar:pen-bold" />}
           >
             Edit Site

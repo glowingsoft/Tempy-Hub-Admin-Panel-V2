@@ -23,10 +23,10 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
@@ -39,13 +39,14 @@ import { DepartmentTableRow } from '../department-table-row';
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'inactive', label: 'Inactive', color: 'default' },
+  { value: 'inactive', label: 'Inactive', color: 'error' },
 ];
 
 const TABLE_HEAD = [
-  { id: 'sr', label: 'Sr#', width: 60 },
-  { id: 'name', label: 'Name', width: 220, minWidth: 220 },
-  { id: 'sortOrder', label: 'Sort Order', width: 120, align: 'center' },
+  { id: 'sr', label: 'Sr#', width: 56 },
+  { id: 'name', label: 'Name', minWidth: 180 },
+  { id: 'branch', label: 'Site', minWidth: 160 },
+  { id: 'createdAt', label: 'Created At', width: 140, align: 'center' },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
 ];
@@ -59,30 +60,34 @@ const FILTER_FIELDS = [
 
 export function DepartmentListView() {
   const table = useTable({
-    defaultOrderBy: 'sortOrder',
-    defaultOrder: 'asc',
+    defaultDense: true,
+    defaultRowsPerPage: 10,
   });
 
   const { organizationId, organizationName, user } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
 
   const createModal = useBoolean();
   const editModal = useBoolean();
   const [selectedDepartment, setSelectedDepartment] = useState(null);
 
-  const { currentData: data, isLoading, isFetching, isError, error } = useGetDepartmentsQuery(
+  const { data, isLoading, isFetching, isError, error } = useGetDepartmentsQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      keyword: keyword.trim(),
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
     },
     { skip: !organizationId }
   );
 
-  const allDepartments = data?.data ?? [];
+  const departments = useMemo(() => data?.data ?? [], [data]);
+  const totalRecords = data?.meta?.totalRecords ?? departments.length;
+  const statusCounts = data?.meta?.counts ?? {};
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -93,34 +98,22 @@ export function DepartmentListView() {
     []
   );
 
-  // Status filtering applies to the current API page; keyword search is server-side.
-  const filteredDepartments = useMemo(() => {
-    return allDepartments
-      .filter((department) => {
-        const matchesStatus =
-          filters.state.status === 'all' ||
-          (filters.state.status === 'active') === !!department.isActive;
-
-        return matchesStatus;
-      })
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-  }, [allDepartments, filters.state.status]);
-
-  const totalRecords =
-    filters.state.status === 'all' && Number.isFinite(data?.meta?.totalRecords)
-      ? data.meta.totalRecords
-      : filteredDepartments.length;
-
   const getStatusCount = useCallback(
     (status) => {
-      if (status === 'all') return allDepartments.length;
-      if (status === 'active') return allDepartments.filter((d) => d.isActive).length;
-      return allDepartments.filter((d) => !d.isActive).length;
+      if (status === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[status] ?? 0;
     },
-    [allDepartments]
+    [statusCounts, totalRecords]
   );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && departments.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -167,6 +160,7 @@ export function DepartmentListView() {
         action={
           <Button
             variant="contained"
+            color="primary"
             onClick={createModal.onTrue}
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
@@ -200,20 +194,18 @@ export function DepartmentListView() {
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headLabel={TABLE_HEAD}
-              />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => (
-                    <TableSkeleton key={index} />
-                  ))
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {filteredDepartments.map((row, index) => (
+                    {departments.map((row, index) => (
                       <DepartmentTableRow
                         key={row._id}
                         row={row}

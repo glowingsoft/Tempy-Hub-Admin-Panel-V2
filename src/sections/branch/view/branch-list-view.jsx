@@ -6,48 +6,46 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
-import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { paths } from 'src/routes/paths';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
-import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Iconify } from 'src/components/iconify';
-import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
+import { Scrollbar } from 'src/components/scrollbar';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
+import { Iconify } from 'src/components/iconify';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
-import { mockOrganizations } from 'src/sections/organization/mocks/data';
-import { BRANCH_STATUS_OPTIONS, mockBranchesResponse } from '../mocks/data';
 import { BranchTableRow } from '../branch-table-row';
+import { BRANCH_STATUS_OPTIONS } from '../mocks/data';
 
 // ----------------------------------------------------------------------
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All', color: 'default' }, ...BRANCH_STATUS_OPTIONS];
-
-const SITE_COLUMN_WIDTH = `${100 / 7}%`;
+const ROWS_PER_PAGE = 10;
 
 const TABLE_HEAD = [
-  { id: 'sr', label: 'Sr#', width: SITE_COLUMN_WIDTH },
-  { id: 'name', label: 'Name', width: SITE_COLUMN_WIDTH },
-  { id: 'code', label: 'Code', width: SITE_COLUMN_WIDTH },
-  { id: 'address', label: 'Address', width: SITE_COLUMN_WIDTH },
-  { id: 'status', label: 'Status', width: SITE_COLUMN_WIDTH, align: 'center' },
-  { id: 'createdAt', label: 'Created At', width: SITE_COLUMN_WIDTH, align: 'center' },
-  { id: 'actions', label: 'Actions', width: SITE_COLUMN_WIDTH, align: 'center' },
+  { id: 'sr', label: 'Sr#', width: 56 },
+  { id: 'name', label: 'Name', minWidth: 180 },
+  { id: 'code', label: 'Code', width: 140 },
+  { id: 'address', label: 'Address', width: 280 },
+  { id: 'status', label: 'Status', width: 160, align: 'center' },
+  { id: 'createdAt', label: 'Created At', width: 140, align: 'center' },
+  { id: 'actions', label: 'Actions', width: 100, align: 'center' },
 ];
 
 const FILTER_FIELDS = [
@@ -58,23 +56,31 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function BranchListView() {
-  const table = useTable({ defaultOrderBy: 'name', defaultOrder: 'asc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: ROWS_PER_PAGE,
+  });
 
   const { organizationId = '', organizationName = '', user } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
 
   const { data, isLoading, isFetching } = useGetBranchesQuery(
-    { organizationId, page: table.page + 1, limit: table.rowsPerPage, keyword },
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
+    },
     { skip: !organizationId }
   );
 
-  // Branches are scoped to the owner's organization.
-  const allBranches = useMemo(
-    () => (data ? (data?.data ?? []) : mockBranchesResponse.data).filter((b) => !organizationId || b.organizationId === organizationId),
-    [data, organizationId]
-  );
+  const branches = useMemo(() => data?.data ?? [], [data]);
+  const totalRecords = data?.meta?.totalRecords ?? branches.length;
+  const statusCounts = data?.meta?.counts ?? {};
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -85,47 +91,22 @@ export function BranchListView() {
     []
   );
 
-  // Client-side filtering (mock only — the API will do this server-side).
-  const filteredBranches = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
-    return allBranches
-      .filter((branch) => {
-        const matchesStatus =
-          filters.state.status === 'all' || branch.status === filters.state.status;
-
-        const matchesSearch =
-          !search ||
-          branch.name?.toLowerCase().includes(search) ||
-          branch.code?.toLowerCase().includes(search) ||
-          branch.address?.toLowerCase().includes(search);
-
-        return matchesStatus && matchesSearch;
-      })
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [allBranches, filters.state.status, keyword]);
-
-  const totalRecords =
-    filters.state.status === 'all' && Number.isFinite(data?.meta?.totalRecords)
-      ? data.meta.totalRecords
-      : filteredBranches.length;
-
-  const paginatedBranches = useMemo(() => {
-    if (data) return filteredBranches;
-
-    const start = table.page * table.rowsPerPage;
-    return filteredBranches.slice(start, start + table.rowsPerPage);
-  }, [data, filteredBranches, table.page, table.rowsPerPage]);
-
   const getStatusCount = useCallback(
-    (status) =>
-      status === 'all'
-        ? allBranches.length
-        : allBranches.filter((branch) => branch.status === status).length,
-    [allBranches]
+    (status) => {
+      if (status === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[status] ?? 0;
+    },
+    [statusCounts, totalRecords]
   );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && branches.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -159,6 +140,7 @@ export function BranchListView() {
             component={RouterLink}
             href={paths.owner.sites.new}
             variant="contained"
+            color="primary"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Site
@@ -184,32 +166,19 @@ export function BranchListView() {
 
         <Box sx={{ position: 'relative', width: 1, minWidth: 0 }}>
           <Scrollbar sx={{ width: 1 }}>
-            <Table
-              size={table.dense ? 'small' : 'medium'}
-              sx={{
-                width: '100%',
-                minWidth: { xs: 784, md: '100%' },
-                tableLayout: 'fixed',
-                '& .MuiTableCell-root': {
-                  px: { xs: 1, sm: 2 },
-                  py: table.dense ? 0.5 : { xs: 1, sm: 1.5 },
-                },
-              }}
-            >
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headLabel={TABLE_HEAD}
-              />
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => (
-                    <TableSkeleton key={index} />
-                  ))
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {paginatedBranches.map((row, index) => (
+                    {branches.map((row, index) => (
                       <BranchTableRow
                         key={row._id}
                         row={row}

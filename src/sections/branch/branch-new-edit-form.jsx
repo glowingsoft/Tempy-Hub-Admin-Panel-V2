@@ -384,6 +384,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
                           <Button
                             size="small"
                             variant="outlined"
+                            color="primary"
                             onClick={() => appendBreakRule({ minHours: 0, unpaidMinutes: 0 })}
                             startIcon={<Iconify icon="mingcute:add-line" />}
                             sx={{ alignSelf: 'flex-start', mt: 1 }}
@@ -503,6 +504,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
           <LoadingButton
             type="submit"
             variant="contained"
+            color="primary"
             loading={isSubmitting || isCreating || isUpdating}
           >
             {isEdit ? 'Save changes' : 'Create site'}

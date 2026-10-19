@@ -13,8 +13,20 @@ import { fDate } from 'src/utils/format-time';
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { TableCellWithTooltip } from 'src/components/table';
 
-import { resolveMemberRole } from 'src/hooks/use-organization-lookups';
 import { getRoleLabel } from 'src/sections/membership/mocks/data';
+
+// ----------------------------------------------------------------------
+
+function getDepartmentNames(row) {
+  const list = Array.isArray(row.departments) ? row.departments : [];
+  const names = list.map((department) => department?.name).filter(Boolean);
+  if (names.length) return names.join(', ');
+  return row.department?.name || '—';
+}
+
+function getStaffRole(row) {
+  return row.role || row.membership?.role || row.user?.role || '';
+}
 
 // ----------------------------------------------------------------------
 
@@ -24,72 +36,16 @@ export function StaffProfileTableRow({
   detailPath: customDetailPath,
   editPath: customEditPath,
   hideViewAction = false,
-  branchesMap = {},
-  jobTitlesMap = {},
-  departmentsMap = {},
-  membersMap = {},
 }) {
   const router = useRouter();
 
   const detailPath = customDetailPath || paths.owner.staffProfiles.detail(row._id);
   const editPath = customEditPath || paths.owner.staffProfiles.edit(row._id);
 
-  // Site / Branch name
-  const branchName =
-    row.branch?.name ||
-    (typeof row.branchId === 'object' && row.branchId?.name) ||
-    row.branchName ||
-    (typeof row.branch === 'string' && branchesMap[row.branch]?.name) ||
-    (typeof row.branchId === 'string' && branchesMap[row.branchId]?.name) ||
-    '—';
-
-  // Job title name
-  const jobTitleName =
-    row.jobTitle?.name ||
-    (typeof row.jobTitleId === 'object' && row.jobTitleId?.name) ||
-    row.jobTitleName ||
-    (typeof row.jobTitle === 'string' && jobTitlesMap[row.jobTitle]?.name) ||
-    (typeof row.jobTitleId === 'string' && jobTitlesMap[row.jobTitleId]?.name) ||
-    '—';
-
-  // Departments
-  const departmentNames = (() => {
-    const list =
-      Array.isArray(row.departments) && row.departments.length > 0
-        ? row.departments
-        : Array.isArray(row.departmentIds) && row.departmentIds.length > 0
-          ? row.departmentIds
-          : [];
-
-    if (list.length > 0) {
-      const names = list
-        .map((d) => {
-          if (typeof d === 'object' && d?.name) return d.name;
-          const id = typeof d === 'object' ? d?._id : d;
-          return departmentsMap[id]?.name || id;
-        })
-        .filter(Boolean);
-      if (names.length > 0) return names.join(', ');
-    }
-    if (row.department?.name) {
-      return row.department.name;
-    }
-    return '—';
-  })();
-
-  const staffName =
-    row.userId?.name ||
-    row.user?.name ||
-    row.userName ||
-    row.name ||
-    '—';
-
-  const staffEmail =
-    row.userId?.email ||
-    row.user?.email ||
-    row.userEmail ||
-    row.email ||
-    '—';
+  const staffName = row.user?.name || row.userId?.name || row.name || '—';
+  const staffEmail = row.user?.email || row.userId?.email || row.email || '—';
+  const branchName = row.branch?.name || (typeof row.branchId === 'object' && row.branchId?.name) || '—';
+  const jobTitleName = row.jobTitle?.name || (typeof row.jobTitleId === 'object' && row.jobTitleId?.name) || '—';
 
   const actions = [
     {
@@ -114,11 +70,11 @@ export function StaffProfileTableRow({
 
   return (
     <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
-      <TableCell>{serialNumber}</TableCell>
+      <TableCell sx={{ width: 56, whiteSpace: 'nowrap' }}>{serialNumber}</TableCell>
 
       <TableCell>
         <Stack sx={{ typography: 'body2' }}>
-          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600 }}>
+          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600, textTransform: 'capitalize' }}>
             {staffName}
           </Link>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -127,19 +83,21 @@ export function StaffProfileTableRow({
         </Stack>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap', pl: 1 }}>
-        {getRoleLabel(resolveMemberRole(row, membersMap))}
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {getRoleLabel(getStaffRole(row))}
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{branchName}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{branchName}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{jobTitleName}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{jobTitleName}</TableCell>
 
-      <TableCellWithTooltip maxWidth={200}>{departmentNames}</TableCellWithTooltip>
+      <TableCellWithTooltip maxWidth={200} sx={{ textTransform: 'capitalize' }}>
+        {getDepartmentNames(row)}
+      </TableCellWithTooltip>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.startDate)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.startDate ? fDate(row.startDate) : '—'}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.createdAt)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.createdAt ? fDate(row.createdAt) : '—'}</TableCell>
 
       <TableCell align="center">
         <Box onClick={(event) => event.stopPropagation()}>
