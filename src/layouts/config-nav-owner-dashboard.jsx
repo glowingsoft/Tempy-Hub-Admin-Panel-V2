@@ -31,6 +31,7 @@ const ICONS = {
   blog: icon('ic-blog'),
   mail: icon('ic-mail'),
   pendingApproval: icon('ic-check'),
+  compliance: icon('ic-compliance'),
 };
 
 // ----------------------------------------------------------------------
@@ -64,6 +65,7 @@ export const navDataOwner = [
         path: paths.owner.peepAndFloorPlans.root,
         icon: ICONS.plan,
       },
+      { title: 'Fire Drills', path: paths.owner.fireDrills, icon: ICONS.compliance },
       { title: 'Documents', path: paths.owner.documents.root, icon: ICONS.document },
       { title: 'Leave Requests', path: paths.owner.leaveRequests.root, icon: ICONS.calendar },
       { title: 'Attendance', path: paths.owner.attendance.root, icon: ICONS.clock },

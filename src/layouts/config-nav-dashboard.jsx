@@ -56,7 +56,7 @@ export const navData = [
     items: [
       { title: 'Dashboard', path: paths.dashboard.root, icon: ICONS.dashboard },
       { title: 'Organizations', path: paths.dashboard.organizations.root, icon: ICONS.organizations },
-      { title: 'Fire Drills', path: paths.dashboard.fireDrills, icon: ICONS.compliance },
+      // { title: 'Fire Drills', path: paths.dashboard.fireDrills, icon: ICONS.compliance },
       { title: 'Billing & Usage', path: paths.dashboard.dataUsage.root, icon: ICONS.folder },
       // { title: 'Ecommerce', path: paths.dashboard.general.ecommerce, icon: ICONS.ecommerce },
       // { title: 'Analytics', path: paths.dashboard.general.analytics, icon: ICONS.analytics },

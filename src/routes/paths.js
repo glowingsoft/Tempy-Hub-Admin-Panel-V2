@@ -528,12 +528,11 @@ export const paths = {
     reports: `${ROOTS.OWNER_DASHBOARD}/reports`,
     messages: `${ROOTS.OWNER_DASHBOARD}/messages`,
     acknowledgements: (id) => `${ROOTS.OWNER_DASHBOARD}/documents/${id}/acknowledgements`,
-    supervision: `${ROOTS.OWNER_DASHBOARD}/supervision`,
-    reports: `${ROOTS.OWNER_DASHBOARD}/reports`,
     statistics: `${ROOTS.OWNER_DASHBOARD}/statistics`,
     tempyConnection: `${ROOTS.OWNER_DASHBOARD}/tempy-connection`,
     staffDashboardSettings: `${ROOTS.OWNER_DASHBOARD}/staff-dashboard-settings`,
     configuration: `${ROOTS.OWNER_DASHBOARD}/configuration`,
+    fireDrills: `${ROOTS.OWNER_DASHBOARD}/fire-drills`,
 
     rota: {
       root: `${ROOTS.OWNER_DASHBOARD}/rota`,
