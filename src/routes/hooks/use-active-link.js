@@ -3,53 +3,43 @@ import { hasParams, removeParams, isExternalLink, removeLastSlash } from '../uti
 
 // ----------------------------------------------------------------------
 
+function isDashboardRootPath(itemPath) {
+  return itemPath.split('/').filter(Boolean).length === 1;
+}
+
+function isNestedPath(pathname, itemPath) {
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+}
+
+// ----------------------------------------------------------------------
+
 export function useActiveLink(itemPath, deep = true) {
   const pathname = removeLastSlash(usePathname());
 
   const pathHasParams = hasParams(itemPath);
 
-  /* Start check */
   const notValid = itemPath?.startsWith('#') || isExternalLink(itemPath);
 
   if (notValid) {
     return false;
   }
-  /* End check */
+
+  const originItemPath = removeLastSlash(removeParams(itemPath));
 
   /**
-   * [1] Apply for Item has children or has params.
+   * Dashboard roots (`/owner-dashboard`, `/dashboard`, `/staff`, …) stay exact
+   * so they are not highlighted on every nested module page.
+   *
+   * Every other item stays active on its list, create, detail, and edit routes.
    */
-  const isDeep = deep || pathHasParams;
-
-  // console.info(isDeep ? '[deep]   :' : '[normal] :', itemPath, '-?-', pathname);
+  const isDeep = deep || pathHasParams || !isDashboardRootPath(originItemPath);
 
   if (isDeep) {
-    /**
-     * [1] Deep: default
-     * @itemPath 			 = '/dashboard/user'
-     * @match pathname = '/dashboard/user'
-     * @match pathname = '/dashboard/user/list'
-     * @match pathname = '/dashboard/user/e99f09a7-dd88-49d5-b1c8-1daf80c2d7b15/edit'
-     */
-    const defaultActive = pathname.includes(itemPath);
-
-    /**
-     * [1] Deep: has params
-     * @itemPath 			 = '/dashboard/test?id=e99f09a7-dd88-49d5-b1c8-1daf80c2d7b1'
-     * @match pathname = '/dashboard/test'
-     */
-
-    const originItemPath = removeParams(itemPath);
-
+    const defaultActive = isNestedPath(pathname, originItemPath);
     const hasParamsActive = pathHasParams && originItemPath === pathname;
 
     return defaultActive || hasParamsActive;
   }
 
-  /**
-   * [1] Normal: active
-   * @itemPath 			 = '/dashboard/calendar'
-   * @match pathname = '/dashboard/calendar'
-   */
-  return pathname === itemPath;
+  return pathname === originItemPath;
 }
