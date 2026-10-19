@@ -65,6 +65,7 @@ export const API_ROUTES = {
     // Leave requests / entitlements / approvals.
     ORGANIZATION_LEAVE_REQUESTS: (organizationId) =>
         `/admin/organizations/${organizationId}/leave-requests`,
+    LEAVE_REQUEST_BY_ID: (leaveRequestId) => `/admin/leave-requests/${leaveRequestId}`,
     ORGANIZATION_LEAVE_ENTITLEMENTS: (organizationId) =>
         `/admin/organizations/${organizationId}/leave-entitlements`,
     LEAVE_APPROVAL_APPROVE: (leaveRequestId) => `/admin/leave-approvals/${leaveRequestId}/approve`,

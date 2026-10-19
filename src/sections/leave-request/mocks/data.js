@@ -17,6 +17,7 @@ export const LEAVE_REQUEST_STATUS_OPTIONS = [
   { value: 'approved', label: 'Approved', color: 'success' },
   { value: 'rejected', label: 'Rejected', color: 'error' },
   { value: 'cancelled', label: 'Cancelled', color: 'default' },
+  { value: 'closed', label: 'Closed', color: 'info' },
 ];
 
 export const getLeaveRequestStatusMeta = (value) =>

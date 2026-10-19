@@ -18,7 +18,7 @@ export function ShiftCreateView() {
         heading="Add shift"
         links={[
           { name: 'Dashboard', href: paths.owner.root },
-          { name: 'Rota' },
+          // { name: 'Rota' },
           { name: 'Shifts', href: paths.owner.shifts.root },
           { name: 'New shift' },
         ]}

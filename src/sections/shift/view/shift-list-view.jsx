@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -22,17 +21,16 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetShiftsQuery } from 'src/store/Reducer/shifts-api';
-import { SHIFT_STATUS_OPTIONS, mockShiftsResponse } from '../mocks/data';
-import { getShiftStaffName } from '../utils';
+import { SHIFT_STATUS_OPTIONS } from '../mocks/data';
 import { ShiftTableRow } from '../shift-table-row';
 
 // ----------------------------------------------------------------------
@@ -59,7 +57,10 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
-  const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
   const { organizationId: resolvedOrgId, organizationName: resolvedOrgName } =
     useCurrentOrganization(propOrgId);
@@ -68,6 +69,8 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
+  const { status } = filters.state;
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -78,64 +81,38 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
     []
   );
 
-  // --- Data source ---------------------------------------------------------
-  const {
-    data: apiData,
-    isLoading,
-    isFetching,
-  } = useGetShiftsQuery(
+  const { data, isLoading, isFetching } = useGetShiftsQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      status: filters.state.status,
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(status && status !== 'all' ? { status } : {}),
     },
     { skip: !organizationId }
   );
 
-  const data = apiData || mockShiftsResponse;
-
-  const allShifts = useMemo(
-    () =>
-      (data?.data ?? []).filter((shift) => !organizationId || shift.organizationId === organizationId),
-    [data, organizationId]
-  );
-
-  // Client-side filtering (mock only — the API filters server-side).
-  const filteredShifts = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
-    return allShifts.filter((shift) => {
-      const matchesStatus = filters.state.status === 'all' || shift.status === filters.state.status;
-
-      const matchesSearch =
-        !search ||
-        shift.branch?.name?.toLowerCase().includes(search) ||
-        getShiftStaffName(shift).toLowerCase().includes(search);
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [allShifts, filters.state.status, keyword]);
-
-  // Pagination metadata (mirrors the API `meta`).
-  const totalRecords = apiData?.meta?.totalRecords ?? filteredShifts.length;
-  const paginatedShifts = useMemo(() => {
-    if (apiData?.data) {
-      return filteredShifts;
-    }
-    const start = table.page * table.rowsPerPage;
-    return filteredShifts.slice(start, start + table.rowsPerPage);
-  }, [apiData, filteredShifts, table.page, table.rowsPerPage]);
+  const shifts = useMemo(() => data?.data ?? [], [data]);
+  const meta = data?.meta ?? {};
+  const statusCounts = meta.counts ?? {};
+  const totalRecords = meta.totalRecords ?? shifts.length;
 
   const getStatusCount = useCallback(
-    (status) =>
-      status === 'all'
-        ? allShifts.length
-        : allShifts.filter((shift) => shift.status === status).length,
-    [allShifts]
+    (tabStatus) => {
+      if (tabStatus === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[tabStatus] ?? 0;
+    },
+    [statusCounts, totalRecords]
   );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && shifts.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -163,7 +140,7 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
         heading="Shifts"
         links={[
           { name: 'Dashboard', href: paths.owner.root },
-          { name: 'Rota' },
+          // { name: 'Rota' },
           { name: 'Shifts' },
           ...(orgName ? [{ name: orgName }] : []),
         ]}
@@ -172,6 +149,7 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
             component={RouterLink}
             href={newShiftHref}
             variant="contained"
+            color="primary"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Shift
@@ -184,7 +162,7 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
         {statusFilterField && (
           <StatusTabsFilterWrapper
             filterField={statusFilterField}
-            value={filters.state.status}
+            value={status}
             onChange={handleFilterChange}
             getCount={getStatusCount}
           />
@@ -200,14 +178,18 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1200 }}>
-              <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => <TableSkeleton key={index} />)
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {paginatedShifts.map((row, index) => (
+                    {shifts.map((row, index) => (
                       <ShiftTableRow
                         key={row._id}
                         row={row}

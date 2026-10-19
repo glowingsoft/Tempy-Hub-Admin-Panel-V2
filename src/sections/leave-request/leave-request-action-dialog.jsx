@@ -40,7 +40,7 @@ export function LeaveRequestActionDialog({ open, mode = 'approve', request, load
         isReject ? (
           <>
             Reject the <strong>{getLeaveTypeLabel(request.leaveType)}</strong> leave for{' '}
-            <strong>{who}</strong> ({range}, {days})?
+            <strong style={{ textTransform: 'capitalize' }}>{who}</strong> ({range}, {days})?
             <TextField
               autoFocus
               fullWidth
@@ -56,7 +56,7 @@ export function LeaveRequestActionDialog({ open, mode = 'approve', request, load
         ) : (
           <>
             Approve the <strong>{getLeaveTypeLabel(request.leaveType)}</strong> leave for{' '}
-            <strong>{who}</strong> ({range}, {days})?
+            <strong style={{ textTransform: 'capitalize' }}>{who}</strong> ({range}, {days})?
           </>
         )
       }

@@ -117,11 +117,17 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
         <DialogContent>
           <Box sx={{ mt: 3, gap: 2, display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)' }}>
             <Field.Select name="staffId" label="Staff">
-              {staffOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
+              {staffOptions.map((option) => {
+                const [name, email] = option.label.split(' (');
+                return (
+                  <MenuItem key={option.value} value={option.value}>
+                    <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                      {name}
+                    </Box>
+                    {email ? ` (${email.replace(/\)$/, '').toLowerCase()})` : ''}
+                  </MenuItem>
+                );
+              })}
             </Field.Select>
 
             <Field.Select name="year" label="Year">
@@ -145,7 +151,7 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
         </DialogContent>
 
         <DialogActions>
-          <Button variant="outlined" onClick={handleClose}>
+          <Button variant="outlined" color="primary" onClick={handleClose}>
             Cancel
           </Button>
 

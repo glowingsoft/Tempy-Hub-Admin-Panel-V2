@@ -29,20 +29,19 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //         "branch": { "_id": "string", "name": "string", "code": "string", "status": "string" }
 //       }
 //     ],
-//     "meta": { "currentPage": 1, "totalPages": 1, "totalRecords": 1, "limit": 10 }
+//     "meta": { "currentPage": 1, "totalPages": 1, "totalRecords": 1, "limit": 10, "counts": { pending, approved, rejected, cancelled, closed } }
 //   }
-//   TODO: confirm whether the list endpoint supports `status` / `keyword` params.
 //
 // PUT  /admin/organizations/:organizationId/leave-entitlements
 //   request:  { "staffId": "string", "year": "2026-2027", "leaveType": "annual", "entitlementDays": 24 }
 //   response: { "message": "string", "data": LeaveEntitlement }
 //
+// GET  /admin/leave-requests/:leaveRequestId
+//   response: { "message": "string", "data": LeaveRequest }
+//
 // POST /admin/leave-approvals/:leaveRequestId/approve
 //   header:   x-org-id: <organizationId>
 //   response: { "message": "string", "data": LeaveRequest }
-//
-// TODO: confirm whether a `GET /admin/leave-requests/:id` endpoint exists for the
-// detail screen (currently the detail view reads from the list result).
 // ----------------------------------------------------------------------
 
 const listTag = (organizationId) => ({ type: 'LeaveRequest', id: `LIST-${organizationId}` });
@@ -53,12 +52,22 @@ export const leaveRequestsApi = createApi({
   tagTypes: ['LeaveRequest', 'LeaveEntitlement'],
   endpoints: (builder) => ({
     getLeaveRequests: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, status }) => ({
-        url: API_ROUTES.ORGANIZATION_LEAVE_REQUESTS(organizationId),
-        method: 'GET',
-        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
-        params: { page, limit, ...(status && status !== 'all' ? { status } : {}) },
-      }),
+      query: ({ organizationId, page = 1, limit = 10, status, keyword, branchId }) => {
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        return {
+          url: API_ROUTES.ORGANIZATION_LEAVE_REQUESTS(organizationId),
+          method: 'GET',
+          headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+          params: {
+            page,
+            limit,
+            ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+            ...(status && status !== 'all' ? { status } : {}),
+            ...(branchId && branchId !== 'all' ? { branchId } : {}),
+          },
+        };
+      },
       transformResponse: (res) => ({ data: res?.data ?? [], meta: res?.meta ?? {} }),
       providesTags: (result, error, { organizationId }) =>
         result?.data
@@ -67,6 +76,16 @@ export const leaveRequestsApi = createApi({
               listTag(organizationId),
             ]
           : [listTag(organizationId)],
+    }),
+
+    getLeaveRequest: builder.query({
+      query: ({ leaveRequestId, organizationId }) => ({
+        url: API_ROUTES.LEAVE_REQUEST_BY_ID(leaveRequestId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: (result, error, { leaveRequestId }) => [{ type: 'LeaveRequest', id: leaveRequestId }],
     }),
 
     setLeaveEntitlement: builder.mutation({
@@ -111,6 +130,7 @@ export const leaveRequestsApi = createApi({
 
 export const {
   useGetLeaveRequestsQuery,
+  useGetLeaveRequestQuery,
   useSetLeaveEntitlementMutation,
   useApproveLeaveRequestMutation,
   useRejectLeaveRequestMutation,

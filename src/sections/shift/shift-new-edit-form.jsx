@@ -94,7 +94,7 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
       const email = p.userId?.email || p.user?.email;
       return {
         value: p._id,
-        label: email ? `${name} (${email})` : name,
+        label: email ? `${name} (${String(email).toLowerCase()})` : name,
       };
     });
     const curStaffId = currentShift?.staffId?._id || currentShift?.staffId || '';
@@ -192,9 +192,13 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
             display="grid"
             gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
           >
-            <Field.Select name="branchId" label="Site">
+            <Field.Select
+              name="branchId"
+              label="Site"
+              SelectProps={{ sx: { textTransform: 'capitalize' } }}
+            >
               {branchOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
+                <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'capitalize' }}>
                   {option.label}
                 </MenuItem>
               ))}
@@ -202,11 +206,17 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
 
             <Field.Select name="staffId" label="Staff (optional)">
               <MenuItem value="">Open / Unassigned</MenuItem>
-              {staffOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
+              {staffOptions.map((option) => {
+                const [name, email] = option.label.split(' (');
+                return (
+                  <MenuItem key={option.value} value={option.value}>
+                    <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                      {name}
+                    </Box>
+                    {email ? ` (${email.replace(/\)$/, '').toLowerCase()})` : ''}
+                  </MenuItem>
+                );
+              })}
             </Field.Select>
 
             <Field.MobileDateTimePicker
@@ -230,7 +240,8 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
 
         <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
           <Button
-            color="inherit"
+            variant="outlined"
+            color="primary"
             onClick={() =>
               router.push(
                 isEdit
@@ -242,7 +253,12 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting || isCreating || isUpdating}>
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            color="primary"
+            loading={isSubmitting || isCreating || isUpdating}
+          >
             {isEdit ? 'Save changes' : 'Create shift'}
           </LoadingButton>
         </Stack>

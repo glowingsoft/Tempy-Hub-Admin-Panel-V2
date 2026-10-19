@@ -12,8 +12,8 @@ import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 
-import { useBoolean } from 'src/hooks/use-boolean';
 import { useLocation } from 'react-router-dom';
+import { useBoolean } from 'src/hooks/use-boolean';
 
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Label } from 'src/components/label';
@@ -60,7 +60,7 @@ export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
         {/* Name + Email + Image */}
         <TableCell>
           <Stack spacing={2} direction="row" alignItems="center">
-            <Avatar alt={row.name} src={row.image}>
+            <Avatar alt={row.name} src={row.image} sx={{ width: 36, height: 36, fontSize: 16 }}>
               {row.name?.charAt(0)}
             </Avatar>
 
@@ -91,7 +91,7 @@ export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
         </TableCell>
 
         {/* Branch */}
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
           {row.branch || '—'}
         </TableCell>
 
@@ -110,13 +110,9 @@ export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
           <Label
             variant="soft"
             color={
-              row.status === 'On site'
+              row.siteStatus === 'onSite' || row.status === 'On Site' || row.status === 'On site'
                 ? 'success'
-                : row.status === 'On leave'
-                  ? 'warning'
-                  : row.status === 'Checked out'
-                    ? 'info'
-                    : 'default'
+                : 'default'
             }
           >
             {row.status || '—'}

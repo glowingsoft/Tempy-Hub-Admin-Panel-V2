@@ -59,16 +59,16 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             {/* Resident Info */}
             <TableCell>
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Avatar alt={row.name} src={row.image}>{row.name?.charAt(0)}</Avatar>
+                    <Avatar alt={row.name} src={row.image} sx={{ width: 36, height: 36, fontSize: 16, textTransform: 'capitalize' }}>{row.name?.charAt(0)}</Avatar>
                     <Stack sx={{ typography: 'body2', minWidth: 0 }}>
-                        <Box sx={{ fontWeight: 600 }}>{row.name || '—'}</Box>
+                        <Box sx={{ fontWeight: 600, textTransform: 'capitalize' }}>{row.name || '—'}</Box>
                         <Box sx={{ color: 'text.secondary', typography: 'caption' }}>{row.email || '—'}</Box>
                     </Stack>
                 </Stack>
             </TableCell>
 
             {/* Branch / Site */}
-            <TableCell>{branchName}</TableCell>
+            <TableCell sx={{ textTransform: 'capitalize' }}>{branchName}</TableCell>
 
             {/* Room Number */}
             <TableCell>{row.roomNumber || '—'}</TableCell>

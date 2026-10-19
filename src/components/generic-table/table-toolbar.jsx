@@ -86,9 +86,21 @@ const FilterField = memo(({ field, value, onChange, onSearchChange }) => {
                     value={value}
                     onChange={(e) => onChange(field.key, e.target.value)}
                     placeholder={field.placeholder}
+                    SelectProps={{
+                        sx: { textTransform: 'capitalize' },
+                        MenuProps: {
+                            PaperProps: {
+                                sx: { maxHeight: 280 },
+                            },
+                        },
+                    }}
                 >
                     {field.options.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
+                        <MenuItem
+                            key={option.value}
+                            value={option.value}
+                            sx={{ textTransform: 'capitalize' }}
+                        >
                             {option.label}
                         </MenuItem>
                     ))}

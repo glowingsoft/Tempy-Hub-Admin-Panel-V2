@@ -18,10 +18,10 @@ import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { Scrollbar } from 'src/components/scrollbar';
 import {
+    TableBodySkeleton,
     TableHeadCustom,
     TableNoData,
     TablePaginationCustom,
-    TableSkeleton,
     useTable,
 } from 'src/components/table';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -31,7 +31,7 @@ import { useSetState } from 'src/hooks/use-set-state';
 import { useBoolean } from 'src/hooks/use-boolean';
 
 import { useGetResidentsQuery, useCreateResidentMutation } from 'src/store/Reducer/residents-api';
-import { RESIDENT_STATUS_OPTIONS } from '../mocks/data';
+import { RESIDENT_ADMISSION_STATUS_OPTIONS } from '../mocks/data';
 import { ResidentTableRow } from '../resident-table-row';
 import { ResidentImportDialog } from '../resident-import-dialog';
 import { ResidentSecurityDialog } from '../resident-security-dialog';
@@ -48,16 +48,27 @@ const TABLE_HEAD = [
     { id: 'actions', label: 'Actions', width: 90, align: 'center' },
 ];
 
+const ADMISSION_TAB_OPTIONS = [
+    { value: 'all', label: 'All', color: 'default' },
+    ...RESIDENT_ADMISSION_STATUS_OPTIONS.filter((option) =>
+        ['admitted', 'discharged'].includes(option.value)
+    ),
+];
+
 const FILTER_FIELDS = [
     createFilterField.status({
-        options: [{ value: 'all', label: 'All', color: 'default' }, ...RESIDENT_STATUS_OPTIONS],
+        key: 'admissionStatus',
+        options: ADMISSION_TAB_OPTIONS,
         showCounts: true,
     }),
     createFilterField.search({ placeholder: 'Search resident, room, or password...' }),
 ];
 
 export function ResidentListView({ ownerDashboard = false }) {
-    const table = useTable({ defaultOrderBy: 'name', defaultOrder: 'asc' });
+    const table = useTable({
+        defaultDense: true,
+        defaultRowsPerPage: 10,
+    });
     const { organizationId, user } = useCurrentOrganization();
     const { branchId, onBranchChange } = useOwnerBranchFilter();
 
@@ -70,10 +81,11 @@ export function ResidentListView({ ownerDashboard = false }) {
 
     const [createResident] = useCreateResidentMutation();
 
-    const filters = useSetState({ search: '', status: 'all' });
+    const filters = useSetState({ search: '', admissionStatus: 'all' });
     const keyword = useDebounce(filters.state.search, 500);
+    const trimmedKeyword = keyword.trim();
+    const { admissionStatus } = filters.state;
 
-    // API Query for all roles using the active organization
     const {
         currentData: liveData,
         isLoading: isLiveLoading,
@@ -83,10 +95,11 @@ export function ResidentListView({ ownerDashboard = false }) {
     } = useGetResidentsQuery(
         {
             organizationId,
-            branchId: branchId === 'all' ? undefined : branchId,
             page: table.page + 1,
             limit: table.rowsPerPage,
-            keyword,
+            ...(branchId && branchId !== 'all' ? { branchId } : {}),
+            ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+            ...(admissionStatus && admissionStatus !== 'all' ? { admissionStatus } : {}),
         },
         { skip: !organizationId }
     );
@@ -150,56 +163,20 @@ export function ResidentListView({ ownerDashboard = false }) {
         table.onResetPage();
     }, [table]);
 
-    const filteredResidents = useMemo(() => {
-        const search = keyword.trim().toLowerCase();
-        return sourceResidents
-            .filter((resident) => {
-                const resBranchId = resident.branchId || resident.branch?._id;
-                const matchesBranch = branchId === 'all' || resBranchId === branchId;
-                const resStatus = resident.admissionStatus || resident.status;
-                const matchesStatus =
-                    filters.state.status === 'all' ||
-                    resStatus === filters.state.status ||
-                    (filters.state.status === 'active' && resStatus === 'admitted') ||
-                    (filters.state.status === 'inactive' && (resStatus === 'discharged' || resStatus === 'inactive'));
-                const matchesSearch =
-                    !search ||
-                    [
-                        resident.name,
-                        resident.email,
-                        resident.roomNumber,
-                        resident.branch?.name || resident.branch,
-                        resident.visitorPasscode || resident.securityPassword,
-                    ].some((value) => value?.toLowerCase().includes(search));
-                return matchesBranch && matchesStatus && matchesSearch;
-            })
-            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    }, [branchId, filters.state.status, keyword, sourceResidents]);
+    const displayResidents = sourceResidents;
+    const meta = liveData?.meta ?? {};
+    const admittedCount = Number(meta.admitted) || 0;
+    const dischargedCount = Number(meta.discharged) || 0;
+    const totalRecords = Number.isFinite(meta.totalRecords) ? meta.totalRecords : displayResidents.length;
 
     const getStatusCount = useCallback(
         (status) => {
-            const list = sourceResidents.filter((resident) => {
-                const resBranchId = resident.branchId || resident.branch?._id;
-                return branchId === 'all' || resBranchId === branchId;
-            });
-            if (status === 'all') return list.length;
-            return list.filter((resident) => {
-                const resStatus = resident.admissionStatus || resident.status;
-                return (
-                    resStatus === status ||
-                    (status === 'active' && resStatus === 'admitted') ||
-                    (status === 'inactive' && (resStatus === 'discharged' || resStatus === 'inactive'))
-                );
-            }).length;
+            if (status === 'admitted') return admittedCount;
+            if (status === 'discharged') return dischargedCount;
+            return admittedCount + dischargedCount || totalRecords;
         },
-        [branchId, sourceResidents]
+        [admittedCount, dischargedCount, totalRecords]
     );
-
-    const displayResidents = filteredResidents;
-
-    const totalRecords = Number.isFinite(liveData?.meta?.totalRecords)
-        ? liveData.meta.totalRecords
-        : filteredResidents.length;
 
     const notFound = !isLiveLoading && !isLiveFetching && displayResidents.length === 0;
 
@@ -231,10 +208,20 @@ export function ResidentListView({ ownerDashboard = false }) {
                 action={
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
                         <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />
-                        <Button variant="outlined" onClick={importDialog.onTrue} startIcon={<Iconify icon="solar:upload-bold" />}>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={importDialog.onTrue}
+                            startIcon={<Iconify icon="solar:upload-bold" />}
+                        >
                             Import CSV
                         </Button>
-                        <Button variant="contained" onClick={handleOpenAdd} startIcon={<Iconify icon="mingcute:add-line" />}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleOpenAdd}
+                            startIcon={<Iconify icon="mingcute:add-line" />}
+                        >
                             Add Resident
                         </Button>
                     </Stack>
@@ -249,18 +236,20 @@ export function ResidentListView({ ownerDashboard = false }) {
                     </Alert>
                 )}
 
-                <StatusTabsFilterWrapper filterField={statusFilterField} value={filters.state.status} onChange={handleFilterChange} getCount={getStatusCount} />
+                <StatusTabsFilterWrapper filterField={statusFilterField} value={admissionStatus} onChange={handleFilterChange} getCount={getStatusCount} />
                 <FlexibleTableToolbar filterFields={toolbarFilterFields} filterValues={filters.state} onFilterChange={handleFilterChange} onSearchChange={handleSearchChange} />
 
                 <Box sx={{ position: 'relative' }}>
                     <Scrollbar>
                         <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 980 }}>
-                            <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
+                            <TableHeadCustom headLabel={TABLE_HEAD} />
                             <TableBody>
                                 {(isLiveLoading || isLiveFetching) ? (
-                                    [...Array(table.rowsPerPage)].map((_, index) => (
-                                        <TableSkeleton key={index} />
-                                    ))
+                                    <TableBodySkeleton
+                                        rowCount={table.rowsPerPage}
+                                        cellCount={TABLE_HEAD.length}
+                                        dense={table.dense}
+                                    />
                                 ) : (
                                     <>
                                         {displayResidents.map((row, index) => (

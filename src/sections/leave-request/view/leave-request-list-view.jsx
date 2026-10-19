@@ -1,5 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useCallback, useMemo } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -14,31 +13,28 @@ import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Iconify } from 'src/components/iconify';
-import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
+import { Iconify } from 'src/components/iconify';
+import { Scrollbar } from 'src/components/scrollbar';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useGetLeaveRequestsQuery } from 'src/store/Reducer/leave-requests-api';
-import { LEAVE_REQUEST_STATUS_OPTIONS } from '../mocks/data';
-import {
-  getLeaveRequestContext,
-  getLeaveRequestStaffName,
-} from '../utils';
-import { useLeaveRequestActions } from '../use-leave-request-actions';
-import { LeaveRequestActionDialog } from '../leave-request-action-dialog';
-import { LeaveEntitlementModal } from '../leave-entitlement-modal';
-import { LeaveRequestTableRow } from '../leave-request-table-row';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
+import { useGetLeaveRequestsQuery } from 'src/store/Reducer/leave-requests-api';
+import { LeaveEntitlementModal } from '../leave-entitlement-modal';
+import { LeaveRequestActionDialog } from '../leave-request-action-dialog';
+import { LeaveRequestTableRow } from '../leave-request-table-row';
+import { LEAVE_REQUEST_STATUS_OPTIONS } from '../mocks/data';
+import { useLeaveRequestActions } from '../use-leave-request-actions';
+import { getLeaveRequestContext } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -47,11 +43,6 @@ const STATUS_OPTIONS = [
   ...LEAVE_REQUEST_STATUS_OPTIONS,
 ];
 
-// Client feedback: Approve/Reject needs to be reachable without scrolling
-// the table every time. Reason and Requested-date are still one click away
-// via "View", and Start / End / Days collapse into a single Dates column,
-// so the table fits without horizontal scroll on a normal laptop screen —
-// Actions stays in its usual place at the end of the row.
 const TABLE_HEAD = [
   { id: 'sr', label: 'Sr#', width: 60 },
   { id: 'staff', label: 'Staff', minWidth: 200 },
@@ -59,11 +50,9 @@ const TABLE_HEAD = [
   { id: 'leaveType', label: 'Leave Type', width: 120 },
   { id: 'dates', label: 'Dates', minWidth: 170 },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
-  { id: 'actions', label: 'Actions', width: 120, align: 'center' },
+  { id: 'actions', label: 'Actions', width: 120 },
 ];
 
-// TODO: confirm whether the list endpoint supports a keyword/search param — the
-// search below is client-side only against the current page of mock data.
 const FILTER_FIELDS = [
   createFilterField.status({ options: STATUS_OPTIONS, showCounts: true }),
   createFilterField.search({ placeholder: 'Search staff or reason...' }),
@@ -80,31 +69,37 @@ const FILTER_FIELDS = [
  *   (owner: true, line manager: false — the owner grants this). Approve + Reject
  *   are always available on both surfaces.
  */
-export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, ownerDashboard = variant === 'owner' }) {
+export function LeaveRequestListView({
+  variant = 'owner',
+  canSetEntitlement,
+  ownerDashboard = variant === 'owner',
+}) {
   const ctx = useMemo(() => getLeaveRequestContext(variant), [variant]);
   const showEntitlement = canSetEntitlement ?? ctx.defaultCanSetEntitlement;
 
-  const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
   const { organizationId, organizationName: orgName } = useCurrentOrganization();
   const { branchId, onBranchChange } = useOwnerBranchFilter();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
+  const { status } = filters.state;
 
   const entitlementModal = useBoolean();
 
-  const {
-    data: apiResponse,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useGetLeaveRequestsQuery(
+  const { data, isLoading, isFetching, refetch } = useGetLeaveRequestsQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      status: filters.state.status,
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(status && status !== 'all' ? { status } : {}),
+      ...(ownerDashboard && branchId && branchId !== 'all' ? { branchId } : {}),
     },
     { skip: !organizationId }
   );
@@ -123,40 +118,10 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
     []
   );
 
-  const allRequests = useMemo(() => apiResponse?.data ?? [], [apiResponse]);
-
-  // Client-side branch filter & keyword search
-  const filteredRequests = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
-    return allRequests.filter((request) => {
-      const curBranchId =
-        (typeof request.branchId === 'object' ? request.branchId?._id : request.branchId) ||
-        request.branch?._id;
-
-      const matchesBranch =
-        !ownerDashboard || branchId === 'all' || curBranchId === branchId;
-
-      const matchesSearch =
-        !search ||
-        getLeaveRequestStaffName(request).toLowerCase().includes(search) ||
-        (request.staff?.email || '').toLowerCase().includes(search) ||
-        (request.staff?.employeeCode || '').toLowerCase().includes(search) ||
-        (request.branch?.name || '').toLowerCase().includes(search) ||
-        (request.reason || '').toLowerCase().includes(search);
-
-      return matchesBranch && matchesSearch;
-    });
-  }, [allRequests, branchId, keyword, ownerDashboard]);
-
-  const totalRecords = apiResponse?.meta?.totalRecords ?? filteredRequests.length;
-  const paginatedRequests = useMemo(() => {
-    if (apiResponse?.meta?.totalRecords !== undefined) {
-      return filteredRequests;
-    }
-    const start = table.page * table.rowsPerPage;
-    return filteredRequests.slice(start, start + table.rowsPerPage);
-  }, [apiResponse, filteredRequests, table.page, table.rowsPerPage]);
+  const requests = useMemo(() => data?.data ?? [], [data]);
+  const meta = data?.meta ?? {};
+  const statusCounts = meta.counts ?? {};
+  const totalRecords = meta.totalRecords ?? requests.length;
 
   const detailHref = useCallback(
     (rowId) => {
@@ -167,14 +132,21 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
   );
 
   const getStatusCount = useCallback(
-    (status) =>
-      status === 'all'
-        ? allRequests.length
-        : allRequests.filter((request) => request.status === status).length,
-    [allRequests]
+    (tabStatus) => {
+      if (tabStatus === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[tabStatus] ?? 0;
+    },
+    [statusCounts, totalRecords]
   );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && requests.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -207,6 +179,7 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
               {showEntitlement && (
                 <Button
                   variant="contained"
+                  color="primary"
                   onClick={entitlementModal.onTrue}
                   startIcon={<Iconify icon="solar:calendar-mark-bold" />}
                 >
@@ -218,6 +191,7 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
             showEntitlement && (
               <Button
                 variant="contained"
+                color="primary"
                 onClick={entitlementModal.onTrue}
                 startIcon={<Iconify icon="solar:calendar-mark-bold" />}
               >
@@ -233,7 +207,7 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
         {statusFilterField && (
           <StatusTabsFilterWrapper
             filterField={statusFilterField}
-            value={filters.state.status}
+            value={status}
             onChange={handleFilterChange}
             getCount={getStatusCount}
           />
@@ -249,14 +223,18 @@ export function LeaveRequestListView({ variant = 'owner', canSetEntitlement, own
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-              <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => <TableSkeleton key={index} />)
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {paginatedRequests.map((row, index) => (
+                    {requests.map((row, index) => (
                       <LeaveRequestTableRow
                         key={row._id}
                         row={row}

@@ -51,11 +51,13 @@ export function ShiftTableRow({ row, serialNumber }) {
     <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
       <TableCell>{serialNumber}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
         {row.branch?.name || (typeof row.branchId === 'object' && row.branchId?.name) || '—'}
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{getShiftStaffName(row)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {getShiftStaffName(row)}
+      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDateTime(row.startsAt)}</TableCell>
 

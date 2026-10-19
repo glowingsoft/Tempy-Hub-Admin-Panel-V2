@@ -15,8 +15,9 @@ import { mockOrganizations } from 'src/sections/organization/mocks/data';
 
 export const SHIFT_STATUS_OPTIONS = [
   { value: 'open', label: 'Open', color: 'warning' },
-  { value: 'filled', label: 'Filled', color: 'success' },
+  { value: 'scheduled', label: 'Scheduled', color: 'success' },
   { value: 'cancelled', label: 'Cancelled', color: 'error' },
+  { value: 'completed', label: 'Completed', color: 'info' },
 ];
 
 export const getShiftStatusMeta = (value) =>

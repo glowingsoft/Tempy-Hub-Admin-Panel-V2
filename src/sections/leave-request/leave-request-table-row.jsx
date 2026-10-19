@@ -12,8 +12,8 @@ import { fDate } from 'src/utils/format-time';
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Label } from 'src/components/label';
 
-import { getLeaveRequestStaffName } from './utils';
 import { getLeaveRequestStatusMeta, getLeaveTypeLabel } from './mocks/data';
+import { getLeaveRequestStaffName } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -61,7 +61,7 @@ export function LeaveRequestTableRow({ row, serialNumber, detailHref, onApprove,
 
       <TableCell>
         <Stack sx={{ typography: 'body2' }}>
-          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600 }}>
+          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600, textTransform: 'capitalize' }}>
             {getLeaveRequestStaffName(row)}
           </Link>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -70,7 +70,9 @@ export function LeaveRequestTableRow({ row, serialNumber, detailHref, onApprove,
         </Stack>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch?.name || row.branchId?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {row.branch?.name || row.branchId?.name || '—'}
+      </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{getLeaveTypeLabel(row.leaveType)}</TableCell>
 

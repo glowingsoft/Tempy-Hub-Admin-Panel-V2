@@ -1,36 +1,56 @@
-import { useState, useEffect } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { z as zod } from 'zod';
 
+import { LoadingButton } from '@mui/lab';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import Grid from '@mui/material/Unstable_Grid2';
 import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
-import { LoadingButton } from '@mui/lab';
+import Grid from '@mui/material/Unstable_Grid2';
 
+import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
-import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useCreateResidentMutation, useUpdateResidentMutation } from 'src/store/Reducer/residents-api';
+
 import {
-    RESIDENT_CARE_LEVEL_OPTIONS,
     RESIDENT_ADMISSION_STATUS_OPTIONS,
+    RESIDENT_CARE_LEVEL_OPTIONS,
 } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
-const DEFAULT_FORM_VALUES = {
-    name: '',
-    email: '',
-    phone: '',
-    roomNumber: '',
-    careLevel: 'low',
-    branchId: '',
-    visitorPasscode: '',
-    admissionStatus: 'admitted',
-    status: 'active',
-};
+const lookupOptionSchema = zod.object({
+    value: zod.string().min(1),
+    label: zod.string(),
+});
+
+const ResidentSchema = zod.object({
+    name: zod.string().trim().min(1, { message: 'Full name is required' }),
+    email: zod
+        .string()
+        .trim()
+        .refine((value) => !value || zod.string().email().safeParse(value).success, {
+            message: 'Email must be a valid email address',
+        }),
+    phone: zod.string(),
+    roomNumber: zod.string().trim().min(1, { message: 'Room number is required' }),
+    careLevel: zod.string().min(1, { message: 'Care level is required' }),
+    branchId: lookupOptionSchema.nullable().refine((value) => Boolean(value?.value), {
+        message: 'Site is required',
+    }),
+    visitorPasscode: zod.string(),
+    admissionStatus: zod.string().min(1, { message: 'Admission status is required' }),
+});
+
+const mapLookupOption = (item) => ({
+    value: item._id,
+    label: item.name,
+});
 
 const getErrorMessage = (error, fallback) =>
     error?.data?.message ||
@@ -40,121 +60,90 @@ const getErrorMessage = (error, fallback) =>
     error?.message ||
     fallback;
 
+function resolveBranchOption(resident) {
+    const branchId =
+        resident?.branchId ||
+        (typeof resident?.branch === 'object' ? resident?.branch?._id : resident?.branch) ||
+        '';
+
+    if (!branchId) return null;
+
+    const branchName =
+        (typeof resident?.branch === 'object' ? resident?.branch?.name : null) ||
+        resident?.branchName ||
+        branchId;
+
+    return { value: branchId, label: branchName };
+}
+
+function randomPasscode() {
+    return `PASS-${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
+// ----------------------------------------------------------------------
+
 export function ResidentAddEditDialog({
     open,
     currentResident,
     onClose,
     onSave,
-    ownerDashboard = false,
     organizationId = null,
 }) {
-    const [formData, setFormData] = useState(DEFAULT_FORM_VALUES);
-    const [errors, setErrors] = useState({});
+    const isEdit = !!currentResident;
 
-    const { branches, isBranchesLoading: isBranchesFetching } = useOrganizationLookups({
-        organizationId: organizationId || null,
-        branches: open && !!organizationId,
-        jobTitles: false,
-        departments: false,
-        limit: 100,
+    const lookupQueryArgs = useMemo(() => ({ organizationId }), [organizationId]);
+
+    const defaultValues = useMemo(
+        () => ({
+            name: currentResident?.name || '',
+            email: currentResident?.email || '',
+            phone: currentResident?.phone || '',
+            roomNumber: currentResident?.roomNumber || '',
+            careLevel: currentResident?.careLevel || 'low',
+            branchId: resolveBranchOption(currentResident),
+            visitorPasscode:
+                currentResident?.visitorPasscode ||
+                currentResident?.securityPassword ||
+                randomPasscode(),
+            admissionStatus:
+                currentResident?.admissionStatus ||
+                (currentResident?.status === 'inactive' ? 'discharged' : 'admitted'),
+        }),
+        [currentResident]
+    );
+
+    const methods = useForm({
+        mode: 'onTouched',
+        resolver: zodResolver(ResidentSchema),
+        defaultValues,
     });
 
     const [createResident, { isLoading: isCreating }] = useCreateResidentMutation();
     const [updateResident, { isLoading: isUpdating }] = useUpdateResidentMutation();
-    const isSaving = isCreating || isUpdating;
+    const isSaving = methods.formState.isSubmitting || isCreating || isUpdating;
 
     useEffect(() => {
-        if (!open) return;
-        if (currentResident) {
-            const resBranchId =
-                currentResident.branchId ||
-                (typeof currentResident.branch === 'object' ? currentResident.branch?._id : currentResident.branch) ||
-                '';
-            setFormData({
-                name: currentResident.name || '',
-                email: currentResident.email || '',
-                phone: currentResident.phone || '',
-                roomNumber: currentResident.roomNumber || '',
-                careLevel: currentResident.careLevel || 'low',
-                branchId: resBranchId,
-                visitorPasscode: currentResident.visitorPasscode || currentResident.securityPassword || '',
-                admissionStatus: currentResident.admissionStatus || (currentResident.status === 'inactive' ? 'discharged' : 'admitted'),
-                status: currentResident.status || (currentResident.admissionStatus === 'discharged' ? 'inactive' : 'active'),
-            });
-        } else {
-            setFormData({
-                ...DEFAULT_FORM_VALUES,
-                branchId: '',
-                visitorPasscode: `PASS-${Math.floor(1000 + Math.random() * 9000)}`,
-            });
+        if (open) {
+            methods.reset(defaultValues);
         }
-        setErrors({});
-    }, [currentResident, open]);
+    }, [open, defaultValues, methods]);
 
-    useEffect(() => {
-        if (open && branches.length > 0) {
-            setFormData((prev) => {
-                if (prev.branchId) return prev;
-                return { ...prev, branchId: branches[0]._id };
-            });
-        }
-    }, [branches, open]);
-
-    const handleChange = (field) => (event) => {
-        setFormData((prev) => ({ ...prev, [field]: event.target.value }));
-        if (errors[field]) {
-            setErrors((prev) => ({ ...prev, [field]: null }));
-        }
+    const handleClose = () => {
+        onClose();
+        methods.reset(defaultValues);
     };
 
-    const handleSubmit = async () => {
-        const newErrors = {};
-        if (!formData.roomNumber.trim()) newErrors.roomNumber = 'Room number is required';
-        if (!currentResident) {
-            if (!formData.name.trim()) newErrors.name = 'Full name is required';
-            if (!formData.branchId) newErrors.branchId = 'Site / Branch is required';
-        }
-
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            return;
-        }
-
-        if (!currentResident) {
-            try {
+    const onSubmit = methods.handleSubmit(async (data) => {
+        try {
+            if (isEdit) {
                 const payload = {
+                    residentId: currentResident._id,
                     organizationId,
-                    name: formData.name.trim(),
-                    roomNumber: formData.roomNumber.trim(),
-                    branchId: formData.branchId,
-                    email: formData.email.trim(),
-                    phone: formData.phone.trim(),
-                    careLevel: formData.careLevel,
-                    admissionStatus: formData.admissionStatus || 'admitted',
-                    visitorPasscode: formData.visitorPasscode.trim(),
+                    careLevel: data.careLevel,
+                    roomNumber: data.roomNumber.trim(),
+                    admissionStatus: data.admissionStatus,
                 };
 
-                const result = await createResident(payload).unwrap();
-                toast.success('Resident created successfully!');
-                onSave?.(result?.data || result);
-                onClose();
-            } catch (error) {
-                console.error('Create resident error:', error);
-                toast.error(getErrorMessage(error, 'Failed to create resident.'));
-            }
-            return;
-        }
-
-        if (currentResident) {
-            const payload = {
-                residentId: currentResident._id,
-                organizationId,
-                careLevel: formData.careLevel,
-                roomNumber: formData.roomNumber.trim(),
-                admissionStatus: formData.admissionStatus,
-            };
-
-            try {
                 const result = await updateResident(payload).unwrap();
                 toast.success('Resident updated successfully!');
                 onSave?.({
@@ -164,161 +153,143 @@ export function ResidentAddEditDialog({
                     roomNumber: payload.roomNumber,
                     admissionStatus: payload.admissionStatus,
                 });
-                onClose();
-            } catch (error) {
-                console.error('Update resident error:', error);
-                toast.error(getErrorMessage(error, 'Failed to update resident.'));
+                handleClose();
+                return;
             }
+
+            const result = await createResident({
+                organizationId,
+                name: data.name.trim(),
+                roomNumber: data.roomNumber.trim(),
+                branchId: data.branchId.value,
+                email: data.email.trim().toLowerCase(),
+                phone: data.phone.trim(),
+                careLevel: data.careLevel,
+                admissionStatus: data.admissionStatus || 'admitted',
+                visitorPasscode: data.visitorPasscode.trim(),
+            }).unwrap();
+
+            toast.success('Resident created successfully!');
+            onSave?.(result?.data || result);
+            handleClose();
+        } catch (error) {
+            toast.error(
+                getErrorMessage(error, isEdit ? 'Failed to update resident.' : 'Failed to create resident.')
+            );
         }
-    };
+    });
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>
-                {currentResident ? `Edit Resident Details (${currentResident.name || 'Resident'})` : 'Add New Resident'}
-            </DialogTitle>
+        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+            <Form methods={methods} onSubmit={onSubmit}>
+                <DialogTitle>
+                    {isEdit
+                        ? `Edit Resident Details (${currentResident.name || 'Resident'})`
+                        : 'Add New Resident'}
+                </DialogTitle>
 
-            <DialogContent dividers>
-                <Grid container spacing={2} sx={{ pt: 1 }}>
-                    {/* Name */}
-                    {!currentResident && (
-                        <Grid xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                label="Full Name *"
-                                value={formData.name}
-                                onChange={handleChange('name')}
-                                error={Boolean(errors.name)}
-                                helperText={errors.name}
-                                placeholder="e.g. James Taylor"
+                <DialogContent dividers>
+                    <Grid container spacing={2} sx={{ pt: 1 }}>
+                        {!isEdit && (
+                            <Grid xs={12}>
+                                <Field.Text
+                                    name="name"
+                                    label="Full Name"
+                                    placeholder="e.g. James Taylor"
+                                />
+                            </Grid>
+                        )}
+
+                        {!isEdit && (
+                            <Grid xs={12}>
+                                <Field.Text
+                                    name="email"
+                                    label="Email Address"
+                                    type="email"
+                                    placeholder="e.g. james.taylor@example.com"
+                                />
+                            </Grid>
+                        )}
+
+                        {!isEdit && (
+                            <Grid xs={12} sm={6}>
+                                <Field.Text
+                                    name="phone"
+                                    label="Phone Number"
+                                    placeholder="e.g. +447700900001"
+                                />
+                            </Grid>
+                        )}
+
+                        <Grid xs={12} sm={isEdit ? 12 : 6}>
+                            <Field.Text
+                                name="roomNumber"
+                                label="Room Number"
+                                placeholder="e.g. 106"
                             />
                         </Grid>
-                    )}
 
-                    {/* Room Number */}
-                    <Grid xs={12} sm={6}>
-                        <TextField
-                            fullWidth
-                            label="Room Number *"
-                            value={formData.roomNumber}
-                            onChange={handleChange('roomNumber')}
-                            error={Boolean(errors.roomNumber)}
-                            helperText={errors.roomNumber}
-                            placeholder="e.g. 106"
-                        />
-                    </Grid>
+                        {!isEdit && (
+                            <Grid xs={12}>
+                                <Field.InfiniteAutocomplete
+                                    name="branchId"
+                                    label="Site"
+                                    placeholder="Search sites"
+                                    useQuery={useGetBranchesQuery}
+                                    queryArgs={lookupQueryArgs}
+                                    mapOption={mapLookupOption}
+                                    enabled={open && !!organizationId}
+                                />
+                            </Grid>
+                        )}
 
-                    {/* Email */}
-                    {!currentResident && (
                         <Grid xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                label="Email Address"
-                                type="email"
-                                value={formData.email}
-                                onChange={handleChange('email')}
-                                placeholder="e.g. james.taylor@example.com"
-                            />
-                        </Grid>
-                    )}
-
-                    {/* Phone */}
-                    {!currentResident && (
-                        <Grid xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                label="Phone Number"
-                                value={formData.phone}
-                                onChange={handleChange('phone')}
-                                placeholder="e.g. +447700900001"
-                            />
-                        </Grid>
-                    )}
-
-                    {/* Site / Branch */}
-                    {!currentResident && (
-                        <Grid xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                select
-                                label="Site / Branch *"
-                                value={formData.branchId}
-                                onChange={handleChange('branchId')}
-                                error={Boolean(errors.branchId)}
-                                helperText={errors.branchId || (isBranchesFetching ? 'Loading sites...' : '')}
-                            >
-                                {branches.map((branch) => (
-                                    <MenuItem key={branch._id} value={branch._id}>
-                                        {branch.name}
+                            <Field.Select name="careLevel" label="Care Level">
+                                {RESIDENT_CARE_LEVEL_OPTIONS.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
                                     </MenuItem>
                                 ))}
-                            </TextField>
+                            </Field.Select>
                         </Grid>
-                    )}
 
-                    {/* Care Level */}
-                    <Grid xs={12} sm={6}>
-                        <TextField
-                            fullWidth
-                            select
-                            label="Care Level"
-                            value={formData.careLevel}
-                            onChange={handleChange('careLevel')}
-                        >
-                            {RESIDENT_CARE_LEVEL_OPTIONS.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                    </Grid>
-
-                    {/* Visitor Passcode */}
-                    {!currentResident && (
                         <Grid xs={12} sm={6}>
-                            <TextField
-                                fullWidth
-                                label="Visitor Passcode / Security PIN"
-                                value={formData.visitorPasscode}
-                                onChange={handleChange('visitorPasscode')}
-                                placeholder="e.g. PASS-1098"
-                                helperText="Required for visitor verification"
-                            />
+                            <Field.Select name="admissionStatus" label="Admission Status">
+                                {RESIDENT_ADMISSION_STATUS_OPTIONS.map((option) => (
+                                    <MenuItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </MenuItem>
+                                ))}
+                            </Field.Select>
                         </Grid>
-                    )}
 
-                    {/* Admission Status */}
-                    <Grid xs={12} sm={6}>
-                        <TextField
-                            fullWidth
-                            select
-                            label="Admission Status"
-                            value={formData.admissionStatus}
-                            onChange={handleChange('admissionStatus')}
-                        >
-                            {RESIDENT_ADMISSION_STATUS_OPTIONS.map((option) => (
-                                <MenuItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </TextField>
+                        {!isEdit && (
+                            <Grid xs={12}>
+                                <Field.Text
+                                    name="visitorPasscode"
+                                    label="Visitor Passcode / Security PIN"
+                                    placeholder="e.g. PASS-1098"
+                                    helperText="Required for visitor verification"
+                                />
+                            </Grid>
+                        )}
                     </Grid>
-                </Grid>
-            </DialogContent>
+                </DialogContent>
 
-            <DialogActions sx={{ px: 3, py: 2 }}>
-                <Button variant="outlined" color="inherit" onClick={onClose} disabled={isSaving}>
-                    Cancel
-                </Button>
-                <LoadingButton
-                    variant="contained"
-                    color="primary"
-                    loading={isSaving}
-                    onClick={handleSubmit}
-                >
-                    {currentResident ? 'Save Changes' : 'Add Resident'}
-                </LoadingButton>
-            </DialogActions>
+                <DialogActions sx={{ px: 3, py: 2 }}>
+                    <Button variant="outlined" color="primary" onClick={handleClose} disabled={isSaving}>
+                        Cancel
+                    </Button>
+                    <LoadingButton
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                        loading={isSaving}
+                    >
+                        {isEdit ? 'Save Changes' : 'Add Resident'}
+                    </LoadingButton>
+                </DialogActions>
+            </Form>
         </Dialog>
     );
 }

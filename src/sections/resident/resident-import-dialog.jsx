@@ -100,7 +100,7 @@ export function ResidentImportDialog({ open, onClose, onImport }) {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleClose}>Cancel</Button>
-                    <Button type="submit" variant="contained" disabled={!rows.length || !!error} startIcon={<Iconify icon="solar:upload-bold" />}>
+                    <Button type="submit" variant="contained" color="primary" disabled={!rows.length || !!error} startIcon={<Iconify icon="solar:upload-bold" />}>
                         Import residents
                     </Button>
                 </DialogActions>

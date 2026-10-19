@@ -68,7 +68,7 @@ export function OwnerBranchSelect({ value, onChange }) {
       <MenuItem value={ALL_BRANCHES_VALUE}>All sites</MenuItem>
       {branches.length ? (
         branches.map((branch) => (
-          <MenuItem key={branch._id} value={branch._id}>
+          <MenuItem key={branch._id} value={branch._id} sx={{ textTransform: 'capitalize' }}>
             {branch.name}
           </MenuItem>
         ))

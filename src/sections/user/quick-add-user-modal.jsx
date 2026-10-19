@@ -154,7 +154,9 @@ const QuickAddUserModal = ({ open, onClose, currentUser }) => {
                 </DialogContent>
 
                 <DialogActions>
-                    <Button variant='outlined' onClick={handleClose}>Cancel</Button>
+                    <Button variant="outlined" color="primary" onClick={handleClose}>
+                      Cancel
+                    </Button>
                     <LoadingButton type="submit" variant="contained" color="primary" loading={methods.formState.isSubmitting}>
                         Add User
                     </LoadingButton>

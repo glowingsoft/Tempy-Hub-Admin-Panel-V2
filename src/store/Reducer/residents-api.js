@@ -30,8 +30,8 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 // POST /admin/residents/:residentId/verify-passcode
 //   request: { "visitorPasscode": "string" }
 //
-// GET /admin/residents?page=1&limit=10&keyword=&branchId=
-//   response: { "message": "string", "data": Resident[], "meta": { ... } }
+// GET /admin/residents?page=1&limit=10&keyword=&branchId=&admissionStatus=
+//   response: { "message": "string", "data": Resident[], "meta": { currentPage, totalPages, totalRecords, limit, admitted, discharged } }
 // ----------------------------------------------------------------------
 
 const listTag = (organizationId) => ({

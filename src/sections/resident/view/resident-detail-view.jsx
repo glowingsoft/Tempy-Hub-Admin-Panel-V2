@@ -129,13 +129,18 @@ export function ResidentDetailView() {
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
                         <Button
                             variant="outlined"
-                            color="inherit"
+                            color="primary"
                             startIcon={<Iconify icon="solar:shield-keyhole-bold" />}
                             onClick={securityDialog.onTrue}
                         >
                             Edit Security
                         </Button>
-                        <Button variant="contained" startIcon={<Iconify icon="solar:pen-bold" />} onClick={editDialog.onTrue}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<Iconify icon="solar:pen-bold" />}
+                            onClick={editDialog.onTrue}
+                        >
                             Edit Resident
                         </Button>
                     </Stack>

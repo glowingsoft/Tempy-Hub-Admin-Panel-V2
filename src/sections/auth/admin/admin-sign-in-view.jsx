@@ -27,8 +27,14 @@ import { AppSurface } from 'src/auth/constants';
 // ----------------------------------------------------------------------
 
 export const SignInSchema = zod.object({
-  email: zod.string().min(1, { message: 'Email is required!' }).email({ message: 'Email must be a valid email address!' }),
-  password: zod.string().min(1, { message: 'Password is required!' }).min(6, { message: 'Password must be at least 6 characters!' }),
+  email: zod
+    .string()
+    .min(1, { message: 'Email is required!' })
+    .email({ message: 'Email must be a valid email address!' }),
+  password: zod
+    .string()
+    .min(1, { message: 'Password is required!' })
+    .min(6, { message: 'Password must be at least 6 characters!' }),
 });
 
 // ----------------------------------------------------------------------
@@ -49,6 +55,7 @@ export function AdminSignInView() {
   };
 
   const methods = useForm({
+    mode: 'onTouched',
     resolver: zodResolver(SignInSchema),
     defaultValues,
   });
@@ -135,15 +142,22 @@ export function AdminSignInView() {
 
   const renderForm = (
     <Stack spacing={3}>
-      <Field.Text name="email" label="Email address" InputLabelProps={{ shrink: true }} />
+      <Field.Text
+        name="email"
+        label="Email address"
+        placeholder="name@example.com"
+        InputLabelProps={{ shrink: true }}
+      />
 
       <Stack spacing={1.5}>
         <Field.Text
           name="password"
           label="Password"
-          placeholder="6+ characters"
+          placeholder="At least 6 characters"
           type={password.value ? 'text' : 'password'}
           InputLabelProps={{ shrink: true }}
+          inputProps={{ minLength: 6 }}
+          helperText="Password must be at least 6 characters."
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">

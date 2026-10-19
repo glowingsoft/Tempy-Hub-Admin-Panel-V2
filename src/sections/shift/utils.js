@@ -9,9 +9,9 @@ export {
  */
 export function getShiftStaffName(shift) {
   return (
+    shift?.staff?.name ||
     shift?.staff?.user?.name ||
     shift?.staff?.userId?.name ||
-    shift?.staff?.name ||
     shift?.staff?.employeeCode ||
     'Open / Unassigned'
   );

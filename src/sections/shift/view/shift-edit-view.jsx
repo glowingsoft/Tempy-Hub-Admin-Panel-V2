@@ -35,7 +35,7 @@ export function ShiftEditView({ shift: propShift }) {
           heading="Edit shift"
           links={[
             { name: 'Dashboard', href: paths.owner.root },
-            { name: 'Rota' },
+            // { name: 'Rota' },
             { name: 'Shifts', href: paths.owner.shifts.root },
             { name: 'Loading...' },
           ]}
@@ -53,8 +53,7 @@ export function ShiftEditView({ shift: propShift }) {
     );
   }
 
-  const shiftOrgId =
-    currentShift?.organizationId?._id || currentShift?.organizationId || organizationId;
+  const shiftOrgId = currentShift?.organizationId?._id || currentShift?.organizationId || organizationId;
 
   return (
     <DashboardContent>
@@ -62,7 +61,7 @@ export function ShiftEditView({ shift: propShift }) {
         heading="Edit shift"
         links={[
           { name: 'Dashboard', href: paths.owner.root },
-          { name: 'Rota' },
+          // { name: 'Rota' },
           { name: 'Shifts', href: paths.owner.shifts.root },
           { name: 'Edit shift' },
         ]}

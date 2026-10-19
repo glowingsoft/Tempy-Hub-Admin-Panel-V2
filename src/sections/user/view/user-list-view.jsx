@@ -1,45 +1,41 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
 
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useDebounce } from 'src/hooks/use-debounce';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useSetState } from 'src/hooks/use-set-state';
 
-import { USER_STATUS_OPTIONS } from 'src/_mock';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Iconify } from 'src/components/iconify';
-import { Scrollbar } from 'src/components/scrollbar';
-import {
-  TableHeadCustom,
-  TableNoData,
-  TablePaginationCustom,
-  useTable
-} from 'src/components/table';
-
-import { UserTableFiltersResult } from '../user-table-filters-result';
-import { UserTableRow } from '../user-table-row';
-// import { useGetUsersQuery } from 'src/store/Reducer/user-api';
-import { Stack } from '@mui/material';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
-import { useDebounce } from 'src/hooks/use-debounce';
-import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { Iconify } from 'src/components/iconify';
+import { Scrollbar } from 'src/components/scrollbar';
+import {
+  TableBodySkeleton,
+  TableHeadCustom,
+  TableNoData,
+  TablePaginationCustom,
+  useTable,
+} from 'src/components/table';
+
 import { useGetExternalPeopleQuery } from 'src/store/Reducer/general-directory-api';
 import QuickAddUserModal from '../quick-add-user-modal';
-import UserLoadingSkeleton from '../user-loading-skeleton';
 import QuickStatusChangeModal from '../user-status-dialog';
+import { UserTableRow } from '../user-table-row';
 
 // ----------------------------------------------------------------------
 
@@ -49,14 +45,12 @@ const USER_TYPE_OPTION = [
   { value: 'contractor', label: 'Contractors' },
   { value: 'professional', label: 'Professionals' },
 ];
+
 const SITE_STATUS_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'onSite', label: 'On Site' },
-  { value: 'offSite', label: 'Off Site' },
+  { value: 'all', label: 'All', color: 'default' },
+  { value: 'onSite', label: 'On Site', color: 'success' },
+  { value: 'offSite', label: 'Off Site', color: 'default' },
 ];
-
-
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
 const TABLE_HEAD = [
   { id: 'sr#', label: 'Sr#', width: 60 },
@@ -70,10 +64,10 @@ const TABLE_HEAD = [
 
 const FILTER_FIELDS = [
   createFilterField.status({
-    options: STATUS_OPTIONS,
+    key: 'siteStatus',
+    options: SITE_STATUS_OPTIONS,
     showCounts: true,
   }),
-
   createFilterField.search({
     placeholder: 'Search ...',
   }),
@@ -85,15 +79,19 @@ const FILTER_FIELDS = [
   }),
 ];
 
-const DEFAULT_FILTERS = FILTER_FIELDS.reduce((acc, field) => {
-  acc[field.key] = field.defaultValue;
-  return acc;
-}, {})
+const SITE_STATUS_LABEL = {
+  onSite: 'On Site',
+  offSite: 'Off Site',
+};
+
 // ----------------------------------------------------------------------
 
 export function UserListView() {
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
-  const table = useTable();
   const location = useLocation();
   const { organizationId } = useCurrentOrganization();
   const { branchOptions: siteOptions, departmentOptions, getBranchName } = useOrganizationLookups({
@@ -106,40 +104,44 @@ export function UserListView() {
 
   const filters = useSetState({
     search: '',
-    status: 'all',
+    siteStatus: 'all',
     branchId: 'all',
     departmentId: 'all',
-    siteStatus: 'all',
+    userType: 'all',
   });
 
   const [currentUser, setCurrentUser] = useState(null);
-
   const openStatusChangeModal = useBoolean();
-
   const openModal = useBoolean();
 
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
 
   const statusFilterField = useMemo(
-    () => FILTER_FIELDS.find((f) => f.type === 'status'),
+    () => FILTER_FIELDS.find((field) => field.type === 'status'),
     []
   );
 
-  const { branchId, departmentId, userType } = filters.state;
+  const { branchId, departmentId, userType, siteStatus } = filters.state;
 
   const { data, isLoading, isFetching } = useGetExternalPeopleQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      branchId: branchId && branchId !== 'all' ? branchId : undefined,
-      departmentId: departmentId && departmentId !== 'all' ? departmentId : undefined,
-      type: userType && userType !== 'all' ? userType : undefined,
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(branchId && branchId !== 'all' ? { branchId } : {}),
+      ...(departmentId && departmentId !== 'all' ? { departmentId } : {}),
+      ...(userType && userType !== 'all' ? { type: userType } : {}),
+      ...(siteStatus && siteStatus !== 'all' ? { siteStatus } : {}),
     },
     { skip: !organizationId }
   );
 
   const apiUsers = data?.data || [];
+  const meta = data?.meta || {};
+  const siteStatusCounts = meta.counts || {};
+  const totalRecords = meta.totalRecords ?? apiUsers.length;
 
   const branchOptions = useMemo(
     () => [{ value: 'all', label: 'All Sites' }, ...siteOptions],
@@ -151,78 +153,44 @@ export function UserListView() {
     [departmentOptions]
   );
 
-  const meta = data?.meta || {};
+  const tableData = apiUsers.map((user) => ({
+    id: user._id,
+    image: user.photoUrl || user.image,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    carRegistration: user.carRegistration || '',
+    role: user.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : '—',
+    department: user.department?.name || '—',
+    branchId: user.branchId,
+    branch: user.branch?.name || getBranchName(user),
+    status: SITE_STATUS_LABEL[user.siteStatus] || user.siteStatus || '—',
+    siteStatus: user.siteStatus,
+  }));
 
-  const tableData = apiUsers
-    .map((user) => ({
-      id: user._id,
-      image: user.image,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      carRegistration: user.carRegistration || '',
-      // The "Role" column shows the external person type (visitor / contractor / professional).
-      role: user.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : '—',
-      department: user.department?.name || '—',
-      branchId: user.branchId,
-      branch: getBranchName(user),
-      status: user.status || 'Active',
-      indicators: {
-        attendance: user.indicators?.attendance || 'Good',
-        performance: user.indicators?.performance || 'Good',
-      },
-      lastSeen: user.lastSeen || '—',
-    }));
+  const getStatusCount = useCallback(
+    (status) => {
+      if (status === 'all') {
+        const totalFromCounts = Object.values(siteStatusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
 
-  const getStatusCount = useCallback((status) => {
-    const statusCounts = meta?.usersCount || {};
-    if (status === 'all') {
-      return statusCounts.total || meta?.totalRecords || 0;
-    }
-
-
-    return statusCounts[status] || 0;
-  },
-    [meta]
+      return siteStatusCounts[status] ?? 0;
+    },
+    [siteStatusCounts, totalRecords]
   );
 
+  const notFound = !isLoading && !isFetching && tableData.length === 0;
 
-  const filteredTableData = useMemo(() => {
-    const search = filters.state.search.trim().toLowerCase();
-
-    return tableData.filter((user) => {
-      const matchesSearch =
-        !search ||
-        user.name?.toLowerCase().includes(search) ||
-        user.email?.toLowerCase().includes(search) ||
-        user.role?.toLowerCase().includes(search) ||
-        user.department?.toLowerCase().includes(search);
-      const matchesStatus =
-        filters.state.status === 'all' || user.status === filters.state.status;
-      const matchesSiteStatus =
-        filters.state.siteStatus === 'all' ||
-        (filters.state.siteStatus === 'onSite' && user.status === 'On site') ||
-        (filters.state.siteStatus === 'offSite' && user.status !== 'On site');
-      return matchesSearch && matchesStatus && matchesSiteStatus;
-    });
-  }, [filters.state.search, filters.state.siteStatus, filters.state.status, tableData]);
-
-  const canReset =
-    !!filters.state.search ||
-    filters.state.status !== 'all' ||
-    filters.state.siteStatus !== 'all';
-
-  const handleEditRow = useCallback((user) => {
-    setCurrentUser(user);
-    openStatusChangeModal.onTrue();
-  }, [openStatusChangeModal]);
-
-  const handleFilterStatus = useCallback(
-    (event, newValue) => {
-      table.onResetPage();
-      filters.setState({ status: newValue });
+  const handleEditRow = useCallback(
+    (user) => {
+      setCurrentUser(user);
+      openStatusChangeModal.onTrue();
     },
-    [filters, table]
+    [openStatusChangeModal]
   );
 
   const handleCloseStatusChangeModal = useCallback(() => {
@@ -230,15 +198,21 @@ export function UserListView() {
     setCurrentUser(null);
   }, [openStatusChangeModal]);
 
-  const handleFilterChange = useCallback((key, value) => {
-    table.onResetPage();
-    filters.setState({ [key]: value });
-  }, [filters, table]);
+  const handleFilterChange = useCallback(
+    (key, value) => {
+      table.onResetPage();
+      filters.setState({ [key]: value });
+    },
+    [filters, table]
+  );
 
-  const handleSearchChange = useCallback((event) => {
-    table.onResetPage();
-    filters.setState({ search: event.target.value });
-  }, [filters, table]);
+  const handleSearchChange = useCallback(
+    (event) => {
+      table.onResetPage();
+      filters.setState({ search: event.target.value });
+    },
+    [filters, table]
+  );
 
   const toolbarFilterFields = useMemo(
     () => [
@@ -255,12 +229,6 @@ export function UserListView() {
         options: departmentFilterOptions,
         defaultValue: 'all',
       }),
-      createFilterField.select({
-        key: 'siteStatus',
-        label: 'Site Status',
-        options: SITE_STATUS_OPTIONS,
-        defaultValue: 'all',
-      }),
     ],
     [branchOptions, departmentFilterOptions]
   );
@@ -268,7 +236,7 @@ export function UserListView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="List"
+        heading="General Directory"
         links={[
           { name: 'Dashboard', href: isOwnerDirectory ? paths.owner.root : paths.siteManager.root },
           {
@@ -277,30 +245,37 @@ export function UserListView() {
           },
           { name: 'List' },
         ]}
-        action={<Stack direction={{ md: "row", xs: "column" }} spacing={1.5}>
-          <Button variant="outlined" startIcon={<Iconify icon="solar:export-bold" />} onClick={() => { }}>
-            Export to CSV
-          </Button>
-          <Button variant="contained"
-            onClick={openModal.onTrue}
-            startIcon={<Iconify icon="mingcute:add-line" />} >
-            Add Employee
-          </Button>
-        </Stack>}
+        action={
+          <Stack direction={{ md: 'row', xs: 'column' }} spacing={1.5}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<Iconify icon="solar:export-bold" />}
+              onClick={() => { }}
+            >
+              Export to CSV
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={openModal.onTrue}
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              Add Employee
+            </Button>
+          </Stack>
+        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
       <Card>
-
         <StatusTabsFilterWrapper
           filterField={statusFilterField}
-          value={filters.state.status}
+          value={filters.state.siteStatus}
           onChange={handleFilterChange}
           getCount={getStatusCount}
         />
 
-
-        {/* Toolbar with Search */}
         <FlexibleTableToolbar
           filterFields={toolbarFilterFields}
           filterValues={filters.state}
@@ -308,41 +283,33 @@ export function UserListView() {
           onSearchChange={handleSearchChange}
         />
 
-        {canReset && (
-          <UserTableFiltersResult
-            filters={filters}
-            totalResults={meta?.totalRecords || 0}
-            onResetPage={table.onResetPage}
-            sx={{ p: 2.5, pt: 0 }}
-          />
-        )}
-
         <Box sx={{ position: 'relative' }}>
-
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headLabel={TABLE_HEAD}
-                numSelected={table.selected.length}
-              />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
-                {(isLoading || isFetching) ?
-                  <UserLoadingSkeleton />
-                  : filteredTableData?.length > 0 ? filteredTableData.map((row, index) => (
-                    <UserTableRow
-                      key={row.id}
-                      row={row}
-                      serialNumber={index + 1 + (table.page * table.rowsPerPage)}
-                      selected={table.selected.includes(row.id)}
-                      onEditRow={() => handleEditRow(row)}
-                    />
-                  )) :
-                    <TableNoData notFound />
-                }
+                {isLoading || isFetching ? (
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
+                ) : (
+                  <>
+                    {tableData.map((row, index) => (
+                      <UserTableRow
+                        key={row.id}
+                        row={row}
+                        serialNumber={table.page * table.rowsPerPage + index + 1}
+                        selected={table.selected.includes(row.id)}
+                        onEditRow={() => handleEditRow(row)}
+                      />
+                    ))}
 
+                    <TableNoData notFound={notFound} />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>
@@ -357,7 +324,7 @@ export function UserListView() {
         <TablePaginationCustom
           page={table.page}
           dense={table.dense}
-          count={meta?.totalRecords || 0}
+          count={totalRecords}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           onChangeDense={table.onChangeDense}
@@ -365,12 +332,7 @@ export function UserListView() {
         />
       </Card>
 
-      <QuickAddUserModal
-        open={openModal.value}
-        onClose={openModal.onFalse}
-        currentUser={{}}
-      />
-
+      <QuickAddUserModal open={openModal.value} onClose={openModal.onFalse} currentUser={{}} />
     </DashboardContent>
-  )
+  );
 }

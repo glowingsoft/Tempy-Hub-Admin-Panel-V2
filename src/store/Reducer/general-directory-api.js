@@ -11,17 +11,36 @@ export const generalDirectoryApi = createApi({
 
   endpoints: (builder) => ({
     getExternalPeople: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, branchId, departmentId, type }) => ({
-        url: API_ROUTES.ORGANIZATION_EXTERNAL_PEOPLE(organizationId),
-        method: 'GET',
-        params: {
-          page,
-          limit,
-          ...(branchId ? { branchId } : {}),
-          ...(departmentId ? { departmentId } : {}),
-          ...(type ? { type } : {}),
-        },
-      }),
+      query: ({ organizationId, page = 1, limit = 10, branchId, departmentId, type, keyword, siteStatus }) => {
+        const params = { page, limit };
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        if (trimmedKeyword) {
+          params.keyword = trimmedKeyword;
+        }
+
+        if (branchId) {
+          params.branchId = branchId;
+        }
+
+        if (departmentId) {
+          params.departmentId = departmentId;
+        }
+
+        if (type) {
+          params.type = type;
+        }
+
+        if (siteStatus) {
+          params.siteStatus = siteStatus;
+        }
+
+        return {
+          url: API_ROUTES.ORGANIZATION_EXTERNAL_PEOPLE(organizationId),
+          method: 'GET',
+          params,
+        };
+      },
       transformResponse: (res) => ({
         data: res?.data ?? [],
         meta: res?.meta ?? {},
