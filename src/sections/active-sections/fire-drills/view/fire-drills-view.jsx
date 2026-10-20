@@ -156,6 +156,10 @@ export function resolveStartedByName(row, membersMap = {}, currentUser = null) {
 
 // ----------------------------------------------------------------------
 
+function isPermissionDenied(error) {
+  return error?.status === 401 || error?.status === 403;
+}
+
 export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const table = useTable({ defaultDense: true });
   const startDialog = useBoolean();
@@ -214,6 +218,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     data: onSiteSummaryApiData,
     isLoading: isOnSiteSummaryLoading,
     isFetching: isOnSiteSummaryFetching,
+    error: onSiteSummaryApiError,
   } = useGetOnSiteSummaryQuery(
     {
       organizationId,
@@ -228,6 +233,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const {
     data: activeEvacuationApiData,
     isLoading: isActiveEvacuationLoading,
+    error: activeEvacuationApiError,
   } = useGetActiveEvacuationQuery(
     {
       organizationId,
@@ -260,13 +266,27 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     }
   );
 
+  const hasPermissionDenied = [
+    onSiteSummaryApiError,
+    activeEvacuationApiError,
+    evacuationsApiError,
+  ].some(isPermissionDenied);
+  const allowMockFallback = !organizationId && !hasPermissionDenied;
   const onSiteSummary =
-    onSiteSummaryApiData || getMockOnSiteSummary(queryBranchId);
+    onSiteSummaryApiData ||
+    (allowMockFallback ? getMockOnSiteSummary(queryBranchId) : null);
   const isSummaryLoading =
     (isOnSiteSummaryLoading || isOnSiteSummaryFetching) && !onSiteSummaryApiData;
 
   const loading = isEvacuationsLoading || isEvacuationsFetching;
-  const error = evacuationsApiError?.data?.message || evacuationsApiError?.message || null;
+  const error = [
+    evacuationsApiError,
+    onSiteSummaryApiError,
+    activeEvacuationApiError,
+  ]
+    .filter((queryError) => queryError && !isPermissionDenied(queryError))
+    .map((queryError) => queryError.data?.message || queryError.message)
+    .find(Boolean);
 
   const statusFilterField = useMemo(() => FILTER_FIELDS.find((f) => f.type === 'status'), []);
   const toolbarFilterFields = useMemo(() => FILTER_FIELDS.filter((f) => f.type !== 'status'), []);
@@ -294,11 +314,14 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       raw = rawEvacuationsList.find((row) => row.status === 'active') || null;
     }
 
-    if (!raw && !organizationId) {
+    if (!raw && allowMockFallback) {
       raw = getMockActiveEvacuation(scopedBranchId || undefined);
     }
 
     if (!raw || !raw._id) return null;
+
+    const rollcallData =
+      raw.rollcall || raw.rollcallStats || raw.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
 
     return {
       ...raw,
@@ -307,30 +330,45 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       startedByUserId: raw.startedByUserId || null,
       startedByName: resolveStartedByName(raw, membersMap, user),
       stats: raw.rollcallStats || raw.rollcall || raw.stats || { total: 0, safe: 0, missing: 0, unknown: 0 },
+      rollcall: rollcallData,
+      stats: rollcallData,
     };
-  }, [activeEvacuationApiData, rawEvacuationsList, scopedBranchId, membersMap, user, reloadKey, organizationId]);
+  }, [activeEvacuationApiData, rawEvacuationsList, scopedBranchId, membersMap, user, reloadKey, allowMockFallback]);
 
   const evacuations = useMemo(() => {
     let rows;
     if (rawEvacuationsList) {
-      rows = rawEvacuationsList.map((row) => ({
-        ...row,
-        branchName: row.branch?.name || row.branchName || '—',
-        assemblyPoint: row.branch?.assemblyPoint || row.assemblyPoint || '',
-        startedByUserId: row.startedByUserId || null,
-        startedByName: resolveStartedByName(row, membersMap, user),
-        stats: row.rollcallStats || row.rollcall || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 },
-      }));
-    } else {
+      rows = rawEvacuationsList.map((row) => {
+        const rollcallData =
+          row.rollcall || row.rollcallStats || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
+        return {
+          ...row,
+          branchName: row.branch?.name || row.branchName || '—',
+          assemblyPoint: row.branch?.assemblyPoint || row.assemblyPoint || '',
+          startedByUserId: row.startedByUserId || null,
+          startedByName: resolveStartedByName(row, membersMap, user),
+          rollcall: rollcallData,
+          stats: rollcallData,
+        };
+      });
+    } else if (allowMockFallback) {
       rows = getMockEvacuations({
         branchId: scopedBranchId || undefined,
         status: filters.state.status,
-      }).map((row) => ({
-        ...row,
-        branchName: row.branch?.name || row.branchName || '—',
-        startedByUserId: row.startedByUserId || null,
-        startedByName: resolveStartedByName(row, membersMap, user),
-      }));
+      }).map((row) => {
+        const rollcallData =
+          row.rollcall || row.rollcallStats || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
+        return {
+          ...row,
+          branchName: row.branch?.name || row.branchName || '—',
+          startedByUserId: row.startedByUserId || null,
+          startedByName: resolveStartedByName(row, membersMap, user),
+          rollcall: rollcallData,
+          stats: rollcallData,
+        };
+      });
+    } else {
+      rows = [];
     }
 
     const search = filters.state.name.trim().toLowerCase();
@@ -349,6 +387,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     reloadKey,
     membersMap,
     user,
+    allowMockFallback,
   ]);
 
   const totalCount = useMemo(() => {
@@ -392,11 +431,13 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         return evacuations.filter((row) => row.status === status).length;
       }
 
+      if (!allowMockFallback) return 0;
+
       const base = getMockEvacuations({ branchId: scopedBranchId || undefined, status: 'all' });
       if (status === 'all') return base.length;
       return base.filter((row) => row.status === status).length;
     },
-    [evacuationsApiData, rawEvacuationsList, totalCount, evacuations, scopedBranchId]
+    [evacuationsApiData, rawEvacuationsList, totalCount, evacuations, scopedBranchId, allowMockFallback]
   );
 
   const bump = () => setReloadKey((k) => k + 1);
@@ -458,6 +499,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const {
     data: checksApiData,
     isLoading: isChecksLoading,
+    error: checksApiError,
   } = useGetEvacuationChecksQuery(
     {
       evacuationEventId: selectedEvent?._id,
@@ -503,17 +545,15 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       if (Array.isArray(checksApiData.data)) return checksApiData.data;
       if (Array.isArray(checksApiData)) return checksApiData;
     }
-    return selectedEvent ? mockEvacChecksByEventId[selectedEvent._id] || [] : [];
-  }, [checksApiData, selectedEvent]);
+    return !hasPermissionDenied && !isPermissionDenied(checksApiError) && selectedEvent
+      ? mockEvacChecksByEventId[selectedEvent._id] || []
+      : [];
+  }, [checksApiData, checksApiError, hasPermissionDenied, selectedEvent]);
 
   const detailStats = useMemo(() => {
-    return (
-      checksApiData?.rollcallStats ||
-      selectedEvent?.rollcallStats ||
-      selectedEvent?.stats ||
-      null
-    );
-  }, [checksApiData, selectedEvent]);
+    if (hasPermissionDenied || isPermissionDenied(checksApiError)) return null;
+    return checksApiData?.rollcallStats || selectedEvent?.rollcallStats || selectedEvent?.stats || null;
+  }, [checksApiData, checksApiError, hasPermissionDenied, selectedEvent]);
 
   const handleOpenDetail = useCallback(
     (event) => {
@@ -590,7 +630,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       )}
 
       <OnSiteSummary
-        summary={onSiteSummary}
+        summary={onSiteSummaryApiData}
         loading={isSummaryLoading}
         hideSiteDetails={showSiteFilter && branchId === ALL_BRANCHES_VALUE}
       />

@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 
-import LinearProgress from '@mui/material/LinearProgress';
+import { LoadingScreen } from 'src/components/loading-screen';
+import { EmptyContent } from 'src/components/empty-content';
 
 import { paths } from 'src/routes/paths';
 import { useParams } from 'src/routes/hooks';
@@ -40,6 +41,42 @@ export function PeepRecordNewEditView({ currentRecord: initialRecord, ownerDashb
         id && !mockRecord && !isError && (isRecordLoading || isRecordFetching || !currentRecord)
     );
 
+    if (isLoadingRecord) {
+        return (
+            <DashboardContent>
+                <CustomBreadcrumbs
+                    heading="Edit PEEP record"
+                    links={[
+                        { name: 'Dashboard', href: base.root },
+                        { name: 'PEEP & Floor Plans', href: base.peepAndFloorPlans.root },
+                        { name: 'PEEP Records', href: base.peepAndFloorPlans.records.root },
+                        { name: 'Loading...' },
+                    ]}
+                    sx={{ mb: { xs: 3, md: 5 } }}
+                />
+                <LoadingScreen sx={{ py: 10 }} />
+            </DashboardContent>
+        );
+    }
+
+    if (id && isError && !currentRecord) {
+        return (
+            <DashboardContent>
+                <CustomBreadcrumbs
+                    heading="Edit PEEP record"
+                    links={[
+                        { name: 'Dashboard', href: base.root },
+                        { name: 'PEEP & Floor Plans', href: base.peepAndFloorPlans.root },
+                        { name: 'PEEP Records', href: base.peepAndFloorPlans.records.root },
+                        { name: 'Error' },
+                    ]}
+                    sx={{ mb: { xs: 3, md: 5 } }}
+                />
+                <EmptyContent filled title="PEEP record not found" sx={{ py: 10 }} />
+            </DashboardContent>
+        );
+    }
+
     const recordDisplayName =
         currentRecord?.resident?.name ||
         currentRecord?.residentName ||
@@ -48,33 +85,18 @@ export function PeepRecordNewEditView({ currentRecord: initialRecord, ownerDashb
 
     return (
         <DashboardContent>
-            {isLoadingRecord && (
-                <LinearProgress
-                    color="primary"
-                    sx={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        zIndex: 9999,
-                        height: 3,
-                    }}
-                />
-            )}
-
             <CustomBreadcrumbs
                 heading={isEdit ? 'Edit PEEP record' : 'Create PEEP record'}
                 links={[
                     { name: 'Dashboard', href: base.root },
                     { name: 'PEEP & Floor Plans', href: base.peepAndFloorPlans.root },
                     { name: 'PEEP Records', href: base.peepAndFloorPlans.records.root },
-                    { name: isEdit ? (isLoadingRecord ? 'Loading...' : recordDisplayName) : 'New' },
+                    { name: recordDisplayName },
                 ]}
                 sx={{ mb: { xs: 3, md: 5 } }}
             />
             <PeepRecordNewEditForm
                 currentRecord={currentRecord}
-                isLoadingRecord={isLoadingRecord}
                 ownerDashboard={ownerDashboard}
             />
         </DashboardContent>

@@ -23,6 +23,7 @@ import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 
 import { useMockedUser } from 'src/auth/hooks';
+import { useGetUserProfileQuery } from 'src/store/Reducer/auth';
 
 import { AccountButton } from './account-button';
 import { UpgradeBlock } from './nav-upgrade';
@@ -38,6 +39,11 @@ export function AccountDrawer({ data = [], sx, ...other }) {
   const pathname = usePathname();
 
   const { user } = useMockedUser();
+  const { data: profile } = useGetUserProfileQuery();
+  const basicInfo = profile?.basicInfo;
+  const displayName = basicInfo?.name || user?.basicInfo?.name || user?.displayName || '';
+  const email = basicInfo?.email || user?.basicInfo?.email || user?.email || '';
+  const profileIcon = basicInfo?.profileIcon || user?.photoURL || '';
 
   const [open, setOpen] = useState(false);
 
@@ -81,7 +87,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
     <AnimateAvatar
       width={96}
       slotProps={{
-        avatar: { src: user?.photoURL, alt: user?.displayName },
+        avatar: { src: profileIcon, alt: displayName },
         overlay: {
           border: 2,
           spacing: 3,
@@ -89,7 +95,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
         },
       }}
     >
-      {user?.basicInfo.name?.charAt(0).toUpperCase()}
+      {displayName.charAt(0).toUpperCase()}
     </AnimateAvatar>
   );
 
@@ -98,8 +104,8 @@ export function AccountDrawer({ data = [], sx, ...other }) {
       <AccountButton
         open={open}
         onClick={handleOpenDrawer}
-        photoURL={user?.photoURL}
-        displayName={user?.displayName}
+        photoURL={profileIcon}
+        displayName={displayName}
         sx={sx}
         {...other}
       />
@@ -123,11 +129,11 @@ export function AccountDrawer({ data = [], sx, ...other }) {
             {renderAvatar}
 
             <Typography variant="subtitle1" noWrap sx={{ mt: 2 }}>
-              {user?.displayName}
+              {displayName}
             </Typography>
 
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-              {user?.basicInfo.email}
+              {email}
             </Typography>
           </Stack>
 

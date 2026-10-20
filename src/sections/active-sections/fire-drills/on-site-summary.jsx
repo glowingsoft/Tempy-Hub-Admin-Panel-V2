@@ -56,9 +56,10 @@ export function OnSiteSummary({ summary, loading, hideSiteDetails = false }) {
   }
 
   const counts = summary?.counts || {};
-  const totalCount =
-    counts.total ??
-    ((counts.staff || 0) + (counts.residents || 0) + (counts.visitors || 0) + (counts.contractors || 0));
+  const totalCount = summary
+    ? counts.total ??
+      ((counts.staff || 0) + (counts.residents || 0) + (counts.visitors || 0) + (counts.contractors || 0))
+    : '—';
 
   return (
     <Box sx={{ mb: 3 }}>
@@ -131,7 +132,7 @@ export function OnSiteSummary({ summary, loading, hideSiteDetails = false }) {
           <Grid key={item.key} xs={12} sm={6} md={3}>
             <CourseWidgetSummary
               title={item.label}
-              total={counts[item.key] ?? 0}
+              total={counts[item.key] ?? (summary ? 0 : '—')}
               color={item.color}
               icon={item.icon}
               sx={{

@@ -2,121 +2,202 @@ import { useEffect, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
+import Alert from '@mui/material/Alert';
+import LoadingButton from '@mui/lab/LoadingButton';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableRow from '@mui/material/TableRow';
 
 import { Iconify } from 'src/components/iconify';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import {
-  FLOOR_PLAN,
-  FLOOR_PLAN_PINS,
   getFloorPlanFile,
   getFloorPlanPins,
   setFloorPlanPins,
-  PEEP_LEVELS,
   RESIDENTS,
   setFloorPlanFile,
 } from '../mocks/data';
 
-import { Avatar, CardHeader, Link } from '@mui/material';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
-import { Label } from 'src/components/label';
-import { TableHeadCustom, TablePaginationCustom, useTable } from 'src/components/table';
+import { ConfirmDialog } from 'src/components/custom-dialog/confirm-dialog';
 import { useBoolean } from 'src/hooks/use-boolean';
-import { useParams, useRouter } from 'src/routes/hooks';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useParams, useSearchParams } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+import { useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
+import {
+  useCreateFloorPlanPinMutation,
+  useDeleteFloorPlanPinMutation,
+  useGetFloorPlanByIdQuery,
+} from 'src/store/Reducer/floor-plans-api';
 import { RouterLink } from 'src/routes/components';
 import { toast } from 'src/components/snackbar';
 import { mockBranches } from 'src/sections/branch/mocks/data';
-import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
 import { FloorPlanViewer } from '../floor-plan-viewer';
 import { ResidentPeepDrawer } from '../resident-peep-drawer';
 import { UploadFloorPlanDialog } from '../upload-floor-plan-dialog';
-import { Scrollbar } from 'src/components/scrollbar';
-import { convertPdfToImage } from 'src/utils/pdf-to-image';
 
 export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard = false }) {
-  const router = useRouter();
-
   // Owner and Site Manager both reach this screen with the site id in the
   // URL (Org Rollup -> site -> map) and share the same routed flow. A bare
   // dashboard (e.g. admin) mounts this without a site-scoped route at all.
   const { siteId } = useParams();
+  const searchParams = useSearchParams();
+  const floorPlanId = searchParams.get('floorPlanId');
+  const { organizationId } = useCurrentOrganization();
+
+  const {
+    data: apiFloorPlan,
+    isLoading: isFloorPlanLoading,
+    isError: isFloorPlanError,
+    error: floorPlanError,
+  } = useGetFloorPlanByIdQuery(
+    { floorPlanId, organizationId },
+    { skip: !floorPlanId || !organizationId }
+  );
+  const [createFloorPlanPin, { isLoading: isCreatingPin }] = useCreateFloorPlanPinMutation();
+  const [deleteFloorPlanPin, { isLoading: isDeletingPin }] = useDeleteFloorPlanPinMutation();
+  const [pinToDelete, setPinToDelete] = useState(null);
+
+  const floorPlanBranchId = apiFloorPlan?.branchId || siteId;
+  const residentPickerContextKey = `${organizationId || ''}:${floorPlanBranchId || ''}:${floorPlanId || ''}`;
+  const { data: apiPeepRecords } = useGetPeepRecordsQuery(
+    {
+      organizationId,
+      branchId: floorPlanBranchId,
+      page: 1,
+      limit: 100,
+    },
+    { skip: !floorPlanId || !organizationId || !floorPlanBranchId }
+  );
+
+  const apiResidents = useMemo(
+    () =>
+      Array.isArray(apiPeepRecords?.data)
+        ? apiPeepRecords.data.map(mapPeepRecord).filter(Boolean)
+        : [],
+    [apiPeepRecords]
+  );
+  const [additionalApiResidentState, setAdditionalApiResidentState] = useState({
+    contextKey: residentPickerContextKey,
+    residents: [],
+  });
+  const additionalApiResidents =
+    additionalApiResidentState.contextKey === residentPickerContextKey
+      ? additionalApiResidentState.residents
+      : [];
+  const apiResidentsWithSelected = useMemo(
+    () => [
+      ...apiResidents,
+      ...additionalApiResidents.filter(
+        (extraResident) => !apiResidents.some((resident) => resident.id === extraResident.id)
+      ),
+    ],
+    [apiResidents, additionalApiResidents]
+  );
+  const apiPinsFromRecord = useMemo(
+    () => mapFloorPlanPins(apiFloorPlan?.pins, apiResidentsWithSelected),
+    [apiFloorPlan?.pins, apiResidentsWithSelected]
+  );
+  const apiFloorPlanForViewer = useMemo(() => {
+    if (!apiFloorPlan) return null;
+
+    const imageUrl = getTrustedS3Url(apiFloorPlan.imageUrl);
+    const pdfUrl = getTrustedS3Url(apiFloorPlan.pdfUrl);
+
+    return {
+      ...apiFloorPlan,
+      imageUrl,
+      pdfUrl,
+      url: pdfUrl,
+      fileName: apiFloorPlan.name || 'Floor Plan',
+    };
+  }, [apiFloorPlan]);
 
   const siteScoped = ownerDashboard || siteManagerDashboard;
   const base = ownerDashboard ? paths.owner : siteManagerDashboard ? paths.siteManager : null;
 
-  const { branchId, onBranchChange } = useOwnerBranchFilter();
-
-  useEffect(() => {
-    if (siteScoped && siteId) onBranchChange(siteId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siteScoped, siteId]);
-
-  // Switching sites from the dropdown should update the URL too, so the
-  // address bar and breadcrumb always match what's on screen.
-  const handleSiteChange = (nextSiteId) => {
-    if (!siteScoped) {
-      onBranchChange(nextSiteId);
-      return;
-    }
-
-    if (!nextSiteId || nextSiteId === 'all') {
-      router.push(base.peepAndFloorPlans.root);
-    } else {
-      router.push(base.peepAndFloorPlans.map(nextSiteId));
-    }
-  };
-
-  const siteName = useMemo(
+  const mockSiteName = useMemo(
     () => mockBranches.find((branch) => branch._id === siteId)?.name,
     [siteId]
   );
+  const siteName = apiFloorPlan?.branch?.name || mockSiteName;
 
   const [residents, setResidents] = useState(RESIDENTS);
 
-  // Uploaded PDF is kept in a plain in-memory module (see mocks/data.js) —
-  // fallback to default site floor plan if no custom PDF has been uploaded
-  const [floorPlanFile, setFloorPlanFileState] = useState(
-    () => getFloorPlanFile() || FLOOR_PLAN
-  );
+  const [floorPlanFile, setFloorPlanFileState] = useState(() => getFloorPlanFile());
 
   const [selectedResidentId, setSelectedResidentId] = useState('');
 
   const [selectedResident, setSelectedResident] = useState(null);
 
-  const [pins, setPins] = useState(() => (getFloorPlanFile() ? getFloorPlanPins() : FLOOR_PLAN_PINS));
+  const [pins, setPins] = useState(() => getFloorPlanPins());
 
   const placementMode = useBoolean();
 
   const uploadOpen = useBoolean();
 
+  useEffect(() => {
+    setSelectedResidentId('');
+    setAdditionalApiResidentState({ contextKey: residentPickerContextKey, residents: [] });
+    setPinToDelete(null);
+    placementMode.onFalse();
+  }, [floorPlanId, floorPlanBranchId, organizationId, placementMode.onFalse, residentPickerContextKey]);
+
+  const visibleResidents = floorPlanId ? apiResidentsWithSelected : residents;
+  const visiblePins = floorPlanId ? apiPinsFromRecord : pins;
+  const visibleFloorPlan = floorPlanId ? apiFloorPlanForViewer : floorPlanFile;
+
   const residentsById = useMemo(
     () =>
-      residents.reduce((acc, resident) => {
+      visibleResidents.reduce((acc, resident) => {
         acc[resident.id] = resident;
         return acc;
       }, {}),
-    [residents]
+    [visibleResidents]
   );
 
-  const handlePlanClick = ({ x, y, togglePlacement }) => {
+  const handlePlanClick = async ({ x, y, togglePlacement }) => {
     if (togglePlacement) {
       placementMode.onToggle();
       return;
     }
 
-    if (!floorPlanFile || !placementMode.value || !selectedResidentId) return;
+    if (!visibleFloorPlan || !placementMode.value || !selectedResidentId) return;
 
-    // Remove existing pin for this resident if re-placing or moving
-    const filteredPins = pins.filter((pin) => pin.residentId !== selectedResidentId);
+    if (floorPlanId) {
+      const selectedResident = apiResidentsWithSelected.find(
+        (resident) => resident.id === selectedResidentId
+      );
+      if (!selectedResident?.residentId) {
+        toast.error('This PEEP record is not linked to a resident.');
+        return;
+      }
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) {
+        toast.error('Pin coordinates are invalid.');
+        return;
+      }
+
+      const isUpdatingPin = apiPinsFromRecord.some((pin) => pin.residentId === selectedResidentId);
+
+      try {
+        await createFloorPlanPin({
+          floorPlanId,
+          organizationId,
+          residentId: selectedResident.residentId,
+          x,
+          y,
+        }).unwrap();
+        toast.success(isUpdatingPin ? 'Pin updated successfully.' : 'Pin placed successfully.');
+        setSelectedResidentId('');
+        placementMode.onFalse();
+      } catch (error) {
+        toast.error(error?.data?.message || error?.message || 'Unable to save this pin.');
+      }
+      return;
+    }
+
+    const currentPins = pins;
+    const filteredPins = currentPins.filter((pin) => pin.residentId !== selectedResidentId);
 
     const newPin = {
       id: `pin-${Date.now()}`,
@@ -134,7 +215,45 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
   };
 
   const handlePinClick = (resident) => {
+    if (floorPlanId) {
+      setSelectedResidentId(resident.id);
+      placementMode.onTrue();
+      return;
+    }
     setSelectedResident(resident);
+  };
+
+  const handleAddPin = () => {
+    if (!visibleFloorPlan) {
+      toast.info('Load a floor plan before placing a pin.');
+      return;
+    }
+    if (!selectedResidentId) {
+      toast.info('Select a resident before placing a pin.');
+      return;
+    }
+    placementMode.onTrue();
+  };
+
+  const handleConfirmDeletePin = async () => {
+    if (!floorPlanId || !organizationId || !pinToDelete?.apiPinId) {
+      toast.error('Unable to delete this pin because its floor plan or pin ID is unavailable.');
+      return;
+    }
+
+    try {
+      await deleteFloorPlanPin({
+        floorPlanId,
+        floorPlanPinId: pinToDelete.apiPinId,
+        organizationId,
+      }).unwrap();
+      toast.success('Pin deleted successfully.');
+      setSelectedResidentId('');
+      setPinToDelete(null);
+      placementMode.onFalse();
+    } catch (error) {
+      toast.error(error?.data?.message || error?.message || 'Unable to delete this pin.');
+    }
   };
 
   return (
@@ -154,205 +273,248 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
           { name: 'Floor Map' },
         ]}
         action={
-          siteScoped ? (
-            <OwnerBranchFilterActions value={branchId} onChange={handleSiteChange}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            {siteScoped && floorPlanBranchId && (
+              floorPlanId ? (
+                <Button
+                  variant="contained"
+                  onClick={handleAddPin}
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  Add pin
+                </Button>
+              ) : (
               <Button
                 component={RouterLink}
-                href={base.peepAndFloorPlans.addPin(branchId)}
+                href={base.peepAndFloorPlans.addPin(floorPlanBranchId)}
                 variant="contained"
                 startIcon={<Iconify icon="mingcute:add-line" />}
-                disabled={branchId === 'all'}
                 sx={{ display: { xs: 'none', md: 'inline-flex' } }}
               >
                 Add pin
               </Button>
+              )
+            )}
+            {!floorPlanId && (
               <Button
                 variant="outlined"
                 onClick={uploadOpen.onTrue}
                 startIcon={<Iconify icon="solar:import-bold" />}
                 sx={{ display: { xs: 'none', md: 'inline-flex' } }}
               >
-                Upload Floor Plan Pdf
+                Upload Floor Plan Image
               </Button>
-            </OwnerBranchFilterActions>
-          ) : (
-            <Stack direction={{ md: 'row', xs: 'column' }} sx={{ display: { md: 'flex', xs: 'none' } }} spacing={1.5}>
-              <Button variant="outlined" onClick={uploadOpen.onTrue} startIcon={<Iconify icon="solar:import-bold" />}>
-                Upload Floor Plan Pdf
-              </Button>
-            </Stack>
-          )
+            )}
+          </Stack>
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
       <Stack direction={{ md: 'row', xs: 'column' }} sx={{ display: { md: "none", xs: "flex" } }} spacing={1.5}>
-        {siteScoped && (
-          <Button
-            component={RouterLink}
-            href={base.peepAndFloorPlans.addPin(branchId)}
-            variant="contained"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            disabled={branchId === 'all'}
-          >
-            Add pin
+        {siteScoped && floorPlanBranchId && (
+          floorPlanId ? (
+            <Button variant="contained" onClick={handleAddPin} startIcon={<Iconify icon="mingcute:add-line" />}>
+              Add pin
+            </Button>
+          ) : (
+            <Button
+              component={RouterLink}
+              href={base.peepAndFloorPlans.addPin(floorPlanBranchId)}
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              Add pin
+            </Button>
+          )
+        )}
+        {!floorPlanId && (
+          <Button variant="outlined" onClick={uploadOpen.onTrue} startIcon={<Iconify icon="solar:import-bold" />}>
+            Upload Floor Plan Image
           </Button>
         )}
-        <Button variant="outlined" onClick={uploadOpen.onTrue} startIcon={<Iconify icon="solar:import-bold" />}>
-          Upload Floor Plan Pdf
-        </Button>
       </Stack>
       <Stack spacing={2} sx={{ minWidth: 0, p: { xs: 0.5, md: 2.5 } }}>
+        {floorPlanId && isFloorPlanError && (
+          <Alert severity="error">
+            {floorPlanError?.data?.message || floorPlanError?.message || 'Unable to load this floor plan.'}
+          </Alert>
+        )}
+        {floorPlanId && !organizationId && (
+          <Alert severity="error">Organization context is unavailable.</Alert>
+        )}
         <FloorPlanViewer
-          pins={pins}
-          floorPlan={floorPlanFile}
+          pins={visiblePins}
+          floorPlan={visibleFloorPlan}
           residentsById={residentsById}
-          residents={residents}
+          residents={visibleResidents}
+          organizationId={organizationId}
+          branchId={floorPlanBranchId}
+          floorPlanId={floorPlanId}
           placementMode={placementMode.value}
           selectedResidentId={selectedResidentId}
-          onResidentChange={setSelectedResidentId}
+          onResidentChange={(option) => {
+            setSelectedResidentId(option?.value || '');
+            if (floorPlanId && option?.resident) {
+              setAdditionalApiResidentState((current) => {
+                const currentResidents =
+                  current.contextKey === residentPickerContextKey ? current.residents : [];
+                return {
+                  contextKey: residentPickerContextKey,
+                  residents: [
+                    ...currentResidents.filter(
+                      (resident) => resident.id !== option.resident.id
+                    ),
+                    option.resident,
+                  ],
+                };
+              });
+            }
+          }}
           onPlanClick={handlePlanClick}
           onPinClick={handlePinClick}
-        />
-
-        <PeepRecords
-          residents={residents}
-          onSelect={(resident) => {
-            setSelectedResident(resident);
-            setSelectedResidentId(resident.id);
-          }}
+          onDeletePin={setPinToDelete}
+          isDeletingPin={isDeletingPin}
+          loading={Boolean(floorPlanId) && isFloorPlanLoading}
+          showEmptyWhenMissing
+          pinPlacementDisabled={!visibleFloorPlan || isCreatingPin}
+          pinPlacementBusy={isCreatingPin}
         />
       </Stack>
 
-      <ResidentPeepDrawer
-        resident={selectedResident}
-        open={Boolean(selectedResident)}
-        onClose={() => setSelectedResident(null)}
-        onUpdate={(updatedResident) => {
-          setResidents((current) => current.map((resident) => (resident.id === updatedResident.id ? updatedResident : resident)));
-          setSelectedResident(updatedResident);
+      <ConfirmDialog
+        open={Boolean(pinToDelete)}
+        onClose={() => {
+          if (!isDeletingPin) setPinToDelete(null);
         }}
+        title="Delete pin"
+        content="Are you sure you want to delete this pin from the floor plan?"
+        action={
+          <LoadingButton
+            variant="contained"
+            color="error"
+            loading={isDeletingPin}
+            onClick={handleConfirmDeletePin}
+          >
+            Delete
+          </LoadingButton>
+        }
       />
 
-      <UploadFloorPlanDialog
-        open={uploadOpen.value}
-        onClose={uploadOpen.onFalse}
-        onUpload={async (file, imageResult) => {
-          let converted = imageResult;
-          if (!converted && file) {
-            try {
-              converted = await convertPdfToImage(file);
-            } catch (err) {
-              console.warn('PDF conversion error in view:', err);
-            }
-          }
-          const updated = setFloorPlanFile(file, converted);
-          setFloorPlanFileState(updated);
-          setPins([]);
-          setSelectedResidentId('');
-          placementMode.onFalse();
-        }}
-      />
+      {!floorPlanId && (
+        <ResidentPeepDrawer
+          resident={selectedResident}
+          open={Boolean(selectedResident)}
+          onClose={() => setSelectedResident(null)}
+          onUpdate={(updatedResident) => {
+            setResidents((current) => current.map((resident) => (resident.id === updatedResident.id ? updatedResident : resident)));
+            setSelectedResident(updatedResident);
+          }}
+        />
+      )}
+
+      {!floorPlanId && (
+        <UploadFloorPlanDialog
+          open={uploadOpen.value}
+          onClose={uploadOpen.onFalse}
+          onUpload={async (file) => {
+            const imagePreview = { imageUrl: URL.createObjectURL(file) };
+            const updated = setFloorPlanFile(file, imagePreview);
+            setFloorPlanFileState(updated);
+            setPins([]);
+            setSelectedResidentId('');
+            placementMode.onFalse();
+          }}
+        />
+      )}
     </DashboardContent>
   );
 }
 
-function PeepRecords({ residents, onSelect }) {
-  const TABLE_HEAD = [
-    { id: 'sr#', label: 'Sr#', width: 60 },
-    { id: 'name', label: 'Name', minWidth: 220 },
-    { id: 'room', label: 'Room', minWidth: 180 },
-    { id: 'level', label: 'Level', minWidth: 160, align: 'center' },
-    { id: 'actions', label: 'Actions', minWidth: 180, align: 'center' },
-  ];
+function getTrustedS3Url(value) {
+  if (typeof value !== 'string' || !value) return '';
 
-  const table = useTable();
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    const isS3Host =
+      hostname === 's3.amazonaws.com' ||
+      (hostname.startsWith('s3.') && hostname.endsWith('.amazonaws.com')) ||
+      (hostname.endsWith('.amazonaws.com') && hostname.includes('.s3.'));
 
-  const PEEP_LEVEL_COLORS = {
-    low: 'success',
-    medium: 'warning',
-    high: 'error',
+    return url.protocol === 'https:' && isS3Host ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
+function mapPeepRecord(record) {
+  const resident = record?.resident && typeof record.resident === 'object' ? record.resident : {};
+  const rawResidentId =
+    resident._id ||
+    resident.id ||
+    record?.residentId ||
+    (typeof record?.resident === 'string' ? record.resident : null);
+  const residentId =
+    typeof rawResidentId === 'object'
+      ? rawResidentId?._id || rawResidentId?.id || null
+      : rawResidentId;
+  const recordId = record?._id || record?.id;
+  const id = residentId || recordId;
+
+  if (!id) return null;
+
+  const residentName = `${resident.firstName || ''} ${resident.lastName || ''}`.trim();
+
+  return {
+    ...record,
+    id: String(id),
+    residentId: residentId ? String(residentId) : null,
+    peepRecordId: recordId || null,
+    name: record?.name || record?.residentName || resident.name || residentName || '—',
+    email: record?.email || resident.email || '',
+    image: resident.avatar || resident.imageUrl || resident.image || record?.image || '',
+    roomNumber: record?.roomNumber || resident.roomNumber || record?.room?.number || record?.room || '—',
+    peepLevel: record?.peepLevel || record?.level || 'low',
+    peepSummary: record?.supportNeeds || record?.peepSummary || '',
   };
+}
 
-  return (
-    <Card variant="outlined" sx={{ borderRadius: 1, boxShadow: 'none' }}>
-      <CardHeader title="PEEP records List" sx={{ mb: 1 }} />
-      <TableContainer>
-        <Scrollbar>
-          <Table>
-            <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} numSelected={table.selected.length} />
-            <TableBody>
-              {residents.map((resident, index) => {
-                const level = PEEP_LEVELS[resident.peepLevel];
-                const actions = [
-                  {
-                    key: 'details',
-                    icon: 'solar:pen-bold',
-                    tooltip: 'View / edit PEEP record',
-                    onClick: (event) => {
-                      event.stopPropagation();
-                      onSelect(resident);
-                    },
-                  },
-                ];
+function mapFloorPlanPins(pins, residents) {
+  if (!Array.isArray(pins)) return [];
 
-                return (
-                  <TableRow key={resident.id} hover>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>
-                      <Stack spacing={2} direction="row" alignItems="center">
-                        <Avatar alt={resident.name} src={resident.image}>
-                          {resident.name?.charAt(0)}
-                        </Avatar>
+  const residentIds = new Set(residents.map((resident) => resident.id));
 
-                        <Stack
-                          sx={{
-                            typography: 'body2',
-                            flex: '1 1 auto',
-                            alignItems: 'flex-start',
-                          }}
-                        >
-                          <Link color="inherit" sx={{ cursor: 'pointer' }}>
-                            {resident.name || '—'}
-                          </Link>
+  return pins.flatMap((pin, index) => {
+    const residentId = typeof pin?.residentId === 'string' ? pin.residentId : '';
+    const x = Number(pin?.x);
+    const y = Number(pin?.y);
 
-                          <Box
-                            sx={{
-                              color: 'text.secondary',
-                              typography: 'caption',
-                            }}
-                          >
-                            {resident.email || '—'}
-                          </Box>
-                        </Stack>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>{resident.roomNumber}</TableCell>
+    if (
+      !residentIds.has(residentId) ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      x < 0 ||
+      x > 1 ||
+      y < 0 ||
+      y > 1
+    ) {
+      return [];
+    }
 
-                    <TableCell align="center">
-                      <Label color={PEEP_LEVEL_COLORS[resident.peepLevel] || 'default'}>{resident.peepLevel}</Label>
-                    </TableCell>
+    const rawPinId = pin?._id || pin?.id;
+    const apiPinId =
+      typeof rawPinId === 'string' || typeof rawPinId === 'number'
+        ? String(rawPinId)
+        : null;
 
-                    <TableCell align="center">
-                      <Box onClick={(event) => event.stopPropagation()} sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <GenericTableRowActions actions={actions} />
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Scrollbar>
-        <TablePaginationCustom
-          page={table.page}
-          dense={table.dense}
-          count={residents.length}
-          rowsPerPage={table.rowsPerPage}
-          onPageChange={table.onChangePage}
-          onChangeDense={table.onChangeDense}
-          onRowsPerPageChange={table.onChangeRowsPerPage}
-        />
-      </TableContainer>
-    </Card>
-  );
+    return [
+      {
+        ...pin,
+        id: apiPinId || `pin-${index}`,
+        apiPinId,
+        residentId,
+        x,
+        y,
+      },
+    ];
+  });
 }

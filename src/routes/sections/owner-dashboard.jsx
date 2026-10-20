@@ -60,6 +60,7 @@ const StaffDashboardSettingsPage = lazy(() => import('src/pages/owner-dashboard/
 const ConfigurationPage = lazy(() => import('src/pages/owner-dashboard/configuration.jsx'));
 const PeepRecordsListPage = lazy(() => import('src/pages/owner-dashboard/peep-records/list.jsx'));
 const PeepRecordCreatePage = lazy(() => import('src/pages/owner-dashboard/peep-records/new.jsx'));
+const PeepRecordDetailPage = lazy(() => import('src/pages/owner-dashboard/peep-records/detail.jsx'));
 const PeepRecordEditPage = lazy(() => import('src/pages/owner-dashboard/peep-records/edit.jsx'));
 const FloorPlanListPage = lazy(() => import('src/pages/owner-dashboard/floor-plans/list.jsx'));
 const OrgRollupPage = lazy(() => import('src/pages/owner-dashboard/org-rollup.jsx'));
@@ -203,6 +204,7 @@ export const ownerDashboardRoutes = [
           { path: 'site/:siteId/floor-plans', element: <FloorPlanListPage /> },
           { path: 'peep-records', element: <PeepRecordsListPage /> },
           { path: 'peep-records/new', element: <PeepRecordCreatePage /> },
+          { path: 'peep-records/:id', element: <PeepRecordDetailPage /> },
           { path: 'peep-records/:id/edit', element: <PeepRecordEditPage /> },
           { path: 'floor-plans', element: <FloorPlanListPage /> },
         ],

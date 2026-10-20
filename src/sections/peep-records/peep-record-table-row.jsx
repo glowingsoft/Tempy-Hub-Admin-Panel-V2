@@ -6,6 +6,7 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 
 import { useRouter } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
@@ -16,15 +17,22 @@ import { getPeepFloorLabel, getPeepLevelMeta } from './mocks/data';
 export function PeepRecordTableRow({ row, serialNumber, ownerDashboard = true }) {
     const router = useRouter();
     const base = ownerDashboard ? paths.owner : paths.siteManager;
+    const detailPath = base.peepAndFloorPlans.records.detail(row.id);
     const editPath = base.peepAndFloorPlans.records.edit(row.id);
     const levelMeta = getPeepLevelMeta(row.peepLevel);
 
     return (
-        <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(editPath)}>
+        <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
             <TableCell sx={{ width: 60 }}>{serialNumber}</TableCell>
             <TableCell sx={{ width: '24%', minWidth: 200 }}>
                 <Stack sx={{ typography: 'body2' }}>
-                    <Link color="inherit" sx={{ fontWeight: 600 }}>
+                    <Link
+                        component={RouterLink}
+                        href={detailPath}
+                        onClick={(event) => event.stopPropagation()}
+                        color="inherit"
+                        sx={{ fontWeight: 600 }}
+                    >
                         {row.name || '—'}
                     </Link>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>

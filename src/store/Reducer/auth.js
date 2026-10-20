@@ -5,6 +5,23 @@ import { createCustomFetchBaseQuery } from "../baseQuery";
 // ----------------------------------------------------------------------
 // Auth API
 //
+// GET /app/users/profile
+//   response:
+//   {
+//     "data": {
+//       "basicInfo": {
+//         "name": "string",
+//         "email": "string",
+//         "phoneNumber": "string" | null,
+//         "profileIcon": "string" | null
+//       }
+//     }
+//   }
+//
+// PUT /app/users/profile
+//   request: { "name": "string", "profileIcon": "uploaded S3 object key" }
+//   response: updated user profile in the GET response shape
+//
 // POST /auth/login
 //   request:
 //   {
@@ -34,6 +51,25 @@ export const authApi = createApi({
   baseQuery: createCustomFetchBaseQuery(),
   tagTypes: ['profile'],
   endpoints: (builder) => ({
+    getUserProfile: builder.query({
+      query: () => ({
+        url: API_ROUTES.APP_USER_PROFILE,
+        method: "GET",
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: ['profile'],
+    }),
+
+    updateUserProfile: builder.mutation({
+      query: (body) => ({
+        url: API_ROUTES.APP_USER_PROFILE,
+        method: "PUT",
+        body,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: ['profile'],
+    }),
+
     login: builder.mutation({
       query: (loginData) => ({
         url: API_ROUTES.AUTH.LOGIN,
@@ -105,6 +141,8 @@ export const authApi = createApi({
 });
 
 export const {
+  useGetUserProfileQuery,
+  useUpdateUserProfileMutation,
   useLoginMutation,
   useAdminLoginMutation,
   useGetInvitationByTokenQuery,

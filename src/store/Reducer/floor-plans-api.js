@@ -30,6 +30,56 @@ export const floorPlansApi = createApi({
       keepUnusedDataFor: 30,
     }),
 
+    getFloorPlanById: builder.query({
+      query: ({ floorPlanId, organizationId } = {}) => ({
+        url: API_ROUTES.FLOOR_PLAN_BY_ID(floorPlanId),
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: (result, error, { floorPlanId }) => [
+        { type: 'FloorPlans', id: floorPlanId },
+      ],
+      keepUnusedDataFor: 0,
+    }),
+
+    updateFloorPlan: builder.mutation({
+      query: ({ floorPlanId, organizationId, ...body }) => ({
+        url: API_ROUTES.FLOOR_PLAN_BY_ID(floorPlanId),
+        method: 'PATCH',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body,
+      }),
+      invalidatesTags: (result, error, { floorPlanId }) => [
+        { type: 'FloorPlans', id: floorPlanId },
+        'FloorPlans',
+      ],
+    }),
+
+    createFloorPlanPin: builder.mutation({
+      query: ({ floorPlanId, organizationId, residentId, x, y }) => ({
+        url: API_ROUTES.FLOOR_PLAN_PINS(floorPlanId),
+        method: 'PUT',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body: { residentId, x, y },
+      }),
+      invalidatesTags: (result, error, { floorPlanId }) => [
+        { type: 'FloorPlans', id: floorPlanId },
+        'FloorPlans',
+      ],
+    }),
+
+    deleteFloorPlanPin: builder.mutation({
+      query: ({ floorPlanId, floorPlanPinId, organizationId }) => ({
+        url: API_ROUTES.FLOOR_PLAN_PIN_BY_ID(floorPlanId, floorPlanPinId),
+        method: 'DELETE',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      invalidatesTags: (result, error, { floorPlanId }) => [
+        { type: 'FloorPlans', id: floorPlanId },
+        'FloorPlans',
+      ],
+    }),
+
     createFloor: builder.mutation({
       query: ({ organizationId, ...body }) => ({
         url: API_ROUTES.ORGANIZATION_FLOOR_PLANS(organizationId),
@@ -44,5 +94,9 @@ export const floorPlansApi = createApi({
 
 export const {
   useGetFloorPlansQuery,
+  useGetFloorPlanByIdQuery,
+  useUpdateFloorPlanMutation,
+  useCreateFloorPlanPinMutation,
+  useDeleteFloorPlanPinMutation,
   useCreateFloorMutation,
 } = floorPlansApi;

@@ -64,9 +64,9 @@ export function SignOutButton({ onClose, ...other }) {
 
       // Clear all RTK Query caches
       dispatch(walletsApi.util.resetApiState());
-      dispatch(transactionsApi.util.resetApiState());
       dispatch(categoriesApi.util.resetApiState());
       dispatch(authApi.util.resetApiState());
+      dispatch(logout());
 
       onClose?.();
       router.refresh();

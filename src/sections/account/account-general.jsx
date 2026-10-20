@@ -1,9 +1,9 @@
 import { z as zod } from 'zod';
 import { useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useDispatch } from 'react-redux';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
@@ -17,7 +17,8 @@ import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
 import { useMockedUser } from 'src/auth/hooks';
-import { setUser } from 'src/store/slices/userSlice';
+import { useGetUserProfileQuery, useUpdateUserProfileMutation } from 'src/store/Reducer/auth';
+import { useUploadImageMutation } from 'src/store/Reducer/upload-api';
 
 // ----------------------------------------------------------------------
 
@@ -29,22 +30,28 @@ export const UpdateUserSchema = zod.object({
     .email({ message: 'Email must be a valid email address!' }),
   photoURL: zod.any().nullable().optional(),
   phoneNumber: zod.string().optional(),
-  country: zod.any().optional(),
 });
 
 export function AccountGeneral() {
   const { user } = useMockedUser();
-  const dispatch = useDispatch();
+  const {
+    data: profile,
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+    error: profileError,
+  } = useGetUserProfileQuery();
+  const [updateUserProfile, { isLoading: isUpdatingProfile }] = useUpdateUserProfileMutation();
+  const [uploadImage, { isLoading: isUploadingPhoto }] = useUploadImageMutation();
+  const basicInfo = profile?.basicInfo;
 
   const defaultValues = useMemo(
     () => ({
-      displayName: user?.displayName || user?.basicInfo?.name || user?.name || '',
-      email: user?.basicInfo?.email || user?.email || '',
-      photoURL: user?.photoURL || null,
-      phoneNumber: user?.basicInfo?.phoneNumber || user?.phoneNumber || '',
-      country: user?.country || '',
+      displayName: basicInfo?.name || user?.basicInfo?.name || user?.displayName || user?.name || '',
+      email: basicInfo?.email || user?.basicInfo?.email || user?.email || '',
+      photoURL: basicInfo?.profileIcon || user?.photoURL || null,
+      phoneNumber: basicInfo?.phoneNumber || user?.basicInfo?.phoneNumber || user?.phoneNumber || '',
     }),
-    [user]
+    [basicInfo, user]
   );
 
   const methods = useForm({
@@ -56,49 +63,65 @@ export function AccountGeneral() {
   const {
     reset,
     handleSubmit,
-    formState: { isSubmitting },
+    watch,
+    formState: { isSubmitting, dirtyFields },
   } = methods;
+  const photoValue = watch('photoURL');
+  const isProfileChanged = Boolean(dirtyFields.displayName || photoValue instanceof File);
 
   useEffect(() => {
-    if (user) {
+    if (profile || user) {
       reset(defaultValues);
     }
-  }, [user, defaultValues, reset]);
+  }, [profile, user, defaultValues, reset]);
 
   const onSubmit = handleSubmit(async (data) => {
+    if (!basicInfo) {
+      toast.error('Profile data is unavailable. Please try again.');
+      return;
+    }
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      let profileIcon = basicInfo.profileIcon || '';
 
-      const updatedUser = {
-        ...user,
+      if (data.photoURL instanceof File) {
+        if (!data.photoURL.type?.toLowerCase().startsWith('image/') || data.photoURL.size > 3145728) {
+          toast.error('Choose an image no larger than 3 MB.');
+          return;
+        }
+
+        const uploadResult = await uploadImage(data.photoURL).unwrap();
+        if (!uploadResult?.key) {
+          throw new Error('The profile photo upload did not return an object key.');
+        }
+        profileIcon = uploadResult.key;
+      }
+
+      const updatedProfile = await updateUserProfile({
         name: data.displayName,
-        displayName: data.displayName,
-        email: data.email,
-        photoURL: data.photoURL,
-        phoneNumber: data.phoneNumber,
-        country: data.country,
-        basicInfo: {
-          ...(user?.basicInfo || {}),
-          name: data.displayName,
-          email: data.email,
-          phoneNumber: data.phoneNumber,
-        },
-      };
+        profileIcon,
+      }).unwrap();
 
-      dispatch(setUser(updatedUser));
-      try {
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-      } catch (_) {}
-
-      toast.success('Account updated successfully!');
+      reset({
+        ...defaultValues,
+        displayName: updatedProfile?.basicInfo?.name || data.displayName,
+        photoURL: updatedProfile?.basicInfo?.profileIcon || profileIcon,
+      });
+      toast.success('Profile updated successfully.');
     } catch (error) {
       console.error(error);
-      toast.error(error?.message || 'Failed to update account.');
+      toast.error(error?.data?.message || error?.message || error?.error || 'Failed to update profile.');
     }
   });
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
+      {isProfileError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {profileError?.data?.message || profileError?.message || 'Unable to load profile data.'}
+        </Alert>
+      )}
+
       <Grid container spacing={3}>
         <Grid xs={12} md={4}>
           <Card
@@ -112,6 +135,8 @@ export function AccountGeneral() {
             <Field.UploadAvatar
               name="photoURL"
               maxSize={3145728}
+              accept={{ 'image/*': [] }}
+              disabled={isProfileLoading || isProfileError || isUploadingPhoto || isUpdatingProfile}
               helperText={
                 <Typography
                   variant="caption"
@@ -123,7 +148,7 @@ export function AccountGeneral() {
                     color: 'text.disabled',
                   }}
                 >
-                  Allowed *.jpeg, *.jpg, *.png, *.gif
+                  Image files only
                   <br /> max size of {fData(3145728)}
                 </Typography>
               }
@@ -142,14 +167,18 @@ export function AccountGeneral() {
                 sm: 'repeat(2, 1fr)',
               }}
             >
-              <Field.Text name="displayName" label="Name" />
-              <Field.Text name="email" label="Email address" />
-              <Field.Phone name="phoneNumber" label="Phone number" />
-              <Field.CountrySelect name="country" label="Country" placeholder="Choose a country" />
+              <Field.Text name="displayName" label="Name" disabled={isProfileLoading || isProfileError} />
+              <Field.Text name="email" label="Email address" disabled />
+              <Field.Phone name="phoneNumber" label="Phone number" disabled />
             </Box>
 
             <Stack spacing={3} alignItems="flex-end" sx={{ mt: 3 }}>
-              <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+              <LoadingButton
+                type="submit"
+                variant="contained"
+                loading={isSubmitting || isUploadingPhoto || isUpdatingProfile}
+                disabled={!basicInfo || isProfileLoading || isProfileError || !isProfileChanged}
+              >
                 Save changes
               </LoadingButton>
             </Stack>

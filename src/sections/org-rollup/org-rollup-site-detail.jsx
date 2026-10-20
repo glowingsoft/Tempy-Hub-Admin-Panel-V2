@@ -25,6 +25,7 @@ import { mockBranches } from 'src/sections/branch/mocks/data';
 import { PEEP_RECORDS } from 'src/sections/peep-records/mocks/data';
 import { mockFloors, getFloorStatusMeta } from 'src/sections/floor-plans/mocks/data';
 import { AnalyticsCurrentVisits } from 'src/sections/overview/analytics/analytics-current-visits';
+import { getAssignedBranch } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -42,8 +43,12 @@ export function OrgRollupSiteDetail({
   const base = ownerDashboard ? paths.owner : paths.siteManager;
 
   const { user } = useSelector((state) => state.user);
-  const { organizationId: currentOrgId } = useCurrentOrganization();
+  const { organizationId: currentOrgId, user: currentUser } = useCurrentOrganization();
   const organizationId = currentOrgId || getOwnerOrganizationId(user);
+  const assignedBranch = getAssignedBranch(currentUser || user);
+  const assignedBranchId = assignedBranch?.id;
+  const siteManagerSiteAllowed =
+    ownerDashboard || Boolean(assignedBranchId && currentSiteId === assignedBranchId);
 
   // Fetch site-scoped PEEP & floor summary
   const { data: summaryData, isLoading } = useGetPeepFloorSummaryQuery(
@@ -51,7 +56,7 @@ export function OrgRollupSiteDetail({
       organizationId,
       branchId: currentSiteId,
     },
-    { skip: !organizationId || !currentSiteId }
+    { skip: !organizationId || !currentSiteId || !siteManagerSiteAllowed }
   );
 
   const site = useMemo(() => {
@@ -61,8 +66,9 @@ export function OrgRollupSiteDetail({
       (s) => (s.branch?._id || s.site?._id || s._id) === currentSiteId
     );
     if (foundInSites) return foundInSites.branch || foundInSites.site || foundInSites;
+    if (!ownerDashboard) return assignedBranchId === currentSiteId ? assignedBranch : null;
     return mockBranches.find((branch) => branch._id === currentSiteId);
-  }, [siteProp, summaryData, currentSiteId]);
+  }, [siteProp, summaryData, currentSiteId, ownerDashboard, assignedBranchId, assignedBranch]);
 
   const levels = useMemo(() => {
     if (levelsProp) return levelsProp;
@@ -84,6 +90,7 @@ export function OrgRollupSiteDetail({
       return { low, medium, high, total };
     }
     if (!currentSiteId) return EMPTY_LEVELS;
+    if (!ownerDashboard) return EMPTY_LEVELS;
 
     const counts = { low: 0, medium: 0, high: 0, total: 0 };
     PEEP_RECORDS.filter((r) => r.branchId === currentSiteId).forEach((record) => {
@@ -93,7 +100,7 @@ export function OrgRollupSiteDetail({
       counts.total += 1;
     });
     return counts;
-  }, [levelsProp, summaryData, currentSiteId]);
+  }, [levelsProp, summaryData, currentSiteId, ownerDashboard]);
 
   const floorPlansList = useMemo(() => {
     if (floorsSummaryProp?.floors) return floorsSummaryProp.floors;
@@ -107,9 +114,35 @@ export function OrgRollupSiteDetail({
       return foundInSites.floorsSummary.floors;
     }
     if (!currentSiteId) return [];
+    if (!ownerDashboard) return [];
 
     return mockFloors.filter((f) => f.branchId === currentSiteId);
-  }, [floorsSummaryProp, summaryData, currentSiteId]);
+  }, [floorsSummaryProp, summaryData, currentSiteId, ownerDashboard]);
+
+  if (!siteManagerSiteAllowed) {
+    return (
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Site Not Available"
+          links={[
+            { name: 'Dashboard', href: base.root },
+            { name: 'PEEP & Floor Plans', href: base.peepAndFloorPlans.root },
+            { name: 'Site' },
+          ]}
+          sx={{ mb: 3 }}
+        />
+        <Card sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>Site not available</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+            This site is not assigned to your account.
+          </Typography>
+          <Button component={RouterLink} href={base.peepAndFloorPlans.root} variant="contained">
+            Back to PEEP &amp; Floor Plans
+          </Button>
+        </Card>
+      </DashboardContent>
+    );
+  }
 
   if (isLoading) {
     return (

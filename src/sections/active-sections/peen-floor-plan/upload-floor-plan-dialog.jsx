@@ -13,7 +13,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { Field, Form } from 'src/components/hook-form';
-import { convertPdfToImage } from 'src/utils/pdf-to-image';
+import { isAllowedFloorPlanImage } from 'src/sections/floor-plans/utils';
 
 // ----------------------------------------------------------------------
 
@@ -23,25 +23,11 @@ const UploadFloorPlanSchema = zod.object({
   floorPlan: zod
     .any()
     .refine((file) => file instanceof File, {
-      message: 'Please select a floor plan file (PDF, PNG, or JPG).',
+      message: 'Please select a floor plan image.',
     })
-    .refine(
-      (file) => {
-        if (!file) return false;
-        const name = file.name?.toLowerCase() || '';
-        return (
-          file.type === 'application/pdf' ||
-          file.type?.startsWith('image/') ||
-          name.endsWith('.pdf') ||
-          name.endsWith('.png') ||
-          name.endsWith('.jpg') ||
-          name.endsWith('.jpeg')
-        );
-      },
-      {
-        message: 'Only PDF or image files (PNG, JPG) are allowed.',
-      }
-    )
+    .refine(isAllowedFloorPlanImage, {
+      message: 'Only JPG, PNG, or WebP image files are allowed.',
+    })
     .refine((file) => file?.size <= MAX_FILE_SIZE, {
       message: 'The floor plan must be smaller than 10 MB.',
     }),
@@ -54,7 +40,7 @@ export function UploadFloorPlanDialog({
   onClose,
   onUpload,
   title = 'Upload Floor Plan',
-  description = 'Upload a PDF or image floor plan for this site. PDFs are automatically converted into a clean image so you can place room pins directly without PDF viewer headers or zoom controls.',
+  description = 'Upload an image floor plan for this site.',
 }) {
   const methods = useForm({
     resolver: zodResolver(UploadFloorPlanSchema),
@@ -78,16 +64,8 @@ export function UploadFloorPlanDialog({
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      const file = data.floorPlan;
-      let convertedResult = null;
-      try {
-        convertedResult = await convertPdfToImage(file);
-      } catch (err) {
-        console.warn('PDF to image conversion fallback:', err);
-      }
-
       if (onUpload) {
-        await onUpload(file, convertedResult);
+        await onUpload(data.floorPlan);
       }
 
       reset();
@@ -111,11 +89,12 @@ export function UploadFloorPlanDialog({
             <Field.Upload
               name="floorPlan"
               accept={{
-                'application/pdf': ['.pdf'],
-                'image/*': ['.png', '.jpg', '.jpeg'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+                'image/png': ['.png'],
+                'image/webp': ['.webp'],
               }}
               maxSize={MAX_FILE_SIZE}
-              helperText="PDF or image (PNG, JPG) • Automatically converted to clean map image (Max 10 MB)"
+              helperText="JPG, PNG, or WebP image (Max 10 MB)"
               sx={{
                 minHeight: 180,
                 borderRadius: 2,

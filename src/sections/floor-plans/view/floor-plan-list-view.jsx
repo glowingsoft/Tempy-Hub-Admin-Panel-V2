@@ -32,10 +32,13 @@ import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { ALL_BRANCHES_VALUE } from 'src/sections/branch/owner-branch-select';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
-import { useGetFloorPlansQuery } from 'src/store/Reducer/floor-plans-api';
+import {
+    useGetFloorPlansQuery,
+    useUpdateFloorPlanMutation,
+} from 'src/store/Reducer/floor-plans-api';
+import { useUploadFileMutation } from 'src/store/Reducer/upload-api';
 import { UploadFloorPlanDialog } from 'src/sections/active-sections/peen-floor-plan/upload-floor-plan-dialog';
 import { setFloorPlanFile } from 'src/sections/active-sections/peen-floor-plan/mocks/data';
-import { convertPdfToImage } from 'src/utils/pdf-to-image';
 
 import {
     FLOOR_STATUS_OPTIONS,
@@ -98,6 +101,8 @@ export function FloorPlanListView({ ownerDashboard = true }) {
 
     const createOpen = useBoolean();
     const [uploadTarget, setUploadTarget] = useState(null);
+    const [uploadFile] = useUploadFileMutation();
+    const [updateFloorPlan] = useUpdateFloorPlanMutation();
 
     // Query branches for organization
     const { data: branchesData } = useGetBranchesQuery(
@@ -170,7 +175,7 @@ export function FloorPlanListView({ ownerDashboard = true }) {
             name: f.name || f.floorName || (f.floorNumber !== undefined ? `Floor ${f.floorNumber}` : 'Floor Plan'),
             branchId: typeof f.branch === 'object' ? f.branch?._id : (f.branchId || f.branch),
             branch: typeof f.branch === 'object' ? f.branch?.name : (f.branchName || f.branch || '—'),
-            status: f.status || (f.fileUrl || f.imageUrl ? 'uploaded' : 'pending'),
+            status: f.status || (f.fileUrl || f.imageUrl || f.pdfUrl ? 'uploaded' : 'pending'),
             version: f.version ?? 1,
             pinsCount: f.pinsCount ?? f.pins?.length ?? 0,
             uploadedAt: f.uploadedAt || f.createdAt || null,
@@ -241,24 +246,54 @@ export function FloorPlanListView({ ownerDashboard = true }) {
     );
 
     const handleUploadSubmit = useCallback(
-        async (file, imageResult) => {
+        async (file) => {
             if (!uploadTarget) return;
 
-            let converted = imageResult;
-            if (!converted && file) {
+            const floorPlanId = uploadTarget._id || uploadTarget.id;
+            const isApiFloorPlan = apiData?.data?.some(
+                (floorPlan) => String(floorPlan._id || floorPlan.id) === String(floorPlanId)
+            );
+
+            if (isApiFloorPlan) {
                 try {
-                    converted = await convertPdfToImage(file);
-                } catch (err) {
-                    console.warn('PDF conversion error in floor plan list view:', err);
+                    if (!organizationId || !floorPlanId) {
+                        throw new Error('Organization or floor plan context is unavailable.');
+                    }
+
+                    const uploadResult = await uploadFile(file).unwrap();
+                    const fileKey = uploadResult?.key;
+                    if (!fileKey) {
+                        throw new Error('The file upload did not return an S3 object key.');
+                    }
+
+                    await updateFloorPlan({
+                        floorPlanId,
+                        organizationId,
+                        name: uploadTarget.name,
+                        imageUrl: fileKey,
+                        pdfUrl: '',
+                    }).unwrap();
+
+                    toast.success('Floor plan updated successfully!');
+                    setUploadTarget(null);
+                    return;
+                } catch (error) {
+                    toast.error(
+                        error?.data?.message ||
+                            error?.message ||
+                            'Unable to update the floor plan.'
+                    );
+                    throw error;
                 }
             }
 
-            uploadMockFloorPlan(uploadTarget.id, file, converted);
-            setFloorPlanFile(file, converted);
+            const imagePreview = { imageUrl: URL.createObjectURL(file) };
+            uploadMockFloorPlan(uploadTarget.id, file, imagePreview);
+            setFloorPlanFile(file, imagePreview);
             refresh();
             toast.success('Floor plan uploaded successfully!');
         },
-        [refresh, uploadTarget]
+        [apiData, organizationId, refresh, updateFloorPlan, uploadFile, uploadTarget]
     );
 
     return (
@@ -376,6 +411,7 @@ export function FloorPlanListView({ ownerDashboard = true }) {
                 open={createOpen.value}
                 onClose={createOpen.onFalse}
                 siteOptions={branchList.map((branch) => ({ value: branch._id, label: branch.name }))}
+                defaultBranchId={siteId || ''}
                 onSuccess={handleCreateSuccess}
             />
 
