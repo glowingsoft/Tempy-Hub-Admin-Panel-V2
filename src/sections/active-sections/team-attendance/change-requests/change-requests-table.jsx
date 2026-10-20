@@ -1,24 +1,17 @@
-import dayjs from 'dayjs';
 import { useMemo, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
-import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
 
-import { fDate, fDateTime } from 'src/utils/format-time';
-import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
+import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 import {
   useTable,
   TableNoData,
-  TableSkeleton,
+  TableBodySkeleton,
   TableHeadCustom,
   TablePaginationCustom,
 } from 'src/components/table';
@@ -31,7 +24,7 @@ import {
   useGetAttendanceChangeRequestsQuery,
   extractRecordsArray,
 } from 'src/store/Reducer/attendance-api';
-import { mockAttendanceChangeRequestsResponse } from './mocks/data';
+import { ChangeRequestsRow } from './change-requests-row';
 
 // ----------------------------------------------------------------------
 
@@ -63,43 +56,41 @@ const FILTER_FIELDS = [
   }),
 ];
 
-const formatTime = (value) => (value ? dayjs(value).format('hh:mm A') : '—');
-
 // ----------------------------------------------------------------------
 
 export function AttendanceChangeRequestsTable({ organizationId }) {
-  const table = useTable();
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
   const filters = useSetState({
     search: '',
     status: 'all',
   });
+  const trimmedKeyword = useDebounce(filters.state.search, 400).trim();
 
   const {
     data: apiResponse,
     isLoading,
     isFetching,
-    isError,
   } = useGetAttendanceChangeRequestsQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      status: filters.state.status,
+      ...(filters.state.status && filters.state.status !== 'all'
+        ? { status: filters.state.status }
+        : {}),
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
     },
     { skip: !organizationId }
   );
 
   const rawData = useMemo(() => {
     const list = extractRecordsArray(apiResponse?.data ?? apiResponse);
-    if (Array.isArray(list) && list.length) return list;
-    if (!organizationId || (!apiResponse && !isError)) {
-      return Array.isArray(mockAttendanceChangeRequestsResponse?.data)
-        ? mockAttendanceChangeRequestsResponse.data
-        : [];
-    }
     return Array.isArray(list) ? list : [];
-  }, [apiResponse, isError, organizationId]);
+  }, [apiResponse]);
 
   const totalRecords =
     apiResponse?.meta?.totalRecords ?? (Array.isArray(rawData) ? rawData.length : 0);
@@ -120,28 +111,20 @@ export function AttendanceChangeRequestsTable({ organizationId }) {
     [filters, table]
   );
 
-  const filteredRecords = useMemo(() => {
-    if (!Array.isArray(rawData)) return [];
-    const search = filters.state.search?.trim().toLowerCase() || '';
-    return rawData.filter((row) => {
-      const matchesStatus =
-        filters.state.status === 'all' || row?.status?.toLowerCase() === filters.state.status;
-      const matchesSearch =
-        !search ||
-        row?.staff?.name?.toLowerCase().includes(search) ||
-        row?.staff?.email?.toLowerCase().includes(search) ||
-        row?.reason?.toLowerCase().includes(search);
-      return matchesStatus && matchesSearch;
-    });
-  }, [rawData, filters.state.search, filters.state.status]);
+  const statusCounts = apiResponse?.meta?.counts ?? {};
 
   const getStatusCount = useCallback(
     (status) => {
-      if (!Array.isArray(rawData)) return 0;
-      if (status === 'all') return rawData.length;
-      return rawData.filter((row) => row?.status?.toLowerCase() === status).length;
+      if (status === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+      return statusCounts[status] ?? 0;
     },
-    [rawData]
+    [statusCounts, totalRecords]
   );
 
   const statusFilterField = useMemo(() => FILTER_FIELDS.find((f) => f.type === 'status'), []);
@@ -181,7 +164,7 @@ export function AttendanceChangeRequestsTable({ organizationId }) {
     [filters, table]
   );
 
-  const notFound = !isLoading && !isFetching && !filteredRecords.length;
+  const notFound = !isLoading && !isFetching && !rawData.length;
 
   return (
     <Card>
@@ -202,7 +185,7 @@ export function AttendanceChangeRequestsTable({ organizationId }) {
       {!!activeFilters.length && (
         <FlexibleTableFiltersResult
           activeFilters={activeFilters}
-          totalResults={filteredRecords.length}
+          totalResults={rawData.length}
           onResetFilters={handleResetFilters}
           onRemoveFilter={handleRemoveFilter}
           sx={{ p: 2.5, pt: 0 }}
@@ -216,78 +199,18 @@ export function AttendanceChangeRequestsTable({ organizationId }) {
 
             <TableBody>
               {isLoading || isFetching ? (
-                [...Array(table.rowsPerPage || 5)].map((_, i) => (
-                  <TableSkeleton key={i} />
-                ))
+                <TableBodySkeleton
+                  rowCount={table.rowsPerPage}
+                  cellCount={TABLE_HEAD.length}
+                />
               ) : (
-                filteredRecords
-                  .slice(
-                    table.page * table.rowsPerPage,
-                    table.page * table.rowsPerPage + table.rowsPerPage
-                  )
-                  .map((row, index) => (
-                    <TableRow key={row._id || index} hover>
-                      <TableCell>{table.page * table.rowsPerPage + index + 1}</TableCell>
-
-                      <TableCell>
-                        <Stack direction="row" spacing={1.5} alignItems="center">
-                          <Avatar sx={{ width: 36, height: 36 }}>
-                            {row.staff?.name?.charAt(0) || 'U'}
-                          </Avatar>
-                          <Stack>
-                            <Typography variant="body2" fontWeight={600} noWrap>
-                              {row.staff?.name || 'Unknown'}
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
-                              {row.staff?.email || '—'}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2">{fDate(row.workDate)}</Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2">
-                          {formatTime(row.originalClockIn)} – {formatTime(row.originalClockOut)}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                          {formatTime(row.requestedClockIn)} – {formatTime(row.requestedClockOut)}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell>
-                        <Typography variant="body2" sx={{ maxWidth: 260 }} noWrap>
-                          {row.reason || '—'}
-                        </Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Label
-                          variant="soft"
-                          color={
-                            (row.status === 'approved' && 'success') ||
-                            (row.status === 'rejected' && 'error') ||
-                            'warning'
-                          }
-                          sx={{ textTransform: 'capitalize' }}
-                        >
-                          {row.status || 'Pending'}
-                        </Label>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {row.createdAt ? fDateTime(row.createdAt) : '—'}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                rawData.map((row, index) => (
+                  <ChangeRequestsRow
+                    key={row._id || index}
+                    row={row}
+                    serialNumber={table.page * table.rowsPerPage + index + 1}
+                  />
+                ))
               )}
 
               <TableNoData notFound={notFound} />

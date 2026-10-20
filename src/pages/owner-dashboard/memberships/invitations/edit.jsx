@@ -1,6 +1,4 @@
-import { useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -13,9 +11,8 @@ import { LoadingScreen } from 'src/components/loading-screen';
 import { EmptyContent } from 'src/components/empty-content';
 
 import { MembershipEditView } from 'src/sections/membership/view';
-import { getMockInvitationById } from 'src/sections/membership/mocks/data';
 import { useGetInvitationQuery } from 'src/store/Reducer/invitations-api';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 // ----------------------------------------------------------------------
 
@@ -23,11 +20,10 @@ const metadata = { title: `Edit invitation | Owner Dashboard - ${CONFIG.site.nam
 
 export default function Page() {
   const { id = '' } = useParams();
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId } = useCurrentOrganization();
 
   const {
-    data: apiInvitation,
+    data: currentMembership,
     isLoading,
     isError,
     error,
@@ -35,9 +31,6 @@ export default function Page() {
     { invitationId: id, organizationId },
     { skip: !id || !organizationId }
   );
-
-  const mockInvitation = useMemo(() => getMockInvitationById(id), [id]);
-  const currentMembership = apiInvitation || mockInvitation;
 
   if (isLoading) {
     return <LoadingScreen sx={{ py: 10 }} />;

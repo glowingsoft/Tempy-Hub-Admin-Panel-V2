@@ -20,8 +20,9 @@ export function ShiftClaimActionDialog({ open, onClose, onConfirm, loading, clai
       content={
         claim ? (
           <>
-            Approve <strong>{getShiftClaimStaffName(claim)}</strong> for the{' '}
-            <strong>{claim.branch?.name || '—'}</strong> shift on {fDateTime(claim.startsAt)}?
+            Approve <strong style={{ textTransform: 'capitalize' }}>{getShiftClaimStaffName(claim)}</strong> for the{' '}
+            <strong style={{ textTransform: 'capitalize' }}>{claim.branch?.name || '—'}</strong> shift on{' '}
+            {fDateTime(claim.shift?.startsAt || claim.startsAt)}?
           </>
         ) : null
       }

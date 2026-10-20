@@ -13,32 +13,19 @@ import { fDate, fDateTime } from 'src/utils/format-time';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
-import { LoadingScreen } from 'src/components/loading-screen';
 import { AttendanceStatusChip } from 'src/sections/user/attendance-status-chip';
-import { useGetAttendanceByIdQuery } from 'src/store/Reducer/attendance-api';
 
 // ----------------------------------------------------------------------
 
 const formatTime = (value) => (value ? dayjs(value).format('hh:mm A') : '—');
 
-export function AttendanceDetailDrawer({ open, onClose, attendanceDayId, fallbackRecord }) {
-  const {
-    data: apiRecord,
-    isLoading,
-    isFetching,
-  } = useGetAttendanceByIdQuery(attendanceDayId, {
-    skip: !attendanceDayId || !open,
-  });
-
-  const record = apiRecord || fallbackRecord;
-
+export function AttendanceDetailDrawer({ open, onClose, record }) {
   if (!open) return null;
 
   const staff = record?.staff;
   const branch = record?.branch;
   const breaks = Array.isArray(record?.breaks) ? record.breaks : [];
-  const workedMinutes = record?.workedMinutes || 0;
-  const workedHours = `${Math.floor(workedMinutes / 60)}h ${workedMinutes % 60}m`;
+  const workedHours = record?.totalHours || '—';
 
   const punctualityStatus =
     record?.punctualityStatus === 'onTime' ? 'On time' : record?.punctualityStatus || 'Unknown';
@@ -74,11 +61,7 @@ export function AttendanceDetailDrawer({ open, onClose, attendanceDayId, fallbac
       <Divider />
 
       <Scrollbar sx={{ flexGrow: 1 }}>
-        {isLoading && !record ? (
-          <Box sx={{ py: 10 }}>
-            <LoadingScreen />
-          </Box>
-        ) : !record ? (
+        {!record ? (
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
               No record found.
@@ -93,7 +76,7 @@ export function AttendanceDetailDrawer({ open, onClose, attendanceDayId, fallbac
                   {staff?.name?.charAt(0) || 'U'}
                 </Avatar>
                 <Stack spacing={0.5} sx={{ minWidth: 0, flexGrow: 1 }}>
-                  <Typography variant="subtitle1" noWrap>
+                  <Typography variant="subtitle1" noWrap sx={{ textTransform: 'capitalize' }}>
                     {staff?.name || 'Unknown Staff'}
                   </Typography>
                   <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
@@ -125,7 +108,14 @@ export function AttendanceDetailDrawer({ open, onClose, attendanceDayId, fallbac
                 Shift & Site
               </Typography>
               <InfoRow label="Work Date" value={fDate(record?.workDate)} />
-              <InfoRow label="Site / Branch" value={branch?.name || record?.branchId || '—'} />
+              <InfoRow
+                label="Site / Branch"
+                value={
+                  <Typography variant="body2" sx={{ fontWeight: 500, textTransform: 'capitalize' }}>
+                    {branch?.name || record?.branchId || '—'}
+                  </Typography>
+                }
+              />
               <InfoRow
                 label="Check-in Method"
                 value={
@@ -260,10 +250,6 @@ export function AttendanceDetailDrawer({ open, onClose, attendanceDayId, fallbac
               <Typography variant="overline" sx={{ color: 'text.secondary' }}>
                 Audit Details
               </Typography>
-              {record?._id && <InfoRow label="Day Record ID" value={record._id} />}
-              {record?.clientEventId && (
-                <InfoRow label="Client Event ID" value={record.clientEventId} />
-              )}
               {record?.createdAt && (
                 <InfoRow label="Created At" value={fDateTime(record.createdAt)} />
               )}

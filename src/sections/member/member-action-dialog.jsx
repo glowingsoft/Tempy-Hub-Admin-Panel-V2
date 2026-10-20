@@ -16,7 +16,8 @@ export function MemberActionDialog({ open, onClose, onConfirm, loading, name }) 
       title="Deactivate membership"
       content={
         <>
-          Deactivate the membership for <strong>{name}</strong>? They will lose access to the
+          Deactivate the membership for{' '}
+          <strong style={{ textTransform: 'capitalize' }}>{name}</strong>? They will lose access to the
           organization until the membership is reactivated. This does not delete the member.
         </>
       }

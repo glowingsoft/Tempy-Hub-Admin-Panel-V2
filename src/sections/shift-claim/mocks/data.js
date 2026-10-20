@@ -16,9 +16,10 @@ import { mockOrganizations } from 'src/sections/organization/mocks/data';
 // "open" and "scheduled" — modelled here as: open = awaiting approval,
 // scheduled = approved/confirmed, rejected = declined.
 export const SHIFT_CLAIM_STATUS_OPTIONS = [
-  { value: 'open', label: 'Open', color: 'warning' },
-  { value: 'scheduled', label: 'Scheduled', color: 'success' },
+  { value: 'pending', label: 'Pending', color: 'warning' },
+  { value: 'approved', label: 'Approved', color: 'success' },
   { value: 'rejected', label: 'Rejected', color: 'error' },
+  { value: 'withdrawn', label: 'Withdrawn', color: 'default' },
 ];
 
 export const getShiftClaimStatusMeta = (value) =>

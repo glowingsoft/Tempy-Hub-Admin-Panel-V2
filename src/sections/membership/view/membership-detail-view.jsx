@@ -1,7 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
@@ -9,6 +7,8 @@ import Divider from '@mui/material/Divider';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+
+import { useCallback } from 'react';
 
 import { useParams, useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
@@ -20,23 +20,47 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { DashboardContent } from 'src/layouts/dashboard';
+
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import {
-  useOrganizationLookups,
-  resolveBranchName,
-  resolveJobTitleName,
-  resolveDepartmentNames,
-} from 'src/hooks/use-organization-lookups';
 import { useGetInvitationQuery } from 'src/store/Reducer/invitations-api';
 
 import {
   getMembershipStatusMeta,
-  getMockInvitationById,
   getPermissionLabels,
   getRoleLabel,
 } from '../mocks/data';
+import { MembershipDetailSkeleton } from '../membership-detail-skeleton';
 import { useInvitationActions } from '../use-invitation-actions';
 import { InvitationActionDialog } from '../invitation-action-dialog';
+import {
+  resolveBranchName,
+  resolveJobTitleName,
+  resolveDepartmentNames,
+} from '../use-invitation-lookups';
+
+// ----------------------------------------------------------------------
+
+function getInitials(name) {
+  return String(name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
+function displayName(value) {
+  if (!value) return '—';
+  if (typeof value === 'object') return value.name || '—';
+  return value;
+}
+
+function displayEmail(value) {
+  if (!value) return '';
+  if (typeof value === 'object') return value.email ? String(value.email).toLowerCase() : '';
+  return '';
+}
 
 // ----------------------------------------------------------------------
 
@@ -45,15 +69,11 @@ export function MembershipDetailView() {
   const router = useRouter();
   const { organizationId } = useCurrentOrganization();
 
-  const [reloadKey, setReloadKey] = useState(0);
-
   const handleChanged = useCallback(
     (invitation) => {
       if (invitation === null) {
         router.push(paths.owner.memberships.invitations.root);
-        return;
       }
-      setReloadKey((key) => key + 1);
     },
     [router]
   );
@@ -63,82 +83,45 @@ export function MembershipDetailView() {
     onChanged: handleChanged,
   });
 
-  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
-
-  const {
-    data: apiInvitation,
-    isLoading: isQueryLoading,
-    isError,
-    error,
-  } = useGetInvitationQuery(
+  const { data: invitation, isLoading } = useGetInvitationQuery(
     { invitationId: id, organizationId },
     { skip: !id || !organizationId }
   );
-  const mockInvitation = useMemo(() => getMockInvitationById(id), [id, reloadKey]);
-  const invitation = apiInvitation || mockInvitation;
 
-  if (isQueryLoading) {
-    return null;
-  }
-
-  if (isError) {
-    return (
-      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
-        <Button
-          onClick={() => router.push(paths.owner.memberships.invitations.root)}
-          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-          sx={{ mb: 2 }}
-        >
-          Back
-        </Button>
-        <Alert severity="error">
-          {error?.data?.message || 'Unable to load invitation details.'}
-        </Alert>
-      </Box>
-    );
+  if (isLoading) {
+    return <MembershipDetailSkeleton />;
   }
 
   if (!invitation) {
     return (
-      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
-        <Button
-          onClick={() => router.push(paths.owner.memberships.invitations.root)}
-          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-          sx={{ mb: 2 }}
-        >
-          Back
-        </Button>
+      <DashboardContent>
         <EmptyContent filled title="Invitation not found" sx={{ py: 10 }} />
-      </Box>
+      </DashboardContent>
     );
   }
 
+  const name = invitation.name || '—';
   const status = getMembershipStatusMeta(invitation.status);
   const permissionLabels = getPermissionLabels(invitation.permissions);
-  const branchName = resolveBranchName(invitation, branchesMap);
-  const jobTitleName = resolveJobTitleName(invitation, jobTitlesMap);
-  const departmentNames = resolveDepartmentNames(invitation, departmentsMap);
+  const branchName = resolveBranchName(invitation);
+  const jobTitleName = resolveJobTitleName(invitation);
+  const departmentNames = resolveDepartmentNames(invitation);
+  const roleLabel = getRoleLabel(invitation.role);
 
   const isPending = invitation.status === 'pending';
   const isRevoked = invitation.status === 'revoked';
 
   return (
-    <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ mb: 2 }}>
-        <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-          Back
-        </Button>
-      </Box>
-
+    <DashboardContent>
       <CustomBreadcrumbs
-        heading={invitation.name}
+        heading={name}
         links={[
           { name: 'Dashboard', href: paths.owner.root },
           { name: 'Invitations', href: paths.owner.memberships.invitations.root },
-          { name: invitation.name },
+          { name },
         ]}
         action={
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             {isPending && (
               <Button
                 color="inherit"
@@ -161,7 +144,19 @@ export function MembershipDetailView() {
               </Button>
             )}
 
-            {isRevoked ? (
+            {isPending && (
+              <Button
+                component={RouterLink}
+                href={paths.owner.memberships.invitations.edit(invitation._id)}
+                variant="contained"
+                color="primary"
+                startIcon={<Iconify icon="solar:pen-bold" />}
+              >
+                Edit
+              </Button>
+            )}
+
+            {isRevoked && (
               <Button
                 color="error"
                 variant="contained"
@@ -170,62 +165,129 @@ export function MembershipDetailView() {
               >
                 Delete
               </Button>
-            ) : (
-              <Button
-                component={RouterLink}
-                href={paths.owner.memberships.invitations.edit(invitation._id)}
-                variant="contained"
-                startIcon={<Iconify icon="solar:pen-bold" />}
-              >
-                Edit
-              </Button>
             )}
           </Stack>
         }
-        sx={{ mb: { xs: 3, md: 5 } }}
+        sx={{ mb: 3 }}
       />
 
-      <Stack spacing={3}>
-        <DetailCard title="Member details">
-          <DetailItem label="Name" value={invitation.name} />
-          <DetailItem label="Email" value={invitation.email} />
-          <DetailItem label="Role" value={getRoleLabel(invitation.role)} />
-          <DetailItem
-            label="Status"
-            value={
-              <Label variant="soft" color={status.color}>
+      <Card sx={{ p: { xs: 2.5, md: 3 }, mb: 2.5 }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2.5}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+        >
+          <Avatar
+            alt={name}
+            sx={{ width: 72, height: 72, typography: 'h4', bgcolor: 'primary.main', color: 'white' }}
+          >
+            {getInitials(name)}
+          </Avatar>
+
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="h5" sx={{ textTransform: 'capitalize' }}>
+              {name}
+            </Typography>
+
+            {invitation.email && (
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
+                {invitation.email}
+              </Typography>
+            )}
+
+            <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} sx={{ mt: 1.25 }}>
+              <Label variant="soft" color={status.color} sx={{ textTransform: 'capitalize' }}>
                 {status.label}
               </Label>
-            }
-          />
-          <DetailItem label="Site" value={branchName} />
-          <DetailItem label="Job title" value={jobTitleName} />
-          <DetailItem label="Departments" value={departmentNames} />
-          <DetailItem label="Start date" value={fDate(invitation.startDate)} />
-        </DetailCard>
+              <Label variant="soft" color="default" sx={{ textTransform: 'capitalize' }}>
+                {roleLabel}
+              </Label>
+              {invitation.employeeCode && (
+                <Label variant="soft" color="info">
+                  {invitation.employeeCode}
+                </Label>
+              )}
+            </Stack>
+          </Box>
+        </Stack>
+      </Card>
 
-        <Card sx={{ p: 3 }}>
-          <Typography variant="h6">Permissions</Typography>
-          <Divider sx={{ my: 2 }} />
-          {permissionLabels.length ? (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {permissionLabels.map((label) => (
-                <Chip key={label} label={label} size="small" variant="soft" />
-              ))}
-            </Box>
-          ) : (
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              No permissions assigned.
-            </Typography>
-          )}
-        </Card>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          mb: 2.5,
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+        }}
+      >
+        <SummaryTile icon="solar:calendar-date-bold" label="Start date" value={fDate(invitation.startDate)} capitalize={false} />
+        <SummaryTile icon="solar:clock-circle-bold" label="Send count" value={invitation.sendCount ?? 0} capitalize={false} />
+        <SummaryTile icon="solar:calendar-mark-bold" label="Expires" value={fDateTime(invitation.expiresAt)} capitalize={false} />
+      </Box>
 
-        <DetailCard title="Invitation">
-          <DetailItem label="Expires at" value={fDateTime(invitation.expiresAt)} />
+      <Card sx={{ p: { xs: 2.5, md: 3 }, mb: 2.5 }}>
+        <Typography variant="h6">Member details</Typography>
+        <Divider sx={{ my: 2 }} />
+
+        <Box
+          sx={{
+            display: 'grid',
+            rowGap: 2,
+            columnGap: 3,
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+          }}
+        >
+          <DetailItem label="Name" value={name} capitalize />
+          <DetailItem label="Email" value={invitation.email || '—'} />
+          <DetailItem label="Role" value={roleLabel} capitalize />
+          <DetailItem label="Site" value={branchName} capitalize />
+          <DetailItem label="Job title" value={jobTitleName} capitalize />
+          <DetailItem label="Departments" value={departmentNames} capitalize />
+        </Box>
+      </Card>
+
+      <Card sx={{ p: { xs: 2.5, md: 3 }, mb: 2.5 }}>
+        <Typography variant="h6">Permissions</Typography>
+        <Divider sx={{ my: 2 }} />
+        {permissionLabels.length ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {permissionLabels.map((label) => (
+              <Chip key={label} label={label} size="small" variant="soft" color="primary" />
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            No permissions assigned.
+          </Typography>
+        )}
+      </Card>
+
+      <Card sx={{ p: { xs: 2.5, md: 3 } }}>
+        <Typography variant="h6">Invitation</Typography>
+        <Divider sx={{ my: 2 }} />
+
+        <Box
+          sx={{
+            display: 'grid',
+            rowGap: 2,
+            columnGap: 3,
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+            mb: 2.5,
+          }}
+        >
           <DetailItem label="Last sent at" value={fDateTime(invitation.lastSentAt)} />
-          <DetailItem label="Send count" value={invitation.sendCount ?? 0} />
           <DetailItem label="Accepted at" value={fDateTime(invitation.acceptedAt)} />
           <DetailItem label="Revoked at" value={fDateTime(invitation.revokedAt)} />
+          <PersonItem
+            label="Invited by"
+            name={displayName(invitation.invitedByUser || invitation.invitedByUserId)}
+            email={displayEmail(invitation.invitedByUser)}
+          />
+          <PersonItem
+            label="Accepted by"
+            name={invitation.acceptedByUser ? displayName(invitation.acceptedByUser) : '—'}
+            email={displayEmail(invitation.acceptedByUser)}
+          />
           <DetailItem
             label="Accept link"
             value={
@@ -243,46 +305,93 @@ export function MembershipDetailView() {
               )
             }
           />
-          <DetailItem label="Created at" value={fDateTime(invitation.createdAt)} />
-          <DetailItem label="Updated at" value={fDateTime(invitation.updatedAt)} />
-        </DetailCard>
-      </Stack>
+        </Box>
+
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 1, sm: 4 }}
+          sx={{ color: 'text.secondary' }}
+        >
+          <Typography variant="caption">Created {fDateTime(invitation.createdAt)}</Typography>
+          <Typography variant="caption">Updated {fDateTime(invitation.updatedAt)}</Typography>
+        </Stack>
+      </Card>
 
       <InvitationActionDialog {...confirmProps} />
-    </Box>
+    </DashboardContent>
   );
 }
 
 // ----------------------------------------------------------------------
 
-function DetailCard({ title, children }) {
+function SummaryTile({ icon, label, value, capitalize = true }) {
   return (
-    <Card sx={{ p: 3 }}>
-      <Typography variant="h6">{title}</Typography>
-      <Divider sx={{ my: 2 }} />
-      <Box
-        sx={{
-          display: 'grid',
-          rowGap: 2.5,
-          columnGap: 3,
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-        }}
-      >
-        {children}
-      </Box>
+    <Card sx={{ p: 2 }}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'primary.lighter',
+            color: 'primary.dark',
+          }}
+        >
+          <Iconify icon={icon} width={22} />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {label}
+          </Typography>
+          <Typography variant="subtitle2" noWrap sx={capitalize ? { textTransform: 'capitalize' } : undefined}>
+            {value}
+          </Typography>
+        </Box>
+      </Stack>
     </Card>
   );
 }
 
-function DetailItem({ label, value }) {
+function DetailItem({ label, value, capitalize = false }) {
   return (
     <Stack spacing={0.5}>
       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
         {label}
       </Typography>
-      <Typography variant="body2" component="div" sx={{ fontWeight: 600 }}>
+      <Typography
+        variant="body2"
+        component="div"
+        sx={{ fontWeight: 600, ...(capitalize ? { textTransform: 'capitalize' } : {}) }}
+      >
         {value}
       </Typography>
+    </Stack>
+  );
+}
+
+function PersonItem({ label, name, email }) {
+  const isId = typeof name === 'string' && /^[a-f0-9]{24}$/i.test(name);
+
+  return (
+    <Stack spacing={0.5}>
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        {label}
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{ fontWeight: 600, ...(isId ? undefined : { textTransform: 'capitalize' }) }}
+      >
+        {isId ? '—' : name}
+      </Typography>
+      {email ? (
+        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'none' }}>
+          {email}
+        </Typography>
+      ) : null}
     </Stack>
   );
 }

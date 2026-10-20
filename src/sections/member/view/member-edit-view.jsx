@@ -12,13 +12,13 @@ export function MemberEditView({ member: currentMember }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit membership"
+        heading="Edit access"
         links={[
           { name: 'Dashboard', href: paths.owner.root },
           { name: 'Members', href: paths.owner.memberships.members.root },
           { name: currentMember?.name || currentMember?.user?.name || 'Member' },
         ]}
-        sx={{ mb: { xs: 3, md: 5 } }}
+        sx={{ mb: { xs: 3, md: 5 }, textTransform: 'capitalize' }}
       />
 
       <MemberEditForm

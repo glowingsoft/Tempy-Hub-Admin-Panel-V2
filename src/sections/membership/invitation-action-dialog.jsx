@@ -25,11 +25,13 @@ export function InvitationActionDialog({
       content={
         isDelete ? (
           <>
-            Permanently remove the invitation for <strong>{name}</strong>? This cannot be undone.
+            Permanently remove the invitation for{' '}
+            <strong style={{ textTransform: 'capitalize' }}>{name}</strong>? This cannot be undone.
           </>
         ) : (
           <>
-            Revoke the invitation for <strong>{name}</strong>? They will no longer be able to
+            Revoke the invitation for{' '}
+            <strong style={{ textTransform: 'capitalize' }}>{name}</strong>? They will no longer be able to
             accept it.
           </>
         )

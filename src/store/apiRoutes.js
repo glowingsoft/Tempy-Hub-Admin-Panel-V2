@@ -59,6 +59,8 @@ export const API_ROUTES = {
     // Shift claims — kept separate from shifts.
     ORGANIZATION_SHIFT_CLAIMS: (organizationId) =>
         `/admin/organizations/${organizationId}/shift-claims`,
+    ORGANIZATION_SHIFT_CLAIM_BY_ID: (organizationId, claimId) =>
+        `/admin/organizations/${organizationId}/shift-claims/${claimId}`,
     SHIFT_CLAIM_BY_ID: (shiftClaimId) => `/admin/shift-claims/${shiftClaimId}`,
     SHIFT_CLAIM_APPROVE: (shiftClaimId) => `/admin/shift-claims/${shiftClaimId}/approve`,
 
@@ -74,6 +76,8 @@ export const API_ROUTES = {
 
     // Attendance (shared line-manager / owner listing).
     ORGANIZATION_ATTENDANCE: (organizationId) => `/admin/organizations/${organizationId}/attendance`,
+    ORGANIZATION_ATTENDANCE_ROTA: (organizationId) =>
+        `/admin/organizations/${organizationId}/attendance/rota`,
     ATTENDANCE_BY_ID: (attendanceDayId) => `/admin/attendance/${attendanceDayId}`,
     ORGANIZATION_ATTENDANCE_CHANGE_REQUESTS: (organizationId) =>
         `/admin/organizations/${organizationId}/attendance-change-requests`,

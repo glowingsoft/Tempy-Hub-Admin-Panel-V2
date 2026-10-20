@@ -20,20 +20,23 @@ import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
+import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
 
 import {
   useCreateInvitationMutation,
   useUpdateInvitationMutation,
   useGetGrantablePermissionsQuery,
 } from 'src/store/Reducer/invitations-api';
-import {
-  MEMBERSHIP_ROLE_OPTIONS,
-  createMockInvitation,
-  updateMockInvitation,
-} from './mocks/data';
+import { MEMBERSHIP_ROLE_OPTIONS } from './mocks/data';
 
 // ----------------------------------------------------------------------
+
+const lookupOptionSchema = zod.object({
+  value: zod.string().min(1),
+  label: zod.string(),
+});
 
 export const MembershipSchema = zod
   .object({
@@ -43,16 +46,17 @@ export const MembershipSchema = zod
       .min(1, { message: 'Email is required!' })
       .email({ message: 'Enter a valid email address!' }),
     role: zod.string().min(1, { message: 'Role is required!' }),
-    branchId: zod.string().min(1, { message: 'Site is required!' }),
-    jobTitleId: zod.string(),
+    branchId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
+      message: 'Site is required!',
+    }),
+    jobTitleId: lookupOptionSchema.nullable(),
     permissions: zod.array(zod.string()),
-    departmentIds: zod.array(zod.string()),
+    departmentIds: zod.array(lookupOptionSchema),
     startDate: zod.union([zod.string(), zod.null()]),
   })
-  // Job title and start date are hidden (and not required) for Site Managers.
   .superRefine((data, ctx) => {
     if (data.role === 'siteManager') return;
-    if (!data.jobTitleId) {
+    if (!data.jobTitleId?.value) {
       ctx.addIssue({ code: 'custom', path: ['jobTitleId'], message: 'Job title is required!' });
     }
     if (!data.startDate) {
@@ -60,13 +64,33 @@ export const MembershipSchema = zod
     }
   });
 
-// ----------------------------------------------------------------------
-// `[{ value, label }]` -> the `{ ids, getLabel }` pair a token Autocomplete needs.
-// The RHF field value stays a string[] of ids; the Autocomplete resolves labels.
 const toTokenSource = (options) => {
   const labelById = Object.fromEntries(options.map((option) => [option.value, option.label]));
   return { ids: options.map((option) => option.value), labelById };
 };
+
+function toLookupOption(id, name) {
+  if (!id) return null;
+  return { value: id, label: name || id };
+}
+
+function mapLookupOption(item) {
+  return {
+    value: item._id,
+    label: item.name,
+  };
+}
+
+function lookupId(value) {
+  if (!value) return '';
+  if (typeof value === 'object') return value._id || value.value || '';
+  return value;
+}
+
+function lookupName(value, fallback) {
+  if (value && typeof value === 'object') return value.name || fallback || '';
+  return fallback || '';
+}
 
 // ----------------------------------------------------------------------
 
@@ -81,13 +105,10 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const [createInvitation, { isLoading: isCreating }] = useCreateInvitationMutation();
   const [updateInvitation, { isLoading: isUpdating }] = useUpdateInvitationMutation();
 
-  const { branchOptions, jobTitleOptions, departmentOptions } = useOrganizationLookups({
-    organizationId: resolvedOrganizationId,
-    branches: true,
-    jobTitles: true,
-    departments: true,
-    limit: 100,
-  });
+  const lookupQueryArgs = useMemo(
+    () => ({ organizationId: resolvedOrganizationId }),
+    [resolvedOrganizationId]
+  );
 
   const { data: grantablePermissions, isFetching: isFetchingPermissions } =
     useGetGrantablePermissionsQuery(
@@ -95,9 +116,6 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       { skip: !resolvedOrganizationId }
     );
 
-  // Token Autocomplete sources for the multi-value "Access" fields.
-  // Values are permission keys (sent to the API); labels come from grantable-permissions.
-  // Permissions already on the invitation stay selectable even if no longer grantable.
   const permissionTokens = useMemo(() => {
     const options = [...(grantablePermissions?.options ?? [])];
     (currentMembership?.permissions || []).forEach((key) => {
@@ -106,15 +124,10 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
     const moduleByKey = Object.fromEntries(options.map((option) => [option.value, option.moduleName]));
     return { ...toTokenSource(options), moduleByKey };
   }, [grantablePermissions, currentMembership]);
-  const departmentTokens = useMemo(() => toTokenSource(departmentOptions), [departmentOptions]);
 
   const getPermissionLabel = useCallback(
     (id) => permissionTokens.labelById[id] ?? id,
     [permissionTokens]
-  );
-  const getDepartmentLabel = useCallback(
-    (id) => departmentTokens.labelById[id] ?? id,
-    [departmentTokens]
   );
 
   const defaultValues = useMemo(
@@ -122,25 +135,28 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       name: currentMembership?.name || '',
       email: currentMembership?.email || '',
       role: currentMembership?.role || MEMBERSHIP_ROLE_OPTIONS[0]?.value || '',
-      branchId:
-        currentMembership?.branchId ||
-        (typeof currentMembership?.branch === 'string'
-          ? currentMembership.branch
-          : currentMembership?.branch?._id) ||
-        '',
-      jobTitleId:
-        currentMembership?.jobTitleId ||
-        (typeof currentMembership?.jobTitle === 'string'
-          ? currentMembership.jobTitle
-          : currentMembership?.jobTitle?._id) ||
-        '',
+      branchId: toLookupOption(
+        lookupId(currentMembership?.branchId || currentMembership?.branch),
+        lookupName(currentMembership?.branch, currentMembership?.branchName)
+      ),
+      jobTitleId: toLookupOption(
+        lookupId(currentMembership?.jobTitleId || currentMembership?.jobTitle),
+        lookupName(currentMembership?.jobTitle, currentMembership?.jobTitleName)
+      ),
       permissions: currentMembership?.permissions || [],
-      departmentIds:
-        Array.isArray(currentMembership?.departmentIds) && currentMembership.departmentIds.length > 0
+      departmentIds: Array.isArray(currentMembership?.departments)
+        ? currentMembership.departments
+            .map((department) => toLookupOption(department?._id, department?.name))
+            .filter(Boolean)
+        : Array.isArray(currentMembership?.departmentIds)
           ? currentMembership.departmentIds
-          : Array.isArray(currentMembership?.departments)
-            ? currentMembership.departments.map((d) => (typeof d === 'string' ? d : d?._id)).filter(Boolean)
-            : [],
+              .map((department) =>
+                typeof department === 'object'
+                  ? toLookupOption(department._id, department.name)
+                  : toLookupOption(department, department)
+              )
+              .filter(Boolean)
+          : [],
       startDate: currentMembership?.startDate || null,
     }),
     [currentMembership]
@@ -159,7 +175,6 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
     formState: { isSubmitting },
   } = methods;
 
-  // Fields shown depend on the selected role.
   const role = watch('role');
   const hideStaffDetails = role === 'siteManager';
   const hidePermissions = role === 'staff';
@@ -171,41 +186,37 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
         return;
       }
 
-      const payload = {
-        email: data.email,
-        name: data.name,
-        role: data.role,
-        branchId: data.branchId,
-        permissions: data.permissions,
-        jobTitleId: data.jobTitleId,
-        departmentIds: data.departmentIds,
-        startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
-      };
-
-      // Don't send values for fields hidden by the selected role.
-      if (data.role === 'siteManager') {
-        delete payload.jobTitleId;
-        delete payload.departmentIds;
-        delete payload.startDate;
-      }
-      if (data.role === 'staff') {
-        delete payload.permissions;
-      }
-
       let invitationId = currentMembership?._id;
 
       if (isEdit) {
-        try {
-          const res = await updateInvitation({
-            invitationId: currentMembership._id,
-            organizationId: resolvedOrganizationId,
-            ...payload,
-          }).unwrap();
-          invitationId = res?.data?._id || res?._id || invitationId;
-        } catch {
-          updateMockInvitation(currentMembership._id, payload);
-        }
+        const res = await updateInvitation({
+          invitationId: currentMembership._id,
+          organizationId: resolvedOrganizationId,
+          branchId: data.branchId?.value,
+          permissions: data.permissions,
+        }).unwrap();
+        invitationId = res?.data?._id || res?._id || invitationId;
       } else {
+        const payload = {
+          email: data.email,
+          name: data.name,
+          role: data.role,
+          branchId: data.branchId?.value,
+          permissions: data.permissions,
+          jobTitleId: data.jobTitleId?.value,
+          departmentIds: (data.departmentIds || []).map((item) => item.value).filter(Boolean),
+          startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
+        };
+
+        if (data.role === 'siteManager') {
+          delete payload.jobTitleId;
+          delete payload.departmentIds;
+          delete payload.startDate;
+        }
+        if (data.role === 'staff') {
+          delete payload.permissions;
+        }
+
         const res = await createInvitation({
           organizationId: resolvedOrganizationId,
           ...payload,
@@ -234,36 +245,48 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             display="grid"
             gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
           >
-            <Field.Text name="name" label="Name" />
-            <Field.Text name="email" label="Email" />
+            <Field.Text
+              name="name"
+              label="Name"
+              disabled={isEdit}
+              sx={{ textTransform: 'capitalize' }}
+            />
+            <Field.Text name="email" label="Email" disabled={isEdit} />
 
-            <Field.Select name="role" label="Role">
+            <Field.Select name="role" label="Role" disabled={isEdit}>
               {MEMBERSHIP_ROLE_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
+                <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'capitalize' }}>
                   {option.label}
                 </MenuItem>
               ))}
             </Field.Select>
 
-            <Field.Select name="branchId" label="Site">
-              {branchOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            <Field.InfiniteAutocomplete
+              name="branchId"
+              label="Site"
+              placeholder="Search sites"
+              useQuery={useGetBranchesQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapLookupOption}
+              enabled={!!resolvedOrganizationId}
+            />
 
             {!hideStaffDetails && (
-              <Field.Select name="jobTitleId" label="Job title">
-                {jobTitleOptions.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Field.Select>
+              <Field.InfiniteAutocomplete
+                name="jobTitleId"
+                label="Job title"
+                placeholder="Search job titles"
+                useQuery={useGetJobTitlesQuery}
+                queryArgs={lookupQueryArgs}
+                mapOption={mapLookupOption}
+                enabled={!!resolvedOrganizationId}
+                disabled={isEdit}
+              />
             )}
 
-            {!hideStaffDetails && <Field.DatePicker name="startDate" label="Start date" />}
+            {!hideStaffDetails && (
+              <Field.DatePicker name="startDate" label="Start date" disabled={isEdit} />
+            )}
           </Box>
         </Card>
 
@@ -278,7 +301,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             display="grid"
             gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
           >
-            {!hidePermissions && (
+            {(!hidePermissions || isEdit) && (
               <Field.Autocomplete
                 multiple
                 disableCloseOnSelect
@@ -288,7 +311,6 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                 loading={isFetchingPermissions}
                 options={permissionTokens.ids}
                 groupBy={(option) => permissionTokens.moduleByKey[option] || 'Other'}
-                // Always open below the field; cap the list so it fits under it.
                 slotProps={{
                   popper: {
                     placement: 'bottom-start',
@@ -317,29 +339,28 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               />
             )}
 
-            {!hideStaffDetails && (
-              <Field.Autocomplete
+            {(!hideStaffDetails || isEdit) && (
+              <Field.InfiniteAutocomplete
                 multiple
                 disableCloseOnSelect
                 name="departmentIds"
                 label="Departments"
                 placeholder="Search departments"
-                options={departmentTokens.ids}
-                getOptionLabel={getDepartmentLabel}
-                isOptionEqualToValue={(option, value) => option === value}
-                renderOption={(props, option) => (
-                  <li {...props} key={option}>
-                    {getDepartmentLabel(option)}
-                  </li>
-                )}
+                useQuery={useGetDepartmentsQuery}
+                queryArgs={lookupQueryArgs}
+                mapOption={mapLookupOption}
+                enabled={!!resolvedOrganizationId}
+                disabled={isEdit}
                 renderTags={(selected, getTagProps) =>
                   selected.map((option, index) => (
                     <Chip
                       {...getTagProps({ index })}
-                      key={option}
+                      key={option.value}
                       size="small"
                       variant="soft"
-                      label={getDepartmentLabel(option)}
+                      color="primary"
+                      label={option.label}
+                      sx={{ textTransform: 'capitalize' }}
                     />
                   ))
                 }
@@ -362,7 +383,12 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting || isCreating || isUpdating}>
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            color="primary"
+            loading={isSubmitting || isCreating || isUpdating}
+          >
             {isEdit ? 'Save changes' : 'Send invitation'}
           </LoadingButton>
         </Stack>

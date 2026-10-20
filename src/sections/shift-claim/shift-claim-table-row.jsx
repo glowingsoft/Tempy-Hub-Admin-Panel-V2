@@ -58,15 +58,17 @@ export function ShiftClaimTableRow({ row, serialNumber, onApprove, onSendToTempy
     <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
       <TableCell>{serialNumber}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
         {typeof row.branch === 'object' ? row.branch?.name : row.branch || '—'}
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{getShiftClaimStaffName(row)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {getShiftClaimStaffName(row)}
+      </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDateTime(row.startsAt)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDateTime(row.shift?.startsAt || row.startsAt)}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDateTime(row.endsAt)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDateTime(row.shift?.endsAt || row.endsAt)}</TableCell>
 
       <TableCell align="center">
         <Label variant="soft" color={status.color}>
@@ -74,18 +76,8 @@ export function ShiftClaimTableRow({ row, serialNumber, onApprove, onSendToTempy
         </Label>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        {getShiftClaimVisibilityLabel(row.visibility)}
-      </TableCell>
-
-      <TableCell align="center">
-        {row.urgentCover ? (
-          <Label variant="soft" color="error">
-            Urgent
-          </Label>
-        ) : (
-          '—'
-        )}
+      <TableCell align="center" sx={{ textTransform: 'capitalize' }}>
+        {row.decidedByUser?.name || '—'}
       </TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.createdAt)}</TableCell>

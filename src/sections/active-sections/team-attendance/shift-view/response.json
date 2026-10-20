@@ -1,0 +1,657 @@
+{
+    "message": "Data fetched successfully",
+    "data": {
+        "timezone": "Europe/London",
+        "from": "2026-10-13",
+        "to": "2026-10-20",
+        "weeks": [
+            {
+                "weekStart": "2026-10-12",
+                "weekEnd": "2026-10-18",
+                "dates": [
+                    "2026-10-12",
+                    "2026-10-13",
+                    "2026-10-14",
+                    "2026-10-15",
+                    "2026-10-16",
+                    "2026-10-17",
+                    "2026-10-18"
+                ],
+                "staff": [
+                    {
+                        "staff": {
+                            "_id": "6ac8879074b6ab6e1b5caab7",
+                            "employeeCode": "EMP-AR53",
+                            "photoUrl": "",
+                            "name": "Ali",
+                            "email": "ali23@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 475,
+                            "onTimeCount": 0,
+                            "lateCount": 1,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-12": {
+                                "kind": "empty"
+                            },
+                            "2026-10-13": {
+                                "kind": "empty"
+                            },
+                            "2026-10-14": {
+                                "kind": "empty"
+                            },
+                            "2026-10-15": {
+                                "kind": "empty"
+                            },
+                            "2026-10-16": {
+                                "kind": "empty"
+                            },
+                            "2026-10-17": {
+                                "kind": "empty"
+                            },
+                            "2026-10-18": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6ac87fd574b6ab6e1b5caa65",
+                            "employeeCode": "EMP-TKRK",
+                            "photoUrl": "",
+                            "name": "Sam Okafor",
+                            "email": "glowingemp135@glowingsoft.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 495,
+                            "onTimeCount": 1,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-12": {
+                                "kind": "empty"
+                            },
+                            "2026-10-13": {
+                                "kind": "empty"
+                            },
+                            "2026-10-14": {
+                                "kind": "empty"
+                            },
+                            "2026-10-15": {
+                                "kind": "empty"
+                            },
+                            "2026-10-16": {
+                                "kind": "empty"
+                            },
+                            "2026-10-17": {
+                                "kind": "empty"
+                            },
+                            "2026-10-18": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6ad0b3190af2af3eebbebc16",
+                            "employeeCode": "EMP-3BYU",
+                            "photoUrl": "",
+                            "name": "Sohail",
+                            "email": "sohail@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 0,
+                            "onTimeCount": 0,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-12": {
+                                "kind": "empty"
+                            },
+                            "2026-10-13": {
+                                "kind": "empty"
+                            },
+                            "2026-10-14": {
+                                "kind": "empty"
+                            },
+                            "2026-10-15": {
+                                "kind": "empty"
+                            },
+                            "2026-10-16": {
+                                "kind": "empty"
+                            },
+                            "2026-10-17": {
+                                "kind": "empty"
+                            },
+                            "2026-10-18": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6ad099d1408a87b1b3833a82",
+                            "employeeCode": "EMP-72JR",
+                            "photoUrl": "",
+                            "name": "ali",
+                            "email": "ali123456@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 0,
+                            "onTimeCount": 0,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-12": {
+                                "kind": "empty"
+                            },
+                            "2026-10-13": {
+                                "kind": "empty"
+                            },
+                            "2026-10-14": {
+                                "kind": "empty"
+                            },
+                            "2026-10-15": {
+                                "kind": "empty"
+                            },
+                            "2026-10-16": {
+                                "kind": "empty"
+                            },
+                            "2026-10-17": {
+                                "kind": "empty"
+                            },
+                            "2026-10-18": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6acccf0e0210d1b754ce4a1c",
+                            "employeeCode": "EMP-SM6M",
+                            "photoUrl": "",
+                            "name": "faheem",
+                            "email": "faheem123@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 495,
+                            "onTimeCount": 1,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-12": {
+                                "kind": "empty"
+                            },
+                            "2026-10-13": {
+                                "kind": "empty"
+                            },
+                            "2026-10-14": {
+                                "kind": "empty"
+                            },
+                            "2026-10-15": {
+                                "kind": "empty"
+                            },
+                            "2026-10-16": {
+                                "kind": "empty"
+                            },
+                            "2026-10-17": {
+                                "kind": "attendance",
+                                "clockInAt": "2026-10-17T08:00:00.000Z",
+                                "clockOutAt": "2026-10-17T17:00:00.000Z",
+                                "punctualityStatus": "onTime",
+                                "presenceStatus": "checkedOut",
+                                "workedMinutes": 495,
+                                "breaks": [
+                                    {
+                                        "breakInAt": "2026-10-17T12:00:00.000Z",
+                                        "breakOutAt": "2026-10-17T12:30:00.000Z"
+                                    },
+                                    {
+                                        "breakInAt": "2026-10-17T15:00:00.000Z",
+                                        "breakOutAt": "2026-10-17T15:15:00.000Z"
+                                    }
+                                ]
+                            },
+                            "2026-10-18": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6acf05c67d79f2c88e60bfb0",
+                            "employeeCode": "EMP-XRV2",
+                            "photoUrl": "",
+                            "name": "faheem2",
+                            "email": "faheem1234@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 0,
+                            "onTimeCount": 0,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-12": {
+                                "kind": "empty"
+                            },
+                            "2026-10-13": {
+                                "kind": "empty"
+                            },
+                            "2026-10-14": {
+                                "kind": "empty"
+                            },
+                            "2026-10-15": {
+                                "kind": "empty"
+                            },
+                            "2026-10-16": {
+                                "kind": "empty"
+                            },
+                            "2026-10-17": {
+                                "kind": "empty"
+                            },
+                            "2026-10-18": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6ac89c2674b6ab6e1b5cab25",
+                            "employeeCode": "EMP-H5P2",
+                            "photoUrl": "",
+                            "name": "raza hassan",
+                            "email": "raza123@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 0,
+                            "onTimeCount": 1,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-12": {
+                                "kind": "empty"
+                            },
+                            "2026-10-13": {
+                                "kind": "leave",
+                                "leaveType": "annual",
+                                "presenceStatus": "onLeave",
+                                "leaveRequestId": "6accdcbbfd9f381a57fdc3ef",
+                                "source": "staffRequest"
+                            },
+                            "2026-10-14": {
+                                "kind": "leave",
+                                "leaveType": "annual",
+                                "presenceStatus": "onLeave",
+                                "leaveRequestId": "6accdcbbfd9f381a57fdc3ef",
+                                "source": "staffRequest"
+                            },
+                            "2026-10-15": {
+                                "kind": "empty"
+                            },
+                            "2026-10-16": {
+                                "kind": "empty"
+                            },
+                            "2026-10-17": {
+                                "kind": "empty"
+                            },
+                            "2026-10-18": {
+                                "kind": "attendance",
+                                "clockInAt": "2026-10-18T08:00:00.000Z",
+                                "clockOutAt": null,
+                                "punctualityStatus": "onTime",
+                                "presenceStatus": "onBreak",
+                                "workedMinutes": null,
+                                "breaks": [
+                                    {
+                                        "breakInAt": "2026-10-18T15:00:00.000Z",
+                                        "breakOutAt": null
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "weekStart": "2026-10-19",
+                "weekEnd": "2026-10-25",
+                "dates": [
+                    "2026-10-19",
+                    "2026-10-20",
+                    "2026-10-21",
+                    "2026-10-22",
+                    "2026-10-23",
+                    "2026-10-24",
+                    "2026-10-25"
+                ],
+                "staff": [
+                    {
+                        "staff": {
+                            "_id": "6ac8879074b6ab6e1b5caab7",
+                            "employeeCode": "EMP-AR53",
+                            "photoUrl": "",
+                            "name": "Ali",
+                            "email": "ali23@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 475,
+                            "onTimeCount": 0,
+                            "lateCount": 1,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-19": {
+                                "kind": "attendance",
+                                "clockInAt": "2026-10-19T08:20:00.000Z",
+                                "clockOutAt": "2026-10-19T17:00:00.000Z",
+                                "punctualityStatus": "late",
+                                "presenceStatus": "checkedOut",
+                                "workedMinutes": 475,
+                                "breaks": [
+                                    {
+                                        "breakInAt": "2026-10-19T12:00:00.000Z",
+                                        "breakOutAt": "2026-10-19T12:30:00.000Z"
+                                    },
+                                    {
+                                        "breakInAt": "2026-10-19T15:00:00.000Z",
+                                        "breakOutAt": "2026-10-19T15:15:00.000Z"
+                                    }
+                                ]
+                            },
+                            "2026-10-20": {
+                                "kind": "empty"
+                            },
+                            "2026-10-21": {
+                                "kind": "empty"
+                            },
+                            "2026-10-22": {
+                                "kind": "empty"
+                            },
+                            "2026-10-23": {
+                                "kind": "empty"
+                            },
+                            "2026-10-24": {
+                                "kind": "empty"
+                            },
+                            "2026-10-25": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6ac87fd574b6ab6e1b5caa65",
+                            "employeeCode": "EMP-TKRK",
+                            "photoUrl": "",
+                            "name": "Sam Okafor",
+                            "email": "glowingemp135@glowingsoft.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 495,
+                            "onTimeCount": 1,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-19": {
+                                "kind": "empty"
+                            },
+                            "2026-10-20": {
+                                "kind": "attendance",
+                                "clockInAt": "2026-10-20T08:00:00.000Z",
+                                "clockOutAt": "2026-10-20T17:00:00.000Z",
+                                "punctualityStatus": "onTime",
+                                "presenceStatus": "checkedOut",
+                                "workedMinutes": 495,
+                                "breaks": [
+                                    {
+                                        "breakInAt": "2026-10-20T12:00:00.000Z",
+                                        "breakOutAt": "2026-10-20T12:30:00.000Z"
+                                    },
+                                    {
+                                        "breakInAt": "2026-10-20T15:00:00.000Z",
+                                        "breakOutAt": "2026-10-20T15:15:00.000Z"
+                                    }
+                                ]
+                            },
+                            "2026-10-21": {
+                                "kind": "empty"
+                            },
+                            "2026-10-22": {
+                                "kind": "empty"
+                            },
+                            "2026-10-23": {
+                                "kind": "empty"
+                            },
+                            "2026-10-24": {
+                                "kind": "empty"
+                            },
+                            "2026-10-25": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6ad0b3190af2af3eebbebc16",
+                            "employeeCode": "EMP-3BYU",
+                            "photoUrl": "",
+                            "name": "Sohail",
+                            "email": "sohail@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 0,
+                            "onTimeCount": 0,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-19": {
+                                "kind": "empty"
+                            },
+                            "2026-10-20": {
+                                "kind": "empty"
+                            },
+                            "2026-10-21": {
+                                "kind": "empty"
+                            },
+                            "2026-10-22": {
+                                "kind": "empty"
+                            },
+                            "2026-10-23": {
+                                "kind": "empty"
+                            },
+                            "2026-10-24": {
+                                "kind": "empty"
+                            },
+                            "2026-10-25": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6ad099d1408a87b1b3833a82",
+                            "employeeCode": "EMP-72JR",
+                            "photoUrl": "",
+                            "name": "ali",
+                            "email": "ali123456@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 0,
+                            "onTimeCount": 0,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-19": {
+                                "kind": "empty"
+                            },
+                            "2026-10-20": {
+                                "kind": "empty"
+                            },
+                            "2026-10-21": {
+                                "kind": "empty"
+                            },
+                            "2026-10-22": {
+                                "kind": "empty"
+                            },
+                            "2026-10-23": {
+                                "kind": "empty"
+                            },
+                            "2026-10-24": {
+                                "kind": "empty"
+                            },
+                            "2026-10-25": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6acccf0e0210d1b754ce4a1c",
+                            "employeeCode": "EMP-SM6M",
+                            "photoUrl": "",
+                            "name": "faheem",
+                            "email": "faheem123@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 495,
+                            "onTimeCount": 1,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-19": {
+                                "kind": "empty"
+                            },
+                            "2026-10-20": {
+                                "kind": "empty"
+                            },
+                            "2026-10-21": {
+                                "kind": "empty"
+                            },
+                            "2026-10-22": {
+                                "kind": "empty"
+                            },
+                            "2026-10-23": {
+                                "kind": "empty"
+                            },
+                            "2026-10-24": {
+                                "kind": "empty"
+                            },
+                            "2026-10-25": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6acf05c67d79f2c88e60bfb0",
+                            "employeeCode": "EMP-XRV2",
+                            "photoUrl": "",
+                            "name": "faheem2",
+                            "email": "faheem1234@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 0,
+                            "onTimeCount": 0,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-19": {
+                                "kind": "empty"
+                            },
+                            "2026-10-20": {
+                                "kind": "empty"
+                            },
+                            "2026-10-21": {
+                                "kind": "empty"
+                            },
+                            "2026-10-22": {
+                                "kind": "empty"
+                            },
+                            "2026-10-23": {
+                                "kind": "empty"
+                            },
+                            "2026-10-24": {
+                                "kind": "empty"
+                            },
+                            "2026-10-25": {
+                                "kind": "empty"
+                            }
+                        }
+                    },
+                    {
+                        "staff": {
+                            "_id": "6ac89c2674b6ab6e1b5cab25",
+                            "employeeCode": "EMP-H5P2",
+                            "photoUrl": "",
+                            "name": "raza hassan",
+                            "email": "raza123@gmail.com"
+                        },
+                        "totals": {
+                            "workedMinutes": 0,
+                            "onTimeCount": 1,
+                            "lateCount": 0,
+                            "sickDays": 0,
+                            "absenceDays": 0
+                        },
+                        "days": {
+                            "2026-10-19": {
+                                "kind": "empty"
+                            },
+                            "2026-10-20": {
+                                "kind": "empty"
+                            },
+                            "2026-10-21": {
+                                "kind": "empty"
+                            },
+                            "2026-10-22": {
+                                "kind": "empty"
+                            },
+                            "2026-10-23": {
+                                "kind": "empty"
+                            },
+                            "2026-10-24": {
+                                "kind": "empty"
+                            },
+                            "2026-10-25": {
+                                "kind": "empty"
+                            }
+                        }
+                    }
+                ]
+            }
+        ],
+        "summary": {
+            "onTimeCount": 3,
+            "lateCount": 1,
+            "sickDays": 0,
+            "absenceDays": 0,
+            "attendanceRate": 100
+        }
+    }
+}

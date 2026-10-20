@@ -5,14 +5,14 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { toast } from 'src/components/snackbar';
 
 import {
+  useDeleteInvitationMutation,
   useResendInvitationMutation,
   useRevokeInvitationMutation,
 } from 'src/store/Reducer/invitations-api';
-import { deleteMockInvitation } from './mocks/data';
 
 // ----------------------------------------------------------------------
 // Shared resend / revoke / delete behaviour for the invitation list and detail
-// screens. Resend and revoke use the API; delete remains a mock operation.
+// screens.
 // ----------------------------------------------------------------------
 
 export function useInvitationActions({ organizationId, onChanged } = {}) {
@@ -20,6 +20,7 @@ export function useInvitationActions({ organizationId, onChanged } = {}) {
   const [pending, setPending] = useState(null);
   const [resendInvitation, { isLoading: isResending }] = useResendInvitationMutation();
   const [revokeInvitation, { isLoading: isRevoking }] = useRevokeInvitationMutation();
+  const [deleteInvitation, { isLoading: isDeleting }] = useDeleteInvitationMutation();
 
   const notifyChanged = useCallback(
     (invitation) => onChanged?.(invitation),
@@ -81,14 +82,21 @@ export function useInvitationActions({ organizationId, onChanged } = {}) {
         return;
       }
     } else if (pending.type === 'delete') {
-      // TODO: await deleteInvitation({ invitationId: pending.row._id, organizationId }).unwrap();
-      deleteMockInvitation(pending.row._id);
-      toast.success('Invitation removed.');
-      notifyChanged(null);
+      try {
+        await deleteInvitation({
+          invitationId: pending.row._id,
+          organizationId,
+        }).unwrap();
+        toast.success('Invitation removed.');
+        notifyChanged(null);
+      } catch (error) {
+        toast.error(error?.data?.message || 'Could not remove the invitation.');
+        return;
+      }
     }
 
     closeConfirm();
-  }, [pending, organizationId, notifyChanged, closeConfirm, revokeInvitation]);
+  }, [pending, organizationId, notifyChanged, closeConfirm, revokeInvitation, deleteInvitation]);
 
   const confirmProps = useMemo(() => {
     const isDelete = pending?.type === 'delete';
@@ -100,9 +108,10 @@ export function useInvitationActions({ organizationId, onChanged } = {}) {
       title: isDelete ? 'Remove invitation' : 'Revoke invitation',
       name: pending?.row?.name,
       isDelete,
-      loading: pending?.type === 'revoke' && isRevoking,
+      loading:
+        (pending?.type === 'revoke' && isRevoking) || (pending?.type === 'delete' && isDeleting),
     };
-  }, [confirm.value, closeConfirm, onConfirm, pending, isRevoking]);
+  }, [confirm.value, closeConfirm, onConfirm, pending, isRevoking, isDeleting]);
 
   return { resend, isResending, askRevoke, askDelete, confirmProps };
 }

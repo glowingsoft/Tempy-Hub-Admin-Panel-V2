@@ -10,7 +10,7 @@ import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
 
 import { AttendanceStatusChip } from 'src/sections/user/attendance-status-chip';
-import { TableInfo } from 'src/sections/active-sections/team-attendance/view/team-attendance-list-view';
+import { TableInfo } from 'src/sections/active-sections/team-attendance/components/table-info';
 
 // ----------------------------------------------------------------------
 

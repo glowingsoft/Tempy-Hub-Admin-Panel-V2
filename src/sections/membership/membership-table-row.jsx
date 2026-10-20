@@ -23,25 +23,16 @@ import {
 
 // ----------------------------------------------------------------------
 
-export function MembershipTableRow({
-  row,
-  serialNumber,
-  onResend,
-  onRevoke,
-  onDelete,
-  branchesMap,
-  jobTitlesMap,
-  departmentsMap,
-}) {
+export function MembershipTableRow({ row, serialNumber, onResend, onRevoke, onDelete }) {
   const router = useRouter();
 
   const detailPath = paths.owner.memberships.invitations.detail(row._id);
   const editPath = paths.owner.memberships.invitations.edit(row._id);
 
   const status = getMembershipStatusMeta(row.status);
-  const branchName = resolveBranchName(row, branchesMap);
-  const jobTitleName = resolveJobTitleName(row, jobTitlesMap);
-  const departmentNames = resolveDepartmentNames(row, departmentsMap);
+  const branchName = resolveBranchName(row);
+  const jobTitleName = resolveJobTitleName(row);
+  const departmentNames = resolveDepartmentNames(row);
 
   const actions = [
     {
@@ -65,7 +56,7 @@ export function MembershipTableRow({
       key: 'edit',
       icon: 'solar:pen-bold',
       tooltip: 'Edit',
-      hidden: row.status === 'revoked',
+      hidden: row.status !== 'pending',
       onClick: (event) => {
         event.stopPropagation();
         router.push(editPath);
@@ -101,7 +92,7 @@ export function MembershipTableRow({
 
       <TableCell>
         <Stack sx={{ typography: 'body2' }}>
-          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600 }}>
+          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600, textTransform: 'capitalize' }}>
             {row.name || '—'}
           </Link>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -110,18 +101,24 @@ export function MembershipTableRow({
         </Stack>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{getRoleLabel(row.role)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {getRoleLabel(row.role)}
+      </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{branchName}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{branchName}</TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{jobTitleName}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{jobTitleName}</TableCell>
 
-      <TableCellWithTooltip maxWidth={200}>{departmentNames}</TableCellWithTooltip>
+      {/* <TableCellWithTooltip maxWidth={200}>
+        <Box component="span" sx={{ textTransform: 'capitalize' }}>
+          {departmentNames}
+        </Box>
+      </TableCellWithTooltip> */}
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDate(row.startDate)}</TableCell>
 
       <TableCell align="center">
-        <Label variant="soft" color={status.color}>
+        <Label variant="soft" color={status.color} sx={{ textTransform: 'capitalize' }}>
           {status.label}
         </Label>
       </TableCell>
