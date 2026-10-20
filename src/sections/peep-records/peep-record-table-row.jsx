@@ -21,8 +21,8 @@ export function PeepRecordTableRow({ row, serialNumber, ownerDashboard = true })
 
     return (
         <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(editPath)}>
-            <TableCell>{serialNumber}</TableCell>
-            <TableCell>
+            <TableCell sx={{ width: 60 }}>{serialNumber}</TableCell>
+            <TableCell sx={{ width: '24%', minWidth: 200 }}>
                 <Stack sx={{ typography: 'body2' }}>
                     <Link color="inherit" sx={{ fontWeight: 600 }}>
                         {row.name || '—'}
@@ -32,15 +32,14 @@ export function PeepRecordTableRow({ row, serialNumber, ownerDashboard = true })
                     </Typography>
                 </Stack>
             </TableCell>
-            <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.roomNumber || '—'}</TableCell>
-            <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch || '—'}</TableCell>
-            <TableCell sx={{ whiteSpace: 'nowrap' }}>{getPeepFloorLabel(row.floor)}</TableCell>
-            <TableCell>
+            <TableCell sx={{ width: '16%', whiteSpace: 'nowrap' }}>{row.roomNumber || '—'}</TableCell>
+            <TableCell sx={{ width: '16%', whiteSpace: 'nowrap' }}>{row.branch || '—'}</TableCell>
+            <TableCell sx={{ width: '16%', whiteSpace: 'nowrap' }}>{getPeepFloorLabel(row.floor)}</TableCell>
+            <TableCell sx={{ width: '16%' }}>
                 <Label color={levelMeta.color}>{levelMeta.label}</Label>
             </TableCell>
-            {/* <TableCellWithTooltip maxWidth={300}>{row.supportNeeds || '—'}</TableCellWithTooltip> */}
-            <TableCell align="center">
-                <Box onClick={(event) => event.stopPropagation()}>
+            <TableCell sx={{ width: 90 }} align="center">
+                <Box onClick={(event) => event.stopPropagation()} sx={{ display: 'flex', justifyContent: 'center' }}>
                     <GenericTableRowActions
                         actions={[{ key: 'edit', icon: 'solar:pen-bold', tooltip: 'Edit', onClick: () => router.push(editPath) }]}
                     />

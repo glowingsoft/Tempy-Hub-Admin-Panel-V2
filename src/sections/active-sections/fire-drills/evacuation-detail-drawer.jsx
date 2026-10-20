@@ -220,7 +220,7 @@ export function EvacuationDetailDrawer({
             </Box>
           </Box>
 
-          {/* Category Breakdown Chips - Black monochrome style */}
+          {/* Category Breakdown Chips - Monochrome style with Dark Mode support */}
           <Stack direction="row" spacing={1} flexWrap="wrap" gap={0.75} sx={{ pt: 0.25 }}>
             <Chip
               size="small"
@@ -228,8 +228,9 @@ export function EvacuationDetailDrawer({
               label={`Staff: ${byKind?.staff?.safe ?? 0}/${byKind?.staff?.total ?? 0}`}
               sx={{
                 fontWeight: 600,
-                color: '#000000',
-                borderColor: '#000000',
+                color: (theme) => (theme.palette.mode === 'light' ? '#000000' : '#FFFFFF'),
+                borderColor: (theme) =>
+                  theme.palette.mode === 'light' ? '#000000' : 'rgba(255, 255, 255, 0.4)',
                 bgcolor: (theme) =>
                   theme.palette.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
               }}
@@ -240,8 +241,9 @@ export function EvacuationDetailDrawer({
               label={`Residents: ${byKind?.resident?.safe ?? 0}/${byKind?.resident?.total ?? 0}`}
               sx={{
                 fontWeight: 600,
-                color: '#000000',
-                borderColor: '#000000',
+                color: (theme) => (theme.palette.mode === 'light' ? '#000000' : '#FFFFFF'),
+                borderColor: (theme) =>
+                  theme.palette.mode === 'light' ? '#000000' : 'rgba(255, 255, 255, 0.4)',
                 bgcolor: (theme) =>
                   theme.palette.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
               }}
@@ -252,8 +254,9 @@ export function EvacuationDetailDrawer({
               label={`Visitors: ${byKind?.visitor?.safe ?? 0}/${byKind?.visitor?.total ?? 0}`}
               sx={{
                 fontWeight: 600,
-                color: '#000000',
-                borderColor: '#000000',
+                color: (theme) => (theme.palette.mode === 'light' ? '#000000' : '#FFFFFF'),
+                borderColor: (theme) =>
+                  theme.palette.mode === 'light' ? '#000000' : 'rgba(255, 255, 255, 0.4)',
                 bgcolor: (theme) =>
                   theme.palette.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
               }}
@@ -264,15 +267,16 @@ export function EvacuationDetailDrawer({
               label={`Contractors: ${byKind?.contractor?.safe ?? 0}/${byKind?.contractor?.total ?? 0}`}
               sx={{
                 fontWeight: 600,
-                color: '#000000',
-                borderColor: '#000000',
+                color: (theme) => (theme.palette.mode === 'light' ? '#000000' : '#FFFFFF'),
+                borderColor: (theme) =>
+                  theme.palette.mode === 'light' ? '#000000' : 'rgba(255, 255, 255, 0.4)',
                 bgcolor: (theme) =>
                   theme.palette.mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
               }}
             />
           </Stack>
 
-          {/* Close evacuation action button */}
+          {/* Close evacuation action button with Dark Mode support */}
           {isActive && (
             <Button
               fullWidth
@@ -282,14 +286,16 @@ export function EvacuationDetailDrawer({
               onClick={() => onCloseEvacuation?.(event)}
               startIcon={closing && <CircularProgress size={16} color="inherit" />}
               sx={{
-                bgcolor: '#000000',
-                color: '#FFFFFF',
+                bgcolor: (theme) => (theme.palette.mode === 'light' ? '#000000' : '#FFFFFF'),
+                color: (theme) => (theme.palette.mode === 'light' ? '#FFFFFF' : '#000000'),
                 fontWeight: 700,
                 py: 1.2,
                 borderRadius: 1,
                 fontSize: '0.925rem',
                 mt: 1,
-                '&:hover': { bgcolor: '#1C252E' },
+                '&:hover': {
+                  bgcolor: (theme) => (theme.palette.mode === 'light' ? '#1C252E' : '#E2E8F0'),
+                },
               }}
             >
               {closing ? 'Closing evacuation...' : 'Close evacuation'}

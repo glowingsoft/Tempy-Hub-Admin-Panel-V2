@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useSelector } from 'react-redux';
 import { useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -15,7 +16,11 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { LoadingScreen } from 'src/components/loading-screen';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { useGetPeepFloorSummaryQuery } from 'src/store/Reducer/peep-floor-plan-api';
 import { mockBranches } from 'src/sections/branch/mocks/data';
 import { PEEP_RECORDS } from 'src/sections/peep-records/mocks/data';
 import { mockFloors, getFloorStatusMeta } from 'src/sections/floor-plans/mocks/data';
@@ -24,7 +29,6 @@ import { AnalyticsCurrentVisits } from 'src/sections/overview/analytics/analytic
 // ----------------------------------------------------------------------
 
 const EMPTY_LEVELS = { low: 0, medium: 0, high: 0, total: 0 };
-const EMPTY_FLOORS = { total: 0, uploaded: 0, floors: [] };
 
 export function OrgRollupSiteDetail({
   site: siteProp,
@@ -37,13 +41,48 @@ export function OrgRollupSiteDetail({
   const currentSiteId = siteProp?._id || params.siteId;
   const base = ownerDashboard ? paths.owner : paths.siteManager;
 
+  const { user } = useSelector((state) => state.user);
+  const { organizationId: currentOrgId } = useCurrentOrganization();
+  const organizationId = currentOrgId || getOwnerOrganizationId(user);
+
+  // Fetch site-scoped PEEP & floor summary
+  const { data: summaryData, isLoading } = useGetPeepFloorSummaryQuery(
+    {
+      organizationId,
+      branchId: currentSiteId,
+    },
+    { skip: !organizationId || !currentSiteId }
+  );
+
   const site = useMemo(() => {
     if (siteProp) return siteProp;
+    if (summaryData?.site) return summaryData.site;
+    const foundInSites = summaryData?.sites?.find(
+      (s) => (s.branch?._id || s.site?._id || s._id) === currentSiteId
+    );
+    if (foundInSites) return foundInSites.branch || foundInSites.site || foundInSites;
     return mockBranches.find((branch) => branch._id === currentSiteId);
-  }, [siteProp, currentSiteId]);
+  }, [siteProp, summaryData, currentSiteId]);
 
   const levels = useMemo(() => {
     if (levelsProp) return levelsProp;
+    if (summaryData?.levels) {
+      const low = summaryData.levels.low ?? 0;
+      const medium = summaryData.levels.medium ?? 0;
+      const high = summaryData.levels.high ?? 0;
+      const total = summaryData.levels.total ?? (low + medium + high);
+      return { low, medium, high, total };
+    }
+    const foundInSites = summaryData?.sites?.find(
+      (s) => (s.branch?._id || s.site?._id || s._id) === currentSiteId
+    );
+    if (foundInSites?.levels) {
+      const low = foundInSites.levels.low ?? 0;
+      const medium = foundInSites.levels.medium ?? 0;
+      const high = foundInSites.levels.high ?? 0;
+      const total = foundInSites.levels.total ?? (low + medium + high);
+      return { low, medium, high, total };
+    }
     if (!currentSiteId) return EMPTY_LEVELS;
 
     const counts = { low: 0, medium: 0, high: 0, total: 0 };
@@ -54,16 +93,31 @@ export function OrgRollupSiteDetail({
       counts.total += 1;
     });
     return counts;
-  }, [levelsProp, currentSiteId]);
+  }, [levelsProp, summaryData, currentSiteId]);
 
-  const floorsSummary = useMemo(() => {
-    if (floorsSummaryProp) return floorsSummaryProp;
-    if (!currentSiteId) return EMPTY_FLOORS;
+  const floorPlansList = useMemo(() => {
+    if (floorsSummaryProp?.floors) return floorsSummaryProp.floors;
+    if (Array.isArray(summaryData?.floorPlans)) {
+      return summaryData.floorPlans;
+    }
+    const foundInSites = summaryData?.sites?.find(
+      (s) => (s.branch?._id || s.site?._id || s._id) === currentSiteId
+    );
+    if (Array.isArray(foundInSites?.floorsSummary?.floors)) {
+      return foundInSites.floorsSummary.floors;
+    }
+    if (!currentSiteId) return [];
 
-    const floors = mockFloors.filter((f) => f.branchId === currentSiteId);
-    const uploaded = floors.filter((f) => f.status === 'uploaded').length;
-    return { total: floors.length, uploaded, floors };
-  }, [floorsSummaryProp, currentSiteId]);
+    return mockFloors.filter((f) => f.branchId === currentSiteId);
+  }, [floorsSummaryProp, summaryData, currentSiteId]);
+
+  if (isLoading) {
+    return (
+      <DashboardContent>
+        <LoadingScreen sx={{ py: 10 }} />
+      </DashboardContent>
+    );
+  }
 
   if (!site) {
     return (
@@ -104,7 +158,6 @@ export function OrgRollupSiteDetail({
         </Button>
       </Box>
 
-      {/* Breadcrumbs with Top Action Buttons relocated to header; Site Dropdown is cleanly omitted */}
       <CustomBreadcrumbs
         heading={site.name}
         links={[
@@ -116,7 +169,7 @@ export function OrgRollupSiteDetail({
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             <Button
               component={RouterLink}
-              href={base.peepAndFloorPlans.map(site._id)}
+              href={base.peepAndFloorPlans.map(site._id || currentSiteId)}
               variant="contained"
               startIcon={<Iconify icon="solar:map-point-wave-bold" />}
             >
@@ -124,7 +177,7 @@ export function OrgRollupSiteDetail({
             </Button>
             <Button
               component={RouterLink}
-              href={base.peepAndFloorPlans.records.bySite(site._id)}
+              href={base.peepAndFloorPlans.records.bySite(site._id || currentSiteId)}
               variant="outlined"
               startIcon={<Iconify icon="solar:users-group-rounded-bold" />}
             >
@@ -132,7 +185,7 @@ export function OrgRollupSiteDetail({
             </Button>
             <Button
               component={RouterLink}
-              href={base.peepAndFloorPlans.floorPlans.bySite(site._id)}
+              href={base.peepAndFloorPlans.floorPlans.bySite(site._id || currentSiteId)}
               variant="outlined"
               startIcon={<Iconify icon="solar:layers-bold" />}
             >
@@ -170,13 +223,13 @@ export function OrgRollupSiteDetail({
                 Floor plans
               </Typography>
 
-              {floorsSummary.floors.length ? (
+              {floorPlansList.length ? (
                 <Stack spacing={1.5} divider={<Divider sx={{ borderStyle: 'dashed' }} />}>
-                  {floorsSummary.floors.map((floor) => {
+                  {floorPlansList.map((floor) => {
                     const statusMeta = getFloorStatusMeta(floor.status);
                     return (
                       <Stack
-                        key={floor.id}
+                        key={floor._id || floor.id}
                         direction="row"
                         alignItems="center"
                         justifyContent="space-between"

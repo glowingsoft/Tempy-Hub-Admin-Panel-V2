@@ -16,8 +16,18 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { Field, Form } from 'src/components/hook-form';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 
 import { EVACUATION_TYPE_OPTIONS } from './mocks/data';
+
+// ----------------------------------------------------------------------
+
+const mapBranchOption = (item) => ({
+  value: item._id,
+  label: item.name,
+});
 
 // ----------------------------------------------------------------------
 
@@ -40,7 +50,8 @@ export function StartEvacuationDialog({
   currentBranchId,
   loading = false,
 }) {
-  const showBranchSelect = !currentBranchId && branches.length > 0;
+  const { organizationId } = useCurrentOrganization();
+  const showBranchSelect = !currentBranchId;
 
   const defaultValues = useMemo(
     () => ({
@@ -54,6 +65,14 @@ export function StartEvacuationDialog({
     resolver: zodResolver(Schema),
     defaultValues,
   });
+
+  const currentBranchIdVal = methods.watch('branchId');
+  const selectedDialogOption = useMemo(() => {
+    if (!currentBranchIdVal) return null;
+    return typeof currentBranchIdVal === 'object'
+      ? currentBranchIdVal
+      : { value: currentBranchIdVal, label: 'Selected site' };
+  }, [currentBranchIdVal]);
 
   useEffect(() => {
     if (open) {
@@ -93,16 +112,21 @@ export function StartEvacuationDialog({
             </Typography>
 
             {showBranchSelect && (
-              <Field.Select name="branchId" label="Site / Branch" required>
-                <MenuItem value="" disabled>
-                  Select a site
-                </MenuItem>
-                {branches.map((b) => (
-                  <MenuItem key={b._id} value={b._id}>
-                    {b.name}
-                  </MenuItem>
-                ))}
-              </Field.Select>
+              <InfiniteAutocomplete
+                value={selectedDialogOption}
+                onChange={(option) => {
+                  methods.setValue('branchId', option?.value || '', { shouldValidate: true });
+                }}
+                useQuery={useGetBranchesQuery}
+                queryArgs={{ organizationId }}
+                mapOption={mapBranchOption}
+                label="Site / Branch"
+                placeholder="Search and select site..."
+                error={Boolean(methods.formState.errors.branchId)}
+                helperText={methods.formState.errors.branchId?.message}
+                disabled={!organizationId}
+                size="small"
+              />
             )}
 
             <Field.Select name="type" label="Type">

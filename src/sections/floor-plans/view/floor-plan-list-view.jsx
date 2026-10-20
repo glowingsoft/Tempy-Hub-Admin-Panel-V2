@@ -4,6 +4,8 @@ import { useSelector } from 'react-redux';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import InputAdornment from '@mui/material/InputAdornment';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
@@ -15,18 +17,22 @@ import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { toast } from 'src/components/snackbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
+import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
 
 import { mockBranches } from 'src/sections/branch/mocks/data';
 import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { ALL_BRANCHES_VALUE } from 'src/sections/branch/owner-branch-select';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetFloorPlansQuery } from 'src/store/Reducer/floor-plans-api';
 import { UploadFloorPlanDialog } from 'src/sections/active-sections/peen-floor-plan/upload-floor-plan-dialog';
 import { setFloorPlanFile } from 'src/sections/active-sections/peen-floor-plan/mocks/data';
 import { convertPdfToImage } from 'src/utils/pdf-to-image';
@@ -42,45 +48,48 @@ import { FloorPlanTableRow } from '../floor-plan-table-row';
 
 // ----------------------------------------------------------------------
 
+const mapBranchOption = (item) => ({
+    value: item._id,
+    label: item.name,
+});
+
+const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
+
 const STATUS_OPTIONS = [{ value: 'all', label: 'All', color: 'default' }, ...FLOOR_STATUS_OPTIONS];
 const STATUS_FILTER_FIELD = createFilterField.status({ options: STATUS_OPTIONS, showCounts: true });
 
 const TABLE_HEAD = [
     { id: 'sr', label: 'Sr#', width: 60 },
-    { id: 'name', label: 'Floor', minWidth: 180 },
-    { id: 'branch', label: 'Site', minWidth: 160 },
-    { id: 'status', label: 'Status', width: 150 },
+    { id: 'name', label: 'Floor', minWidth: 160 },
+    { id: 'branch', label: 'Site', minWidth: 140 },
+    { id: 'status', label: 'Status', width: 130 },
     { id: 'version', label: 'Version', width: 90, align: 'center' },
     { id: 'pinsCount', label: 'Pins', width: 80, align: 'center' },
-    { id: 'uploadedAt', label: 'Uploaded At', width: 160 },
-    { id: 'actions', label: 'Actions', width: 100, align: 'center' },
+    { id: 'uploadedAt', label: 'Uploaded At', width: 170 },
+    { id: 'actions', label: 'Actions', width: 90, align: 'center' },
 ];
 
-// TODO: confirm whether the list endpoint supports status/site/keyword params —
-// all three are client-side only against the mock data here.
 const BASE_FILTER_FIELDS = [
     createFilterField.search({ placeholder: 'Search floors or sites...' }),
-    createFilterField.select({ key: 'branchId', label: 'Site', defaultValue: 'all' }),
 ];
 
 export function FloorPlanListView({ ownerDashboard = true }) {
     const router = useRouter();
-    const table = useTable({ defaultOrderBy: 'name' });
+    const table = useTable({ defaultOrderBy: 'name', defaultDense: true });
 
     const { user } = useSelector((state) => state.user);
-    const organizationId = getOwnerOrganizationId(user);
+    const { organizationId: currentOrgId } = useCurrentOrganization();
+    const organizationId = currentOrgId || getOwnerOrganizationId(user);
 
     const base = ownerDashboard ? paths.owner : paths.siteManager;
 
-    // Arriving from a site drill-in (Overview -> site) carries the site id in
-    // the URL, so this list opens pre-scoped to it instead of "All sites".
     const { siteId } = useParams();
 
-    const filters = useSetState({ search: '', status: 'all', branchId: siteId || 'all' });
+    const filters = useSetState({ search: '', status: 'all', branchId: siteId || ALL_BRANCHES_VALUE });
     const keyword = useDebounce(filters.state.search, 300);
 
     useEffect(() => {
-        filters.setState({ branchId: siteId || 'all' });
+        filters.setState({ branchId: siteId || ALL_BRANCHES_VALUE });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [siteId]);
 
@@ -90,42 +99,55 @@ export function FloorPlanListView({ ownerDashboard = true }) {
     const createOpen = useBoolean();
     const [uploadTarget, setUploadTarget] = useState(null);
 
-    // --- Filter options -----------------------------------------------------
-
-    const siteOptions = useMemo(
-        () => [
-            { value: 'all', label: 'All sites' },
-            ...mockBranches
-                .filter((branch) => !organizationId || branch.organizationId === organizationId)
-                .map((branch) => ({ value: branch._id, label: branch.name })),
-        ],
-        [organizationId]
+    // Query branches for organization
+    const { data: branchesData } = useGetBranchesQuery(
+        { organizationId, page: 1, limit: 100 },
+        { skip: !organizationId }
     );
+
+    const branchList = useMemo(() => {
+        if (Array.isArray(branchesData?.data)) {
+            return branchesData.data;
+        }
+        return mockBranches.filter((branch) => !organizationId || branch.organizationId === organizationId);
+    }, [branchesData, organizationId]);
+
+    const selectedBranchOption = useMemo(() => {
+        const currentId = filters.state.branchId;
+        if (!currentId || currentId === ALL_BRANCHES_VALUE) {
+            return { value: ALL_BRANCHES_VALUE, label: 'All sites' };
+        }
+        const found = branchList.find((b) => b._id === currentId);
+        return found ? { value: found._id, label: found.name } : { value: currentId, label: 'Selected site' };
+    }, [filters.state.branchId, branchList]);
 
     const currentSite = useMemo(
-        () => (siteId ? mockBranches.find((branch) => branch._id === siteId) : null),
-        [siteId]
+        () => (siteId ? branchList.find((branch) => branch._id === siteId) : null),
+        [siteId, branchList]
     );
 
-    const filterFields = useMemo(
-        () =>
-            BASE_FILTER_FIELDS.map((field) =>
-                field.key === 'branchId' ? { ...field, options: siteOptions } : field
-            ),
-        [siteOptions]
+    // --- Query floor plans from API -----------------------------------------
+    const { data: apiData, isLoading } = useGetFloorPlansQuery(
+        {
+            organizationId,
+            page: table.page + 1,
+            limit: table.rowsPerPage,
+            branchId: filters.state.branchId !== ALL_BRANCHES_VALUE ? filters.state.branchId : '',
+            status: filters.state.status !== 'all' ? filters.state.status : '',
+            keyword: keyword || '',
+        },
+        { skip: !organizationId }
     );
 
-    // --- Data source ---------------------------------------------------------
-    // `mockFloors` is already scoped to the owner's sites at the mock-data
-    // layer — `reloadKey` just forces a re-read after a create/upload mutation.
-    const allFloors = useMemo(() => mockFloors, [reloadKey]);
+    // Fallback to mock data if API is not available
+    const allMockFloors = useMemo(() => mockFloors, [reloadKey]);
 
-    const filteredFloors = useMemo(() => {
+    const filteredMockFloors = useMemo(() => {
         const search = keyword.trim().toLowerCase();
 
-        return allFloors.filter((floor) => {
+        return allMockFloors.filter((floor) => {
             const matchesStatus = filters.state.status === 'all' || floor.status === filters.state.status;
-            const matchesSite = filters.state.branchId === 'all' || floor.branchId === filters.state.branchId;
+            const matchesSite = filters.state.branchId === ALL_BRANCHES_VALUE || floor.branchId === filters.state.branchId;
             const matchesSearch =
                 !search ||
                 floor.name.toLowerCase().includes(search) ||
@@ -133,37 +155,72 @@ export function FloorPlanListView({ ownerDashboard = true }) {
 
             return matchesStatus && matchesSite && matchesSearch;
         });
-    }, [allFloors, filters.state.status, filters.state.branchId, keyword]);
+    }, [allMockFloors, filters.state.status, filters.state.branchId, keyword]);
 
-    const paginatedFloors = useMemo(() => {
+    const paginatedMockFloors = useMemo(() => {
         const start = table.page * table.rowsPerPage;
-        return filteredFloors.slice(start, start + table.rowsPerPage);
-    }, [filteredFloors, table.page, table.rowsPerPage]);
+        return filteredMockFloors.slice(start, start + table.rowsPerPage);
+    }, [filteredMockFloors, table.page, table.rowsPerPage]);
+
+    const filteredApiFloors = useMemo(() => {
+        if (!apiData || !Array.isArray(apiData.data)) return null;
+        return apiData.data.map((f) => ({
+            ...f,
+            id: f._id || f.id,
+            name: f.name || f.floorName || (f.floorNumber !== undefined ? `Floor ${f.floorNumber}` : 'Floor Plan'),
+            branchId: typeof f.branch === 'object' ? f.branch?._id : (f.branchId || f.branch),
+            branch: typeof f.branch === 'object' ? f.branch?.name : (f.branchName || f.branch || '—'),
+            status: f.status || (f.fileUrl || f.imageUrl ? 'uploaded' : 'pending'),
+            version: f.version ?? 1,
+            pinsCount: f.pinsCount ?? f.pins?.length ?? 0,
+            uploadedAt: f.uploadedAt || f.createdAt || null,
+        }));
+    }, [apiData]);
+
+    const records = filteredApiFloors ?? paginatedMockFloors;
+    const totalCount = apiData
+        ? (apiData?.meta?.totalRecords ?? apiData?.meta?.total ?? filteredApiFloors?.length ?? 0)
+        : filteredMockFloors.length;
 
     const getStatusCount = useCallback(
-        (status) =>
-            status === 'all' ? allFloors.length : allFloors.filter((floor) => floor.status === status).length,
-        [allFloors]
+        (status) => {
+            if (filteredApiFloors) {
+                return status === 'all'
+                    ? filteredApiFloors.length
+                    : filteredApiFloors.filter((floor) => floor.status === status).length;
+            }
+            return status === 'all'
+                ? allMockFloors.length
+                : allMockFloors.filter((floor) => floor.status === status).length;
+        },
+        [filteredApiFloors, allMockFloors]
     );
 
-    const notFound = !paginatedFloors.length;
+    const notFound = !isLoading && !records.length;
 
     // --- Handlers --------------------------------------------------------
+
+    const handleBranchChange = useCallback(
+        (option) => {
+            const nextId = option?.value || ALL_BRANCHES_VALUE;
+            table.onResetPage();
+            filters.setState({ branchId: nextId });
+
+            if (nextId && nextId !== ALL_BRANCHES_VALUE) {
+                router.push(base.peepAndFloorPlans.floorPlans.bySite(nextId));
+            } else {
+                router.push(base.peepAndFloorPlans.floorPlans.root);
+            }
+        },
+        [filters, router, table, base]
+    );
 
     const handleFilterChange = useCallback(
         (key, value) => {
             table.onResetPage();
             filters.setState({ [key]: value });
-
-            if (key === 'branchId') {
-                if (value && value !== 'all') {
-                    router.push(base.peepAndFloorPlans.floorPlans.bySite(value));
-                } else {
-                    router.push(base.peepAndFloorPlans.floorPlans.root);
-                }
-            }
         },
-        [filters, router, table, base]
+        [filters, table]
     );
 
     const handleSearchChange = useCallback(
@@ -215,14 +272,45 @@ export function FloorPlanListView({ ownerDashboard = true }) {
                     { name: 'Floor Plans' },
                 ]}
                 action={
-                    <Button
-                        variant="contained"
-                        onClick={createOpen.onTrue}
-                        startIcon={<Iconify icon="mingcute:add-line" />}
-                        disabled={!siteOptions.length || siteOptions.length === 1}
+                    <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1.5}
+                        alignItems={{ xs: 'stretch', sm: 'center' }}
                     >
-                        Add Floor
-                    </Button>
+                        <InfiniteAutocomplete
+                            value={selectedBranchOption}
+                            onChange={handleBranchChange}
+                            useQuery={useGetBranchesQuery}
+                            queryArgs={{ organizationId }}
+                            mapOption={mapBranchOption}
+                            extraOptions={EXTRA_BRANCH_OPTIONS}
+                            label="Site"
+                            placeholder="Search site..."
+                            disabled={!organizationId}
+                            size="small"
+                            sx={{ minWidth: { xs: 1, sm: 260 } }}
+                            textFieldProps={{
+                                InputProps: {
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <Iconify
+                                                icon="solar:buildings-2-bold-duotone"
+                                                width={20}
+                                                sx={{ color: 'text.disabled' }}
+                                            />
+                                        </InputAdornment>
+                                    ),
+                                },
+                            }}
+                        />
+                        <Button
+                            variant="contained"
+                            onClick={createOpen.onTrue}
+                            startIcon={<Iconify icon="mingcute:add-line" />}
+                        >
+                            Add Floor
+                        </Button>
+                    </Stack>
                 }
                 sx={{ mb: { xs: 3, md: 5 } }}
             />
@@ -236,7 +324,7 @@ export function FloorPlanListView({ ownerDashboard = true }) {
                 />
 
                 <FlexibleTableToolbar
-                    filterFields={filterFields}
+                    filterFields={BASE_FILTER_FIELDS}
                     filterValues={filters.state}
                     onFilterChange={handleFilterChange}
                     onSearchChange={handleSearchChange}
@@ -244,22 +332,30 @@ export function FloorPlanListView({ ownerDashboard = true }) {
 
                 <Box sx={{ position: 'relative' }}>
                     <Scrollbar>
-                        <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1080 }}>
+                        <Table size={table.dense ? 'small' : 'medium'} sx={{ width: '100%', minWidth: 800 }}>
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
 
                             <TableBody>
-                                {paginatedFloors.map((row, index) => (
-                                    <FloorPlanTableRow
-                                        key={row.id}
-                                        row={row}
-                                        serialNumber={table.page * table.rowsPerPage + index + 1}
-                                        onUpload={setUploadTarget}
-                                        ownerDashboard={ownerDashboard}
-                                        clickable
-                                    />
-                                ))}
+                                {isLoading ? (
+                                    [...Array(table.rowsPerPage)].map((_, index) => (
+                                        <TableSkeleton key={index} sx={{ height: 48 }} />
+                                    ))
+                                ) : (
+                                    <>
+                                        {records.map((row, index) => (
+                                            <FloorPlanTableRow
+                                                key={row.id}
+                                                row={row}
+                                                serialNumber={table.page * table.rowsPerPage + index + 1}
+                                                onUpload={setUploadTarget}
+                                                ownerDashboard={ownerDashboard}
+                                                clickable
+                                            />
+                                        ))}
 
-                                <TableNoData notFound={notFound} title="No floors found" />
+                                        <TableNoData notFound={notFound} title="No floors found" />
+                                    </>
+                                )}
                             </TableBody>
                         </Table>
                     </Scrollbar>
@@ -268,7 +364,7 @@ export function FloorPlanListView({ ownerDashboard = true }) {
                 <TablePaginationCustom
                     page={table.page}
                     dense={table.dense}
-                    count={filteredFloors.length}
+                    count={totalCount}
                     rowsPerPage={table.rowsPerPage}
                     onPageChange={table.onChangePage}
                     onChangeDense={table.onChangeDense}
@@ -279,7 +375,7 @@ export function FloorPlanListView({ ownerDashboard = true }) {
             <FloorCreateModal
                 open={createOpen.value}
                 onClose={createOpen.onFalse}
-                siteOptions={siteOptions.filter((option) => option.value !== 'all')}
+                siteOptions={branchList.map((branch) => ({ value: branch._id, label: branch.name }))}
                 onSuccess={handleCreateSuccess}
             />
 

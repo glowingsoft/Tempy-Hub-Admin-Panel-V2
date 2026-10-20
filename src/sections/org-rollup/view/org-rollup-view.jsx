@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
@@ -6,48 +6,54 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Unstable_Grid2';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
-import { CONFIG } from 'src/config-global';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
+import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 
-import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
 import { mockBranches } from 'src/sections/branch/mocks/data';
 import { getOwnerOrganizationId } from 'src/sections/branch/utils';
-import {
-    ALL_BRANCHES_VALUE,
-    OwnerBranchFilterActions,
-} from 'src/sections/branch/owner-branch-select';
+import { ALL_BRANCHES_VALUE } from 'src/sections/branch/owner-branch-select';
 import { PEEP_RECORDS } from 'src/sections/peep-records/mocks/data';
 import { getFloorPlanCoverage, mockFloors } from 'src/sections/floor-plans/mocks/data';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetPeepFloorSummaryQuery, useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
 
 import { OrgRollupSiteTableRow } from '../org-rollup-site-table-row';
 
 // ----------------------------------------------------------------------
 
-const icon = (name) => `${CONFIG.site.basePath}/assets/icons/navbar/${name}.svg`;
+const mapBranchOption = (item) => ({
+    value: item._id,
+    label: item.name,
+});
+
+const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
 
 const TABLE_HEAD = [
-    { id: 'sr', label: 'Sr#', width: 60 },
-    { id: 'site', label: 'Site', minWidth: 200 },
-    { id: 'residents', label: 'Residents', width: 100, align: 'center' },
-    { id: 'low', label: 'Low', width: 80, align: 'center' },
-    { id: 'medium', label: 'Medium', width: 90, align: 'center' },
-    { id: 'high', label: 'High', width: 80, align: 'center' },
-    { id: 'floors', label: 'Floor Plans', minWidth: 160 },
-    { id: 'actions', label: 'Actions', width: 90, align: 'center' },
+    { id: 'sr', label: 'Sr#', width: 50 },
+    { id: 'site', label: 'Site', width: 120 },
+    { id: 'residents', label: 'Residents', width: 120, align: 'center' },
+    { id: 'low', label: 'Low', width: 120, align: 'center' },
+    { id: 'medium', label: 'Medium', width: 120, align: 'center' },
+    { id: 'high', label: 'High', width: 120, align: 'center' },
+    { id: 'floors', label: 'Floor Plans', width: 120, align: 'center' },
+    { id: 'actions', label: 'Actions', width: 80, align: 'center' },
 ];
 
 // Only search is client-side here — the table already scales to many sites
@@ -65,33 +71,68 @@ const SITE_MANAGER_HERO_SITE_NAME = 'Willow House';
 
 export function OrgRollupView({ ownerDashboard = true }) {
     const router = useRouter();
-    const table = useTable({ defaultOrderBy: 'name' });
+    const table = useTable({ defaultOrderBy: 'name', defaultDense: true });
+
+    useEffect(() => {
+        table.setDense(true);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const { user } = useSelector((state) => state.user);
-    const organizationId = getOwnerOrganizationId(user);
+    const { organizationId: currentOrgId } = useCurrentOrganization();
+    const activeOrgId = currentOrgId || getOwnerOrganizationId(user);
 
     const base = ownerDashboard ? paths.owner : paths.siteManager;
 
-    const handleSiteChange = useCallback(
-        (nextBranchId) => {
-            if (nextBranchId && nextBranchId !== ALL_BRANCHES_VALUE) {
-                router.push(base.peepAndFloorPlans.site(nextBranchId));
-            }
+    const [branchId, setBranchId] = useState(ALL_BRANCHES_VALUE);
+
+    const selectedBranchOption = useMemo(() => {
+        if (!branchId || branchId === ALL_BRANCHES_VALUE) {
+            return { value: ALL_BRANCHES_VALUE, label: 'All sites' };
+        }
+        return { value: branchId, label: 'Selected site' };
+    }, [branchId]);
+
+    const handleBranchChange = useCallback(
+        (option) => {
+            const nextId = option?.value || ALL_BRANCHES_VALUE;
+            setBranchId(nextId);
+            table.onResetPage();
         },
-        [router, base]
+        [table]
     );
 
     const filters = useSetState({ search: '' });
     const keyword = useDebounce(filters.state.search, 300);
 
-    // --- Org-wide summary cards ----------------------------------------------
+    // --- Query PEEP & Floor Plan Summary API ---------------------------------
+    const {
+        data: summaryData,
+        isLoading,
+    } = useGetPeepFloorSummaryQuery(
+        {
+            organizationId: activeOrgId,
+            branchId: branchId !== ALL_BRANCHES_VALUE ? branchId : undefined,
+        },
+        { skip: !activeOrgId }
+    );
 
-    const totalWithRecord = PEEP_RECORDS.length;
-    const highPeepCount = PEEP_RECORDS.filter((record) => record.peepLevel === 'high').length;
-    const { totalSites, sitesWithPlan, sitesWithoutPlan } = useMemo(() => getFloorPlanCoverage(), []);
+    // --- Query PEEP records API on search / filter ----------------------------
+    const {
+        data: peepRecordsData,
+        isLoading: isRecordsLoading,
+    } = useGetPeepRecordsQuery(
+        {
+            organizationId: activeOrgId,
+            page: table.page + 1,
+            limit: table.rowsPerPage,
+            branchId: branchId !== ALL_BRANCHES_VALUE ? branchId : '',
+            peepLevel: '',
+            keyword: keyword || '',
+        },
+        { skip: !activeOrgId }
+    );
 
-    // --- Per-site aggregates (residents by level, floor-plan status) ---------
-
+    // --- Fallback Mock Aggregates --------------------------------------------
     const levelCountsBySite = useMemo(() => {
         const map = new Map();
         PEEP_RECORDS.forEach((record) => {
@@ -117,27 +158,49 @@ export function OrgRollupView({ ownerDashboard = true }) {
         return map;
     }, []);
 
-    const sites = useMemo(() => {
+    const mockSiteRows = useMemo(() => {
         const orgSites = mockBranches.filter(
-            (branch) => !organizationId || branch.organizationId === organizationId
+            (branch) => !activeOrgId || branch.organizationId === activeOrgId
         );
-        return ownerDashboard
+        const filtered = ownerDashboard
             ? orgSites
             : orgSites.filter((branch) => branch.name === SITE_MANAGER_HERO_SITE_NAME);
-    }, [organizationId, ownerDashboard]);
 
-    const siteRows = useMemo(
-        () =>
-            sites.map((site) => ({
-                site,
-                levels: levelCountsBySite.get(site._id) || EMPTY_LEVELS,
-                floorsSummary: floorSummaryBySite.get(site._id) || EMPTY_FLOORS,
-            })),
-        [sites, levelCountsBySite, floorSummaryBySite]
-    );
+        return filtered.map((site) => ({
+            site,
+            levels: levelCountsBySite.get(site._id) || EMPTY_LEVELS,
+            floorsSummary: floorSummaryBySite.get(site._id) || EMPTY_FLOORS,
+        }));
+    }, [activeOrgId, ownerDashboard, levelCountsBySite, floorSummaryBySite]);
 
-    // Site Manager cards 3 & 4 report floors for their hero site rather than
-    // "sites with a plan" (which is meaningless once the table is one site).
+    // --- Per-site rows (API or Mock fallback) --------------------------------
+    const siteRows = useMemo(() => {
+        if (Array.isArray(summaryData?.sites)) {
+            return summaryData.sites.map((item) => {
+                const siteObj = item.branch || item.site || { _id: item._id, name: item.name };
+                const low = item.levels?.low ?? 0;
+                const medium = item.levels?.medium ?? 0;
+                const high = item.levels?.high ?? 0;
+                const total = item.levels?.total ?? (low + medium + high);
+
+                return {
+                    site: {
+                        _id: siteObj._id,
+                        name: siteObj.name || '—',
+                        code: siteObj.code,
+                    },
+                    levels: { low, medium, high, total },
+                    floorsSummary: item.floorsSummary || {
+                        total: item.floors?.total ?? 0,
+                        uploaded: item.floors?.uploaded ?? 0,
+                    },
+                };
+            });
+        }
+
+        return mockSiteRows;
+    }, [summaryData, mockSiteRows]);
+
     const siteFloorTotals = useMemo(
         () =>
             siteRows.reduce(
@@ -151,24 +214,57 @@ export function OrgRollupView({ ownerDashboard = true }) {
         [siteRows]
     );
 
-    const thirdCardTitle = ownerDashboard ? 'Sites With Plans' : 'No of floors';
-    const thirdCardTotal = ownerDashboard
-        ? (totalSites ? `${sitesWithPlan} of ${totalSites}` : '0 of 0')
-        : siteFloorTotals.total;
+    // --- Org-wide summary cards (API or Fallback) ----------------------------
+    const totals = summaryData?.totals;
+    const floors = summaryData?.floors;
 
-    const missingFloorPlans = Math.max(siteFloorTotals.total - siteFloorTotals.uploaded, 0);
-    const fourthCardMissing = ownerDashboard ? sitesWithoutPlan : missingFloorPlans;
-    const fourthCardTitle = fourthCardMissing > 0
-        ? (fourthCardMissing === 1 ? 'No Floor Plan' : 'No Floor Plans')
-        : (ownerDashboard ? 'All Plans Uploaded' : 'Plan uploaded'); 1
-    const fourthCardTotal = fourthCardMissing > 0 ? fourthCardMissing : (ownerDashboard ? 0 : siteFloorTotals.uploaded);
+    const totalWithRecord = totals?.records ?? PEEP_RECORDS.length;
+    const highPeepCount = totals?.high ?? PEEP_RECORDS.filter((record) => record.peepLevel === 'high').length;
+    const { totalSites: mockTotalSites, sitesWithPlan: mockSitesWithPlan } =
+        useMemo(() => getFloorPlanCoverage(), []);
+
+    const totalFloors = floors?.total ?? (ownerDashboard ? mockTotalSites : siteFloorTotals.total);
+    const uploadedFloors = floors?.uploaded ?? (ownerDashboard ? mockSitesWithPlan : siteFloorTotals.uploaded);
+
+    const thirdCardTitle = ownerDashboard ? 'Sites With Plans' : 'Number of floors';
+    const thirdCardTotal = ownerDashboard
+        ? (totalFloors ? `${uploadedFloors} of ${totalFloors}` : '0 of 0')
+        : totalFloors;
+
+    const missingFloorPlans = Math.max(totalFloors - uploadedFloors, 0);
+    const fourthCardMissing = missingFloorPlans;
+    const fourthCardTitle =
+        fourthCardMissing > 0
+            ? fourthCardMissing === 1
+                ? 'No Floor Plan'
+                : 'No Floor Plans'
+            : ownerDashboard
+            ? 'All Plans Uploaded'
+            : 'Plans Uploaded';
+    const fourthCardTotal = fourthCardMissing > 0 ? fourthCardMissing : (ownerDashboard ? 0 : uploadedFloors);
 
     // --- All-sites table (search + pagination) --------------------------------
 
+    const matchingSiteIdsFromRecords = useMemo(() => {
+        if (!keyword.trim() || !Array.isArray(peepRecordsData?.data)) return null;
+        return new Set(
+            peepRecordsData.data
+                .map((r) => (typeof r.branch === 'object' ? r.branch?._id : r.branchId || r.branch))
+                .filter(Boolean)
+        );
+    }, [peepRecordsData, keyword]);
+
     const filteredRows = useMemo(() => {
         const search = keyword.trim().toLowerCase();
-        return siteRows.filter((row) => !search || row.site.name.toLowerCase().includes(search));
-    }, [siteRows, keyword]);
+        if (!search) return siteRows;
+
+        return siteRows.filter((row) => {
+            const matchesSiteName = row.site.name.toLowerCase().includes(search);
+            const matchesSiteCode = row.site.code?.toLowerCase().includes(search);
+            const matchesRecords = matchingSiteIdsFromRecords?.has(row.site._id);
+            return matchesSiteName || matchesSiteCode || matchesRecords;
+        });
+    }, [siteRows, keyword, matchingSiteIdsFromRecords]);
 
     const paginatedRows = useMemo(() => {
         const start = table.page * table.rowsPerPage;
@@ -199,7 +295,34 @@ export function OrgRollupView({ ownerDashboard = true }) {
                     { name: 'Dashboard', href: base.root },
                     { name: 'PEEP & Floor Plans' },
                 ]}
-                action={<OwnerBranchFilterActions value={ALL_BRANCHES_VALUE} onChange={handleSiteChange} />}
+                action={
+                    <InfiniteAutocomplete
+                        value={selectedBranchOption}
+                        onChange={handleBranchChange}
+                        useQuery={useGetBranchesQuery}
+                        queryArgs={{ organizationId: activeOrgId }}
+                        mapOption={mapBranchOption}
+                        extraOptions={EXTRA_BRANCH_OPTIONS}
+                        label="Site"
+                        placeholder="Search site..."
+                        disabled={!activeOrgId}
+                        size="small"
+                        sx={{ minWidth: { xs: 1, sm: 260 } }}
+                        textFieldProps={{
+                            InputProps: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <Iconify
+                                            icon="solar:buildings-2-bold-duotone"
+                                            width={20}
+                                            sx={{ color: 'text.disabled' }}
+                                        />
+                                    </InputAdornment>
+                                ),
+                            },
+                        }}
+                    />
+                }
                 sx={{ mb: { xs: 3, md: 5 } }}
             />
 
@@ -227,10 +350,8 @@ export function OrgRollupView({ ownerDashboard = true }) {
 
                 <Grid xs={12} sm={6} md={3}>
                     <DataUsageSummaryCard
-                        title={ownerDashboard ? 'Sites With Plans' : 'Number of floors'}
-                        total={ownerDashboard
-                            ? (totalSites ? `${sitesWithPlan} of ${totalSites}` : '0 of 0')
-                            : siteFloorTotals.total}
+                        title={thirdCardTitle}
+                        total={thirdCardTotal}
                         color="success"
                         icon="solar:layers-bold-duotone"
                     />
@@ -238,21 +359,10 @@ export function OrgRollupView({ ownerDashboard = true }) {
 
                 <Grid xs={12} sm={6} md={3}>
                     <DataUsageSummaryCard
-                        title={ownerDashboard
-                            ? (sitesWithoutPlan > 0
-                                ? sitesWithoutPlan === 1
-                                    ? 'No Floor Plan'
-                                    : 'No Floor Plans'
-                                : 'All Plans Uploaded')
-                            : 'Plans Uploaded'}
-                        total={ownerDashboard ? sitesWithoutPlan : siteFloorTotals.uploaded}
-                        color={ownerDashboard ? (sitesWithoutPlan > 0 ? 'error' : 'success') : 'success'}
+                        title={fourthCardTitle}
+                        total={fourthCardTotal}
+                        color={fourthCardMissing > 0 ? 'error' : 'success'}
                         icon="solar:folder-error-bold-duotone"
-                        sx={
-                            ownerDashboard && sitesWithoutPlan > 0
-                                ? { bgcolor: 'error.lighter', border: '1px solid', borderColor: 'error.light' }
-                                : undefined
-                        }
                     />
                 </Grid>
             </Grid>
@@ -267,20 +377,28 @@ export function OrgRollupView({ ownerDashboard = true }) {
 
                 <Box sx={{ position: 'relative' }}>
                     <Scrollbar>
-                        <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1020 }}>
+                        <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 850 }}>
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
 
                             <TableBody>
-                                {paginatedRows.map((row, index) => (
-                                    <OrgRollupSiteTableRow
-                                        key={row.site._id}
-                                        row={row}
-                                        serialNumber={table.page * table.rowsPerPage + index + 1}
-                                        onSelect={() => router.push(base.peepAndFloorPlans.site(row.site._id))}
-                                    />
-                                ))}
+                                {isLoading || (keyword && isRecordsLoading) ? (
+                                    [...Array(table.rowsPerPage)].map((_, index) => (
+                                        <TableSkeleton key={index} />
+                                    ))
+                                ) : (
+                                    <>
+                                        {paginatedRows.map((row, index) => (
+                                            <OrgRollupSiteTableRow
+                                                key={row.site._id}
+                                                row={row}
+                                                serialNumber={table.page * table.rowsPerPage + index + 1}
+                                                onSelect={() => router.push(base.peepAndFloorPlans.site(row.site._id))}
+                                            />
+                                        ))}
 
-                                <TableNoData notFound={!paginatedRows.length} title="No sites found" />
+                                        <TableNoData notFound={!paginatedRows.length} title="No sites found" />
+                                    </>
+                                )}
                             </TableBody>
                         </Table>
                     </Scrollbar>

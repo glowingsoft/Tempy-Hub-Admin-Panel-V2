@@ -90,7 +90,7 @@ export default function EvacuationTableRow({ row, serialNumber, onOpen }) {
 
       {/* 8. Status */}
       <TableCell align="center">
-        <Label variant="soft" color={isActive ? 'success' : 'default'}>
+        <Label variant="soft" color={isActive ? 'success' : 'error'}>
           {isActive ? 'Active' : 'Closed'}
         </Label>
       </TableCell>
