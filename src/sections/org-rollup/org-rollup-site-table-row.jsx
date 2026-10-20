@@ -32,7 +32,7 @@ export function OrgRollupSiteTableRow({ row, serialNumber, onSelect }) {
     <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={onSelect}>
       <TableCell>{serialNumber}</TableCell>
 
-      <TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {site.name}
         </Typography>
@@ -52,7 +52,7 @@ export function OrgRollupSiteTableRow({ row, serialNumber, onSelect }) {
         <Label color="error">{levels.high}</Label>
       </TableCell>
 
-      <TableCell>
+      <TableCell align="center">
         <Label color={floorMeta.color}>{floorMeta.label}</Label>
       </TableCell>
 

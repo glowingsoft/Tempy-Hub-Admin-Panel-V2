@@ -157,7 +157,7 @@ export function resolveStartedByName(row, membersMap = {}, currentUser = null) {
 // ----------------------------------------------------------------------
 
 export function FireDrillsView({ rootPath, showSiteFilter = false }) {
-  const table = useTable();
+  const table = useTable({ defaultDense: true });
   const startDialog = useBoolean();
   const detailDrawer = useBoolean();
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -319,7 +319,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         assemblyPoint: row.branch?.assemblyPoint || row.assemblyPoint || '',
         startedByUserId: row.startedByUserId || null,
         startedByName: resolveStartedByName(row, membersMap, user),
-        stats: row.rollcallStats || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 },
+        stats: row.rollcallStats || row.rollcall || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 },
       }));
     } else {
       rows = getMockEvacuations({

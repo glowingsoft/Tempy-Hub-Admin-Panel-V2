@@ -13,7 +13,7 @@ export const EVACUATION_TYPE_OPTIONS = [
 export const EVACUATION_STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'closed', label: 'Closed', color: 'default' },
+  { value: 'closed', label: 'Closed', color: 'error' },
 ];
 
 export const EVAC_CHECK_STATUS = {

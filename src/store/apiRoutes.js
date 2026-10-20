@@ -98,4 +98,13 @@ export const API_ROUTES = {
     EVACUATION_BY_ID: (id) => `/admin/evacuations/${id}`,
     EVACUATION_CHECKS: (id) => `/admin/evacuations/${id}/checks`,
     EVACUATION_CLOSE: (id) => `/admin/evacuations/${id}/close`,
+
+    // PEEP & Floor Plans
+    ORGANIZATION_PEEP_FLOOR_SUMMARY: (organizationId) =>
+        `/admin/organizations/${organizationId}/peep-floor-summary`,
+    ORGANIZATION_PEEP_RECORDS: (organizationId) =>
+        `/admin/organizations/${organizationId}/peep-records`,
+    PEEP_RECORD_BY_ID: (peepRecordId) => `/admin/peep-records/${peepRecordId}`,
+    ORGANIZATION_FLOOR_PLANS: (organizationId) =>
+        `/admin/organizations/${organizationId}/floor-plans`,
 };

@@ -19,6 +19,8 @@ import { residentsApi } from './Reducer/residents-api';
 import { attendanceApi } from './Reducer/attendance-api';
 import { generalDirectoryApi } from './Reducer/general-directory-api';
 import { evacuationsApi } from './Reducer/evacuations-api';
+import { peepFloorPlanApi } from './Reducer/peep-floor-plan-api';
+import { floorPlansApi } from './Reducer/floor-plans-api';
 
 // Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
@@ -80,6 +82,8 @@ export const store = configureStore({
     [attendanceApi.reducerPath]: attendanceApi.reducer,
     [generalDirectoryApi.reducerPath]: generalDirectoryApi.reducer,
     [evacuationsApi.reducerPath]: evacuationsApi.reducer,
+    [peepFloorPlanApi.reducerPath]: peepFloorPlanApi.reducer,
+    [floorPlansApi.reducerPath]: floorPlansApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -106,6 +110,8 @@ export const store = configureStore({
       attendanceApi.middleware,
       generalDirectoryApi.middleware,
       evacuationsApi.middleware,
+      peepFloorPlanApi.middleware,
+      floorPlansApi.middleware,
     ),
 });
 

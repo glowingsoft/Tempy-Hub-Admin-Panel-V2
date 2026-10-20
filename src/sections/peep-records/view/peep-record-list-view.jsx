@@ -4,6 +4,8 @@ import { useSelector } from 'react-redux';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import InputAdornment from '@mui/material/InputAdornment';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
@@ -17,33 +19,40 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
+import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
 
 import { mockBranches } from 'src/sections/branch/mocks/data';
 import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { ALL_BRANCHES_VALUE } from 'src/sections/branch/owner-branch-select';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
 
 import { PEEP_RECORDS, PEEP_FLOOR_OPTIONS, PEEP_LEVEL_OPTIONS } from '../mocks/data';
 import { PeepRecordTableRow } from '../peep-record-table-row';
 
+const mapBranchOption = (item) => ({
+    value: item._id,
+    label: item.name,
+});
+
+const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
+
 const TABLE_HEAD = [
     { id: 'sr', label: 'Sr#', width: 60 },
-    { id: 'resident', label: 'Resident', minWidth: 220 },
-    { id: 'room', label: 'Room', width: 100 },
-    { id: 'site', label: 'Site', minWidth: 140 },
-    { id: 'floor', label: 'Floor', width: 130 },
-    { id: 'level', label: 'PEEP level', width: 140 },
-    // { id: 'supportNeeds', label: 'Support needs', minWidth: 280 },
-    { id: 'actions', label: 'Actions', width: 100, align: 'center' },
+    { id: 'resident', label: 'Resident', width: '24%', minWidth: 200 },
+    { id: 'room', label: 'Room', width: '16%' },
+    { id: 'site', label: 'Site', width: '16%' },
+    { id: 'floor', label: 'Floor', width: '16%' },
+    { id: 'level', label: 'PEEP level', width: '16%' },
+    { id: 'actions', label: 'Actions', width: 90, align: 'center' },
 ];
 
-// Floor / PEEP level options are static, so they're baked in here. The Site
-// options depend on the owner's organization, so that field's `options` are
-// injected at render time (see `filterFields` below).
 const FILTER_FIELDS = [
     createFilterField.search({ placeholder: 'Search residents or rooms...' }),
-    createFilterField.select({ key: 'branchId', label: 'Site', defaultValue: 'all' }),
     createFilterField.select({
         key: 'floor',
         label: 'Floor',
@@ -60,10 +69,11 @@ const FILTER_FIELDS = [
 
 export function PeepRecordListView({ ownerDashboard = true }) {
     const router = useRouter();
-    const table = useTable({ defaultOrderBy: 'name' });
+    const table = useTable({ defaultOrderBy: 'name', defaultDense: true });
 
     const { user } = useSelector((state) => state.user);
-    const organizationId = getOwnerOrganizationId(user);
+    const { organizationId: currentOrgId } = useCurrentOrganization();
+    const organizationId = currentOrgId || getOwnerOrganizationId(user);
 
     const base = ownerDashboard ? paths.owner : paths.siteManager;
 
@@ -79,30 +89,64 @@ export function PeepRecordListView({ ownerDashboard = true }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [siteId]);
 
-    const siteOptions = useMemo(
-        () => [
-            { value: 'all', label: 'All sites' },
-            ...mockBranches
-                .filter((branch) => !organizationId || branch.organizationId === organizationId)
-                .map((branch) => ({ value: branch._id, label: branch.name })),
-        ],
-        [organizationId]
+    // Query branches for organization
+    const { data: branchesData } = useGetBranchesQuery(
+        { organizationId, page: 1, limit: 100 },
+        { skip: !organizationId }
     );
+
+    const branchList = useMemo(() => {
+        if (Array.isArray(branchesData?.data)) {
+            return branchesData.data;
+        }
+        return mockBranches.filter((branch) => !organizationId || branch.organizationId === organizationId);
+    }, [branchesData, organizationId]);
+
+    const selectedBranchOption = useMemo(() => {
+        const currentId = filters.state.branchId;
+        if (!currentId || currentId === ALL_BRANCHES_VALUE) {
+            return { value: ALL_BRANCHES_VALUE, label: 'All sites' };
+        }
+        const found = branchList.find((b) => b._id === currentId);
+        return found ? { value: found._id, label: found.name } : { value: currentId, label: 'Selected site' };
+    }, [filters.state.branchId, branchList]);
+
+    const handleBranchChange = useCallback(
+        (option) => {
+            const nextId = option?.value || ALL_BRANCHES_VALUE;
+            table.onResetPage();
+            filters.setState({ branchId: nextId });
+
+            if (nextId && nextId !== ALL_BRANCHES_VALUE) {
+                router.push(base.peepAndFloorPlans.records.bySite(nextId));
+            } else {
+                router.push(base.peepAndFloorPlans.records.root);
+            }
+        },
+        [filters, router, table, base]
+    );
+
 
     const currentSite = useMemo(
-        () => (siteId ? mockBranches.find((branch) => branch._id === siteId) : null),
-        [siteId]
+        () => (siteId ? branchList.find((branch) => branch._id === siteId) : null),
+        [siteId, branchList]
     );
 
-    const filterFields = useMemo(
-        () =>
-            FILTER_FIELDS.map((field) =>
-                field.key === 'branchId' ? { ...field, options: siteOptions } : field
-            ),
-        [siteOptions]
+    // Query PEEP records from API
+    const { data: apiData, isLoading } = useGetPeepRecordsQuery(
+        {
+            organizationId,
+            page: table.page + 1,
+            limit: table.rowsPerPage,
+            branchId: filters.state.branchId !== 'all' && filters.state.branchId !== ALL_BRANCHES_VALUE ? filters.state.branchId : '',
+            peepLevel: filters.state.peepLevel !== 'all' ? filters.state.peepLevel : '',
+            keyword: keyword || '',
+        },
+        { skip: !organizationId }
     );
 
-    const filteredRecords = useMemo(() => {
+    // Fallback to mock data if API is not available
+    const filteredMockRecords = useMemo(() => {
         const search = keyword.trim().toLowerCase();
         return PEEP_RECORDS.filter(
             (record) =>
@@ -115,22 +159,52 @@ export function PeepRecordListView({ ownerDashboard = true }) {
         );
     }, [keyword, filters.state.branchId, filters.state.floor, filters.state.peepLevel]);
 
-    const paginatedRecords = filteredRecords.slice(
+    const paginatedMockRecords = filteredMockRecords.slice(
         table.page * table.rowsPerPage,
         table.page * table.rowsPerPage + table.rowsPerPage
     );
 
+    const filteredApiRecords = useMemo(() => {
+        if (!apiData || !Array.isArray(apiData.data)) return null;
+        let list = apiData.data.map((r) => ({
+            ...r,
+            id: r._id || r.id,
+            name:
+                r.name ||
+                r.residentName ||
+                (r.resident ? `${r.resident.firstName || ''} ${r.resident.lastName || ''}`.trim() : '') ||
+                '—',
+            email: r.email || r.resident?.email || '',
+            roomNumber: r.roomNumber || r.room?.number || r.room || '—',
+            branch: typeof r.branch === 'object' ? r.branch?.name : r.branch || r.branchName || '—',
+            floor: r.floor || r.floorNumber || r.floorPlan?.floorNumber || '—',
+            peepLevel: r.peepLevel || r.level || 'low',
+        }));
+        if (filters.state.floor && filters.state.floor !== 'all') {
+            list = list.filter((r) => String(r.floor) === String(filters.state.floor));
+        }
+        return list;
+    }, [apiData, filters.state.floor]);
+
+    const records = filteredApiRecords ?? paginatedMockRecords;
+    const totalCount = apiData
+        ? (apiData?.meta?.totalRecords ?? apiData?.meta?.total ?? filteredApiRecords?.length ?? 0)
+        : filteredMockRecords.length;
+
+    const notFound = !isLoading && !records.length;
+
     const handleFilterChange = useCallback(
         (key, value) => {
             table.onResetPage();
-            filters.setState({ [key]: value });
-
             if (key === 'branchId') {
-                if (value && value !== 'all') {
+                filters.setState({ branchId: value, floor: 'all' });
+                if (value && value !== 'all' && value !== ALL_BRANCHES_VALUE) {
                     router.push(base.peepAndFloorPlans.records.bySite(value));
                 } else {
                     router.push(base.peepAndFloorPlans.records.root);
                 }
+            } else {
+                filters.setState({ [key]: value });
             }
         },
         [filters, router, table, base]
@@ -155,16 +229,53 @@ export function PeepRecordListView({ ownerDashboard = true }) {
                     { name: 'PEEP Records' },
                 ]}
                 action={
-                    <Button component={RouterLink} href={base.peepAndFloorPlans.records.new} variant="contained" startIcon={<Iconify icon="mingcute:add-line" />}>
-                        New PEEP Record
-                    </Button>
+                    <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1.5}
+                        alignItems={{ xs: 'stretch', sm: 'center' }}
+                    >
+                        <InfiniteAutocomplete
+                            value={selectedBranchOption}
+                            onChange={handleBranchChange}
+                            useQuery={useGetBranchesQuery}
+                            queryArgs={{ organizationId }}
+                            mapOption={mapBranchOption}
+                            extraOptions={EXTRA_BRANCH_OPTIONS}
+                            label="Site"
+                            placeholder="Search site..."
+                            disabled={!organizationId}
+                            size="small"
+                            sx={{ minWidth: { xs: 1, sm: 260 } }}
+                            textFieldProps={{
+                                InputProps: {
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <Iconify
+                                                icon="solar:buildings-2-bold-duotone"
+                                                width={20}
+                                                sx={{ color: 'text.disabled' }}
+                                            />
+                                        </InputAdornment>
+                                    ),
+                                },
+                            }}
+                        />
+                        <Button
+                            component={RouterLink}
+                            href={base.peepAndFloorPlans.records.new}
+                            variant="contained"
+                            startIcon={<Iconify icon="mingcute:add-line" />}
+                        >
+                            New PEEP Record
+                        </Button>
+                    </Stack>
                 }
                 sx={{ mb: { xs: 3, md: 5 } }}
             />
 
             <Card>
                 <FlexibleTableToolbar
-                    filterFields={filterFields}
+                    filterFields={FILTER_FIELDS}
                     filterValues={filters.state}
                     onFilterChange={handleFilterChange}
                     onSearchChange={handleSearchChange}
@@ -174,15 +285,23 @@ export function PeepRecordListView({ ownerDashboard = true }) {
                         <Table size={table.dense ? 'small' : 'medium'} sx={{ width: '100%' }}>
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
                             <TableBody>
-                                {paginatedRecords.map((row, index) => (
-                                    <PeepRecordTableRow
-                                        key={row.id}
-                                        row={row}
-                                        serialNumber={table.page * table.rowsPerPage + index + 1}
-                                        ownerDashboard={ownerDashboard}
-                                    />
-                                ))}
-                                <TableNoData notFound={!paginatedRecords.length} title="No PEEP records found" />
+                                {isLoading ? (
+                                    [...Array(table.rowsPerPage)].map((_, index) => (
+                                        <TableSkeleton key={index} sx={{ height: 60 }} />
+                                    ))
+                                ) : (
+                                    <>
+                                        {records.map((row, index) => (
+                                            <PeepRecordTableRow
+                                                key={row.id}
+                                                row={row}
+                                                serialNumber={table.page * table.rowsPerPage + index + 1}
+                                                ownerDashboard={ownerDashboard}
+                                            />
+                                        ))}
+                                        <TableNoData notFound={notFound} title="No PEEP records found" />
+                                    </>
+                                )}
                             </TableBody>
                         </Table>
                     </Scrollbar>
@@ -190,7 +309,7 @@ export function PeepRecordListView({ ownerDashboard = true }) {
                 <TablePaginationCustom
                     page={table.page}
                     dense={table.dense}
-                    count={filteredRecords.length}
+                    count={totalCount}
                     rowsPerPage={table.rowsPerPage}
                     onPageChange={table.onChangePage}
                     onChangeDense={table.onChangeDense}
