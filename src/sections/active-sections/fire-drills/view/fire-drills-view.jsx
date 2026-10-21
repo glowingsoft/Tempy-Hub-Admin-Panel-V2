@@ -6,6 +6,9 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
+import Stack from '@mui/material/Stack';
+import InputAdornment from '@mui/material/InputAdornment';
+
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -14,16 +17,14 @@ import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filte
 import { Scrollbar } from 'src/components/scrollbar';
 import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
 import { toast } from 'src/components/snackbar';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
-import {
-  ALL_BRANCHES_VALUE,
-  OwnerBranchFilterActions,
-  useOwnerBranchFilter,
-} from 'src/sections/branch/owner-branch-select';
+import { ALL_BRANCHES_VALUE } from 'src/sections/branch/owner-branch-select';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useGetOnSiteSummaryQuery,
   useGetActiveEvacuationQuery,
@@ -156,6 +157,17 @@ export function resolveStartedByName(row, membersMap = {}, currentUser = null) {
 
 // ----------------------------------------------------------------------
 
+function isPermissionDenied(error) {
+  return error?.status === 401 || error?.status === 403;
+}
+
+const mapBranchOption = (item) => ({
+  value: item._id,
+  label: item.name,
+});
+
+const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
+
 export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const table = useTable({ defaultDense: true });
   const startDialog = useBoolean();
@@ -165,7 +177,23 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const [reloadKey, setReloadKey] = useState(0);
 
   const { organizationId, user } = useCurrentOrganization();
-  const { branchId, onBranchChange } = useOwnerBranchFilter();
+  const [branchId, setBranchId] = useState(ALL_BRANCHES_VALUE);
+
+  const handleBranchChange = useCallback(
+    (option) => {
+      const nextId = option?.value || ALL_BRANCHES_VALUE;
+      setBranchId(nextId);
+      table.onResetPage();
+    },
+    [table]
+  );
+
+  const selectedBranchOption = useMemo(() => {
+    if (!branchId || branchId === ALL_BRANCHES_VALUE) {
+      return { value: ALL_BRANCHES_VALUE, label: 'All sites' };
+    }
+    return { value: branchId, label: 'Selected site' };
+  }, [branchId]);
 
   const scopedBranchId =
     showSiteFilter && branchId !== ALL_BRANCHES_VALUE ? branchId : null;
@@ -214,6 +242,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     data: onSiteSummaryApiData,
     isLoading: isOnSiteSummaryLoading,
     isFetching: isOnSiteSummaryFetching,
+    error: onSiteSummaryApiError,
   } = useGetOnSiteSummaryQuery(
     {
       organizationId,
@@ -228,6 +257,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const {
     data: activeEvacuationApiData,
     isLoading: isActiveEvacuationLoading,
+    error: activeEvacuationApiError,
   } = useGetActiveEvacuationQuery(
     {
       organizationId,
@@ -260,13 +290,27 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     }
   );
 
+  const hasPermissionDenied = [
+    onSiteSummaryApiError,
+    activeEvacuationApiError,
+    evacuationsApiError,
+  ].some(isPermissionDenied);
+  const allowMockFallback = !organizationId && !hasPermissionDenied;
   const onSiteSummary =
-    onSiteSummaryApiData || getMockOnSiteSummary(queryBranchId);
+    onSiteSummaryApiData ||
+    (allowMockFallback ? getMockOnSiteSummary(queryBranchId) : null);
   const isSummaryLoading =
     (isOnSiteSummaryLoading || isOnSiteSummaryFetching) && !onSiteSummaryApiData;
 
   const loading = isEvacuationsLoading || isEvacuationsFetching;
-  const error = evacuationsApiError?.data?.message || evacuationsApiError?.message || null;
+  const error = [
+    evacuationsApiError,
+    onSiteSummaryApiError,
+    activeEvacuationApiError,
+  ]
+    .filter((queryError) => queryError && !isPermissionDenied(queryError))
+    .map((queryError) => queryError.data?.message || queryError.message)
+    .find(Boolean);
 
   const statusFilterField = useMemo(() => FILTER_FIELDS.find((f) => f.type === 'status'), []);
   const toolbarFilterFields = useMemo(() => FILTER_FIELDS.filter((f) => f.type !== 'status'), []);
@@ -294,11 +338,14 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       raw = rawEvacuationsList.find((row) => row.status === 'active') || null;
     }
 
-    if (!raw && !organizationId) {
+    if (!raw && allowMockFallback) {
       raw = getMockActiveEvacuation(scopedBranchId || undefined);
     }
 
     if (!raw || !raw._id) return null;
+
+    const rollcallData =
+      raw.rollcall || raw.rollcallStats || raw.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
 
     return {
       ...raw,
@@ -307,30 +354,45 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       startedByUserId: raw.startedByUserId || null,
       startedByName: resolveStartedByName(raw, membersMap, user),
       stats: raw.rollcallStats || raw.rollcall || raw.stats || { total: 0, safe: 0, missing: 0, unknown: 0 },
+      rollcall: rollcallData,
+      stats: rollcallData,
     };
-  }, [activeEvacuationApiData, rawEvacuationsList, scopedBranchId, membersMap, user, reloadKey, organizationId]);
+  }, [activeEvacuationApiData, rawEvacuationsList, scopedBranchId, membersMap, user, reloadKey, allowMockFallback]);
 
   const evacuations = useMemo(() => {
     let rows;
     if (rawEvacuationsList) {
-      rows = rawEvacuationsList.map((row) => ({
-        ...row,
-        branchName: row.branch?.name || row.branchName || '—',
-        assemblyPoint: row.branch?.assemblyPoint || row.assemblyPoint || '',
-        startedByUserId: row.startedByUserId || null,
-        startedByName: resolveStartedByName(row, membersMap, user),
-        stats: row.rollcallStats || row.rollcall || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 },
-      }));
-    } else {
+      rows = rawEvacuationsList.map((row) => {
+        const rollcallData =
+          row.rollcall || row.rollcallStats || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
+        return {
+          ...row,
+          branchName: row.branch?.name || row.branchName || '—',
+          assemblyPoint: row.branch?.assemblyPoint || row.assemblyPoint || '',
+          startedByUserId: row.startedByUserId || null,
+          startedByName: resolveStartedByName(row, membersMap, user),
+          rollcall: rollcallData,
+          stats: rollcallData,
+        };
+      });
+    } else if (allowMockFallback) {
       rows = getMockEvacuations({
         branchId: scopedBranchId || undefined,
         status: filters.state.status,
-      }).map((row) => ({
-        ...row,
-        branchName: row.branch?.name || row.branchName || '—',
-        startedByUserId: row.startedByUserId || null,
-        startedByName: resolveStartedByName(row, membersMap, user),
-      }));
+      }).map((row) => {
+        const rollcallData =
+          row.rollcall || row.rollcallStats || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
+        return {
+          ...row,
+          branchName: row.branch?.name || row.branchName || '—',
+          startedByUserId: row.startedByUserId || null,
+          startedByName: resolveStartedByName(row, membersMap, user),
+          rollcall: rollcallData,
+          stats: rollcallData,
+        };
+      });
+    } else {
+      rows = [];
     }
 
     const search = filters.state.name.trim().toLowerCase();
@@ -349,6 +411,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     reloadKey,
     membersMap,
     user,
+    allowMockFallback,
   ]);
 
   const totalCount = useMemo(() => {
@@ -392,11 +455,13 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         return evacuations.filter((row) => row.status === status).length;
       }
 
+      if (!allowMockFallback) return 0;
+
       const base = getMockEvacuations({ branchId: scopedBranchId || undefined, status: 'all' });
       if (status === 'all') return base.length;
       return base.filter((row) => row.status === status).length;
     },
-    [evacuationsApiData, rawEvacuationsList, totalCount, evacuations, scopedBranchId]
+    [evacuationsApiData, rawEvacuationsList, totalCount, evacuations, scopedBranchId, allowMockFallback]
   );
 
   const bump = () => setReloadKey((k) => k + 1);
@@ -458,6 +523,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const {
     data: checksApiData,
     isLoading: isChecksLoading,
+    error: checksApiError,
   } = useGetEvacuationChecksQuery(
     {
       evacuationEventId: selectedEvent?._id,
@@ -503,17 +569,15 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       if (Array.isArray(checksApiData.data)) return checksApiData.data;
       if (Array.isArray(checksApiData)) return checksApiData;
     }
-    return selectedEvent ? mockEvacChecksByEventId[selectedEvent._id] || [] : [];
-  }, [checksApiData, selectedEvent]);
+    return !hasPermissionDenied && !isPermissionDenied(checksApiError) && selectedEvent
+      ? mockEvacChecksByEventId[selectedEvent._id] || []
+      : [];
+  }, [checksApiData, checksApiError, hasPermissionDenied, selectedEvent]);
 
   const detailStats = useMemo(() => {
-    return (
-      checksApiData?.rollcallStats ||
-      selectedEvent?.rollcallStats ||
-      selectedEvent?.stats ||
-      null
-    );
-  }, [checksApiData, selectedEvent]);
+    if (hasPermissionDenied || isPermissionDenied(checksApiError)) return null;
+    return checksApiData?.rollcallStats || selectedEvent?.rollcallStats || selectedEvent?.stats || null;
+  }, [checksApiData, checksApiError, hasPermissionDenied, selectedEvent]);
 
   const handleOpenDetail = useCallback(
     (event) => {
@@ -557,7 +621,37 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         links={[{ name: 'Dashboard', href: rootPath }, { name: 'Fire Drills' }]}
         action={
           showSiteFilter ? (
-            <OwnerBranchFilterActions value={branchId} onChange={onBranchChange}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <InfiniteAutocomplete
+                value={selectedBranchOption}
+                onChange={handleBranchChange}
+                useQuery={useGetBranchesQuery}
+                queryArgs={{ organizationId }}
+                mapOption={mapBranchOption}
+                extraOptions={EXTRA_BRANCH_OPTIONS}
+                label="Site"
+                placeholder="Search site..."
+                disabled={!organizationId}
+                size="small"
+                sx={{ minWidth: { xs: 1, sm: 260 } }}
+                textFieldProps={{
+                  InputProps: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify
+                          icon="solar:buildings-2-bold-duotone"
+                          width={20}
+                          sx={{ color: 'text.disabled' }}
+                        />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
               <Button
                 variant="contained"
                 color="error"
@@ -567,7 +661,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
               >
                 Start evacuation
               </Button>
-            </OwnerBranchFilterActions>
+            </Stack>
           ) : (
             <Button
               variant="contained"
@@ -590,7 +684,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       )}
 
       <OnSiteSummary
-        summary={onSiteSummary}
+        summary={onSiteSummaryApiData}
         loading={isSummaryLoading}
         hideSiteDetails={showSiteFilter && branchId === ALL_BRANCHES_VALUE}
       />

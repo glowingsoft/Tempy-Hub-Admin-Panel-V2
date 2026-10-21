@@ -1,27 +1,60 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
 import { convertPdfToImage } from 'src/utils/pdf-to-image';
 
 import { FloorPlanPin } from './floor-plan-pin';
 
-export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode, selectedResidentId, residents, onResidentChange, onPlanClick, onPinClick }) {
+export function FloorPlanViewer({
+  floorPlan,
+  pins = [],
+  residentsById = {},
+  placementMode = false,
+  selectedResidentId = '',
+  residents = [],
+  organizationId,
+  branchId,
+  floorPlanId,
+  onResidentChange = () => {},
+  onPlanClick = () => {},
+  onPinClick = () => {},
+  onDeletePin = () => {},
+  isDeletingPin = false,
+  loading = false,
+  showEmptyWhenMissing = false,
+  pinPlacementDisabled = false,
+  pinPlacementBusy = false,
+}) {
   const [imgError, setImgError] = useState(false);
   const selectedResident = residentsById?.[selectedResidentId];
+  const isUpdatingPin = pins.some((pin) => pin.residentId === selectedResidentId);
+  const selectedPin = pins.find(
+    (pin) => pin.residentId === selectedResidentId && pin.apiPinId
+  );
+  const residentOptions = residents.map((resident) => mapResidentOption(resident, pins));
+  const mapResidentRecordOption = useCallback(
+    (record) => mapPeepRecordOption(record, pins),
+    [pins]
+  );
+  const handleResidentChange = useCallback(
+    (option) => onResidentChange(option),
+    [onResidentChange]
+  );
+  const selectedResidentOption = selectedResident
+    ? mapResidentOption(selectedResident, pins)
+    : null;
 
   useEffect(() => {
     setImgError(false);
@@ -56,28 +89,20 @@ export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode,
         alignItems={{ sm: 'center' }}
         sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', flexWrap: 'wrap', gap: 1.5 }}
       >
-        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 240 } }}>
-          <InputLabel id="floor-plan-resident-label">Room / resident</InputLabel>
-          <Select
-            labelId="floor-plan-resident-label"
-            value={selectedResidentId}
-            label="Room / resident"
-            onChange={(event) => onResidentChange(event.target.value)}
-          >
-            <MenuItem value="">
-              <em>Select a resident</em>
-            </MenuItem>
-            {residents.map((resident) => {
-              const isPinned = pins.some((pin) => pin.residentId === resident.id);
-              return (
-                <MenuItem key={resident.id} value={resident.id}>
-                  Room {resident.roomNumber} - {resident.name}
-                  {isPinned ? ' (pinned)' : ''}
-                </MenuItem>
-              );
-            })}
-          </Select>
-        </FormControl>
+        <InfiniteAutocomplete
+          key={`${organizationId || 'no-organization'}-${branchId || 'no-branch'}-${floorPlanId || 'mock'}`}
+          value={selectedResidentOption}
+          onChange={handleResidentChange}
+          useQuery={useGetPeepRecordsQuery}
+          queryArgs={{ organizationId, branchId }}
+          mapOption={mapResidentRecordOption}
+          extraOptions={residentOptions}
+          enabled={Boolean(floorPlanId && organizationId && branchId)}
+          limit={100}
+          label="Room / resident"
+          placeholder="Select a resident"
+          sx={{ minWidth: { xs: '100%', sm: 240 } }}
+        />
 
         {selectedResident && (
           <Label
@@ -104,20 +129,27 @@ export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode,
 
         <Tooltip
           title={
-            !floorPlan
+            pinPlacementBusy
+              ? 'Saving pin...'
+              : pinPlacementDisabled
+              ? 'Pin placement is unavailable for this floor plan'
+              : !floorPlan
               ? 'Upload a floor plan PDF first'
               : !selectedResidentId
               ? 'Select a resident from the dropdown first to place their pin'
               : placementMode
-              ? 'Click anywhere on the floor plan image below to drop the pin (or click here to cancel)'
-              : `Click to activate pin placement for Room ${selectedResident?.roomNumber} (${selectedResident?.name})`
+              ? `Click the plan to ${isUpdatingPin ? 'update' : 'place'} this resident's pin (or click here to cancel)`
+              : `Click to ${isUpdatingPin ? 'update' : 'place'} a pin for Room ${selectedResident?.roomNumber} (${selectedResident?.name})`
           }
           arrow
         >
           <Button
             size="small"
             variant="contained"
-            startIcon={
+            disabled={pinPlacementDisabled || pinPlacementBusy}
+            startIcon={pinPlacementBusy ? (
+              <CircularProgress size={16} color="inherit" />
+            ) : (
               <Iconify
                 icon={placementMode ? 'solar:cursor-bold' : 'solar:map-point-wave-bold'}
                 sx={{
@@ -126,7 +158,7 @@ export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode,
                   filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.3))',
                 }}
               />
-            }
+            )}
             onClick={() => {
               if (!floorPlan) {
                 toast.info('Please upload a floor plan PDF first.');
@@ -187,9 +219,29 @@ export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode,
               },
             }}
           >
-            {placementMode ? 'Click plan to place' : 'Place pin'}
+            {pinPlacementBusy
+              ? 'Saving pin...'
+              : placementMode
+              ? `Click plan to ${isUpdatingPin ? 'update' : 'place'}`
+              : isUpdatingPin
+                ? 'Update pin'
+                : 'Place pin'}
           </Button>
         </Tooltip>
+
+        {floorPlanId && selectedPin && (
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            disabled={isDeletingPin}
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={() => onDeletePin(selectedPin)}
+            sx={{ height: 40, fontWeight: 700, textTransform: 'none' }}
+          >
+            Delete pin
+          </Button>
+        )}
 
         <Typography variant="caption" color="text.secondary" sx={{ ml: { sm: 'auto' } }}>
           Pin colour follows the resident&apos;s current PEEP level.
@@ -197,18 +249,24 @@ export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode,
       </Stack>
 
       <Box>
-        {!floorPlan && (
+        {loading ? (
+          <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center', p: 4 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : !floorPlan ? (
           <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center', p: 4, bgcolor: 'grey.50', textAlign: 'center' }}>
             <Stack spacing={1} alignItems="center">
-              <Typography variant="subtitle1">No floor plan uploaded</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Add PEEP records now. Upload a PDF when the plan is available to place room pins.
+              <Typography variant="subtitle1">
+                {showEmptyWhenMissing ? 'Floor plan not found' : 'No floor plan uploaded'}
               </Typography>
+              {!showEmptyWhenMissing && (
+                <Typography variant="body2" color="text.secondary">
+                  Add PEEP records now. Upload a PDF when the plan is available to place room pins.
+                </Typography>
+              )}
             </Stack>
           </Box>
-        )}
-
-        {floorPlan && (
+        ) : (
           <Box
             sx={{
               position: 'relative',
@@ -238,6 +296,22 @@ export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode,
               />
             ) : floorPlan.url || floorPlan.file ? (
               <PdfImageFallback plan={floorPlan} />
+            ) : showEmptyWhenMissing ? (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'grid',
+                  placeItems: 'center',
+                  p: 3,
+                  bgcolor: 'grey.50',
+                  textAlign: 'center',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  No floor plan image or PDF is available.
+                </Typography>
+              </Box>
             ) : (
               <FloorPlanDrawing />
             )}
@@ -251,7 +325,6 @@ export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode,
                 pointerEvents: placementMode ? 'auto' : 'none',
               }}
             />
-
             {pins.map((pin) => {
               const resident = residentsById[pin.residentId];
 
@@ -276,13 +349,61 @@ export function FloorPlanViewer({ floorPlan, pins, residentsById, placementMode,
   );
 }
 
+function mapResidentOption(resident, pins) {
+  const id = String(resident.id);
+  const isPinned = pins.some((pin) => pin.residentId === id);
+
+  return {
+    value: id,
+    label: `Room ${resident.roomNumber || '—'} - ${resident.name || '—'}${isPinned ? ' (pinned)' : ''}`,
+    resident,
+  };
+}
+
+function mapPeepRecordOption(record, pins) {
+  const resident =
+    record?.resident && typeof record.resident === 'object' ? record.resident : {};
+  const rawResidentId =
+    resident._id ||
+    resident.id ||
+    record?.residentId ||
+    (typeof record?.resident === 'string' ? record.resident : null);
+  const residentId =
+    typeof rawResidentId === 'object'
+      ? rawResidentId?._id || rawResidentId?.id || null
+      : rawResidentId;
+  const id = residentId || record?._id || record?.id;
+
+  if (!id) return null;
+
+  const residentName = `${resident.firstName || ''} ${resident.lastName || ''}`.trim();
+
+  const recordId = record?._id || record?.id;
+  const mappedResident = {
+    ...record,
+    id: String(id),
+    residentId: residentId ? String(residentId) : null,
+    peepRecordId: recordId || null,
+    name: record?.name || record?.residentName || resident.name || residentName || '—',
+    roomNumber:
+      record?.roomNumber || resident.roomNumber || record?.room?.number || record?.room || '—',
+    peepLevel: record?.peepLevel || record?.level || 'low',
+  };
+
+  return mapResidentOption(mappedResident, pins);
+}
+
 export function PdfImageFallback({ plan, onConverted }) {
   const [imgUrl, setImgUrl] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [renderError, setRenderError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     const target = plan?.file || plan?.url;
+    setImgUrl(null);
+    setRenderError(false);
+
     if (!target) {
       setLoading(false);
       return;
@@ -300,7 +421,13 @@ export function PdfImageFallback({ plan, onConverted }) {
       })
       .catch((err) => {
         console.warn('Failed converting PDF to image in fallback:', err);
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setRenderError(true);
+          setLoading(false);
+          toast.error(
+            'Unable to display this floor plan PDF. Verify the file URL and S3 CORS configuration.'
+          );
+        }
       });
 
     return () => {
@@ -350,7 +477,23 @@ export function PdfImageFallback({ plan, onConverted }) {
     );
   }
 
-  return <FloorPlanDrawing />;
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        inset: 0,
+        display: 'grid',
+        placeItems: 'center',
+        p: 3,
+        bgcolor: 'grey.50',
+        textAlign: 'center',
+      }}
+    >
+      <Typography variant="body2" color={renderError ? 'error.main' : 'text.secondary'}>
+        {renderError ? 'Unable to render this floor plan PDF.' : 'No floor plan preview available.'}
+      </Typography>
+    </Box>
+  );
 }
 
 export function FloorPlanDrawing() {

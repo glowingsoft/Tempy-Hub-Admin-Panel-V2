@@ -21,7 +21,14 @@ export function FloorPlanTableRow({ row, serialNumber, onUpload, ownerDashboard 
   const statusMeta = getFloorStatusMeta(row.status);
   const isUploaded = row.status === 'uploaded';
 
-  const openFloorPlan = () => router.push(base.peepAndFloorPlans.map(row.branchId));
+  const openFloorPlan = () => {
+    const floorPlanId = row.id || row._id;
+    const branchId = row.branchId || row.branch?._id;
+    if (!floorPlanId || !branchId) return;
+
+    const mapPath = base.peepAndFloorPlans.map(branchId);
+    router.push(`${mapPath}?floorPlanId=${encodeURIComponent(floorPlanId)}`);
+  };
 
   const actions = [
     {

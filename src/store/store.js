@@ -2,7 +2,7 @@ import { configureStore, createAction } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { persistReducer, persistStore, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import { authApi } from './Reducer/auth';
-import userReducer from './slices/userSlice';
+import userReducer, { logout } from './slices/userSlice';
 import { walletsApi } from './Reducer/wallets-api';
 import { categoriesApi } from './Reducer/categories-api';
 import { organizationsApi } from './Reducer/organizations-api';
@@ -21,6 +21,7 @@ import { generalDirectoryApi } from './Reducer/general-directory-api';
 import { evacuationsApi } from './Reducer/evacuations-api';
 import { peepFloorPlanApi } from './Reducer/peep-floor-plan-api';
 import { floorPlansApi } from './Reducer/floor-plans-api';
+import { uploadApi } from './Reducer/upload-api';
 
 // Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
@@ -59,6 +60,39 @@ const persistConfig = {
 // Action to reset all API caches
 export const resetApiState = createAction('api/resetApiState');
 
+const apiSlices = [
+  authApi,
+  walletsApi,
+  categoriesApi,
+  organizationsApi,
+  departmentsApi,
+  jobTitlesApi,
+  branchesApi,
+  invitationsApi,
+  membersApi,
+  staffProfilesApi,
+  shiftsApi,
+  shiftClaimsApi,
+  leaveRequestsApi,
+  residentsApi,
+  attendanceApi,
+  generalDirectoryApi,
+  evacuationsApi,
+  peepFloorPlanApi,
+  floorPlansApi,
+  uploadApi,
+];
+
+const clearApiCachesOnLogout = ({ dispatch }) => (next) => (action) => {
+  const result = next(action);
+
+  if (logout.match(action)) {
+    apiSlices.forEach((apiSlice) => dispatch(apiSlice.util.resetApiState()));
+  }
+
+  return result;
+};
+
 // Create a persisted reducer for the user slice
 const persistedUserReducer = persistReducer(persistConfig, userReducer);
 
@@ -84,6 +118,7 @@ export const store = configureStore({
     [evacuationsApi.reducerPath]: evacuationsApi.reducer,
     [peepFloorPlanApi.reducerPath]: peepFloorPlanApi.reducer,
     [floorPlansApi.reducerPath]: floorPlansApi.reducer,
+    [uploadApi.reducerPath]: uploadApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -112,6 +147,8 @@ export const store = configureStore({
       evacuationsApi.middleware,
       peepFloorPlanApi.middleware,
       floorPlansApi.middleware,
+      uploadApi.middleware,
+      clearApiCachesOnLogout,
     ),
 });
 

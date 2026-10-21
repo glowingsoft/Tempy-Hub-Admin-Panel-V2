@@ -10,7 +10,6 @@ import Card from '@mui/material/Card';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import LinearProgress from '@mui/material/LinearProgress';
 import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
@@ -54,7 +53,7 @@ const PeepRecordSchema = zod.object({
   responsibleStaff: zod.string().optional().or(zod.literal('')),
 });
 
-export function PeepRecordNewEditForm({ currentRecord, isLoadingRecord = false, ownerDashboard = true }) {
+export function PeepRecordNewEditForm({ currentRecord, ownerDashboard = true }) {
   const router = useRouter();
   const isEdit = Boolean(currentRecord);
   const base = ownerDashboard ? paths.owner : paths.siteManager;
@@ -178,33 +177,7 @@ export function PeepRecordNewEditForm({ currentRecord, isLoadingRecord = false, 
     <Form methods={methods} onSubmit={onSubmit}>
       <Stack spacing={3}>
         <Card sx={{ position: 'relative', overflow: 'hidden' }}>
-          {isLoadingRecord && (
-            <LinearProgress
-              color="primary"
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 4,
-                zIndex: 9,
-              }}
-            />
-          )}
-
-          <Box
-            sx={{
-              p: 3,
-              ...(isLoadingRecord && {
-                opacity: 0.6,
-                pointerEvents: 'none',
-                transition: (theme) =>
-                  theme.transitions.create(['opacity'], {
-                    duration: theme.transitions.duration.shorter,
-                  }),
-              }),
-            }}
-          >
+          <Box sx={{ p: 3 }}>
             <Typography variant="h6" sx={{ mb: 3 }}>
               PEEP record
             </Typography>
@@ -223,7 +196,7 @@ export function PeepRecordNewEditForm({ currentRecord, isLoadingRecord = false, 
                 queryArgs={{ organizationId: activeOrgId }}
                 mapOption={mapBranchOption}
                 extraOptions={EXTRA_BRANCH_OPTIONS}
-                enabled={Boolean(activeOrgId)}
+                enabled={Boolean(activeOrgId) && !isEdit}
                 disabled={isEdit}
               />
 
@@ -247,7 +220,7 @@ export function PeepRecordNewEditForm({ currentRecord, isLoadingRecord = false, 
                       : resident.name)
                     : resident._id,
                 })}
-                enabled={Boolean(activeOrgId)}
+                enabled={Boolean(activeOrgId) && !isEdit}
                 disabled={isEdit}
                 required
               />
@@ -300,8 +273,8 @@ export function PeepRecordNewEditForm({ currentRecord, isLoadingRecord = false, 
           <LoadingButton
             type="submit"
             variant="contained"
+            color="primary"
             loading={isSubmitting || isCreating || isUpdating}
-            disabled={isLoadingRecord}
           >
             {isEdit ? 'Save changes' : 'Create PEEP record'}
           </LoadingButton>

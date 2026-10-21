@@ -282,6 +282,7 @@ export const paths = {
         root: `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records`,
         bySite: (siteId) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/site/${siteId}/peep-records`,
         new: `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/new`,
+        detail: (id) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/${id}`,
         edit: (id) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/${id}/edit`,
       },
       floorPlans: {
@@ -510,6 +511,7 @@ export const paths = {
         root: `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records`,
         bySite: (siteId) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/site/${siteId}/peep-records`,
         new: `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/new`,
+        detail: (id) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/${id}`,
         edit: (id) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/${id}/edit`,
       },
       floorPlans: {

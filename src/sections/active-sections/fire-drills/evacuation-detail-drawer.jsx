@@ -321,41 +321,8 @@ export function EvacuationDetailDrawer({
             iconPosition="end"
             sx={{ minHeight: 44, fontSize: '0.8rem' }}
             icon={
-              <Label variant={statusFilter === 'all' ? 'filled' : 'soft'} color="default">
+              <Label variant="filled" color="default">
                 {checks.length}
-              </Label>
-            }
-          />
-          <Tab
-            value="missing"
-            label="Missing"
-            iconPosition="end"
-            sx={{ minHeight: 44, fontSize: '0.8rem' }}
-            icon={
-              <Label variant={statusFilter === 'missing' ? 'filled' : 'soft'} color="error">
-                {missing}
-              </Label>
-            }
-          />
-          <Tab
-            value="unknown"
-            label="Not yet"
-            iconPosition="end"
-            sx={{ minHeight: 44, fontSize: '0.8rem' }}
-            icon={
-              <Label variant={statusFilter === 'unknown' ? 'filled' : 'soft'} color="warning">
-                {unknown}
-              </Label>
-            }
-          />
-          <Tab
-            value="safe"
-            label="Safe"
-            iconPosition="end"
-            sx={{ minHeight: 44, fontSize: '0.8rem' }}
-            icon={
-              <Label variant={statusFilter === 'safe' ? 'filled' : 'soft'} color="success">
-                {safe}
               </Label>
             }
           />

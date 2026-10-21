@@ -1,4 +1,6 @@
 export const API_ROUTES = {
+    // File uploads
+    UPLOAD_S3: '/upload/s3',
     AUTH: {
         LOGIN: '/auth/login',
         ADMIN_LOGIN: 'admin/login',
@@ -17,6 +19,7 @@ export const API_ROUTES = {
 
     USERS: '/users',
     USERS_BY_ID: (id) => `/users/${id}`,
+    APP_USER_PROFILE: '/app/users/profile',
 
     CATEGORIES: '/categories',
     CATEGORIES_BY_ID: (id) => `/categories/${id}`,
@@ -112,4 +115,8 @@ export const API_ROUTES = {
     PEEP_RECORD_BY_ID: (peepRecordId) => `/admin/peep-records/${peepRecordId}`,
     ORGANIZATION_FLOOR_PLANS: (organizationId) =>
         `/admin/organizations/${organizationId}/floor-plans`,
+    FLOOR_PLAN_BY_ID: (floorPlanId) => `/admin/floor-plans/${floorPlanId}`,
+    FLOOR_PLAN_PINS: (floorPlanId) => `/admin/floor-plans/${floorPlanId}/pins`,
+    FLOOR_PLAN_PIN_BY_ID: (floorPlanId, floorPlanPinId) =>
+        `/admin/floor-plans/${floorPlanId}/pins/${floorPlanPinId}`,
 };
