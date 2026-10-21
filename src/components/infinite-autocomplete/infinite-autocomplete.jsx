@@ -12,6 +12,7 @@ import { useDebounce } from 'src/hooks/use-debounce';
 const DEFAULT_LIMIT = 100;
 const DEFAULT_DEBOUNCE_MS = 400;
 const SCROLL_THRESHOLD_PX = 48;
+const EMPTY_EXTRA_OPTIONS = [];
 
 function mergeUniqueOptions(extraOptions, fetchedOptions, selected) {
   const list = [];
@@ -98,7 +99,7 @@ export function InfiniteAutocomplete({
   useQuery,
   queryArgs = {},
   mapOption,
-  extraOptions = [],
+  extraOptions = EMPTY_EXTRA_OPTIONS,
   limit = DEFAULT_LIMIT,
   debounceMs = DEFAULT_DEBOUNCE_MS,
   enabled = true,
@@ -157,18 +158,14 @@ export function InfiniteAutocomplete({
     }
   }, [isFetching]);
 
-  useEffect(() => {
-    if (!fetchedOptions.length) return;
-
-    const resolved = resolveSelectedLabels(value, fetchedOptions);
-    if (resolved !== value) {
-      onChange(resolved);
-    }
-  }, [fetchedOptions, onChange, value]);
+  const displayValue = useMemo(
+    () => resolveSelectedLabels(value, fetchedOptions),
+    [value, fetchedOptions]
+  );
 
   const options = useMemo(
-    () => mergeUniqueOptions(extraOptions, fetchedOptions, value),
-    [extraOptions, fetchedOptions, value]
+    () => mergeUniqueOptions(extraOptions, fetchedOptions, displayValue),
+    [extraOptions, fetchedOptions, displayValue]
   );
 
   const showInitialLoading = (isLoading || isFetching) && fetchedOptions.length === 0 && !skip;
@@ -188,7 +185,7 @@ export function InfiniteAutocomplete({
 
   return (
     <Autocomplete
-      value={multiple ? value ?? [] : value ?? null}
+      value={multiple ? displayValue ?? [] : displayValue ?? null}
       options={options}
       multiple={multiple}
       disabled={disabled}
@@ -210,7 +207,7 @@ export function InfiniteAutocomplete({
         setInputValue('');
       }}
       open={popupOpen}
-      inputValue={multiple || popupOpen ? inputValue : value?.label || ''}
+      inputValue={multiple || popupOpen ? inputValue : displayValue?.label || ''}
       onInputChange={(event, nextValue, reason) => {
         if (reason === 'input' || reason === 'clear') {
           setInputValue(nextValue);

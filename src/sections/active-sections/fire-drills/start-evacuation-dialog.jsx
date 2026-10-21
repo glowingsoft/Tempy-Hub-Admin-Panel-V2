@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 import { z as zod } from 'zod';
@@ -46,12 +46,13 @@ export function StartEvacuationDialog({
   onStart,
   branchLabel,
   onSiteTotal = 0,
-  branches = [],
   currentBranchId,
   loading = false,
 }) {
   const { organizationId } = useCurrentOrganization();
   const showBranchSelect = !currentBranchId;
+  const [selectedBranch, setSelectedBranch] = useState(null);
+  const branchQueryArgs = useMemo(() => ({ organizationId }), [organizationId]);
 
   const defaultValues = useMemo(
     () => ({
@@ -69,14 +70,14 @@ export function StartEvacuationDialog({
   const currentBranchIdVal = methods.watch('branchId');
   const selectedDialogOption = useMemo(() => {
     if (!currentBranchIdVal) return null;
-    return typeof currentBranchIdVal === 'object'
-      ? currentBranchIdVal
-      : { value: currentBranchIdVal, label: 'Selected site' };
-  }, [currentBranchIdVal]);
+    if (selectedBranch?.value === currentBranchIdVal) return selectedBranch;
+    return { value: currentBranchIdVal, label: selectedBranch?.label || 'Selected site' };
+  }, [currentBranchIdVal, selectedBranch]);
 
   useEffect(() => {
     if (open) {
       methods.reset(defaultValues);
+      setSelectedBranch(null);
     }
   }, [open, defaultValues, methods]);
 
@@ -115,10 +116,11 @@ export function StartEvacuationDialog({
               <InfiniteAutocomplete
                 value={selectedDialogOption}
                 onChange={(option) => {
+                  setSelectedBranch(option);
                   methods.setValue('branchId', option?.value || '', { shouldValidate: true });
                 }}
                 useQuery={useGetBranchesQuery}
-                queryArgs={{ organizationId }}
+                queryArgs={branchQueryArgs}
                 mapOption={mapBranchOption}
                 label="Site / Branch"
                 placeholder="Search and select site..."
@@ -169,7 +171,6 @@ StartEvacuationDialog.propTypes = {
   onStart: PropTypes.func,
   branchLabel: PropTypes.string,
   onSiteTotal: PropTypes.number,
-  branches: PropTypes.array,
   currentBranchId: PropTypes.string,
   loading: PropTypes.bool,
 };

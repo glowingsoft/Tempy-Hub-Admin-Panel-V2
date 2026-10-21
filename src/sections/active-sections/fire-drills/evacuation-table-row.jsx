@@ -57,7 +57,7 @@ export default function EvacuationTableRow({ row, serialNumber, onOpen }) {
       <TableCell sx={{ width: 50 }}>{serialNumber}</TableCell>
 
       {/* 2. Site */}
-      <TableCell sx={{ width: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <TableCell sx={{ width: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
         {branchName}
       </TableCell>
 

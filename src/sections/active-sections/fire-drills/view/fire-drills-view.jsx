@@ -15,7 +15,13 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
+import {
+  TableBodySkeleton,
+  TableHeadCustom,
+  TableNoData,
+  TablePaginationCustom,
+  useTable,
+} from 'src/components/table';
 import { toast } from 'src/components/snackbar';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { useBoolean } from 'src/hooks/use-boolean';
@@ -188,6 +194,8 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     [table]
   );
 
+  const branchQueryArgs = useMemo(() => ({ organizationId }), [organizationId]);
+
   const selectedBranchOption = useMemo(() => {
     if (!branchId || branchId === ALL_BRANCHES_VALUE) {
       return { value: ALL_BRANCHES_VALUE, label: 'All sites' };
@@ -198,9 +206,9 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const scopedBranchId =
     showSiteFilter && branchId !== ALL_BRANCHES_VALUE ? branchId : null;
 
-  const { branches, membersMap } = useOrganizationLookups({
+  const { membersMap } = useOrganizationLookups({
     organizationId,
-    branches: Boolean(organizationId && showSiteFilter && startDialog.value && !scopedBranchId),
+    branches: false,
     members: false,
     jobTitles: false,
     departments: false,
@@ -630,7 +638,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
                 value={selectedBranchOption}
                 onChange={handleBranchChange}
                 useQuery={useGetBranchesQuery}
-                queryArgs={{ organizationId }}
+                queryArgs={branchQueryArgs}
                 mapOption={mapBranchOption}
                 extraOptions={EXTRA_BRANCH_OPTIONS}
                 label="Site"
@@ -713,17 +721,15 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         <Box sx={{ position: 'relative' }}>
           <Scrollbar slotProps={{ content: { width: 1, minWidth: '100%' } }}>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1050 }}>
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headLabel={TABLE_HEAD}
-              />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {loading ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => (
-                    <TableSkeleton key={index} />
-                  ))
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
                     {paginatedRows.map((row, index) => (
@@ -760,7 +766,6 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         onStart={handleStart}
         branchLabel={onSiteSummary?.branchName}
         onSiteTotal={onSiteSummary?.counts?.total ?? 0}
-        branches={branches || []}
         currentBranchId={queryBranchId}
         loading={isStartingEvacuation}
       />
