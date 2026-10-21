@@ -273,6 +273,7 @@ export function PeepRecordNewEditForm({ currentRecord, ownerDashboard = true }) 
           <LoadingButton
             type="submit"
             variant="contained"
+            color="primary"
             loading={isSubmitting || isCreating || isUpdating}
           >
             {isEdit ? 'Save changes' : 'Create PEEP record'}

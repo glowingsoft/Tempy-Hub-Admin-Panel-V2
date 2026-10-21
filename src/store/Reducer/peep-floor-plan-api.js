@@ -22,7 +22,7 @@ export const peepFloorPlanApi = createApi({
     }),
 
     getPeepRecords: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, branchId, peepLevel, keyword } = {}) => ({
+      query: ({ organizationId, page = 1, limit = 10, branchId, peepLevel, keyword, residentId } = {}) => ({
         url: API_ROUTES.ORGANIZATION_PEEP_RECORDS(organizationId),
         headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         params: {
@@ -31,6 +31,7 @@ export const peepFloorPlanApi = createApi({
           branchId: branchId && branchId !== 'all' ? branchId : '',
           peepLevel: peepLevel && peepLevel !== 'all' ? peepLevel : '',
           keyword: keyword ?? '',
+          ...(residentId ? { residentId } : {}),
         },
       }),
       transformResponse: (res) => ({

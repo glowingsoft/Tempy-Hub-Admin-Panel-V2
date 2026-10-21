@@ -184,7 +184,7 @@ export function OrgRollupSiteDetail({
           component={RouterLink}
           href={base.peepAndFloorPlans.root}
           size="small"
-          color="inherit"
+          color="primary"
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
         >
           All sites
@@ -199,19 +199,12 @@ export function OrgRollupSiteDetail({
           { name: site.name },
         ]}
         action={
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            <Button
-              component={RouterLink}
-              href={base.peepAndFloorPlans.map(site._id || currentSiteId)}
-              variant="contained"
-              startIcon={<Iconify icon="solar:map-point-wave-bold" />}
-            >
-              View Floor Map
-            </Button>
+          <Stack direction={{ md: 'row', xs: 'column' }} spacing={1.5}>
             <Button
               component={RouterLink}
               href={base.peepAndFloorPlans.records.bySite(site._id || currentSiteId)}
               variant="outlined"
+              color="primary"
               startIcon={<Iconify icon="solar:users-group-rounded-bold" />}
             >
               View PEEP Records
@@ -219,7 +212,8 @@ export function OrgRollupSiteDetail({
             <Button
               component={RouterLink}
               href={base.peepAndFloorPlans.floorPlans.bySite(site._id || currentSiteId)}
-              variant="outlined"
+              variant="contained"
+              color="primary"
               startIcon={<Iconify icon="solar:layers-bold" />}
             >
               View Floor Plans

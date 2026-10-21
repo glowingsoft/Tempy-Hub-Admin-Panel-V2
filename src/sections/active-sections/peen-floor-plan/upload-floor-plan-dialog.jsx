@@ -108,7 +108,7 @@ export function UploadFloorPlanDialog({
             Cancel
           </Button>
 
-          <Button type="submit" variant="contained" loading={isSubmitting} loadingPosition="start">
+          <Button type="submit" variant="contained" color="primary" loading={isSubmitting} loadingPosition="start">
             Upload Floor Plan
           </Button>
         </DialogActions>

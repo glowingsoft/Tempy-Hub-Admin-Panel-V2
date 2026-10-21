@@ -13,15 +13,17 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { LoadingScreen } from 'src/components/loading-screen';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useParams, usePathname, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+import { fDateTime } from 'src/utils/format-time';
 
 import { useGetResidentQuery } from 'src/store/Reducer/residents-api';
-import { getResidentPeepById } from 'src/sections/active-sections/peen-floor-plan/mocks/data';
-import { ResidentPeepDrawer } from 'src/sections/active-sections/peen-floor-plan/resident-peep-drawer';
+import { useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
+import { getPeepLevelMeta, getPeepRecordById, PEEP_RECORDS } from 'src/sections/peep-records/mocks/data';
 
 import {
     getMockResidentById,
@@ -51,15 +53,62 @@ export function ResidentDetailView() {
         { skip: !organizationId || !id }
     );
 
+    // Fetch PEEP records from PEEP records API
+    const {
+        data: apiPeepData,
+        isLoading: isPeepLoading,
+        isFetching: isPeepFetching,
+    } = useGetPeepRecordsQuery(
+        { organizationId, residentId: id, limit: 100 },
+        { skip: !organizationId || !id }
+    );
+
     const securityDialog = useBoolean();
     const editDialog = useBoolean();
     const [showPassword, setShowPassword] = useState(false);
 
     const [mockResident, setMockResident] = useState(() => getMockResidentById(id));
     const [localResident, setLocalResident] = useState(null);
-    const [peepResident, setPeepResident] = useState(() => getResidentPeepById(id));
 
     const resident = localResident || apiResident || mockResident;
+
+    const peepRecordId =
+        resident?.peepRecordId ||
+        resident?.peepId ||
+        resident?.peepRecord?._id ||
+        resident?.peepRecord?.id ||
+        resident?.peep?._id ||
+        resident?.peep?.id ||
+        (typeof resident?.peepRecord === 'string' ? resident.peepRecord : null) ||
+        (typeof resident?.peep === 'string' ? resident.peep : null);
+
+    const mockPeepRecord = useMemo(() => {
+        if (!id && !resident?._id) return null;
+        const lookupId = peepRecordId || resident?._id || id;
+        return (
+            getPeepRecordById(lookupId) ||
+            PEEP_RECORDS.find((r) => r.residentId === id || r.residentId === resident?._id || r.id === lookupId) ||
+            null
+        );
+    }, [id, resident?._id, peepRecordId]);
+
+    const peepRecord = useMemo(() => {
+        if (apiPeepData?.data && Array.isArray(apiPeepData.data)) {
+            const found = apiPeepData.data.find((item) => {
+                const itemResidentId =
+                    (typeof item.resident === 'object' ? (item.resident?._id || item.resident?.id) : null) ||
+                    item.residentId ||
+                    (typeof item.resident === 'string' ? item.resident : null);
+                return String(itemResidentId) === String(id) || String(item._id) === String(id);
+            });
+            if (found) return found;
+        }
+        return (
+            (typeof resident?.peepRecord === 'object' && resident?.peepRecord ? resident.peepRecord : null) ||
+            (typeof resident?.peep === 'object' && resident?.peep ? resident.peep : null) ||
+            mockPeepRecord
+        );
+    }, [apiPeepData, id, resident?.peepRecord, resident?.peep, mockPeepRecord]);
 
     // This view is mounted under three different dashboards (site manager,
     // line manager, owner) — resolve the right breadcrumb/back links from the
@@ -202,9 +251,100 @@ export function ResidentDetailView() {
             <Typography variant="h6" sx={{ mb: 1.5 }}>
                 PEEP record
             </Typography>
-            <Card sx={{ p: peepResident ? 3 : 0 }}>
-                {peepResident ? (
-                    <ResidentPeepDrawer inline resident={peepResident} onUpdate={setPeepResident} />
+            <Card sx={{ p: isPeepLoading || isPeepFetching ? 3 : peepRecord ? 3 : 0 }}>
+                {isPeepLoading || isPeepFetching ? (
+                    <LoadingScreen sx={{ py: 6 }} />
+                ) : peepRecord ? (
+                    <Box
+                        sx={{
+                            display: 'grid',
+                            rowGap: 2.5,
+                            columnGap: 3,
+                            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                        }}
+                    >
+                        <DetailItem
+                            label="Resident"
+                            value={
+                                peepRecord?.resident?.name ||
+                                peepRecord?.residentName ||
+                                (peepRecord?.resident
+                                    ? `${peepRecord.resident.firstName || ''} ${peepRecord.resident.lastName || ''}`.trim()
+                                    : '') ||
+                                peepRecord?.name ||
+                                '—'
+                            }
+                        />
+                        <DetailItem
+                            label="Email"
+                            value={
+                                peepRecord?.resident?.email ||
+                                peepRecord?.email ||
+                                '—'
+                            }
+                        />
+                        <DetailItem
+                            label="Room"
+                            value={
+                                peepRecord?.resident?.roomNumber ||
+                                peepRecord?.roomNumber ||
+                                '—'
+                            }
+                        />
+                        <DetailItem
+                            label="Site"
+                            value={
+                                (typeof peepRecord?.branch === 'object' ? peepRecord.branch?.name : null) ||
+                                peepRecord?.branchName ||
+                                (typeof peepRecord?.branch === 'string' ? peepRecord.branch : null) ||
+                                '—'
+                            }
+                        />
+                        <DetailItem
+                            label="Floor"
+                            value={
+                                peepRecord?.floor ||
+                                peepRecord?.pin?.floorPlan?.name ||
+                                peepRecord?.floorPlan?.name ||
+                                peepRecord?.floorNumber ||
+                                '—'
+                            }
+                        />
+                        <DetailItem
+                            label="PEEP Level"
+                            value={
+                                (() => {
+                                    const levelMeta = getPeepLevelMeta(
+                                        peepRecord?.peepLevel || peepRecord?.level
+                                    );
+                                    return (
+                                        <Label variant="soft" color={levelMeta.color}>
+                                            {levelMeta.label}
+                                        </Label>
+                                    );
+                                })()
+                            }
+                        />
+                        <DetailItem label="Consent Status" value={formatStatus(peepRecord.consentStatus)} />
+                        <DetailItem label="Review Due" value={formatDate(peepRecord.reviewDueAt)} />
+                        <DetailItem label="Last Reviewed" value={formatDate(peepRecord.lastReviewedAt)} />
+                        <DetailItem label="Primary Route" value={peepRecord.primaryRoute} />
+                        <DetailItem label="Secondary Route" value={peepRecord.secondaryRoute} />
+                        <DetailItem label="Equipment Required" value={peepRecord.equipmentRequired} />
+                        <DetailItem label="Responsible Staff" value={peepRecord.responsibleStaff} />
+                        <DetailItem
+                            label="Support Needs"
+                            value={peepRecord.supportNeeds || peepRecord.peepSummary}
+                            sx={{ gridColumn: { sm: 'span 2' } }}
+                        />
+                        {peepRecord.mcaBestInterestNotes && (
+                            <DetailItem
+                                label="MCA Best-Interest Notes"
+                                value={peepRecord.mcaBestInterestNotes}
+                                sx={{ gridColumn: { sm: 'span 2' } }}
+                            />
+                        )}
+                    </Box>
                 ) : (
                     <EmptyContent
                         title="No PEEP record for this resident"
@@ -232,6 +372,34 @@ export function ResidentDetailView() {
             />
         </DashboardContent>
     );
+}
+
+function DetailItem({ label, value, sx }) {
+    const content = value === null || value === undefined || value === '' ? '—' : value;
+
+    return (
+        <Stack spacing={0.5} sx={sx}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {label}
+            </Typography>
+            <Typography variant="body2" component="div" sx={{ fontWeight: 600 }}>
+                {content}
+            </Typography>
+        </Stack>
+    );
+}
+
+function formatDate(value) {
+    return value ? fDateTime(value) : '—';
+}
+
+function formatStatus(value) {
+    if (!value) return '—';
+
+    return value
+        .split(/[\s_-]+/)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 function InfoItem({ label, value }) {

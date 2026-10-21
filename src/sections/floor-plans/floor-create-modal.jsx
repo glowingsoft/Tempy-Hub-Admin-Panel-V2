@@ -42,7 +42,7 @@ const FloorSchema = zod.object({
 
 // A floor requires a name, site, and floor-plan image (PNG/JPG/WebP). The image
 // is uploaded to S3 first, then its object key is stored with the floor record.
-export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, onSuccess }) {
+export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, onSuccess, ownerDashboard = true }) {
   // Resolve organizationId the same way every other modal does —
   // from the authenticated user context, not as a prop.
   const { organizationId } = useCurrentOrganization();
@@ -56,7 +56,7 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
       branchId:
         siteOptions?.find((option) => option.value === defaultBranchId) ||
         (defaultBranchId
-          ? { value: defaultBranchId, label: defaultBranchId }
+          ? { value: defaultBranchId, label: siteOptions?.[0]?.label || defaultBranchId }
           : siteOptions?.[0] || null),
     }),
     [defaultBranchId, siteOptions]
@@ -154,7 +154,8 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
               useQuery={useGetBranchesQuery}
               queryArgs={{ organizationId }}
               mapOption={mapBranchOption}
-              enabled={open && Boolean(organizationId)}
+              enabled={open && Boolean(organizationId) && ownerDashboard}
+              disabled={!ownerDashboard}
             />
 
             {/* Floor name */}
@@ -200,7 +201,7 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+          <LoadingButton type="submit" variant="contained" color="primary" loading={isSubmitting}>
             Add Floor
           </LoadingButton>
         </DialogActions>

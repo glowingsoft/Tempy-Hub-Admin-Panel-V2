@@ -5,7 +5,6 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Unstable_Grid2';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
@@ -15,7 +14,6 @@ import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { LoadingScreen } from 'src/components/loading-screen';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { DashboardContent } from 'src/layouts/dashboard';
 import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { useGetPeepRecordByIdQuery } from 'src/store/Reducer/peep-floor-plan-api';
@@ -59,147 +57,140 @@ export function PeepRecordDetailView({ ownerDashboard = true }) {
 
   if ((isLoading || isFetching) && !record) {
     return (
-      <DashboardContent>
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <LoadingScreen sx={{ py: 10 }} />
-      </DashboardContent>
+      </Box>
     );
   }
 
   if (!organizationId && !mockRecord) {
     return (
-      <DashboardContent>
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <EmptyContent filled title="Organization context is unavailable." sx={{ py: 10 }} />
-      </DashboardContent>
+      </Box>
     );
   }
 
   if (isError || !record || !siteManagerRecordAllowed) {
     return (
-      <DashboardContent>
-        <Box sx={{ mb: 2 }}>
-          <Button onClick={() => router.push(base.peepAndFloorPlans.records.root)} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-            Back to PEEP Records
-          </Button>
-        </Box>
-        <EmptyContent filled title={siteManagerRecordAllowed ? 'PEEP record could not be found or loaded.' : 'You do not have access to this PEEP record.'} sx={{ py: 10 }} />
-      </DashboardContent>
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <Button
+          color="primary"
+          onClick={() => router.push(base.peepAndFloorPlans.records.root)}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          sx={{ mb: 2 }}
+        >
+          Back
+        </Button>
+        <EmptyContent
+          filled
+          title={
+            siteManagerRecordAllowed
+              ? 'PEEP record could not be found or loaded.'
+              : 'You do not have access to this PEEP record.'
+          }
+          sx={{ py: 10 }}
+        />
+      </Box>
     );
   }
 
   const recordsPath = recordBranchId ? base.peepAndFloorPlans.records.bySite(recordBranchId) : base.peepAndFloorPlans.records.root;
 
   return (
-    <DashboardContent>
+    <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ mb: 2 }}>
-        <Button onClick={() => router.push(recordsPath)} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-          Back to PEEP Records
+        <Button
+          color="primary"
+          onClick={() => router.push(recordsPath)}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+        >
+          Back
         </Button>
       </Box>
 
       <CustomBreadcrumbs
-        heading="PEEP Record Details"
         links={[
           { name: 'Dashboard', href: base.root },
           { name: 'PEEP & Floor Plans', href: base.peepAndFloorPlans.root },
           { name: 'PEEP Records', href: recordsPath },
-          { name: 'PEEP Record Details' },
+          { name: residentName },
         ]}
         action={
-          <Button variant="contained" onClick={() => router.push(base.peepAndFloorPlans.records.edit(id))} startIcon={<Iconify icon="solar:pen-bold" />}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => router.push(base.peepAndFloorPlans.records.edit(id))}
+            startIcon={<Iconify icon="solar:pen-bold" />}
+          >
             Edit
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <Card sx={{ p: { xs: 2, md: 3 } }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          PEEP record details
-        </Typography>
+      <Card sx={{ p: 3 }}>
+        <Typography variant="h6">PEEP record details</Typography>
         <Divider sx={{ my: 2 }} />
 
-        <Grid container spacing={3}>
-          <Grid xs={12} md={6}>
-            <DetailSection title="Resident and site">
-              <DetailItem label="Resident" value={residentName} />
-              <DetailItem label="Email" value={record.resident?.email || record.email} />
-              <DetailItem label="Room" value={record.resident?.roomNumber || record.roomNumber} />
-              <DetailItem label="Site" value={branchName} />
-              <DetailItem label="Floor" value={floorName} />
-            </DetailSection>
-          </Grid>
-
-          <Grid xs={12} md={6}>
-            <DetailSection title="PEEP and review">
-              <DetailItem
-                label="PEEP level"
-                value={
-                  <Label variant="soft" color={level.color}>
-                    {level.label}
-                  </Label>
-                }
-              />
-              <DetailItem label="Consent status" value={formatStatus(record.consentStatus)} />
-              <DetailItem label="Review due" value={formatDate(record.reviewDueAt)} />
-              <DetailItem label="Last reviewed" value={formatDate(record.lastReviewedAt)} />
-            </DetailSection>
-          </Grid>
-
-          <Grid xs={12}>
-            <DetailSection title="Support and evacuation">
-              <Grid container spacing={2.5}>
-                <Grid xs={12} md={6}>
-                  <DetailItem label="Support needs" value={record.supportNeeds} />
-                </Grid>
-                <Grid xs={12} md={6}>
-                  <DetailItem label="Primary route" value={record.primaryRoute} />
-                </Grid>
-                <Grid xs={12} md={6}>
-                  <DetailItem label="Secondary route" value={record.secondaryRoute} />
-                </Grid>
-                <Grid xs={12} md={6}>
-                  <DetailItem label="Equipment required" value={record.equipmentRequired} />
-                </Grid>
-                <Grid xs={12} md={6}>
-                  <DetailItem label="Responsible staff" value={record.responsibleStaff} />
-                </Grid>
-                {record.mcaBestInterestNotes && (
-                  <Grid xs={12}>
-                    <DetailItem label="MCA best-interest notes" value={record.mcaBestInterestNotes} />
-                  </Grid>
-                )}
-              </Grid>
-            </DetailSection>
-          </Grid>
-        </Grid>
+        <Box
+          sx={{
+            display: 'grid',
+            rowGap: 2.5,
+            columnGap: 3,
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+          }}
+        >
+          <DetailItem label="Resident" value={residentName} />
+          <DetailItem label="Email" value={record.resident?.email || record.email} />
+          <DetailItem label="Room" value={record.resident?.roomNumber || record.roomNumber} />
+          <DetailItem label="Site" value={branchName} />
+          <DetailItem label="Floor" value={floorName} />
+          <DetailItem
+            label="PEEP Level"
+            value={
+              <Label variant="soft" color={level.color}>
+                {level.label}
+              </Label>
+            }
+          />
+          <DetailItem label="Consent Status" value={formatStatus(record.consentStatus)} />
+          <DetailItem label="Review Due" value={formatDate(record.reviewDueAt)} />
+          <DetailItem label="Last Reviewed" value={formatDate(record.lastReviewedAt)} />
+          <DetailItem label="Primary Route" value={record.primaryRoute} />
+          <DetailItem label="Secondary Route" value={record.secondaryRoute} />
+          <DetailItem label="Equipment Required" value={record.equipmentRequired} />
+          <DetailItem label="Responsible Staff" value={record.responsibleStaff} />
+          <DetailItem
+            label="Support Needs"
+            value={record.supportNeeds}
+            sx={{ gridColumn: { sm: 'span 2' } }}
+          />
+          {record.mcaBestInterestNotes && (
+            <DetailItem
+              label="MCA Best-Interest Notes"
+              value={record.mcaBestInterestNotes}
+              sx={{ gridColumn: { sm: 'span 2' } }}
+            />
+          )}
+        </Box>
       </Card>
-    </DashboardContent>
+    </Box>
   );
 }
 
-function DetailSection({ title, children }) {
-  return (
-    <Stack spacing={2}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-        {title}
-      </Typography>
-      {children}
-    </Stack>
-  );
-}
-
-function DetailItem({ label, value }) {
+function DetailItem({ label, value, sx }) {
   const content = value === null || value === undefined || value === '' ? '—' : value;
 
   return (
-    <Box>
-      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+    <Stack spacing={0.5} sx={sx}>
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
         {label}
       </Typography>
-      <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
+      <Typography variant="body2" component="div" sx={{ fontWeight: 600 }}>
         {content}
       </Typography>
-    </Box>
+    </Stack>
   );
 }
 

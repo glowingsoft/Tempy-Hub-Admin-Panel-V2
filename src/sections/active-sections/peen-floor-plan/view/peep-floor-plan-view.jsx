@@ -21,7 +21,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { ConfirmDialog } from 'src/components/custom-dialog/confirm-dialog';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useParams, useSearchParams } from 'src/routes/hooks';
+import { useParams, useSearchParams, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
 import {
@@ -42,6 +42,7 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
   // dashboard (e.g. admin) mounts this without a site-scoped route at all.
   const { siteId } = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const floorPlanId = searchParams.get('floorPlanId');
   const { organizationId } = useCurrentOrganization();
 
@@ -273,65 +274,23 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
           { name: 'Floor Map' },
         ]}
         action={
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-            {siteScoped && floorPlanBranchId && (
-              floorPlanId ? (
-                <Button
-                  variant="contained"
-                  onClick={handleAddPin}
-                  startIcon={<Iconify icon="mingcute:add-line" />}
-                >
-                  Add pin
-                </Button>
-              ) : (
-              <Button
-                component={RouterLink}
-                href={base.peepAndFloorPlans.addPin(floorPlanBranchId)}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-              >
-                Add pin
-              </Button>
-              )
-            )}
-            {!floorPlanId && (
-              <Button
-                variant="outlined"
-                onClick={uploadOpen.onTrue}
-                startIcon={<Iconify icon="solar:import-bold" />}
-                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-              >
-                Upload Floor Plan Image
-              </Button>
-            )}
-          </Stack>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              if (!floorPlanId && base?.peepAndFloorPlans?.addPin && floorPlanBranchId) {
+                router.push(base.peepAndFloorPlans.addPin(floorPlanBranchId));
+              } else {
+                handleAddPin();
+              }
+            }}
+            startIcon={<Iconify icon="mingcute:add-line" />}
+          >
+            Add pin
+          </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
-      <Stack direction={{ md: 'row', xs: 'column' }} sx={{ display: { md: "none", xs: "flex" } }} spacing={1.5}>
-        {siteScoped && floorPlanBranchId && (
-          floorPlanId ? (
-            <Button variant="contained" onClick={handleAddPin} startIcon={<Iconify icon="mingcute:add-line" />}>
-              Add pin
-            </Button>
-          ) : (
-            <Button
-              component={RouterLink}
-              href={base.peepAndFloorPlans.addPin(floorPlanBranchId)}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Add pin
-            </Button>
-          )
-        )}
-        {!floorPlanId && (
-          <Button variant="outlined" onClick={uploadOpen.onTrue} startIcon={<Iconify icon="solar:import-bold" />}>
-            Upload Floor Plan Image
-          </Button>
-        )}
-      </Stack>
       <Stack spacing={2} sx={{ minWidth: 0, p: { xs: 0.5, md: 2.5 } }}>
         {floorPlanId && isFloorPlanError && (
           <Alert severity="error">

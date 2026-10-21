@@ -30,6 +30,7 @@ import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, use
 import { mockBranches } from 'src/sections/branch/mocks/data';
 import { getOwnerOrganizationId } from 'src/sections/branch/utils';
 import { ALL_BRANCHES_VALUE } from 'src/sections/branch/owner-branch-select';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
@@ -81,20 +82,30 @@ export function FloorPlanListView({ ownerDashboard = true }) {
     const table = useTable({ defaultOrderBy: 'name', defaultDense: true });
 
     const { user } = useSelector((state) => state.user);
-    const { organizationId: currentOrgId } = useCurrentOrganization();
+    const { organizationId: currentOrgId, user: currentUser } = useCurrentOrganization();
     const organizationId = currentOrgId || getOwnerOrganizationId(user);
+    const assignedBranch = getAssignedBranch(currentUser || user);
+    const assignedBranchId = assignedBranch?.id;
 
     const base = ownerDashboard ? paths.owner : paths.siteManager;
 
     const { siteId } = useParams();
 
-    const filters = useSetState({ search: '', status: 'all', branchId: siteId || ALL_BRANCHES_VALUE });
+    const filters = useSetState({
+        search: '',
+        status: 'all',
+        branchId: ownerDashboard ? (siteId || ALL_BRANCHES_VALUE) : (assignedBranchId || siteId || ''),
+    });
     const keyword = useDebounce(filters.state.search, 300);
 
     useEffect(() => {
-        filters.setState({ branchId: siteId || ALL_BRANCHES_VALUE });
+        if (ownerDashboard) {
+            filters.setState({ branchId: siteId || ALL_BRANCHES_VALUE });
+        } else if (assignedBranchId) {
+            filters.setState({ branchId: assignedBranchId });
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [siteId]);
+    }, [siteId, ownerDashboard, assignedBranchId]);
 
     const [reloadKey, setReloadKey] = useState(0);
     const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
@@ -104,18 +115,19 @@ export function FloorPlanListView({ ownerDashboard = true }) {
     const [uploadFile] = useUploadFileMutation();
     const [updateFloorPlan] = useUpdateFloorPlanMutation();
 
-    // Query branches for organization
+    // Query branches for organization (only needed for owner dashboard site selector)
     const { data: branchesData } = useGetBranchesQuery(
         { organizationId, page: 1, limit: 100 },
-        { skip: !organizationId }
+        { skip: !organizationId || !ownerDashboard }
     );
 
     const branchList = useMemo(() => {
+        if (!ownerDashboard) return [];
         if (Array.isArray(branchesData?.data)) {
             return branchesData.data;
         }
         return mockBranches.filter((branch) => !organizationId || branch.organizationId === organizationId);
-    }, [branchesData, organizationId]);
+    }, [branchesData, organizationId, ownerDashboard]);
 
     const selectedBranchOption = useMemo(() => {
         const currentId = filters.state.branchId;
@@ -126,10 +138,20 @@ export function FloorPlanListView({ ownerDashboard = true }) {
         return found ? { value: found._id, label: found.name } : { value: currentId, label: 'Selected site' };
     }, [filters.state.branchId, branchList]);
 
-    const currentSite = useMemo(
-        () => (siteId ? branchList.find((branch) => branch._id === siteId) : null),
-        [siteId, branchList]
-    );
+    const currentSite = useMemo(() => {
+        if (!ownerDashboard) {
+            return assignedBranchId
+                ? { _id: assignedBranchId, name: assignedBranch?.name || 'My Site' }
+                : null;
+        }
+        return siteId ? branchList.find((branch) => branch._id === siteId) : null;
+    }, [ownerDashboard, assignedBranchId, assignedBranch?.name, siteId, branchList]);
+
+    const queryBranchId = ownerDashboard
+        ? filters.state.branchId !== ALL_BRANCHES_VALUE
+            ? filters.state.branchId
+            : ''
+        : (assignedBranchId || '');
 
     // --- Query floor plans from API -----------------------------------------
     const { data: apiData, isLoading } = useGetFloorPlansQuery(
@@ -137,11 +159,11 @@ export function FloorPlanListView({ ownerDashboard = true }) {
             organizationId,
             page: table.page + 1,
             limit: table.rowsPerPage,
-            branchId: filters.state.branchId !== ALL_BRANCHES_VALUE ? filters.state.branchId : '',
+            branchId: queryBranchId,
             status: filters.state.status !== 'all' ? filters.state.status : '',
             keyword: keyword || '',
         },
-        { skip: !organizationId }
+        { skip: !organizationId || (!ownerDashboard && !assignedBranchId) }
     );
 
     // Fallback to mock data if API is not available
@@ -149,10 +171,13 @@ export function FloorPlanListView({ ownerDashboard = true }) {
 
     const filteredMockFloors = useMemo(() => {
         const search = keyword.trim().toLowerCase();
+        const effectiveBranchId = ownerDashboard ? filters.state.branchId : (assignedBranchId || '');
 
         return allMockFloors.filter((floor) => {
             const matchesStatus = filters.state.status === 'all' || floor.status === filters.state.status;
-            const matchesSite = filters.state.branchId === ALL_BRANCHES_VALUE || floor.branchId === filters.state.branchId;
+            const matchesSite = ownerDashboard
+                ? effectiveBranchId === ALL_BRANCHES_VALUE || floor.branchId === effectiveBranchId
+                : (!effectiveBranchId || floor.branchId === effectiveBranchId);
             const matchesSearch =
                 !search ||
                 floor.name.toLowerCase().includes(search) ||
@@ -160,7 +185,7 @@ export function FloorPlanListView({ ownerDashboard = true }) {
 
             return matchesStatus && matchesSite && matchesSearch;
         });
-    }, [allMockFloors, filters.state.status, filters.state.branchId, keyword]);
+    }, [allMockFloors, filters.state.status, filters.state.branchId, keyword, ownerDashboard, assignedBranchId]);
 
     const paginatedMockFloors = useMemo(() => {
         const start = table.page * table.rowsPerPage;
@@ -312,34 +337,37 @@ export function FloorPlanListView({ ownerDashboard = true }) {
                         spacing={1.5}
                         alignItems={{ xs: 'stretch', sm: 'center' }}
                     >
-                        <InfiniteAutocomplete
-                            value={selectedBranchOption}
-                            onChange={handleBranchChange}
-                            useQuery={useGetBranchesQuery}
-                            queryArgs={{ organizationId }}
-                            mapOption={mapBranchOption}
-                            extraOptions={EXTRA_BRANCH_OPTIONS}
-                            label="Site"
-                            placeholder="Search site..."
-                            disabled={!organizationId}
-                            size="small"
-                            sx={{ minWidth: { xs: 1, sm: 260 } }}
-                            textFieldProps={{
-                                InputProps: {
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <Iconify
-                                                icon="solar:buildings-2-bold-duotone"
-                                                width={20}
-                                                sx={{ color: 'text.disabled' }}
-                                            />
-                                        </InputAdornment>
-                                    ),
-                                },
-                            }}
-                        />
+                        {ownerDashboard && (
+                            <InfiniteAutocomplete
+                                value={selectedBranchOption}
+                                onChange={handleBranchChange}
+                                useQuery={useGetBranchesQuery}
+                                queryArgs={{ organizationId }}
+                                mapOption={mapBranchOption}
+                                extraOptions={EXTRA_BRANCH_OPTIONS}
+                                label="Site"
+                                placeholder="Search site..."
+                                disabled={!organizationId}
+                                size="small"
+                                sx={{ minWidth: { xs: 1, sm: 260 } }}
+                                textFieldProps={{
+                                    InputProps: {
+                                        startAdornment: (
+                                            <InputAdornment position="start">
+                                                <Iconify
+                                                    icon="solar:buildings-2-bold-duotone"
+                                                    width={20}
+                                                    sx={{ color: 'text.disabled' }}
+                                                />
+                                            </InputAdornment>
+                                        ),
+                                    },
+                                }}
+                            />
+                        )}
                         <Button
                             variant="contained"
+                            color="primary"
                             onClick={createOpen.onTrue}
                             startIcon={<Iconify icon="mingcute:add-line" />}
                         >
@@ -410,8 +438,13 @@ export function FloorPlanListView({ ownerDashboard = true }) {
             <FloorCreateModal
                 open={createOpen.value}
                 onClose={createOpen.onFalse}
-                siteOptions={branchList.map((branch) => ({ value: branch._id, label: branch.name }))}
-                defaultBranchId={siteId || ''}
+                siteOptions={
+                    !ownerDashboard && assignedBranchId
+                        ? [{ value: assignedBranchId, label: assignedBranch?.name || 'My Site' }]
+                        : branchList.map((branch) => ({ value: branch._id, label: branch.name }))
+                }
+                defaultBranchId={!ownerDashboard ? (assignedBranchId || '') : (siteId || '')}
+                ownerDashboard={ownerDashboard}
                 onSuccess={handleCreateSuccess}
             />
 

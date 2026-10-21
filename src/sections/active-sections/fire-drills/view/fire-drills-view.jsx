@@ -6,6 +6,9 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
+import Stack from '@mui/material/Stack';
+import InputAdornment from '@mui/material/InputAdornment';
+
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -14,16 +17,14 @@ import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filte
 import { Scrollbar } from 'src/components/scrollbar';
 import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
 import { toast } from 'src/components/snackbar';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
-import {
-  ALL_BRANCHES_VALUE,
-  OwnerBranchFilterActions,
-  useOwnerBranchFilter,
-} from 'src/sections/branch/owner-branch-select';
+import { ALL_BRANCHES_VALUE } from 'src/sections/branch/owner-branch-select';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useGetOnSiteSummaryQuery,
   useGetActiveEvacuationQuery,
@@ -160,6 +161,13 @@ function isPermissionDenied(error) {
   return error?.status === 401 || error?.status === 403;
 }
 
+const mapBranchOption = (item) => ({
+  value: item._id,
+  label: item.name,
+});
+
+const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
+
 export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const table = useTable({ defaultDense: true });
   const startDialog = useBoolean();
@@ -169,7 +177,23 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const [reloadKey, setReloadKey] = useState(0);
 
   const { organizationId, user } = useCurrentOrganization();
-  const { branchId, onBranchChange } = useOwnerBranchFilter();
+  const [branchId, setBranchId] = useState(ALL_BRANCHES_VALUE);
+
+  const handleBranchChange = useCallback(
+    (option) => {
+      const nextId = option?.value || ALL_BRANCHES_VALUE;
+      setBranchId(nextId);
+      table.onResetPage();
+    },
+    [table]
+  );
+
+  const selectedBranchOption = useMemo(() => {
+    if (!branchId || branchId === ALL_BRANCHES_VALUE) {
+      return { value: ALL_BRANCHES_VALUE, label: 'All sites' };
+    }
+    return { value: branchId, label: 'Selected site' };
+  }, [branchId]);
 
   const scopedBranchId =
     showSiteFilter && branchId !== ALL_BRANCHES_VALUE ? branchId : null;
@@ -597,7 +621,37 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         links={[{ name: 'Dashboard', href: rootPath }, { name: 'Fire Drills' }]}
         action={
           showSiteFilter ? (
-            <OwnerBranchFilterActions value={branchId} onChange={onBranchChange}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <InfiniteAutocomplete
+                value={selectedBranchOption}
+                onChange={handleBranchChange}
+                useQuery={useGetBranchesQuery}
+                queryArgs={{ organizationId }}
+                mapOption={mapBranchOption}
+                extraOptions={EXTRA_BRANCH_OPTIONS}
+                label="Site"
+                placeholder="Search site..."
+                disabled={!organizationId}
+                size="small"
+                sx={{ minWidth: { xs: 1, sm: 260 } }}
+                textFieldProps={{
+                  InputProps: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify
+                          icon="solar:buildings-2-bold-duotone"
+                          width={20}
+                          sx={{ color: 'text.disabled' }}
+                        />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
               <Button
                 variant="contained"
                 color="error"
@@ -607,7 +661,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
               >
                 Start evacuation
               </Button>
-            </OwnerBranchFilterActions>
+            </Stack>
           ) : (
             <Button
               variant="contained"

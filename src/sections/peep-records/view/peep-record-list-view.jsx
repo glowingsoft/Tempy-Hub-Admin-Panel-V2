@@ -32,7 +32,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
 
-import { PEEP_RECORDS, PEEP_FLOOR_OPTIONS, PEEP_LEVEL_OPTIONS } from '../mocks/data';
+import { PEEP_RECORDS, PEEP_LEVEL_OPTIONS } from '../mocks/data';
 import { PeepRecordTableRow } from '../peep-record-table-row';
 
 const mapBranchOption = (item) => ({
@@ -54,12 +54,6 @@ const TABLE_HEAD = [
 
 const FILTER_FIELDS = [
     createFilterField.search({ placeholder: 'Search residents or rooms...' }),
-    createFilterField.select({
-        key: 'floor',
-        label: 'Floor',
-        defaultValue: 'all',
-        options: [{ value: 'all', label: 'All floors' }, ...PEEP_FLOOR_OPTIONS],
-    }),
     createFilterField.select({
         key: 'peepLevel',
         label: 'PEEP level',
@@ -84,7 +78,7 @@ export function PeepRecordListView({ ownerDashboard = true }) {
     const siteManagerSiteAllowed =
         ownerDashboard || Boolean(assignedBranchId && (!siteId || siteId === assignedBranchId));
 
-    const filters = useSetState({ search: '', branchId: siteId || 'all', floor: 'all', peepLevel: 'all' });
+    const filters = useSetState({ search: '', branchId: siteId || 'all', peepLevel: 'all' });
     const queryBranchId = ownerDashboard
         ? filters.state.branchId === 'all' || filters.state.branchId === ALL_BRANCHES_VALUE
             ? ''
@@ -165,13 +159,12 @@ export function PeepRecordListView({ ownerDashboard = true }) {
         return PEEP_RECORDS.filter(
             (record) =>
                 (filters.state.branchId === 'all' || record.branchId === filters.state.branchId) &&
-                (filters.state.floor === 'all' || record.floor === filters.state.floor) &&
                 (filters.state.peepLevel === 'all' || record.peepLevel === filters.state.peepLevel) &&
                 (!search ||
                     record.name.toLowerCase().includes(search) ||
                     record.roomNumber.toLowerCase().includes(search))
         );
-    }, [ownerDashboard, keyword, filters.state.branchId, filters.state.floor, filters.state.peepLevel]);
+    }, [ownerDashboard, keyword, filters.state.branchId, filters.state.peepLevel]);
 
     const paginatedMockRecords = filteredMockRecords.slice(
         table.page * table.rowsPerPage,
@@ -180,7 +173,7 @@ export function PeepRecordListView({ ownerDashboard = true }) {
 
     const filteredApiRecords = useMemo(() => {
         if (!apiData || !Array.isArray(apiData.data)) return null;
-        let list = apiData.data.map((r) => ({
+        return apiData.data.map((r) => ({
             ...r,
             id: r._id || r.id,
             name:
@@ -194,11 +187,7 @@ export function PeepRecordListView({ ownerDashboard = true }) {
             floor: r.floor || r.floorNumber || r.floorPlan?.floorNumber || '—',
             peepLevel: r.peepLevel || r.level || 'low',
         }));
-        if (filters.state.floor && filters.state.floor !== 'all') {
-            list = list.filter((r) => String(r.floor) === String(filters.state.floor));
-        }
-        return list;
-    }, [apiData, filters.state.floor]);
+    }, [apiData]);
 
     const visibleApiRecords = siteManagerSiteAllowed ? filteredApiRecords : null;
     const records = visibleApiRecords ?? (ownerDashboard ? paginatedMockRecords : []);
@@ -215,7 +204,7 @@ export function PeepRecordListView({ ownerDashboard = true }) {
         (key, value) => {
             table.onResetPage();
             if (key === 'branchId') {
-                filters.setState({ branchId: value, floor: 'all' });
+                filters.setState({ branchId: value });
                 if (value && value !== 'all' && value !== ALL_BRANCHES_VALUE) {
                     router.push(base.peepAndFloorPlans.records.bySite(value));
                 } else {
@@ -238,6 +227,22 @@ export function PeepRecordListView({ ownerDashboard = true }) {
 
     return (
         <DashboardContent>
+            <Box sx={{ mb: 2 }}>
+                <Button
+                    color="primary"
+                    onClick={() => {
+                        if (currentSite) {
+                            router.push(base.peepAndFloorPlans.site(currentSite._id));
+                        } else {
+                            router.push(base.peepAndFloorPlans.root);
+                        }
+                    }}
+                    startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+                >
+                    Back
+                </Button>
+            </Box>
+
             <CustomBreadcrumbs
                 heading="PEEP Records"
                 links={[
@@ -285,6 +290,7 @@ export function PeepRecordListView({ ownerDashboard = true }) {
                                 component={RouterLink}
                                 href={base.peepAndFloorPlans.records.new}
                                 variant="contained"
+                                color="primary"
                                 startIcon={<Iconify icon="mingcute:add-line" />}
                             >
                                 New PEEP Record

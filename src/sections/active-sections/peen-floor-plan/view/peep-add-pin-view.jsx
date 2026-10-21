@@ -129,6 +129,7 @@ export function PeepAddPinView({ ownerDashboard = true }) {
                         <Button
                             fullWidth
                             variant={mode === 'existing' ? 'contained' : 'outlined'}
+                            color="primary"
                             onClick={() => setMode('existing')}
                         >
                             Existing resident
@@ -136,6 +137,7 @@ export function PeepAddPinView({ ownerDashboard = true }) {
                         <Button
                             fullWidth
                             variant={mode === 'new' ? 'contained' : 'outlined'}
+                            color="primary"
                             startIcon={<Iconify icon="mingcute:add-line" />}
                             onClick={() => setMode('new')}
                         >
@@ -366,7 +368,7 @@ export function PeepAddPinView({ ownerDashboard = true }) {
                     <Button color="inherit" onClick={() => router.push(mapPath)}>
                         Cancel
                     </Button>
-                    <Button variant="contained" disabled={!canSave} onClick={handleSave}>
+                    <Button variant="contained" color="primary" disabled={!canSave} onClick={handleSave}>
                         Save resident, PEEP record &amp; pin
                     </Button>
                 </Stack>
