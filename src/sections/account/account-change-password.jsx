@@ -14,6 +14,8 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
+import { useChangePasswordMutation } from 'src/store/Reducer/auth';
+
 export const ChangePassWordSchema = zod
   .object({
     oldPassword: zod
@@ -36,6 +38,7 @@ export const ChangePassWordSchema = zod
 
 export function AccountChangePassword() {
   const password = useBoolean();
+  const [changePassword, { isLoading }] = useChangePasswordMutation();
 
   const defaultValues = { oldPassword: '', newPassword: '', confirmNewPassword: '' };
 
@@ -53,10 +56,13 @@ export function AccountChangePassword() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const res = await changePassword({
+        oldPassword: data.oldPassword,
+        newPassword: data.newPassword,
+      }).unwrap();
+
       reset();
-      toast.success('Update success!');
-      console.info('DATA', data);
+      toast.success(res?.message || 'Password changed successfully!');
     } catch (error) {
       console.error(error);
     }
@@ -116,7 +122,12 @@ export function AccountChangePassword() {
           }}
         />
 
-        <LoadingButton type="submit" variant="contained" loading={isSubmitting} sx={{ ml: 'auto' }}>
+        <LoadingButton
+          type="submit"
+          variant="contained"
+          loading={isSubmitting || isLoading}
+          sx={{ ml: 'auto' }}
+        >
           Save changes
         </LoadingButton>
       </Card>

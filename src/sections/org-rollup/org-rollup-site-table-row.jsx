@@ -33,7 +33,7 @@ export function OrgRollupSiteTableRow({ row, serialNumber, onSelect }) {
       <TableCell>{serialNumber}</TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
           {site.name}
         </Typography>
       </TableCell>

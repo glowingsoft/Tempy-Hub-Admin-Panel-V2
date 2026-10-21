@@ -24,6 +24,7 @@ import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { TableHeadCustom, TableNoData } from 'src/components/table';
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useParams, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
@@ -45,6 +46,7 @@ const TABLE_HEAD = [
 export default function SupervisionDetailView() {
   const { id } = useParams();
   const router = useRouter();
+  const { organizationId } = useCurrentOrganization();
   const logModal = useBoolean();
 
   // Bumped after saving a session or signing off an action point — the mock
@@ -116,11 +118,11 @@ export default function SupervisionDetailView() {
         action={
           <Button
             variant="contained"
-            color="inherit"
+            color="primary"
             startIcon={<Iconify icon="solar:calendar-add-bold" />}
             onClick={logModal.onTrue}
           >
-            Log session
+            Book session
           </Button>
         }
         sx={{ mb: 3 }}
@@ -175,7 +177,13 @@ export default function SupervisionDetailView() {
         </TableContainer>
       </Card>
 
-      <LogSessionDialog open={logModal.value} row={row} onClose={logModal.onFalse} onSave={handleSaveSession} />
+      <LogSessionDialog
+        open={logModal.value}
+        row={row}
+        organizationId={organizationId}
+        onClose={logModal.onFalse}
+        onSave={handleSaveSession}
+      />
     </DashboardContent>
   );
 }

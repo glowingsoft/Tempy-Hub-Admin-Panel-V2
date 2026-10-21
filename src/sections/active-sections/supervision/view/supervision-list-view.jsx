@@ -18,6 +18,7 @@ import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 's
 import { TeamDevelopmentTabs } from 'src/components/team-development-tabs';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
@@ -59,6 +60,7 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 function SupervisionListView() {
+  const { organizationId } = useCurrentOrganization();
   const table = useTable();
   const logModal = useBoolean();
   const filters = useSetState({ name: '', status: 'all' });
@@ -151,6 +153,14 @@ function SupervisionListView() {
         action={
           <Stack direction="row" spacing={1}>
             <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Iconify icon="solar:calendar-add-bold" />}
+              onClick={() => handleOpenLog(null)}
+            >
+              Book session
+            </Button>
+            <Button
               variant="outlined"
               color="inherit"
               startIcon={<Iconify icon="solar:export-bold" />}
@@ -159,8 +169,8 @@ function SupervisionListView() {
               Export CSV
             </Button>
             <Button
-              variant="contained"
-              color="primary"
+              variant="outlined"
+              color="inherit"
               startIcon={<Iconify icon="solar:printer-bold" />}
               onClick={handleExportPDF}
             >
@@ -234,6 +244,7 @@ function SupervisionListView() {
       <LogSessionDialog
         open={logModal.value}
         row={selectedRow}
+        organizationId={organizationId}
         onClose={() => {
           logModal.onFalse();
           setSelectedRow(null);

@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
 import LoadingButton from '@mui/lab/LoadingButton';
 import Stack from '@mui/material/Stack';
 
-import { Iconify } from 'src/components/iconify';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import {
@@ -224,18 +222,6 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
     setSelectedResident(resident);
   };
 
-  const handleAddPin = () => {
-    if (!visibleFloorPlan) {
-      toast.info('Load a floor plan before placing a pin.');
-      return;
-    }
-    if (!selectedResidentId) {
-      toast.info('Select a resident before placing a pin.');
-      return;
-    }
-    placementMode.onTrue();
-  };
-
   const handleConfirmDeletePin = async () => {
     if (!floorPlanId || !organizationId || !pinToDelete?.apiPinId) {
       toast.error('Unable to delete this pin because its floor plan or pin ID is unavailable.');
@@ -273,22 +259,6 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
             : siteName ? [{ name: siteName }] : []),
           { name: 'Floor Map' },
         ]}
-        action={
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => {
-              if (!floorPlanId && base?.peepAndFloorPlans?.addPin && floorPlanBranchId) {
-                router.push(base.peepAndFloorPlans.addPin(floorPlanBranchId));
-              } else {
-                handleAddPin();
-              }
-            }}
-            startIcon={<Iconify icon="mingcute:add-line" />}
-          >
-            Add pin
-          </Button>
-        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
       <Stack spacing={2} sx={{ minWidth: 0, p: { xs: 0.5, md: 2.5 } }}>

@@ -27,6 +27,7 @@ import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
 
 import {
+  useGetStaffProfilesQuery,
   useCreateStaffProfileMutation,
   useUpdateStaffProfileMutation,
 } from 'src/store/Reducer/staff-profiles-api';
@@ -62,6 +63,21 @@ function mapLookupOption(item) {
   };
 }
 
+function mapSupervisorOption(item) {
+  const name =
+    item.userId?.name ||
+    item.user?.name ||
+    item.name ||
+    item.employeeCode ||
+    item._id;
+  const email = item.userId?.email || item.user?.email || item.email || '';
+  const label = email ? `${name} (${email})` : name;
+  return {
+    value: item._id,
+    label,
+  };
+}
+
 const lookupOptionSchema = zod.object({
   value: zod.string().min(1),
   label: zod.string(),
@@ -72,6 +88,7 @@ const lookupOptionSchema = zod.object({
 export const StaffProfileSchema = zod.object({
   organizationId: zod.string().optional(),
   userId: zod.string().min(1, { message: 'User is required!' }),
+  supervisorStaffId: lookupOptionSchema.nullable().optional(),
   branchId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
     message: 'Site is required!',
   }),
@@ -95,7 +112,22 @@ export const StaffProfileSchema = zod.object({
     .refine((value) => !value || /^\d+(\.\d{1,2})?$/.test(value), {
       message: 'Enter a valid amount (e.g. 12.50)',
     }),
+  supervisionIntervalMonths: zod.union([zod.number(), zod.string(), zod.null()]).optional(),
+  appraisalIntervalMonths: zod.union([zod.number(), zod.string(), zod.null()]).optional(),
 });
+
+export const SUPERVISION_INTERVAL_OPTIONS = [
+  { value: 1, label: '1 month' },
+  { value: 2, label: '2 months' },
+  { value: 3, label: '3 months' },
+  { value: 4, label: '4 months' },
+  { value: 6, label: '6 months' },
+];
+
+export const APPRAISAL_INTERVAL_OPTIONS = [
+  { value: 6, label: '6 months' },
+  { value: 12, label: '12 months' },
+];
 
 // ----------------------------------------------------------------------
 
@@ -124,39 +156,56 @@ export function StaffProfileNewEditForm({
   const defaultValues = useMemo(
     () => ({
       organizationId:
-        (typeof currentStaffProfile?.organizationId === 'object'
-          ? currentStaffProfile.organizationId._id
+        (typeof currentStaffProfile?.organizationId === 'object' && currentStaffProfile?.organizationId !== null
+          ? currentStaffProfile.organizationId?._id
           : currentStaffProfile?.organizationId) ||
         organizationId ||
         mockOrganizations[0]?._id ||
         '',
       userId:
-        (typeof currentStaffProfile?.userId === 'object'
-          ? currentStaffProfile.userId._id
+        (typeof currentStaffProfile?.userId === 'object' && currentStaffProfile?.userId !== null
+          ? currentStaffProfile.userId?._id
           : currentStaffProfile?.userId) || '',
       branchId: toLookupOption(
-        typeof currentStaffProfile?.branchId === 'object'
-          ? currentStaffProfile.branchId._id
+        typeof currentStaffProfile?.branchId === 'object' && currentStaffProfile?.branchId !== null
+          ? currentStaffProfile.branchId?._id
           : currentStaffProfile?.branchId,
-        (typeof currentStaffProfile?.branchId === 'object' && currentStaffProfile.branchId.name) ||
+        (typeof currentStaffProfile?.branchId === 'object' && currentStaffProfile?.branchId?.name) ||
           currentStaffProfile?.branch?.name
       ),
       jobTitleId: toLookupOption(
-        typeof currentStaffProfile?.jobTitleId === 'object'
-          ? currentStaffProfile.jobTitleId._id
+        typeof currentStaffProfile?.jobTitleId === 'object' && currentStaffProfile?.jobTitleId !== null
+          ? currentStaffProfile.jobTitleId?._id
           : currentStaffProfile?.jobTitleId,
-        (typeof currentStaffProfile?.jobTitleId === 'object' && currentStaffProfile.jobTitleId.name) ||
+        (typeof currentStaffProfile?.jobTitleId === 'object' && currentStaffProfile?.jobTitleId?.name) ||
           currentStaffProfile?.jobTitle?.name
+      ),
+      supervisorStaffId: toLookupOption(
+        typeof currentStaffProfile?.supervisorStaffId === 'object' && currentStaffProfile?.supervisorStaffId !== null
+          ? currentStaffProfile.supervisorStaffId?._id
+          : currentStaffProfile?.supervisorStaffId,
+        typeof currentStaffProfile?.supervisorStaffId === 'object' && currentStaffProfile?.supervisorStaffId !== null
+          ? currentStaffProfile.supervisorStaffId?.userId?.name ||
+              currentStaffProfile.supervisorStaffId?.user?.name ||
+              currentStaffProfile.supervisorStaffId?.name ||
+              currentStaffProfile.supervisorStaffId?.employeeCode
+          : undefined
       ),
       departmentIds: Array.isArray(currentStaffProfile?.departments)
         ? currentStaffProfile.departments
-            .map((department) => toLookupOption(department?._id, department?.name))
+            .filter(Boolean)
+            .map((department) =>
+              typeof department === 'object' && department !== null
+                ? toLookupOption(department?._id, department?.name)
+                : toLookupOption(department, department)
+            )
             .filter(Boolean)
         : Array.isArray(currentStaffProfile?.departmentIds)
           ? currentStaffProfile.departmentIds
+              .filter(Boolean)
               .map((department) =>
-                typeof department === 'object'
-                  ? toLookupOption(department._id, department.name)
+                typeof department === 'object' && department !== null
+                  ? toLookupOption(department?._id, department?.name)
                   : toLookupOption(department, department)
               )
               .filter(Boolean)
@@ -165,6 +214,8 @@ export function StaffProfileNewEditForm({
       pin: currentStaffProfile?.pin || '',
       hourlyRate:
         currentStaffProfile?.hourlyRate != null ? String(currentStaffProfile.hourlyRate) : '',
+      supervisionIntervalMonths: currentStaffProfile?.supervisionIntervalMonths ?? '',
+      appraisalIntervalMonths: currentStaffProfile?.appraisalIntervalMonths ?? '',
     }),
     [currentStaffProfile, organizationId]
   );
@@ -220,8 +271,19 @@ export function StaffProfileNewEditForm({
         jobTitleId: data.jobTitleId?.value,
         departmentIds: (data.departmentIds || []).map((department) => department.value),
         startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
+        ...(data.supervisorStaffId?.value
+          ? { supervisorStaffId: data.supervisorStaffId.value }
+          : isEdit && data.supervisorStaffId === null
+            ? { supervisorStaffId: null }
+            : {}),
         ...(data.pin ? { pin: data.pin } : {}),
         ...(data.hourlyRate ? { hourlyRate: Number(data.hourlyRate) } : {}),
+        ...(data.supervisionIntervalMonths !== '' && data.supervisionIntervalMonths != null
+          ? { supervisionIntervalMonths: Number(data.supervisionIntervalMonths) }
+          : {}),
+        ...(data.appraisalIntervalMonths !== '' && data.appraisalIntervalMonths != null
+          ? { appraisalIntervalMonths: Number(data.appraisalIntervalMonths) }
+          : {}),
       };
 
       let profileId = staffProfileId;
@@ -312,6 +374,16 @@ export function StaffProfileNewEditForm({
               enabled={!!activeOrgId}
             />
 
+            <Field.InfiniteAutocomplete
+              name="supervisorStaffId"
+              label="Supervisor"
+              placeholder="Search supervisor"
+              useQuery={useGetStaffProfilesQuery}
+              queryArgs={lookupQueryArgs}
+              mapOption={mapSupervisorOption}
+              enabled={!!activeOrgId}
+            />
+
             <Field.DatePicker name="startDate" label="Start date" />
 
             <Field.InfiniteAutocomplete
@@ -353,6 +425,28 @@ export function StaffProfileNewEditForm({
               inputProps={{ inputMode: 'decimal' }}
               InputProps={{ startAdornment: <InputAdornment position="start">£</InputAdornment> }}
             />
+
+            <Field.Select name="supervisionIntervalMonths" label="Supervision interval">
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {SUPERVISION_INTERVAL_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Field.Select>
+
+            <Field.Select name="appraisalIntervalMonths" label="Appraisal interval">
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {APPRAISAL_INTERVAL_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Field.Select>
           </Box>
         </Card>
 

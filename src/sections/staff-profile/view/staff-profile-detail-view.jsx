@@ -90,6 +90,34 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
       ? profile.organizationId._id
       : profile?.organizationId) || resolvedOrgId;
 
+  const rawSupervisorId =
+    typeof profile?.supervisorStaffId === 'string'
+      ? profile.supervisorStaffId.trim()
+      : typeof profile?.supervisorStaffId === 'object' && profile?.supervisorStaffId !== null
+        ? profile.supervisorStaffId._id
+        : undefined;
+
+  const isSupervisorHexId =
+    typeof rawSupervisorId === 'string' && /^[0-9a-fA-F]{24}$/.test(rawSupervisorId);
+
+  // If supervisor is not populated on this profile, fetch supervisor staff profile by ID
+  const { data: fetchedSupervisorData } = useGetStaffProfileQuery(
+    { staffProfileId: rawSupervisorId, organizationId: orgIdForLookups },
+    {
+      skip:
+        !isSupervisorHexId ||
+        (typeof profile?.supervisorStaffId === 'object' &&
+          profile?.supervisorStaffId !== null &&
+          !!(
+            profile.supervisorStaffId.userId?.name ||
+            profile.supervisorStaffId.user?.name ||
+            profile.supervisorStaffId.name
+          )),
+    }
+  );
+
+  const supervisorProfile = fetchedSupervisorData?.data || fetchedSupervisorData;
+
   const { data: orgData, isLoading: isOrgLoading } = useGetOrganizationByIdQuery(orgIdForLookups, {
     skip: !orgIdForLookups,
   });
@@ -211,12 +239,59 @@ export function StaffProfileDetailView({ pathsConfig, organizationId: propOrgId 
       orgName
     );
 
+  const supervisor = (() => {
+    if (!profile.supervisorStaffId) return '';
+    if (typeof profile.supervisorStaffId === 'object' && profile.supervisorStaffId !== null) {
+      const populatedName =
+        profile.supervisorStaffId?.userId?.name ||
+        profile.supervisorStaffId?.user?.name ||
+        profile.supervisorStaffId?.name ||
+        profile.supervisorStaffId?.employeeCode;
+      if (populatedName) {
+        return displayValue(populatedName);
+      }
+    }
+
+    if (supervisorProfile) {
+      const fetchedName =
+        supervisorProfile?.userId?.name ||
+        supervisorProfile?.user?.name ||
+        supervisorProfile?.name ||
+        supervisorProfile?.employeeCode;
+      if (fetchedName) {
+        return displayValue(fetchedName);
+      }
+    }
+
+    if (typeof profile.supervisorStaffId === 'string') {
+      const isHexId = /^[0-9a-fA-F]{24}$/.test(profile.supervisorStaffId.trim());
+      if (isHexId) {
+        return '';
+      }
+      return displayValue(profile.supervisorStaffId);
+    }
+    return '';
+  })();
+
+  const supervisionInterval =
+    profile.supervisionIntervalMonths != null
+      ? `${profile.supervisionIntervalMonths} ${profile.supervisionIntervalMonths === 1 ? 'month' : 'months'}`
+      : '';
+
+  const appraisalInterval =
+    profile.appraisalIntervalMonths != null
+      ? `${profile.appraisalIntervalMonths} ${profile.appraisalIntervalMonths === 1 ? 'month' : 'months'}`
+      : '';
+
   const detailRows = [
     { label: 'Phone', value: displayValue(profile.phone) },
     { label: 'Organization', value: orgValue },
     { label: 'Ward', value: displayValue(profile.ward) },
     { label: 'Location', value: displayValue(profile.locationLabel) },
     { label: 'Reports to', value: reportsTo },
+    { label: 'Supervisor', value: supervisor },
+    { label: 'Supervision interval', value: supervisionInterval },
+    { label: 'Appraisal interval', value: appraisalInterval },
     { label: 'PIN', value: displayValue(profile.pin) },
     {
       label: 'Hourly rate',

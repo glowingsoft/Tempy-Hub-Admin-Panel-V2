@@ -25,7 +25,7 @@ import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filte
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { toast } from 'src/components/snackbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
+import { TableBodySkeleton, TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
 
 import { mockBranches } from 'src/sections/branch/mocks/data';
 import { getOwnerOrganizationId } from 'src/sections/branch/utils';
@@ -154,7 +154,7 @@ export function FloorPlanListView({ ownerDashboard = true }) {
         : (assignedBranchId || '');
 
     // --- Query floor plans from API -----------------------------------------
-    const { data: apiData, isLoading } = useGetFloorPlansQuery(
+    const { data: apiData, isLoading, isFetching } = useGetFloorPlansQuery(
         {
             organizationId,
             page: table.page + 1,
@@ -399,10 +399,12 @@ export function FloorPlanListView({ ownerDashboard = true }) {
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
 
                             <TableBody>
-                                {isLoading ? (
-                                    [...Array(table.rowsPerPage)].map((_, index) => (
-                                        <TableSkeleton key={index} sx={{ height: 48 }} />
-                                    ))
+                                {isLoading || isFetching ? (
+                                    <TableBodySkeleton
+                                        rowCount={table.rowsPerPage}
+                                        cellCount={TABLE_HEAD.length}
+                                        dense={table.dense}
+                                    />
                                 ) : (
                                     <>
                                         {records.map((row, index) => (

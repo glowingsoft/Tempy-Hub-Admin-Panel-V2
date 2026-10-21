@@ -23,7 +23,6 @@ import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 
 import { useMockedUser } from 'src/auth/hooks';
-import { useGetUserProfileQuery } from 'src/store/Reducer/auth';
 
 import { AccountButton } from './account-button';
 import { UpgradeBlock } from './nav-upgrade';
@@ -39,13 +38,11 @@ export function AccountDrawer({ data = [], sx, ...other }) {
   const pathname = usePathname();
 
   const { user } = useMockedUser();
-  const { data: profile } = useGetUserProfileQuery();
-  const basicInfo = profile?.basicInfo;
-  const displayName = basicInfo?.name || user?.basicInfo?.name || user?.displayName || '';
-  const email = basicInfo?.email || user?.basicInfo?.email || user?.email || '';
-  const profileIcon = basicInfo?.profileIcon || user?.photoURL || '';
-
   const [open, setOpen] = useState(false);
+
+  const displayName = user?.basicInfo?.name || user?.name || user?.displayName || '';
+  const email = user?.basicInfo?.email || user?.email || '';
+  const profileIcon = user?.basicInfo?.profileIcon || user?.photoURL || '';
 
   const handleOpenDrawer = useCallback(() => {
     setOpen(true);

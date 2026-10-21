@@ -26,7 +26,7 @@ import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
+import { TableBodySkeleton, TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 
 import { mockBranches } from 'src/sections/branch/mocks/data';
@@ -36,7 +36,7 @@ import { PEEP_RECORDS } from 'src/sections/peep-records/mocks/data';
 import { mockFloors } from 'src/sections/floor-plans/mocks/data';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
-import { useGetPeepFloorSummaryQuery, useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
+import { useGetPeepFloorSummaryQuery } from 'src/store/Reducer/peep-floor-plan-api';
 import { useGetFloorPlansQuery } from 'src/store/Reducer/floor-plans-api';
 
 import { OrgRollupSiteTableRow } from '../org-rollup-site-table-row';
@@ -126,21 +126,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
         { skip: !activeOrgId || (!ownerDashboard && !queryBranchId) }
     );
 
-    // --- Query PEEP records API on search / filter ----------------------------
-    const {
-        data: peepRecordsData,
-        isLoading: isRecordsLoading,
-    } = useGetPeepRecordsQuery(
-        {
-            organizationId: activeOrgId,
-            page: table.page + 1,
-            limit: table.rowsPerPage,
-            branchId: queryBranchId || '',
-            peepLevel: '',
-            keyword: keyword || '',
-        },
-        { skip: !activeOrgId || (!ownerDashboard && !queryBranchId) }
-    );
 
     // --- Query floor plans API for exact live floor plan data ----------------
     const { data: floorPlansData } = useGetFloorPlansQuery(
@@ -438,15 +423,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
 
     // --- All-sites table (search + pagination) --------------------------------
 
-    const matchingSiteIdsFromRecords = useMemo(() => {
-        if (!keyword.trim() || !Array.isArray(peepRecordsData?.data)) return null;
-        return new Set(
-            peepRecordsData.data
-                .map((r) => (typeof r.branch === 'object' ? r.branch?._id : r.branchId || r.branch))
-                .filter(Boolean)
-        );
-    }, [peepRecordsData, keyword]);
-
     const filteredRows = useMemo(() => {
         const search = keyword.trim().toLowerCase();
         if (!search) return siteRows;
@@ -454,10 +430,9 @@ export function OrgRollupView({ ownerDashboard = true }) {
         return siteRows.filter((row) => {
             const matchesSiteName = row.site.name.toLowerCase().includes(search);
             const matchesSiteCode = row.site.code?.toLowerCase().includes(search);
-            const matchesRecords = matchingSiteIdsFromRecords?.has(row.site._id);
-            return matchesSiteName || matchesSiteCode || matchesRecords;
+            return matchesSiteName || matchesSiteCode;
         });
-    }, [siteRows, keyword, matchingSiteIdsFromRecords]);
+    }, [siteRows, keyword]);
 
     const paginatedRows = useMemo(() => {
         const start = table.page * table.rowsPerPage;
@@ -614,10 +589,12 @@ export function OrgRollupView({ ownerDashboard = true }) {
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
 
                             <TableBody>
-                                {isLoading || (keyword && isRecordsLoading) ? (
-                                    [...Array(table.rowsPerPage)].map((_, index) => (
-                                        <TableSkeleton key={index} />
-                                    ))
+                                {isLoading || isFetching ? (
+                                    <TableBodySkeleton
+                                        rowCount={table.rowsPerPage}
+                                        cellCount={TABLE_HEAD.length}
+                                        dense={table.dense}
+                                    />
                                 ) : (
                                     <>
                                         {paginatedRows.map((row, index) => (
