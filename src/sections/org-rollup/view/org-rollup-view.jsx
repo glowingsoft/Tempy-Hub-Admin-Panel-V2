@@ -86,24 +86,25 @@ export function OrgRollupView({ ownerDashboard = true }) {
 
     const base = ownerDashboard ? paths.owner : paths.siteManager;
 
-    const [branchId, setBranchId] = useState(ALL_BRANCHES_VALUE);
+    const [selectedBranch, setSelectedBranch] = useState({
+        value: ALL_BRANCHES_VALUE,
+        label: 'All sites',
+    });
+    const branchId = selectedBranch?.value || ALL_BRANCHES_VALUE;
     const queryBranchId = ownerDashboard
         ? branchId !== ALL_BRANCHES_VALUE
             ? branchId
             : undefined
         : assignedBranchId;
 
-    const selectedBranchOption = useMemo(() => {
-        if (!branchId || branchId === ALL_BRANCHES_VALUE) {
-            return { value: ALL_BRANCHES_VALUE, label: 'All sites' };
-        }
-        return { value: branchId, label: 'Selected site' };
-    }, [branchId]);
+    const selectedBranchOption = selectedBranch;
 
     const handleBranchChange = useCallback(
         (option) => {
-            const nextId = option?.value || ALL_BRANCHES_VALUE;
-            setBranchId(nextId);
+            const nextOption = option && typeof option === 'object'
+                ? { value: option.value, label: option.label || 'Selected site' }
+                : { value: ALL_BRANCHES_VALUE, label: 'All sites' };
+            setSelectedBranch(nextOption);
             table.onResetPage();
         },
         [table]
