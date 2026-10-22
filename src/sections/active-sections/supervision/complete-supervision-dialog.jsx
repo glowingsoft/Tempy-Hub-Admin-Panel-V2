@@ -1,0 +1,204 @@
+import { useState } from 'react';
+import PropTypes from 'prop-types';
+import dayjs from 'dayjs';
+
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import Avatar from '@mui/material/Avatar';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import IconButton from '@mui/material/IconButton';
+import Alert from '@mui/material/Alert';
+import LoadingButton from '@mui/lab/LoadingButton';
+
+import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
+import { useRescheduleSupervisionMutation } from 'src/store/Reducer/supervision-api';
+
+// ----------------------------------------------------------------------
+
+export function CompleteSupervisionDialog({ open, row, organizationId, onClose, onSave }) {
+  const [topics, setTopics] = useState('');
+  const [actionsNeeded, setActionsNeeded] = useState('');
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState('');
+
+  const [updateSupervision, { isLoading: isSubmitting }] = useRescheduleSupervisionMutation();
+
+  const staffName = row?.name || row?.staffName || row?.employeeCode || 'Staff Member';
+  const staffEmail = row?.email || '';
+  const staffAvatar = row?.image || row?.avatar;
+
+  const handleReset = () => {
+    setTopics('');
+    setActionsNeeded('');
+    setNotes('');
+    setError('');
+  };
+
+  const handleClose = () => {
+    handleReset();
+    onClose();
+  };
+
+  const handleComplete = async () => {
+    const supervisionId = row?.upcoming?._id || row?.supervisionId || row?._id || row?.id;
+
+    if (!supervisionId) {
+      setError('Supervision session ID not found');
+      return;
+    }
+
+    try {
+      setError('');
+
+      // Format topics into an array of non-empty strings
+      const topicsArray = (topics || '')
+        .split('\n')
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      // Format action points into an array of strings
+      const actionPointsArray = (actionsNeeded || '')
+        .split('\n')
+        .map((a) => a.trim())
+        .filter(Boolean);
+
+      const payload = {
+        organizationId,
+        supervisionId,
+        status: 'completed',
+        topics: topicsArray.length > 0 ? topicsArray : ['Wellbeing', 'Training'],
+        notes: notes.trim() || 'Meeting held',
+        actionPoints: actionPointsArray.length > 0 ? actionPointsArray : ['Book the next review'],
+      };
+
+      const res = await updateSupervision(payload).unwrap();
+
+      const successMsg = res?.message || res?.msg || 'Supervision saved';
+      toast.success(successMsg);
+
+      await onSave?.(res);
+      handleClose();
+    } catch (err) {
+      console.error('Failed to complete session:', err);
+      const errMsg =
+        err?.data?.message || err?.data?.msg || err?.message || 'Failed to complete session';
+      setError(errMsg);
+      toast.error(errMsg);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Stack spacing={0.5}>
+          <Typography variant="subtitle1">Complete Supervision Session</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Log session outcomes and agreed action points
+          </Typography>
+        </Stack>
+        <IconButton onClick={handleClose} size="small" disabled={isSubmitting}>
+          <Iconify icon="mingcute:close-line" />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent>
+        <Stack spacing={2.5} sx={{ pt: 1 }}>
+          {error && <Alert severity="error">{error}</Alert>}
+
+          {/* Staff Info Banner */}
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 1.5,
+              bgcolor: 'background.neutral',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+            }}
+          >
+            <Avatar alt={staffName} src={staffAvatar} sx={{ width: 44, height: 44 }}>
+              {staffName.charAt(0).toUpperCase()}
+            </Avatar>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="subtitle2" noWrap>
+                {staffName}
+              </Typography>
+              {staffEmail && (
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  {staffEmail}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+
+          {/* Discussion Topics */}
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            label="Topics"
+            placeholder="e.g. Wellbeing, Training"
+            helperText="Enter one topic per line (defaults to Wellbeing, Training)"
+            value={topics}
+            disabled={isSubmitting}
+            onChange={(e) => setTopics(e.target.value)}
+          />
+
+          {/* Notes */}
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            label="Notes"
+            placeholder="e.g. Meeting held"
+            value={notes}
+            disabled={isSubmitting}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+
+          {/* Agreed Action Points */}
+          <TextField
+            fullWidth
+            multiline
+            rows={2}
+            label="Action Points"
+            placeholder="e.g. Book the next review"
+            helperText="Enter one action point per line"
+            value={actionsNeeded}
+            disabled={isSubmitting}
+            onChange={(e) => setActionsNeeded(e.target.value)}
+          />
+        </Stack>
+      </DialogContent>
+
+      <DialogActions>
+        <Button color="inherit" onClick={handleClose} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <LoadingButton
+          variant="contained"
+          color="success"
+          onClick={handleComplete}
+          loading={isSubmitting}
+          startIcon={<Iconify icon="solar:check-circle-bold" />}
+        >
+          Complete Session
+        </LoadingButton>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+CompleteSupervisionDialog.propTypes = {
+  open: PropTypes.bool,
+  row: PropTypes.object,
+  onClose: PropTypes.func,
+  onSave: PropTypes.func,
+};

@@ -39,6 +39,11 @@ const LeaveRequestListPage = lazy(() => import('src/pages/owner-dashboard/leave-
 const LeaveRequestDetailPage = lazy(() => import('src/pages/owner-dashboard/leave-requests/detail'));
 const AttendanceListPage = lazy(() => import('src/pages/owner-dashboard/attendance/list'));
 const SupervisionPage = lazy(() => import('src/pages/owner-dashboard/supervision'));
+const SupervisionDetailPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/detail'));
+const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals'));
+const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
+const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance'));
+const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
 const KioskListPage = lazy(() => import('src/pages/dashboard/active-routes/kiosk'));
 const KioskDetailPage = lazy(() => import('src/pages/dashboard/active-routes/kiosk/detail'));
@@ -263,7 +268,22 @@ export const ownerDashboardRoutes = [
         ],
       },
       { path: 'attendance', element: <AttendanceListPage /> },
-      { path: 'supervision', element: <SupervisionPage /> },
+      {
+        path: 'supervision',
+        children: [
+          { index: true, element: <SupervisionPage /> },
+          { path: ':id', element: <SupervisionDetailPage /> },
+        ],
+      },
+      {
+        path: 'appraisals',
+        children: [
+          { index: true, element: <AppraisalPage /> },
+          { path: ':id', element: <AppraisalDetailPage /> },
+        ],
+      },
+      { path: 'team-compliance', element: <TeamCompliancePage /> },
+      { path: 'training', element: <TrainingPage /> },
       { path: 'tempy-connection', element: <TempyConnectionPage ownerDashboard /> },
       {
         path: 'billing-and-usage',

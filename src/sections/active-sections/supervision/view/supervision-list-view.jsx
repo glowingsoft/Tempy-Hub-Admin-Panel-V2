@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -8,7 +9,10 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
+import TableRow from '@mui/material/TableRow';
+import Skeleton from '@mui/material/Skeleton';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -25,10 +29,10 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
-import { UserTableFiltersResult } from 'src/sections/user/user-table-filters-result';
 import { useGetSupervisionsQuery } from 'src/store/Reducer/supervision-api';
 
 import LogSessionDialog from '../log-session-dialog';
+import { CompleteSupervisionDialog } from '../complete-supervision-dialog';
 import SupervisionTableRow, { getRowStatus } from '../supervision-table-row';
 
 // ----------------------------------------------------------------------
@@ -36,17 +40,17 @@ import SupervisionTableRow, { getRowStatus } from '../supervision-table-row';
 const TABLE_HEAD = [
   { id: 'sr#', label: 'Sr#', width: 50 },
   { id: 'staff', label: 'Staff member' },
+  { id: 'createdAt', label: 'Created at' },
   { id: 'last', label: 'Last session' },
-  { id: 'next', label: 'Next due' },
+  { id: 'scheduledAt', label: 'Scheduled at' },
   { id: 'status', label: 'Status', align: 'center' },
   { id: 'actions', label: 'Actions', align: 'center' },
 ];
 
 const SUPERVISION_STATUS_OPTIONS = [
-  { value: 'notYetDue', label: 'Not yet due', color: 'success' },
   { value: 'scheduled', label: 'Scheduled', color: 'info' },
-  { value: 'due_soon', label: 'Due soon', color: 'warning' },
-  { value: 'overdue', label: 'Overdue', color: 'error' },
+  { value: 'completed', label: 'Completed', color: 'success' },
+  { value: 'cancelled', label: 'Cancelled', color: 'default' },
 ];
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...SUPERVISION_STATUS_OPTIONS];
@@ -63,9 +67,14 @@ const FILTER_FIELDS = [
 
 // ----------------------------------------------------------------------
 
-function SupervisionListView() {
+function SupervisionListView({
+  dashboardHref = paths.lineManager.root,
+  heading = 'Supervision',
+  showTabs = true,
+  branchId: branchIdProp,
+}) {
   const { organizationId, user } = useCurrentOrganization();
-  const userBranchId = user?.branchId?._id || user?.branchId;
+  const userBranchId = branchIdProp || user?.branchId?._id || user?.branchId;
 
   const table = useTable({
     defaultDense: true,
@@ -73,6 +82,7 @@ function SupervisionListView() {
   });
 
   const logModal = useBoolean();
+  const completeModal = useBoolean();
   const filters = useSetState({ name: '', status: 'all' });
   const [selectedRow, setSelectedRow] = useState(null);
 
@@ -93,6 +103,7 @@ function SupervisionListView() {
       limit: table.rowsPerPage,
       ...(userBranchId ? { branchId: userBranchId } : {}),
       ...(trimmedKeyword ? { search: trimmedKeyword, keyword: trimmedKeyword } : {}),
+      ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
     },
     { skip: !organizationId }
   );
@@ -103,6 +114,7 @@ function SupervisionListView() {
     return [];
   }, [liveData]);
 
+  const counts = liveData?.meta?.counts ?? {};
   const totalRecords = liveData?.meta?.totalRecords ?? liveData?.total ?? rawList.length;
 
   const handleOpenLog = (row) => {
@@ -110,9 +122,20 @@ function SupervisionListView() {
     logModal.onTrue();
   };
 
+  const handleOpenComplete = (row) => {
+    setSelectedRow(row);
+    completeModal.onTrue();
+  };
+
   const handleSaveSession = () => {
     refetch();
     logModal.onFalse();
+    setSelectedRow(null);
+  };
+
+  const handleSaveComplete = () => {
+    refetch();
+    completeModal.onFalse();
     setSelectedRow(null);
   };
 
@@ -135,31 +158,53 @@ function SupervisionListView() {
     [filters, table]
   );
 
+  // Server already filters by status when status !== 'all', but fallback client-side if status is missing in server response
   const filteredRows = useMemo(() => {
     if (filters.state.status === 'all') return rawList;
     return rawList.filter((row) => {
       const rowStatus = getRowStatus(row);
+      // If server already filtered it, or status matches
       return rowStatus === filters.state.status;
     });
   }, [rawList, filters.state.status]);
 
+  const effectiveTotal = useMemo(() => {
+    if (filters.state.status === 'all') {
+      const sumFromCounts = Object.values(counts).reduce(
+        (sum, val) => sum + (Number(val) || 0),
+        0
+      );
+      return sumFromCounts || totalRecords;
+    }
+    return typeof counts[filters.state.status] === 'number'
+      ? counts[filters.state.status]
+      : filteredRows.length;
+  }, [filters.state.status, counts, totalRecords, filteredRows.length]);
+
   const getStatusCount = useCallback(
     (statusValue) => {
-      if (statusValue === 'all') return rawList.length;
-      return rawList.filter((row) => getRowStatus(row) === statusValue).length;
+      if (statusValue === 'all') {
+        const sumFromCounts = Object.values(counts).reduce(
+          (sum, val) => sum + (Number(val) || 0),
+          0
+        );
+        return sumFromCounts || totalRecords;
+      }
+      return counts[statusValue] ?? 0;
     },
-    [rawList]
+    [counts, totalRecords]
   );
 
   const canReset = !!filters.state.name || filters.state.status !== 'all';
 
   const handleExportCSV = useCallback(() => {
     const exportData = filteredRows.map((row) => ({
-      Name: row.name,
-      'Employee Code': row.employeeCode,
-      Email: row.email,
-      'Last Session': row.lastCompletedAt || row.lastSession || '—',
-      'Next Due': row.nextDueAt || row.upcoming?.scheduledAt || row.nextDue || '—',
+      Name: row.name || row.staff?.name,
+      'Employee Code': row.employeeCode || row.staff?.employeeCode,
+      Email: row.email || row.staff?.email,
+      'Created At': row.createdAt ? fDateTime(row.createdAt) : '—',
+      'Last Session': row.completedAt || row.lastCompletedAt || row.lastSession || '—',
+      'Scheduled At': row.scheduledAt ? fDateTime(row.scheduledAt) : (row.nextDueAt || row.upcoming?.scheduledAt || row.nextDue || '—'),
       Status: getRowStatus(row),
     }));
     exportToCSV(exportData, 'supervision-sessions-report.csv');
@@ -168,15 +213,17 @@ function SupervisionListView() {
   const handleExportPDF = useCallback(() => {
     const columns = [
       { id: 'name', label: 'Staff Member' },
-      { id: 'employeeCode', label: 'Employee Code' },
+      { id: 'createdAt', label: 'Created At' },
       { id: 'lastSession', label: 'Last Session' },
-      { id: 'nextDue', label: 'Next Due' },
+      { id: 'scheduledAt', label: 'Scheduled At' },
       { id: 'status', label: 'Status' },
     ];
     const mapped = filteredRows.map((r) => ({
       ...r,
-      lastSession: r.lastCompletedAt || r.lastSession || '—',
-      nextDue: r.nextDueAt || r.upcoming?.scheduledAt || r.nextDue || '—',
+      name: r.name || r.staff?.name || '—',
+      createdAt: r.createdAt ? fDateTime(r.createdAt) : '—',
+      lastSession: r.completedAt || r.lastCompletedAt || r.lastSession || '—',
+      scheduledAt: r.scheduledAt ? fDateTime(r.scheduledAt) : (r.nextDueAt || r.upcoming?.scheduledAt || r.nextDue || '—'),
       status: getRowStatus(r),
     }));
     exportToPDF('Supervision Sessions Report', columns, mapped);
@@ -185,9 +232,9 @@ function SupervisionListView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Supervision Sessions"
+        heading={heading}
         links={[
-          { name: 'Dashboard', href: paths.lineManager.root },
+          { name: 'Dashboard', href: dashboardHref },
           { name: 'Supervision' },
         ]}
         action={
@@ -198,7 +245,7 @@ function SupervisionListView() {
               startIcon={<Iconify icon="solar:calendar-add-bold" />}
               onClick={() => handleOpenLog(null)}
             >
-              Book session
+              Book supervision
             </Button>
             <Button
               variant="outlined"
@@ -221,7 +268,7 @@ function SupervisionListView() {
         sx={{ mb: 3 }}
       />
 
-      <TeamDevelopmentTabs />
+      {showTabs && <TeamDevelopmentTabs />}
 
       <Card>
         {isError && (
@@ -244,15 +291,6 @@ function SupervisionListView() {
           onSearchChange={handleSearchChange}
         />
 
-        {canReset && (
-          <UserTableFiltersResult
-            filters={filters}
-            totalResults={filteredRows.length}
-            onResetPage={table.onResetPage}
-            sx={{ p: 2.5, pt: 0 }}
-          />
-        )}
-
         <Box sx={{ position: 'relative' }}>
           <TableContainer>
             <Scrollbar>
@@ -261,19 +299,58 @@ function SupervisionListView() {
 
                 <TableBody>
                   {isLoading || isFetching ? (
-                    <TableBodySkeleton
-                      rowCount={table.rowsPerPage}
-                      cellCount={TABLE_HEAD.length}
-                      dense={table.dense}
-                    />
+                    [...Array(table.rowsPerPage)].map((_, rowIndex) => (
+                      <TableRow key={`supervision-skeleton-${rowIndex}`}>
+                        {/* Sr# */}
+                        <TableCell sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                          <Skeleton variant="rounded" height={table.dense ? 16 : 18} width={24} />
+                        </TableCell>
+                        {/* Staff member */}
+                        <TableCell sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                          <Stack spacing={0.5}>
+                            <Skeleton variant="rounded" height={table.dense ? 16 : 18} width={140} />
+                            <Skeleton variant="rounded" height={12} width={180} />
+                          </Stack>
+                        </TableCell>
+                        {/* Created at */}
+                        <TableCell sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                          <Skeleton variant="rounded" height={table.dense ? 16 : 18} width={110} />
+                        </TableCell>
+                        {/* Last session */}
+                        <TableCell sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                          <Skeleton variant="rounded" height={table.dense ? 16 : 18} width={100} />
+                        </TableCell>
+                        {/* Scheduled at */}
+                        <TableCell sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                          <Skeleton variant="rounded" height={table.dense ? 16 : 18} width={110} />
+                        </TableCell>
+                        {/* Status */}
+                        <TableCell align="center" sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                          <Skeleton
+                            variant="rounded"
+                            height={24}
+                            width={80}
+                            sx={{ borderRadius: 1, mx: 'auto' }}
+                          />
+                        </TableCell>
+                        {/* Actions */}
+                        <TableCell align="center" sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                          <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                            <Skeleton variant="circular" width={28} height={28} />
+                            <Skeleton variant="circular" width={28} height={28} />
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))
                   ) : (
                     <>
                       {filteredRows.map((row, index) => (
                         <SupervisionTableRow
-                          key={row.staffId || row._id || row.id || index}
+                          key={row._id || row.id || row.staffId || index}
                           serialNumber={table.page * table.rowsPerPage + index + 1}
                           row={row}
                           onLog={() => handleOpenLog(row)}
+                          onComplete={() => handleOpenComplete(row)}
                         />
                       ))}
 
@@ -288,7 +365,7 @@ function SupervisionListView() {
 
         <TablePaginationCustom
           page={table.page}
-          count={totalRecords}
+          count={effectiveTotal}
           dense={table.dense}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
@@ -307,8 +384,27 @@ function SupervisionListView() {
         }}
         onSave={handleSaveSession}
       />
+
+      <CompleteSupervisionDialog
+        open={completeModal.value}
+        row={selectedRow}
+        organizationId={organizationId}
+        onClose={() => {
+          completeModal.onFalse();
+          setSelectedRow(null);
+        }}
+        onSave={handleSaveComplete}
+      />
     </DashboardContent>
   );
 }
 
+SupervisionListView.propTypes = {
+  dashboardHref: PropTypes.string,
+  heading: PropTypes.string,
+  showTabs: PropTypes.bool,
+  branchId: PropTypes.string,
+};
+
+export { SupervisionListView };
 export default SupervisionListView;

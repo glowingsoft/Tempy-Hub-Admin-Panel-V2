@@ -69,7 +69,8 @@ export const navDataOwner = [
       { title: 'Documents', path: paths.owner.documents.root, icon: ICONS.document },
       { title: 'Leave Requests', path: paths.owner.leaveRequests.root, icon: ICONS.calendar },
       { title: 'Attendance', path: paths.owner.attendance.root, icon: ICONS.clock },
-      { title: 'Supervision & Appraisal', path: paths.owner.supervision, icon: ICONS.supervision },
+      { title: 'Supervision', path: paths.owner.supervision, icon: ICONS.supervision },
+      { title: 'Appraisals', path: paths.owner.appraisal, icon: ICONS.reports },
       {
         // Same shared-prefix rule as Rota so the group stays open between
         // Invitations and Members.

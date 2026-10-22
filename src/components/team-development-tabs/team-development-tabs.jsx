@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 
 import Tab from '@mui/material/Tab';
@@ -9,59 +9,66 @@ import { useRouter, usePathname } from 'src/routes/hooks';
 
 // ----------------------------------------------------------------------
 
-// `prefetch` loads the same lazy chunk registered for this route in
-// `line-manager-dashboard.jsx`, so switching tabs doesn't hit the Suspense
-// fallback while the destination page's JS is fetched.
-export const TEAM_DEVELOPMENT_TABS = [
-  {
-    value: 'supervision',
-    label: 'Supervision',
-    href: paths.lineManager.supervision,
-    prefetch: () => import('src/pages/dashboard/active-routes/supervision'),
-  },
-  {
-    value: 'appraisals',
-    label: 'Appraisals',
-    href: paths.lineManager.appraisal,
-    prefetch: () => import('src/pages/dashboard/active-routes/appraisals'),
-  },
-  {
-    value: 'competencies',
-    label: 'Competencies',
-    href: paths.lineManager.teamCompliance,
-    prefetch: () => import('src/pages/dashboard/active-routes/team-compliance'),
-  },
-  {
-    value: 'training',
-    label: 'Training Records',
-    href: paths.lineManager.training,
-    prefetch: () => import('src/pages/dashboard/active-routes/training'),
-  },
-];
+export function getTeamDevelopmentTabs(prefix = paths.lineManager.root) {
+  return [
+    {
+      value: 'supervision',
+      label: 'Supervision',
+      href: `${prefix}/supervision`,
+      prefetch: () => import('src/pages/dashboard/active-routes/supervision'),
+    },
+    {
+      value: 'appraisals',
+      label: 'Appraisals',
+      href: `${prefix}/appraisals`,
+      prefetch: () => import('src/pages/dashboard/active-routes/appraisals'),
+    },
+    {
+      value: 'competencies',
+      label: 'Competencies',
+      href: `${prefix}/team-compliance`,
+      prefetch: () => import('src/pages/dashboard/active-routes/team-compliance'),
+    },
+    {
+      value: 'training',
+      label: 'Training Records',
+      href: `${prefix}/training`,
+      prefetch: () => import('src/pages/dashboard/active-routes/training'),
+    },
+  ];
+}
+
+export const TEAM_DEVELOPMENT_TABS = getTeamDevelopmentTabs(paths.lineManager.root);
 
 /**
- * Shared sub-navigation tabs for the Line Manager "team development" pages
- * (Supervision / Appraisals / Competencies / Training Records).
- *
- * The active tab is derived from the current route, and switching tabs uses
- * the app's client-side router so navigation doesn't trigger a full page reload.
- * The other tabs' page chunks are prefetched on mount (and again on hover) so
- * clicking a tab doesn't flash the loading fallback while it loads.
+ * Shared sub-navigation tabs for team development pages
+ * (Supervision / Appraisals / Competencies / Training Records)
+ * across Line Manager, Site Manager, and Owner Dashboards.
  */
 export function TeamDevelopmentTabs({ sx }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const currentTab = TEAM_DEVELOPMENT_TABS.find((tab) => tab.href === pathname)?.value ?? false;
+  const tabs = useMemo(() => {
+    if (pathname.startsWith(paths.siteManager.root)) {
+      return getTeamDevelopmentTabs(paths.siteManager.root);
+    }
+    if (pathname.startsWith(paths.owner.root)) {
+      return getTeamDevelopmentTabs(paths.owner.root);
+    }
+    return getTeamDevelopmentTabs(paths.lineManager.root);
+  }, [pathname]);
+
+  const currentTab = tabs.find((tab) => tab.href === pathname)?.value ?? false;
 
   useEffect(() => {
-    TEAM_DEVELOPMENT_TABS.forEach((tab) => {
+    tabs.forEach((tab) => {
       if (tab.value !== currentTab) tab.prefetch();
     });
-  }, [currentTab]);
+  }, [currentTab, tabs]);
 
   const handleChangeTab = (event, newValue) => {
-    const nextTab = TEAM_DEVELOPMENT_TABS.find((tab) => tab.value === newValue);
+    const nextTab = tabs.find((tab) => tab.value === newValue);
     if (nextTab && nextTab.href !== pathname) {
       router.push(nextTab.href);
     }
@@ -69,7 +76,7 @@ export function TeamDevelopmentTabs({ sx }) {
 
   return (
     <Tabs value={currentTab} onChange={handleChangeTab} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider', ...sx }}>
-      {TEAM_DEVELOPMENT_TABS.map((tab) => (
+      {tabs.map((tab) => (
         <Tab
           key={tab.value}
           label={tab.label}

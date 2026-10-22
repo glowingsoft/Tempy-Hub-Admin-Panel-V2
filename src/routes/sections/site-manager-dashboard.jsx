@@ -93,8 +93,13 @@ const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/docum
 const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
 const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/active-routes/documents/acknowledgements'));
 
-//supervision
+//supervision, appraisals, competencies, training
 const SupervisionPage = lazy(() => import('src/pages/site-manager/supervision'));
+const SupervisionDetailPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/detail'));
+const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals'));
+const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
+const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance'));
+const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 
 //reports
 
@@ -221,7 +226,24 @@ export const siteManagerDashboardRoutes = [
       { path: "documents/:id", element: <DocumentDetailPage /> },
       { path: "documents/:id/acknowledgements", element: <DocumentAcknowledgementsPage /> },
       {
-        path: "supervision", element: <SupervisionPage />
+        path: "supervision",
+        children: [
+          { index: true, element: <SupervisionPage /> },
+          { path: ":id", element: <SupervisionDetailPage /> },
+        ],
+      },
+      {
+        path: "appraisals",
+        children: [
+          { index: true, element: <AppraisalPage /> },
+          { path: ":id", element: <AppraisalDetailPage /> },
+        ],
+      },
+      {
+        path: "team-compliance", element: <TeamCompliancePage />
+      },
+      {
+        path: "training", element: <TrainingPage />
       },
       {
         path: "configuration", element: <ConfigurationPage />

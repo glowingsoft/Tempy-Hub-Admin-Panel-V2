@@ -56,8 +56,6 @@ export const API_ROUTES = {
     ORGANIZATION_STAFF_PROFILES: (organizationId) =>
         `/admin/organizations/${organizationId}/staff-profiles`,
     STAFF_PROFILE_BY_ID: (staffProfileId) => `/admin/staff-profiles/${staffProfileId}`,
-    ORGANIZATION_SUPERVISION: (organizationId) =>
-        `/admin/organizations/${organizationId}/supervision`,
     ORGANIZATION_SHIFTS: (organizationId) => `/admin/organizations/${organizationId}/shifts`,
     SHIFT_BY_ID: (shiftId) => `/admin/shifts/${shiftId}`,
     STAFF_SHIFT_CLAIMS: (shiftId) => `/app/shifts/${shiftId}/claims`,
@@ -122,4 +120,14 @@ export const API_ROUTES = {
     FLOOR_PLAN_PINS: (floorPlanId) => `/admin/floor-plans/${floorPlanId}/pins`,
     FLOOR_PLAN_PIN_BY_ID: (floorPlanId, floorPlanPinId) =>
         `/admin/floor-plans/${floorPlanId}/pins/${floorPlanPinId}`,
+
+    // Supervision & Appraisal
+    ORGANIZATION_SUPERVISION: (organizationId) =>
+        `/admin/organizations/${organizationId}/supervision`,
+    ORGANIZATION_SUPERVISION_BY_ID: (organizationId, supervisionId) =>
+        `/admin/organizations/${organizationId}/supervision/${supervisionId}`,
+    ORGANIZATION_APPRAISALS: (organizationId) =>
+        `/admin/organizations/${organizationId}/appraisals`,
+    ORGANIZATION_APPRAISAL_BY_ID: (organizationId, appraisalId) =>
+        `/admin/organizations/${organizationId}/appraisals/${appraisalId}`,
 };

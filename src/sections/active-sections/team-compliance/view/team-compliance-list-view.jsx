@@ -24,6 +24,7 @@ import { TeamDevelopmentTabs } from 'src/components/team-development-tabs';
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
+import { usePathname } from 'src/routes/hooks';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
 
 import ComplianTableRow from '../compliance-table-row';
@@ -58,7 +59,16 @@ const DEFAULT_FILTERS = { name: '', status: 'matrix', staff: 'all', role: 'all',
 
 // ----------------------------------------------------------------------
 
-function TeamComplianceListView({ columns = _complianceColumns, rows = _teamCompliance }) {
+function TeamComplianceListView({ columns = _complianceColumns, rows = _teamCompliance, dashboardHref: dashboardHrefProp }) {
+  const pathname = usePathname();
+  const dashboardHref =
+    dashboardHrefProp ||
+    (pathname.startsWith(paths.siteManager.root)
+      ? paths.siteManager.root
+      : pathname.startsWith(paths.owner.root)
+        ? paths.owner.root
+        : paths.lineManager.root);
+
   const table = useTable();
   const filters = useSetState(DEFAULT_FILTERS);
 
@@ -223,7 +233,7 @@ function TeamComplianceListView({ columns = _complianceColumns, rows = _teamComp
       <CustomBreadcrumbs
         heading="Team Compliance"
         links={[
-          { name: 'Dashboard', href: paths.lineManager.root },
+          { name: 'Dashboard', href: dashboardHref },
           { name: 'Team Compliance' },
         ]}
         action={
