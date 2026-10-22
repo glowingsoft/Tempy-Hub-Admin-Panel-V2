@@ -22,7 +22,7 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
+import { TableBodySkeleton, TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
 
 import { mockBranches } from 'src/sections/branch/mocks/data';
 import { getOwnerOrganizationId } from 'src/sections/branch/utils';
@@ -140,7 +140,7 @@ export function PeepRecordListView({ ownerDashboard = true }) {
     }, [ownerDashboard, assignedBranchId, assignedBranch?.name, siteId, branchList]);
 
     // Query PEEP records from API
-    const { data: apiData, isLoading } = useGetPeepRecordsQuery(
+    const { data: apiData, isLoading, isFetching } = useGetPeepRecordsQuery(
         {
             organizationId,
             page: table.page + 1,
@@ -245,6 +245,10 @@ export function PeepRecordListView({ ownerDashboard = true }) {
 
             <CustomBreadcrumbs
                 heading="PEEP Records"
+                sx={{
+                    mb: { xs: 3, md: 5 },
+                    '& .MuiBreadcrumbs-li': { textTransform: 'capitalize' },
+                }}
                 links={[
                     { name: 'Dashboard', href: base.root },
                     { name: 'PEEP & Floor Plans', href: base.peepAndFloorPlans.root },
@@ -298,7 +302,6 @@ export function PeepRecordListView({ ownerDashboard = true }) {
                         )}
                     </Stack>
                 }
-                sx={{ mb: { xs: 3, md: 5 } }}
             />
 
             <Card>
@@ -313,10 +316,12 @@ export function PeepRecordListView({ ownerDashboard = true }) {
                         <Table size={table.dense ? 'small' : 'medium'} sx={{ width: '100%' }}>
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
                             <TableBody>
-                                {isLoading ? (
-                                    [...Array(table.rowsPerPage)].map((_, index) => (
-                                        <TableSkeleton key={index} sx={{ height: 60 }} />
-                                    ))
+                                {isLoading || isFetching ? (
+                                    <TableBodySkeleton
+                                        rowCount={table.rowsPerPage}
+                                        cellCount={TABLE_HEAD.length}
+                                        dense={table.dense}
+                                    />
                                 ) : (
                                     <>
                                         {records.map((row, index) => (

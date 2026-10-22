@@ -26,7 +26,7 @@ import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
+import { TableBodySkeleton, TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton, useTable } from 'src/components/table';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 
 import { mockBranches } from 'src/sections/branch/mocks/data';
@@ -36,8 +36,7 @@ import { PEEP_RECORDS } from 'src/sections/peep-records/mocks/data';
 import { mockFloors } from 'src/sections/floor-plans/mocks/data';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
-import { useGetPeepFloorSummaryQuery, useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
-import { useGetFloorPlansQuery } from 'src/store/Reducer/floor-plans-api';
+import { useGetPeepFloorSummaryQuery } from 'src/store/Reducer/peep-floor-plan-api';
 
 import { OrgRollupSiteTableRow } from '../org-rollup-site-table-row';
 import { getAssignedBranch } from '../utils';
@@ -87,24 +86,25 @@ export function OrgRollupView({ ownerDashboard = true }) {
 
     const base = ownerDashboard ? paths.owner : paths.siteManager;
 
-    const [branchId, setBranchId] = useState(ALL_BRANCHES_VALUE);
+    const [selectedBranch, setSelectedBranch] = useState({
+        value: ALL_BRANCHES_VALUE,
+        label: 'All sites',
+    });
+    const branchId = selectedBranch?.value || ALL_BRANCHES_VALUE;
     const queryBranchId = ownerDashboard
         ? branchId !== ALL_BRANCHES_VALUE
             ? branchId
             : undefined
         : assignedBranchId;
 
-    const selectedBranchOption = useMemo(() => {
-        if (!branchId || branchId === ALL_BRANCHES_VALUE) {
-            return { value: ALL_BRANCHES_VALUE, label: 'All sites' };
-        }
-        return { value: branchId, label: 'Selected site' };
-    }, [branchId]);
+    const selectedBranchOption = selectedBranch;
 
     const handleBranchChange = useCallback(
         (option) => {
-            const nextId = option?.value || ALL_BRANCHES_VALUE;
-            setBranchId(nextId);
+            const nextOption = option && typeof option === 'object'
+                ? { value: option.value, label: option.label || 'Selected site' }
+                : { value: ALL_BRANCHES_VALUE, label: 'All sites' };
+            setSelectedBranch(nextOption);
             table.onResetPage();
         },
         [table]
@@ -125,54 +125,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
         },
         { skip: !activeOrgId || (!ownerDashboard && !queryBranchId) }
     );
-
-    // --- Query PEEP records API on search / filter ----------------------------
-    const {
-        data: peepRecordsData,
-        isLoading: isRecordsLoading,
-    } = useGetPeepRecordsQuery(
-        {
-            organizationId: activeOrgId,
-            page: table.page + 1,
-            limit: table.rowsPerPage,
-            branchId: queryBranchId || '',
-            peepLevel: '',
-            keyword: keyword || '',
-        },
-        { skip: !activeOrgId || (!ownerDashboard && !queryBranchId) }
-    );
-
-    // --- Query floor plans API for exact live floor plan data ----------------
-    const { data: floorPlansData } = useGetFloorPlansQuery(
-        {
-            organizationId: activeOrgId,
-            branchId: queryBranchId || '',
-            limit: 100,
-        },
-        { skip: !activeOrgId }
-    );
-
-    const realFloorSummaryBySite = useMemo(() => {
-        if (!Array.isArray(floorPlansData?.data)) return null;
-        const map = new Map();
-        floorPlansData.data.forEach((floor) => {
-            const bId =
-                floor.branchId ||
-                floor.branch?._id ||
-                (typeof floor.branch === 'string' ? floor.branch : null) ||
-                queryBranchId;
-            if (!bId) return;
-            const entry = map.get(bId) || { total: 0, uploaded: 0, floors: [] };
-            entry.total += 1;
-            const isUp =
-                floor.status === 'uploaded' ||
-                Boolean(floor.imageUrl || floor.pdfUrl || floor.fileUrl);
-            if (isUp) entry.uploaded += 1;
-            entry.floors.push(floor);
-            map.set(bId, entry);
-        });
-        return map;
-    }, [floorPlansData, queryBranchId]);
 
     // --- Fallback Mock Aggregates --------------------------------------------
     const levelCountsBySite = useMemo(() => {
@@ -231,8 +183,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
                 const high = item.levels?.high ?? 0;
                 const total = item.levels?.total ?? (low + medium + high);
 
-                const realSummary = siteObj._id ? realFloorSummaryBySite?.get(siteObj._id) : null;
-
                 return {
                     site: {
                         _id: siteObj._id,
@@ -240,7 +190,7 @@ export function OrgRollupView({ ownerDashboard = true }) {
                         code: siteObj.code,
                     },
                     levels: { low, medium, high, total },
-                    floorsSummary: realSummary || item.floorsSummary || {
+                    floorsSummary: item.floorsSummary || {
                         total: item.floors?.total ?? 0,
                         uploaded: item.floors?.uploaded ?? 0,
                     },
@@ -253,7 +203,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
             const low = summaryData.levels?.low ?? 0;
             const medium = summaryData.levels?.medium ?? 0;
             const high = summaryData.levels?.high ?? 0;
-            const realSummary = realFloorSummaryBySite?.get(assignedBranchId);
 
             return [
                 {
@@ -268,7 +217,7 @@ export function OrgRollupView({ ownerDashboard = true }) {
                         high,
                         total: summaryData.levels?.total ?? (low + medium + high),
                     },
-                    floorsSummary: realSummary || summaryData.floorsSummary || {
+                    floorsSummary: summaryData.floorsSummary || {
                         total: summaryData.floors?.total ?? 0,
                         uploaded: summaryData.floors?.uploaded ?? 0,
                     },
@@ -277,19 +226,12 @@ export function OrgRollupView({ ownerDashboard = true }) {
         }
 
         if (ownerDashboard) {
-            return mockSiteRows.map((row) => {
-                const realSummary = realFloorSummaryBySite?.get(row.site._id);
-                if (realSummary) {
-                    return { ...row, floorsSummary: realSummary };
-                }
-                return row;
-            });
+            return mockSiteRows;
         }
 
         // Fallback for Site Manager if summaryData is not yet loaded or on mock
         if (!ownerDashboard && assignedBranchId) {
             const assignedMockSite = mockBranches.find((b) => b._id === assignedBranchId);
-            const realSummary = realFloorSummaryBySite?.get(assignedBranchId);
             const mockFloorSummary = floorSummaryBySite.get(assignedBranchId) || EMPTY_FLOORS;
             return [
                 {
@@ -298,7 +240,7 @@ export function OrgRollupView({ ownerDashboard = true }) {
                         name: assignedBranch?.name || 'Assigned site',
                     },
                     levels: levelCountsBySite.get(assignedBranchId) || EMPTY_LEVELS,
-                    floorsSummary: realSummary || mockFloorSummary,
+                    floorsSummary: mockFloorSummary,
                 },
             ];
         }
@@ -310,7 +252,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
         assignedBranchId,
         assignedBranch,
         mockSiteRows,
-        realFloorSummaryBySite,
         levelCountsBySite,
         floorSummaryBySite,
     ]);
@@ -438,15 +379,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
 
     // --- All-sites table (search + pagination) --------------------------------
 
-    const matchingSiteIdsFromRecords = useMemo(() => {
-        if (!keyword.trim() || !Array.isArray(peepRecordsData?.data)) return null;
-        return new Set(
-            peepRecordsData.data
-                .map((r) => (typeof r.branch === 'object' ? r.branch?._id : r.branchId || r.branch))
-                .filter(Boolean)
-        );
-    }, [peepRecordsData, keyword]);
-
     const filteredRows = useMemo(() => {
         const search = keyword.trim().toLowerCase();
         if (!search) return siteRows;
@@ -454,10 +386,9 @@ export function OrgRollupView({ ownerDashboard = true }) {
         return siteRows.filter((row) => {
             const matchesSiteName = row.site.name.toLowerCase().includes(search);
             const matchesSiteCode = row.site.code?.toLowerCase().includes(search);
-            const matchesRecords = matchingSiteIdsFromRecords?.has(row.site._id);
-            return matchesSiteName || matchesSiteCode || matchesRecords;
+            return matchesSiteName || matchesSiteCode;
         });
-    }, [siteRows, keyword, matchingSiteIdsFromRecords]);
+    }, [siteRows, keyword]);
 
     const paginatedRows = useMemo(() => {
         const start = table.page * table.rowsPerPage;
@@ -614,10 +545,12 @@ export function OrgRollupView({ ownerDashboard = true }) {
                             <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
 
                             <TableBody>
-                                {isLoading || (keyword && isRecordsLoading) ? (
-                                    [...Array(table.rowsPerPage)].map((_, index) => (
-                                        <TableSkeleton key={index} />
-                                    ))
+                                {isLoading || isFetching ? (
+                                    <TableBodySkeleton
+                                        rowCount={table.rowsPerPage}
+                                        cellCount={TABLE_HEAD.length}
+                                        dense={table.dense}
+                                    />
                                 ) : (
                                     <>
                                         {paginatedRows.map((row, index) => (

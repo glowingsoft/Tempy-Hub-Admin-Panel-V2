@@ -91,6 +91,11 @@ export const navDataOwner = [
         path: paths.owner.configuration,
         icon: ICONS.settings,
       },
+      {
+        title: 'Settings',
+        path: paths.owner.settings,
+        icon: ICONS.settings,
+      },
 
       { title: 'Connect to Tempy', path: paths.owner.tempyConnection, icon: ICONS.external },
     ],

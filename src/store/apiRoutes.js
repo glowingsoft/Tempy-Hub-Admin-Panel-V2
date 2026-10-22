@@ -7,6 +7,7 @@ export const API_ROUTES = {
         RESEND_OTP_EMAIL: '/auth/resend-otp/email',
         VERIFY_OTP_EMAIL: '/auth/verify-otp/email',
         RESET_PASSWORD: '/auth/reset-password',
+        CHANGE_PASSWORD: '/auth/change-password',
         INVITATION_BY_TOKEN: (token) => `/auth/invitations/${token}`,
         ACCEPT_INVITATION: (token) => `/auth/invitations/${token}/accept`,
     },
@@ -55,6 +56,8 @@ export const API_ROUTES = {
     ORGANIZATION_STAFF_PROFILES: (organizationId) =>
         `/admin/organizations/${organizationId}/staff-profiles`,
     STAFF_PROFILE_BY_ID: (staffProfileId) => `/admin/staff-profiles/${staffProfileId}`,
+    ORGANIZATION_SUPERVISION: (organizationId) =>
+        `/admin/organizations/${organizationId}/supervision`,
     ORGANIZATION_SHIFTS: (organizationId) => `/admin/organizations/${organizationId}/shifts`,
     SHIFT_BY_ID: (shiftId) => `/admin/shifts/${shiftId}`,
     STAFF_SHIFT_CLAIMS: (shiftId) => `/app/shifts/${shiftId}/claims`,

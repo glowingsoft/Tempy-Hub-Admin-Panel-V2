@@ -1,4 +1,3 @@
-
 import Drawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -88,14 +87,13 @@ function DetailPanel({ resident, inline = false, onClose, onUpdate }) {
               <Avatar alt={resident.name} src={resident.avatar || resident.image} />
 
               <Box>
-                <Typography variant="subtitle2">
+                <Typography variant="subtitle2" sx={{ textTransform: 'capitalize' }}>
                   {resident.name}
                 </Typography>
 
                 <Typography variant="body2" color="text.secondary">
                   Room {resident.roomNumber}
                 </Typography>
-
               </Box>
             </Stack>
           </Box>

@@ -205,11 +205,11 @@ export function ResidentDetailView() {
                     justifyContent="space-between"
                 >
                     <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar alt={resident.name} src={resident.image} sx={{ width: 56, height: 56 }}>
+                        <Avatar alt={resident.name} src={resident.image} sx={{ width: 56, height: 56, textTransform: 'capitalize' }}>
                             {resident.name?.charAt(0)}
                         </Avatar>
                         <Stack>
-                            <Typography variant="subtitle1">{resident.name}</Typography>
+                            <Typography variant="subtitle1" sx={{ textTransform: 'capitalize' }}>{resident.name}</Typography>
                             <Typography variant="body2" color="text.secondary">
                                 {resident.email || '—'}
                             </Typography>
@@ -265,6 +265,7 @@ export function ResidentDetailView() {
                     >
                         <DetailItem
                             label="Resident"
+                            sx={{ textTransform: 'capitalize' }}
                             value={
                                 peepRecord?.resident?.name ||
                                 peepRecord?.residentName ||

@@ -534,6 +534,7 @@ export const paths = {
     tempyConnection: `${ROOTS.OWNER_DASHBOARD}/tempy-connection`,
     staffDashboardSettings: `${ROOTS.OWNER_DASHBOARD}/staff-dashboard-settings`,
     configuration: `${ROOTS.OWNER_DASHBOARD}/configuration`,
+    settings: `${ROOTS.OWNER_DASHBOARD}/settings`,
     fireDrills: `${ROOTS.OWNER_DASHBOARD}/fire-drills`,
 
     rota: {

@@ -193,6 +193,11 @@ export function OrgRollupSiteDetail({
 
       <CustomBreadcrumbs
         heading={site.name}
+        sx={{
+          mb: { xs: 3, md: 5 },
+          '& .MuiTypography-h4': { textTransform: 'capitalize' },
+          '& .MuiBreadcrumbs-li': { textTransform: 'capitalize' },
+        }}
         links={[
           { name: 'Dashboard', href: base.root },
           { name: 'PEEP & Floor Plans', href: base.peepAndFloorPlans.root },
@@ -220,12 +225,11 @@ export function OrgRollupSiteDetail({
             </Button>
           </Stack>
         }
-        sx={{ mb: { xs: 3, md: 5 } }}
       />
 
       <Card>
         <Box sx={{ p: 3 }}>
-          <Typography variant="h6">{site.name}</Typography>
+          <Typography variant="h6" sx={{ textTransform: 'capitalize' }}>{site.name}</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
             {levels.total} {levels.total === 1 ? 'resident' : 'residents'} with a PEEP record
           </Typography>
@@ -262,7 +266,7 @@ export function OrgRollupSiteDetail({
                         justifyContent="space-between"
                       >
                         <Stack>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
                             {floor.name}
                           </Typography>
                           <Typography variant="caption" sx={{ color: 'text.secondary' }}>

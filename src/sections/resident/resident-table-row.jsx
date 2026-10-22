@@ -44,6 +44,13 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
 
     const actions = [
         {
+            key: 'view',
+            icon: 'solar:eye-bold',
+            tooltip: 'View Resident',
+            color: 'default',
+            onClick: () => router.push(detailPath),
+        },
+        {
             key: 'edit',
             icon: 'solar:pen-bold',
             tooltip: 'Edit Resident',
@@ -103,7 +110,7 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             </TableCell>
 
             {/* Actions */}
-            <TableCell align="center" onClick={(event) => event.stopPropagation()}>
+            <TableCell align="center" onClick={(event) => event.stopPropagation()} sx={{ whiteSpace: 'nowrap' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <GenericTableRowActions actions={actions} />
                 </Box>

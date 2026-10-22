@@ -64,12 +64,12 @@ export function FloorPlanTableRow({ row, serialNumber, onUpload, ownerDashboard 
       <TableCell>{serialNumber}</TableCell>
 
       <TableCell>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
           {row.name}
         </Typography>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{row.branch || '—'}</TableCell>
 
       <TableCell>
         <Label color={statusMeta.color}>{statusMeta.label}</Label>

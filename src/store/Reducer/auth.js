@@ -137,6 +137,15 @@ export const authApi = createApi({
       }),
       transformResponse: (res) => res?.data ?? res,
     }),
+
+    changePassword: builder.mutation({
+      query: ({ oldPassword, newPassword }) => ({
+        url: API_ROUTES.AUTH.CHANGE_PASSWORD,
+        method: "POST",
+        body: { oldPassword, newPassword },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+    }),
   }),
 });
 
@@ -150,4 +159,5 @@ export const {
   useResendOtpEmailMutation,
   useVerifyOtpEmailMutation,
   useResetPasswordMutation,
+  useChangePasswordMutation,
 } = authApi;

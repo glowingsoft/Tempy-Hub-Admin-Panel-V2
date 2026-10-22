@@ -101,7 +101,16 @@ export function FloorPlanViewer({
           limit={100}
           label="Room / resident"
           placeholder="Select a resident"
-          sx={{ minWidth: { xs: '100%', sm: 240 } }}
+          sx={{
+            width: {
+              xs: '100%',
+              sm: selectedResidentOption
+                ? Math.max(255, selectedResidentOption.label.length * 8 + 80)
+                : 255,
+            },
+            minWidth: { xs: '100%', sm: 255 },
+            maxWidth: '100%',
+          }}
         />
 
         {selectedResident && (
@@ -349,14 +358,22 @@ export function FloorPlanViewer({
   );
 }
 
+function capitalizeWords(str) {
+  if (!str) return '';
+  return str.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function mapResidentOption(resident, pins) {
   const id = String(resident.id);
   const isPinned = pins.some((pin) => pin.residentId === id);
+  const resName = capitalizeWords(resident.name || '');
 
   return {
     value: id,
     label: `Room ${resident.roomNumber || '—'} - ${resident.name || '—'}${isPinned ? ' (pinned)' : ''}`,
     resident,
+    label: `Room ${resident.roomNumber || '—'} - ${resName || '—'}${isPinned ? ' (pinned)' : ''}`,
+    resident: { ...resident, name: resName || resident.name },
   };
 }
 

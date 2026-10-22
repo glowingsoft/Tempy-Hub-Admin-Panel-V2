@@ -58,6 +58,7 @@ const MessagesPage = lazy(() => import('src/pages/dashboard/messages'));
 const StatsPage = lazy(() => import('src/pages/owner-dashboard/statistics'));
 const StaffDashboardSettingsPage = lazy(() => import('src/pages/owner-dashboard/staff-dashboard-settings.jsx'));
 const ConfigurationPage = lazy(() => import('src/pages/owner-dashboard/configuration.jsx'));
+const OwnerSettingsPage = lazy(() => import('src/pages/owner-dashboard/settings.jsx'));
 const PeepRecordsListPage = lazy(() => import('src/pages/owner-dashboard/peep-records/list.jsx'));
 const PeepRecordCreatePage = lazy(() => import('src/pages/owner-dashboard/peep-records/new.jsx'));
 const PeepRecordDetailPage = lazy(() => import('src/pages/owner-dashboard/peep-records/detail.jsx'));
@@ -248,6 +249,7 @@ export const ownerDashboardRoutes = [
       { path: "statistics", element: <StatsPage /> },
       { path: "staff-dashboard-settings", element: <StaffDashboardSettingsPage /> },
       { path: "configuration", element: <ConfigurationPage /> },
+      { path: "settings", element: <OwnerSettingsPage /> },
       { path: "fire-drills", element: <FireDrillsPage /> },
       {
         path: 'rota-management',

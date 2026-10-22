@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState } from 'react';
 
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
@@ -14,18 +16,20 @@ import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
+import { TableBodySkeleton, TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
 import { TeamDevelopmentTabs } from 'src/components/team-development-tabs';
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
 import { UserTableFiltersResult } from 'src/sections/user/user-table-filters-result';
+import { useGetSupervisionsQuery } from 'src/store/Reducer/supervision-api';
 
 import LogSessionDialog from '../log-session-dialog';
-import { _teamSupervision, logTeamSupervisionSession } from '../mocks/data';
-import SupervisionTableRow from '../supervision-table-row';
+import SupervisionTableRow, { getRowStatus } from '../supervision-table-row';
 
 // ----------------------------------------------------------------------
 
@@ -39,9 +43,10 @@ const TABLE_HEAD = [
 ];
 
 const SUPERVISION_STATUS_OPTIONS = [
-  { value: 'overdue', label: 'Overdue', color: 'error' },
+  { value: 'notYetDue', label: 'Not yet due', color: 'success' },
+  { value: 'scheduled', label: 'Scheduled', color: 'info' },
   { value: 'due_soon', label: 'Due soon', color: 'warning' },
-  { value: 'booked', label: 'Booked', color: 'default' },
+  { value: 'overdue', label: 'Overdue', color: 'error' },
 ];
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...SUPERVISION_STATUS_OPTIONS];
@@ -59,32 +64,54 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 function SupervisionListView() {
-  const table = useTable();
+  const { organizationId, user } = useCurrentOrganization();
+  const userBranchId = user?.branchId?._id || user?.branchId;
+
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
+
   const logModal = useBoolean();
   const filters = useSetState({ name: '', status: 'all' });
   const [selectedRow, setSelectedRow] = useState(null);
 
-  // Bumped after saving a session so the roster row's updated last/next
-  // session dates re-render — the mock helper mutates the array in place.
-  const [reloadKey, setReloadKey] = useState(0);
+  const keyword = useDebounce(filters.state.name, 500);
+  const trimmedKeyword = keyword.trim();
+
+  const {
+    data: liveData,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useGetSupervisionsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      ...(userBranchId ? { branchId: userBranchId } : {}),
+      ...(trimmedKeyword ? { search: trimmedKeyword, keyword: trimmedKeyword } : {}),
+    },
+    { skip: !organizationId }
+  );
+
+  const rawList = useMemo(() => {
+    if (Array.isArray(liveData)) return liveData;
+    if (Array.isArray(liveData?.data)) return liveData.data;
+    return [];
+  }, [liveData]);
+
+  const totalRecords = liveData?.meta?.totalRecords ?? liveData?.total ?? rawList.length;
 
   const handleOpenLog = (row) => {
     setSelectedRow(row);
     logModal.onTrue();
   };
 
-  const handleSaveSession = (session) => {
-    logTeamSupervisionSession(session.staffId, session);
-
-    const staffRow = _teamSupervision.find((row) => row.id === session.staffId);
-    if (staffRow) {
-      staffRow.lastSession = dayjs(session.dateHeld).format('YYYY-MM-DD');
-      staffRow.nextDue = dayjs(session.nextDue).format('D MMM');
-      staffRow.status = 'booked';
-      staffRow.overdueDays = undefined;
-    }
-
-    setReloadKey((key) => key + 1);
+  const handleSaveSession = () => {
+    refetch();
     logModal.onFalse();
     setSelectedRow(null);
   };
@@ -109,23 +136,31 @@ function SupervisionListView() {
   );
 
   const filteredRows = useMemo(() => {
-    const search = filters.state.name.trim().toLowerCase();
-    return _teamSupervision.filter((row) => {
-      const matchesSearch = !search || row.name?.toLowerCase().includes(search);
-      const matchesStatus = filters.state.status === 'all' || row.status === filters.state.status;
-      return matchesSearch && matchesStatus;
+    if (filters.state.status === 'all') return rawList;
+    return rawList.filter((row) => {
+      const rowStatus = getRowStatus(row);
+      return rowStatus === filters.state.status;
     });
-  }, [filters.state.name, filters.state.status]);
+  }, [rawList, filters.state.status]);
+
+  const getStatusCount = useCallback(
+    (statusValue) => {
+      if (statusValue === 'all') return rawList.length;
+      return rawList.filter((row) => getRowStatus(row) === statusValue).length;
+    },
+    [rawList]
+  );
 
   const canReset = !!filters.state.name || filters.state.status !== 'all';
 
   const handleExportCSV = useCallback(() => {
     const exportData = filteredRows.map((row) => ({
       Name: row.name,
-      Role: row.role,
-      'Last Session': row.lastSession,
-      'Next Due': row.nextDue,
-      Status: row.status,
+      'Employee Code': row.employeeCode,
+      Email: row.email,
+      'Last Session': row.lastCompletedAt || row.lastSession || '—',
+      'Next Due': row.nextDueAt || row.upcoming?.scheduledAt || row.nextDue || '—',
+      Status: getRowStatus(row),
     }));
     exportToCSV(exportData, 'supervision-sessions-report.csv');
   }, [filteredRows]);
@@ -133,11 +168,18 @@ function SupervisionListView() {
   const handleExportPDF = useCallback(() => {
     const columns = [
       { id: 'name', label: 'Staff Member' },
+      { id: 'employeeCode', label: 'Employee Code' },
       { id: 'lastSession', label: 'Last Session' },
       { id: 'nextDue', label: 'Next Due' },
       { id: 'status', label: 'Status' },
     ];
-    exportToPDF('Supervision Sessions Report', columns, filteredRows);
+    const mapped = filteredRows.map((r) => ({
+      ...r,
+      lastSession: r.lastCompletedAt || r.lastSession || '—',
+      nextDue: r.nextDueAt || r.upcoming?.scheduledAt || r.nextDue || '—',
+      status: getRowStatus(r),
+    }));
+    exportToPDF('Supervision Sessions Report', columns, mapped);
   }, [filteredRows]);
 
   return (
@@ -149,7 +191,15 @@ function SupervisionListView() {
           { name: 'Supervision' },
         ]}
         action={
-          <Stack direction="row" spacing={1}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Iconify icon="solar:calendar-add-bold" />}
+              onClick={() => handleOpenLog(null)}
+            >
+              Book session
+            </Button>
             <Button
               variant="outlined"
               color="inherit"
@@ -159,8 +209,8 @@ function SupervisionListView() {
               Export CSV
             </Button>
             <Button
-              variant="contained"
-              color="primary"
+              variant="outlined"
+              color="inherit"
               startIcon={<Iconify icon="solar:printer-bold" />}
               onClick={handleExportPDF}
             >
@@ -174,11 +224,17 @@ function SupervisionListView() {
       <TeamDevelopmentTabs />
 
       <Card>
+        {isError && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {error?.data?.message || error?.error || 'Failed to load supervision sessions.'}
+          </Alert>
+        )}
+
         <StatusTabsFilterWrapper
           filterField={statusFilterField}
           value={filters.state.status}
           onChange={handleFilterChange}
-          getCount={() => filteredRows.length}
+          getCount={getStatusCount}
         />
 
         <FlexibleTableToolbar
@@ -197,43 +253,54 @@ function SupervisionListView() {
           />
         )}
 
-        <TableContainer>
-          <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'}>
-              <TableHeadCustom headLabel={TABLE_HEAD} />
+        <Box sx={{ position: 'relative' }}>
+          <TableContainer>
+            <Scrollbar>
+              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
+                <TableHeadCustom headLabel={TABLE_HEAD} />
 
-              <TableBody key={reloadKey}>
-                {filteredRows
-                  .slice(table.page * table.rowsPerPage, table.page * table.rowsPerPage + table.rowsPerPage)
-                  .map((row, index) => (
-                    <SupervisionTableRow
-                      key={row.id}
-                      serialNumber={table.page * table.rowsPerPage + index + 1}
-                      row={row}
-                      onLog={() => handleOpenLog(row)}
+                <TableBody>
+                  {isLoading || isFetching ? (
+                    <TableBodySkeleton
+                      rowCount={table.rowsPerPage}
+                      cellCount={TABLE_HEAD.length}
+                      dense={table.dense}
                     />
-                  ))}
+                  ) : (
+                    <>
+                      {filteredRows.map((row, index) => (
+                        <SupervisionTableRow
+                          key={row.staffId || row._id || row.id || index}
+                          serialNumber={table.page * table.rowsPerPage + index + 1}
+                          row={row}
+                          onLog={() => handleOpenLog(row)}
+                        />
+                      ))}
 
-                <TableNoData notFound={!filteredRows.length} />
-              </TableBody>
-            </Table>
-          </Scrollbar>
+                      <TableNoData notFound={!filteredRows.length} title="No supervision sessions found" />
+                    </>
+                  )}
+                </TableBody>
+              </Table>
+            </Scrollbar>
+          </TableContainer>
+        </Box>
 
-          <TablePaginationCustom
-            page={table.page}
-            count={filteredRows.length}
-            dense={table.dense}
-            rowsPerPage={table.rowsPerPage}
-            onPageChange={table.onChangePage}
-            onRowsPerPageChange={table.onChangeRowsPerPage}
-            onChangeDense={table.onChangeDense}
-          />
-        </TableContainer>
+        <TablePaginationCustom
+          page={table.page}
+          count={totalRecords}
+          dense={table.dense}
+          rowsPerPage={table.rowsPerPage}
+          onPageChange={table.onChangePage}
+          onRowsPerPageChange={table.onChangeRowsPerPage}
+          onChangeDense={table.onChangeDense}
+        />
       </Card>
 
       <LogSessionDialog
         open={logModal.value}
         row={selectedRow}
+        organizationId={organizationId}
         onClose={() => {
           logModal.onFalse();
           setSelectedRow(null);

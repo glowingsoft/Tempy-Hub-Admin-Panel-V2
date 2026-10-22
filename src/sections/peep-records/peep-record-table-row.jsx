@@ -31,7 +31,7 @@ export function PeepRecordTableRow({ row, serialNumber, ownerDashboard = true })
                         href={detailPath}
                         onClick={(event) => event.stopPropagation()}
                         color="inherit"
-                        sx={{ fontWeight: 600 }}
+                        sx={{ fontWeight: 600, textTransform: 'capitalize' }}
                     >
                         {row.name || '—'}
                     </Link>
@@ -41,8 +41,8 @@ export function PeepRecordTableRow({ row, serialNumber, ownerDashboard = true })
                 </Stack>
             </TableCell>
             <TableCell sx={{ width: '16%', whiteSpace: 'nowrap' }}>{row.roomNumber || '—'}</TableCell>
-            <TableCell sx={{ width: '16%', whiteSpace: 'nowrap' }}>{row.branch || '—'}</TableCell>
-            <TableCell sx={{ width: '16%', whiteSpace: 'nowrap' }}>{getPeepFloorLabel(row.floor)}</TableCell>
+            <TableCell sx={{ width: '16%', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{row.branch || '—'}</TableCell>
+            <TableCell sx={{ width: '16%', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{getPeepFloorLabel(row.floor)}</TableCell>
             <TableCell sx={{ width: '16%' }}>
                 <Label color={levelMeta.color}>{levelMeta.label}</Label>
             </TableCell>

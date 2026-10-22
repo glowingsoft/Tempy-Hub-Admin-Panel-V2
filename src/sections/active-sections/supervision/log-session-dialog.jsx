@@ -1,171 +1,206 @@
-
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
+import dayjs from 'dayjs';
 
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Chip from '@mui/material/Chip';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import IconButton from '@mui/material/IconButton';
-import Autocomplete from '@mui/material/Autocomplete';
+import Alert from '@mui/material/Alert';
+import LoadingButton from '@mui/lab/LoadingButton';
+import { MobileDateTimePicker } from '@mui/x-date-pickers/MobileDateTimePicker';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { Alert } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import dayjs from 'dayjs';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
+import { useBookSupervisionMutation } from 'src/store/Reducer/supervision-api';
 
 // ----------------------------------------------------------------------
 
-const TOPIC_OPTIONS = ['Wellbeing', 'Training needs', 'Caseload', 'Performance', 'Safeguarding'];
+function mapStaffOption(item) {
+  const name =
+    item?.userId?.name ||
+    item?.user?.name ||
+    item?.name ||
+    item?.employeeCode ||
+    item?._id;
+  const email = item?.userId?.email || item?.user?.email || item?.email || '';
+  const label = email ? `${name} (${email})` : name;
+  return {
+    value: item?._id,
+    label,
+    raw: item,
+  };
+}
 
-function LogSessionDialog({ open, row, onClose, onSave }) {
+// ----------------------------------------------------------------------
 
-    const [dateHeld, setDateHeld] = useState(dayjs(new Date()));
+function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [scheduledDateTime, setScheduledDateTime] = useState(dayjs());
+  const [locationLabel, setLocationLabel] = useState('Office');
+  const [error, setError] = useState('');
 
-    const [topics, setTopics] = useState([]);
+  const [bookSupervision, { isLoading: isBooking }] = useBookSupervisionMutation();
 
-    const [actionsNeeded, setActionsNeeded] = useState('');
+  const today = dayjs().startOf('day');
 
-    const [notes, setNotes] = useState('');
+  const queryArgs = useMemo(() => ({ organizationId }), [organizationId]);
 
-    const [nextDue, setNextDue] = useState(dayjs(new Date()));
-
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        if (open) {
-            setDateHeld(dayjs(new Date()));
-            setTopics([]);
-            setActionsNeeded('');
-            setNotes('');
-            setNextDue(dayjs(new Date()));
-            setError('');
-        }
-    }, [open]);
-
-    const handleSave = () => {
-        if (!nextDue) {
-            setError('Set the next session due date');
-            return;
-        }
-        onSave?.({
-            staffId: row?.id,
-            dateHeld,
-            topics,
-            actionsNeeded,
-            notes,
-            nextDue,
+  useEffect(() => {
+    if (open) {
+      if (row) {
+        setSelectedStaff({
+          value: row._id || row.id,
+          label: row.name || row.employeeCode || row.id,
+          raw: row,
         });
-    };
+      } else {
+        setSelectedStaff(null);
+      }
+      setScheduledDateTime(dayjs());
+      setLocationLabel('Office');
+      setError('');
+    }
+  }, [open, row]);
 
-    if (!row) return null;
+  const handleSave = async () => {
+    const staffId = selectedStaff?.value;
+    if (!staffId) {
+      setError('Please select a staff member');
+      return;
+    }
+    if (!scheduledDateTime || !scheduledDateTime.isValid()) {
+      setError('Please select a valid scheduled date and time');
+      return;
+    }
+    if (scheduledDateTime.isBefore(today)) {
+      setError('Scheduled date must be today or an upcoming date');
+      return;
+    }
 
-    return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Stack spacing={0.5}>
+    try {
+      const payload = {
+        organizationId,
+        staffId,
+        status: 'scheduled',
+        scheduledAt: scheduledDateTime.toISOString(),
+        locationLabel: locationLabel.trim() || 'Office',
+      };
 
-                    <Typography variant="subtitle1">Log session</Typography>
+      const res = await bookSupervision(payload).unwrap();
 
-                    <Typography variant="caption" color="text.secondary">
-                        {row.name} · {row.role}
-                    </Typography>
-                </Stack>
-                <IconButton onClick={onClose} size="small">
-                    <Iconify icon="mingcute:close-line" />
-                </IconButton>
-            </DialogTitle>
+      const message = res?.message || res?.msg || 'Supervision saved';
+      toast.success(message);
 
-            <DialogContent>
-                <Stack spacing={2.5} sx={{ pt: 0.5 }}>
+      onSave?.({
+        staffId,
+        staffName: selectedStaff?.label,
+        scheduledDateTime,
+        dateHeld: scheduledDateTime,
+        nextDue: scheduledDateTime,
+        data: res?.data || res,
+      });
 
-                    <DatePicker
-                        label="Date held"
-                        value={dateHeld}
-                        onChange={(event) => setDateHeld(event.target.value)}
-                    />
+      onClose();
+    } catch (err) {
+      console.error('Book supervision error:', err);
+      const errorMessage =
+        err?.data?.message || err?.data?.msg || err?.message || 'Failed to book supervision session';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    }
+  };
 
-                    <DatePicker
-                        label="Next session due"
-                        value={nextDue}
-                        onChange={(event) => setNextDue(event.target.value)}
-                    />
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <Stack spacing={0.5}>
+          <Typography variant="subtitle1">Book session</Typography>
+          {selectedStaff && (
+            <Typography variant="caption" color="text.secondary">
+              {selectedStaff.label}
+            </Typography>
+          )}
+        </Stack>
+        <IconButton onClick={onClose} size="small" disabled={isBooking}>
+          <Iconify icon="mingcute:close-line" />
+        </IconButton>
+      </DialogTitle>
 
+      <DialogContent>
+        <Stack spacing={2.5} sx={{ pt: 1 }}>
+          {error && <Alert severity="error">{error}</Alert>}
 
-                    <Autocomplete
-                        multiple
-                        freeSolo
-                        options={TOPIC_OPTIONS}
-                        value={topics}
-                        onChange={(event, newValue) => setTopics(newValue)}
-                        renderTags={(selected, getTagProps) =>
-                            selected.map((topic, index) => (
-                                <Chip
-                                    {...getTagProps({ index })}
-                                    key={topic}
-                                    label={topic}
-                                    size="small"
-                                />
-                            ))
-                        }
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Topics discussed"
-                                placeholder="Pick a topic or type your own"
-                            />
-                        )}
-                    />
+          {/* Staff Member Selection via InfiniteAutocomplete */}
+          <InfiniteAutocomplete
+            label="Staff member"
+            placeholder="Search staff..."
+            value={selectedStaff}
+            onChange={(event, newValue) => setSelectedStaff(newValue)}
+            useQuery={useGetStaffProfilesQuery}
+            queryArgs={queryArgs}
+            mapOption={mapStaffOption}
+            enabled={open}
+            disabled={isBooking}
+          />
 
-                    <TextField
-                        label="Actions needed"
-                        placeholder={'e.g. Book safeguarding refresher\nReview workload next month'}
-                        helperText="One action point per line — each can be signed off individually from the session history."
-                        value={actionsNeeded}
-                        onChange={(event) => setActionsNeeded(event.target.value)}
-                        multiline
-                        rows={3}
-                        fullWidth
-                    />
+          {/* Scheduled Date and Time */}
+          <MobileDateTimePicker
+            label="Scheduled date & time"
+            value={scheduledDateTime}
+            minDate={today}
+            disabled={isBooking}
+            onChange={(newVal) => setScheduledDateTime(newVal)}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                helperText: "Only today's and upcoming dates can be selected.",
+              },
+            }}
+          />
 
-                    <TextField
-                        label="Notes"
-                        placeholder="What was discussed, agreed, or flagged"
-                        value={notes}
-                        onChange={(event) => setNotes(event.target.value)}
-                        multiline
-                        rows={4}
-                        fullWidth
-                    />
+          {/* Location */}
+          <TextField
+            fullWidth
+            label="Location"
+            value={locationLabel}
+            disabled={isBooking}
+            onChange={(e) => setLocationLabel(e.target.value)}
+            placeholder="Office"
+          />
+        </Stack>
+      </DialogContent>
 
-                    <Alert severity="info" color="text.secondary">
-                        {row.name.split(' ')[0]} sees only the status and date on mobile. Notes stay on web.
-                    </Alert>
-                </Stack>
-            </DialogContent>
-
-            <DialogActions>
-                <Button color="inherit" onClick={onClose}>
-                    Cancel
-                </Button>
-                <Button variant="contained" color="inherit" onClick={handleSave}>
-                    Save session
-                </Button>
-            </DialogActions>
-        </Dialog>
-    );
+      <DialogActions>
+        <Button color="inherit" onClick={onClose} disabled={isBooking}>
+          Cancel
+        </Button>
+        <LoadingButton
+          variant="contained"
+          color="primary"
+          onClick={handleSave}
+          loading={isBooking}
+        >
+          Book session
+        </LoadingButton>
+      </DialogActions>
+    </Dialog>
+  );
 }
 
 export default LogSessionDialog;
 
 LogSessionDialog.propTypes = {
-    open: PropTypes.bool,
-    row: PropTypes.object,
-    onClose: PropTypes.func,
-    onSave: PropTypes.func,
+  open: PropTypes.bool,
+  row: PropTypes.object,
+  organizationId: PropTypes.string,
+  onClose: PropTypes.func,
+  onSave: PropTypes.func,
 };
