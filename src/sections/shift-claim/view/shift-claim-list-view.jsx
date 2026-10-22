@@ -7,33 +7,33 @@ import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
-import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
+import { Scrollbar } from 'src/components/scrollbar';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
-import { useGetShiftClaimsQuery } from 'src/store/Reducer/shift-claims-api';
 import { useTempyConnection } from 'src/sections/tempy-connection/use-tempy-connection';
+import { useGetShiftClaimsQuery } from 'src/store/Reducer/shift-claims-api';
 
 import { SHIFT_CLAIM_STATUS_OPTIONS } from '../mocks/data';
-import { getShiftClaimStaffName } from '../utils';
-import { useShiftClaimActions } from '../use-shift-claim-actions';
 import { ShiftClaimActionDialog } from '../shift-claim-action-dialog';
 import { ShiftClaimTableRow } from '../shift-claim-table-row';
+import { useShiftClaimActions } from '../use-shift-claim-actions';
+import { getShiftClaimStaffName } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -49,8 +49,7 @@ const TABLE_HEAD = [
   { id: 'startsAt', label: 'Start Date/Time', minWidth: 170 },
   { id: 'endsAt', label: 'End Date/Time', minWidth: 170 },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
-  { id: 'visibility', label: 'Visibility', width: 120 },
-  { id: 'urgentCover', label: 'Urgent Cover', width: 120, align: 'center' },
+  { id: 'approvedBy', label: 'Approved By', minWidth: 150, align: 'center' },
   { id: 'createdAt', label: 'Created', width: 130 },
   { id: 'actions', label: 'Actions', width: 90, align: 'center' },
 ];
@@ -63,24 +62,25 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function ShiftClaimListView() {
-  const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
   const { organizationId, organizationName: orgName } = useCurrentOrganization();
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
+  const trimmedKeyword = keyword.trim();
+  const { status } = filters.state;
 
-  const {
-    data: apiResponse,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useGetShiftClaimsQuery(
+  const { data, isLoading, isFetching, refetch } = useGetShiftClaimsQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      status: filters.state.status,
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(status && status !== 'all' ? { status } : {}),
     },
     { skip: !organizationId }
   );
@@ -97,9 +97,9 @@ export function ShiftClaimListView() {
       requestShift({
         site: row.branch?.name,
         role: getShiftClaimStaffName(row),
-        startsAt: row.startsAt,
-        endsAt: row.endsAt,
-        urgentCover: row.urgentCover,
+        startsAt: row.shift?.startsAt || row.startsAt,
+        endsAt: row.shift?.endsAt || row.endsAt,
+        urgentCover: row.urgentCover ?? row.shift?.urgentCover,
         notes: `Sent from Shift Claim ${row._id}`,
       });
     },
@@ -115,46 +115,27 @@ export function ShiftClaimListView() {
     []
   );
 
-  const allClaims = useMemo(
-    () => apiResponse?.data ?? [],
-    [apiResponse]
-  );
-
-  // Client-side filtering for keyword search across staff & site
-  const filteredClaims = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
-    return allClaims.filter((claim) => {
-      const matchesStatus = filters.state.status === 'all' || claim.status === filters.state.status;
-
-      const matchesSearch =
-        !search ||
-        claim.branch?.name?.toLowerCase().includes(search) ||
-        getShiftClaimStaffName(claim).toLowerCase().includes(search);
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [allClaims, filters.state.status, keyword]);
-
-  const totalRecords = apiResponse?.meta?.totalRecords ?? filteredClaims.length;
-
-  const paginatedClaims = useMemo(() => {
-    if (keyword.trim()) {
-      const start = table.page * table.rowsPerPage;
-      return filteredClaims.slice(start, start + table.rowsPerPage);
-    }
-    return allClaims;
-  }, [allClaims, filteredClaims, keyword, table.page, table.rowsPerPage]);
+  const claims = useMemo(() => data?.data ?? [], [data]);
+  const meta = data?.meta ?? {};
+  const statusCounts = meta.counts ?? {};
+  const totalRecords = meta.totalRecords ?? claims.length;
 
   const getStatusCount = useCallback(
-    (status) =>
-      status === 'all'
-        ? (apiResponse?.meta?.totalRecords ?? allClaims.length)
-        : allClaims.filter((claim) => claim.status === status).length,
-    [allClaims, apiResponse]
+    (tabStatus) => {
+      if (tabStatus === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[tabStatus] ?? 0;
+    },
+    [statusCounts, totalRecords]
   );
 
-  const notFound = !isLoading && !isFetching && (paginatedClaims.length === 0 || totalRecords === 0);
+  const notFound = !isLoading && !isFetching && claims.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -189,7 +170,7 @@ export function ShiftClaimListView() {
         {statusFilterField && (
           <StatusTabsFilterWrapper
             filterField={statusFilterField}
-            value={filters.state.status}
+            value={status}
             onChange={handleFilterChange}
             getCount={getStatusCount}
           />
@@ -205,14 +186,18 @@ export function ShiftClaimListView() {
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1200 }}>
-              <TableHeadCustom order={table.order} orderBy={table.orderBy} headLabel={TABLE_HEAD} />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => <TableSkeleton key={index} />)
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
                 ) : (
                   <>
-                    {paginatedClaims.map((row, index) => (
+                    {claims.map((row, index) => (
                       <ShiftClaimTableRow
                         key={row._id}
                         row={row}

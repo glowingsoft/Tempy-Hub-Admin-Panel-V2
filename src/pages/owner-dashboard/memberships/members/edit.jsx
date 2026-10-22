@@ -1,6 +1,4 @@
-import { useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -13,9 +11,8 @@ import { LoadingScreen } from 'src/components/loading-screen';
 import { EmptyContent } from 'src/components/empty-content';
 
 import { MemberEditView } from 'src/sections/member/view';
-import { getMockMemberById } from 'src/sections/member/mocks/data';
 import { useGetMemberQuery } from 'src/store/Reducer/members-api';
-import { getOwnerOrganizationId } from 'src/sections/branch/utils';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 // ----------------------------------------------------------------------
 
@@ -23,11 +20,10 @@ const metadata = { title: `Edit membership | Owner Dashboard - ${CONFIG.site.nam
 
 export default function Page() {
   const { id = '' } = useParams();
-  const { user } = useSelector((state) => state.user);
-  const organizationId = getOwnerOrganizationId(user);
+  const { organizationId } = useCurrentOrganization();
 
   const {
-    data: apiMember,
+    data: currentMember,
     isLoading,
     isError,
     error,
@@ -35,9 +31,6 @@ export default function Page() {
     { membershipId: id, organizationId },
     { skip: !id || !organizationId }
   );
-
-  const mockMember = useMemo(() => getMockMemberById(id), [id]);
-  const currentMember = apiMember || mockMember;
 
   if (isLoading) {
     return <LoadingScreen sx={{ py: 10 }} />;

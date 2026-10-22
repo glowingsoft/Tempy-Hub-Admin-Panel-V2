@@ -63,7 +63,7 @@ export function MemberTableRow({ row, serialNumber, onDeactivate }) {
 
       <TableCell>
         <Stack sx={{ typography: 'body2' }}>
-          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600 }}>
+          <Link color="inherit" sx={{ cursor: 'pointer', fontWeight: 600, textTransform: 'capitalize' }}>
             {row.name || '—'}
           </Link>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -72,20 +72,30 @@ export function MemberTableRow({ row, serialNumber, onDeactivate }) {
         </Stack>
       </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{getMemberRoleLabel(row.role)}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {getMemberRoleLabel(row.role)}
+      </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.branch?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {row.branch?.name || '—'}
+      </TableCell>
 
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.jobTitle?.name || '—'}</TableCell>
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {row.jobTitle?.name || '—'}
+      </TableCell>
 
-      <TableCellWithTooltip maxWidth={200}>{departmentNames || '—'}</TableCellWithTooltip>
+      <TableCellWithTooltip maxWidth={200}>
+        <Box component="span" sx={{ textTransform: 'capitalize' }}>
+          {departmentNames || '—'}
+        </Box>
+      </TableCellWithTooltip>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
         {fDate(row.startDate || row.staffProfile?.startDate) || '—'}
       </TableCell>
 
       <TableCell align="center">
-        <Label variant="soft" color={status.color}>
+        <Label variant="soft" color={status.color} sx={{ textTransform: 'capitalize' }}>
           {status.label}
         </Label>
       </TableCell>

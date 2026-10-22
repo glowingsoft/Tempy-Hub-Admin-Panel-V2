@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
+
 import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -9,6 +12,18 @@ import { MembershipNewEditForm } from '../membership-new-edit-form';
 // ----------------------------------------------------------------------
 
 export function MembershipEditView({ membership: currentMembership }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (currentMembership?._id && currentMembership.status !== 'pending') {
+      router.replace(paths.owner.memberships.invitations.detail(currentMembership._id));
+    }
+  }, [currentMembership, router]);
+
+  if (currentMembership && currentMembership.status !== 'pending') {
+    return null;
+  }
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -18,7 +33,7 @@ export function MembershipEditView({ membership: currentMembership }) {
           { name: 'Invitations', href: paths.owner.memberships.invitations.root },
           { name: currentMembership?.name },
         ]}
-        sx={{ mb: { xs: 3, md: 5 } }}
+        sx={{ mb: { xs: 3, md: 5 }, textTransform: 'capitalize' }}
       />
 
       <MembershipNewEditForm

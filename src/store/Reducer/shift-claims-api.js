@@ -27,12 +27,13 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //         "staff": { "_id": "string", "employeeCode": "string", "name": "string", "email": "string" } | null
 //       }
 //     ],
-//     "meta": { "currentPage": 1, "totalPages": 1, "totalRecords": 3, "limit": 10 }
+//     "meta": { "currentPage": 1, "totalPages": 1, "totalRecords": 1, "limit": 10, "counts": { pending, approved, rejected, withdrawn } }
 //   }
 //   TODO: confirm the real shift-claim `status` enum (sample shows "open" / "scheduled").
 //   TODO: confirm whether the list endpoint supports `status` / `keyword` params.
 //
-// GET  /admin/shift-claims/:shiftClaimId          -> { "message": "string", "data": ShiftClaim } (assumed)
+// GET  /admin/organizations/:organizationId/shift-claims/:claimId
+//   response: { "message": "string", "data": ShiftClaim }
 //
 // POST /admin/shift-claims/:shiftClaimId/approve
 //   -> { "message": "string", "data": ShiftClaim }
@@ -47,12 +48,21 @@ export const shiftClaimsApi = createApi({
   tagTypes: ['ShiftClaim'],
   endpoints: (builder) => ({
     getShiftClaims: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, status }) => ({
-        url: API_ROUTES.ORGANIZATION_SHIFT_CLAIMS(organizationId),
-        method: 'GET',
-        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
-        params: { page, limit, ...(status && status !== 'all' ? { status } : {}) },
-      }),
+      query: ({ organizationId, page = 1, limit = 10, status, keyword }) => {
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        return {
+          url: API_ROUTES.ORGANIZATION_SHIFT_CLAIMS(organizationId),
+          method: 'GET',
+          headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+          params: {
+            page,
+            limit,
+            ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+            ...(status && status !== 'all' ? { status } : {}),
+          },
+        };
+      },
       transformResponse: (res) => ({ data: res?.data ?? [], meta: res?.meta ?? {} }),
       providesTags: (result, error, { organizationId }) =>
         result?.data
@@ -64,20 +74,13 @@ export const shiftClaimsApi = createApi({
     }),
 
     getShiftClaim: builder.query({
-      query: (arg) => {
-        const shiftClaimId = typeof arg === 'string' ? arg : arg?.shiftClaimId;
-        const organizationId = typeof arg === 'object' ? arg?.organizationId : undefined;
-        return {
-          url: API_ROUTES.SHIFT_CLAIM_BY_ID(shiftClaimId),
-          method: 'GET',
-          headers: organizationId ? { 'x-org-id': organizationId } : undefined,
-        };
-      },
+      query: ({ shiftClaimId, organizationId }) => ({
+        url: API_ROUTES.ORGANIZATION_SHIFT_CLAIM_BY_ID(organizationId, shiftClaimId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
       transformResponse: (res) => res?.data ?? res,
-      providesTags: (result, error, arg) => {
-        const shiftClaimId = typeof arg === 'string' ? arg : arg?.shiftClaimId;
-        return [{ type: 'ShiftClaim', id: shiftClaimId }];
-      },
+      providesTags: (result, error, { shiftClaimId }) => [{ type: 'ShiftClaim', id: shiftClaimId }],
     }),
 
     approveShiftClaim: builder.mutation({

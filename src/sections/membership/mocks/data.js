@@ -15,6 +15,7 @@ export const MEMBERSHIP_STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending', color: 'warning' },
   { value: 'accepted', label: 'Accepted', color: 'success' },
   { value: 'revoked', label: 'Revoked', color: 'error' },
+  { value: 'expired', label: 'Expired', color: 'default' },
 ];
 
 export const getMembershipStatusMeta = (value) =>

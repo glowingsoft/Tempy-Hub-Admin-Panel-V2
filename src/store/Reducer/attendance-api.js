@@ -6,15 +6,17 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 // ----------------------------------------------------------------------
 // Attendance API
 //
-// 1. GET  /admin/organizations/:organizationId/attendance?page=1&limit=10
-//    Lists attendance days for an organization with optional status, dateRange,
-//    branchId, and search filters.
+// 1. GET  /admin/organizations/:organizationId/attendance?page=1&limit=10&punctualityStatus&from&to&branchId
+//    Lists attendance/leave days. Response: { data: { days, summary }, meta }.
 //
-// 2. GET  /admin/attendance/:attendanceDayId
+// 2. GET  /admin/organizations/:organizationId/attendance/rota?from&to&branchId
+//    Shift/rota grid grouped by week and staff.
+//
+// 3. GET  /admin/attendance/:attendanceDayId
 //    Fetches a single attendance day record by ID with full clock in/out,
 //    breaks breakdown, and geo/event metadata.
 //
-// 3. GET  /admin/organizations/:organizationId/attendance-change-requests
+// 4. GET  /admin/organizations/:organizationId/attendance-change-requests
 //    Lists staff-submitted attendance time adjustment and change requests
 //    for organization approval.
 // ----------------------------------------------------------------------
@@ -62,6 +64,7 @@ export function extractMeta(payload, fallbackLength = 0) {
 }
 
 const listTag = (organizationId) => ({ type: 'Attendance', id: `LIST-${organizationId}` });
+const rotaTag = (organizationId) => ({ type: 'AttendanceRota', id: `ROTA-${organizationId}` });
 const changeRequestsListTag = (organizationId) => ({
   type: 'AttendanceChangeRequest',
   id: `LIST-${organizationId}`,
@@ -70,19 +73,18 @@ const changeRequestsListTag = (organizationId) => ({
 export const attendanceApi = createApi({
   reducerPath: 'attendanceApi',
   baseQuery: createCustomFetchBaseQuery(),
-  tagTypes: ['Attendance', 'AttendanceChangeRequest'],
+  tagTypes: ['Attendance', 'AttendanceRota', 'AttendanceChangeRequest'],
   endpoints: (builder) => ({
     getOrganizationAttendance: builder.query({
       query: ({
         organizationId,
         page = 1,
         limit = 10,
-        status,
-        search,
-        startDate,
-        endDate,
+        punctualityStatus,
+        keyword,
+        from,
+        to,
         branchId,
-        ...otherParams
       } = {}) => ({
         url: API_ROUTES.ORGANIZATION_ATTENDANCE(organizationId),
         method: 'GET',
@@ -90,19 +92,23 @@ export const attendanceApi = createApi({
         params: {
           page,
           limit,
-          ...(status && status !== 'all' ? { status } : {}),
-          ...(search ? { search } : {}),
-          ...(startDate ? { startDate } : {}),
-          ...(endDate ? { endDate } : {}),
+          ...(punctualityStatus && punctualityStatus !== 'all' ? { punctualityStatus } : {}),
+          ...(keyword ? { keyword } : {}),
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
           ...(branchId && branchId !== 'all' ? { branchId } : {}),
-          ...otherParams,
         },
       }),
       transformResponse: (res) => {
-        const data = extractRecordsArray(res);
+        const payload = res?.data && !Array.isArray(res.data) ? res.data : res;
+        const days = Array.isArray(payload?.days)
+          ? payload.days
+          : extractRecordsArray(res);
+
         return {
-          data,
-          meta: extractMeta(res, data.length),
+          data: days,
+          summary: payload?.summary ?? null,
+          meta: extractMeta(res, days.length),
         };
       },
       providesTags: (result, error, { organizationId }) =>
@@ -114,6 +120,30 @@ export const attendanceApi = createApi({
               listTag(organizationId),
             ]
           : [listTag(organizationId)],
+    }),
+
+    getOrganizationAttendanceRota: builder.query({
+      query: ({ organizationId, from, to, branchId } = {}) => ({
+        url: API_ROUTES.ORGANIZATION_ATTENDANCE_ROTA(organizationId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        params: {
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
+          ...(branchId && branchId !== 'all' ? { branchId } : {}),
+        },
+      }),
+      transformResponse: (res) => {
+        const payload = res?.data && !Array.isArray(res.data) ? res.data : res;
+        return {
+          timezone: payload?.timezone ?? null,
+          from: payload?.from ?? null,
+          to: payload?.to ?? null,
+          weeks: Array.isArray(payload?.weeks) ? payload.weeks : [],
+          summary: payload?.summary ?? null,
+        };
+      },
+      providesTags: (result, error, { organizationId }) => [rotaTag(organizationId)],
     }),
 
     getAttendanceById: builder.query({
@@ -133,8 +163,7 @@ export const attendanceApi = createApi({
         page = 1,
         limit = 10,
         status,
-        search,
-        ...otherParams
+        keyword,
       } = {}) => ({
         url: API_ROUTES.ORGANIZATION_ATTENDANCE_CHANGE_REQUESTS(organizationId),
         method: 'GET',
@@ -143,8 +172,7 @@ export const attendanceApi = createApi({
           page,
           limit,
           ...(status && status !== 'all' ? { status } : {}),
-          ...(search ? { search } : {}),
-          ...otherParams,
+          ...(keyword ? { keyword } : {}),
         },
       }),
       transformResponse: (res) => {
@@ -169,6 +197,7 @@ export const attendanceApi = createApi({
 
 export const {
   useGetOrganizationAttendanceQuery,
+  useGetOrganizationAttendanceRotaQuery,
   useGetAttendanceByIdQuery,
   useGetAttendanceChangeRequestsQuery,
 } = attendanceApi;

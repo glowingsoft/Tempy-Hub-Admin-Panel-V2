@@ -1,7 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
@@ -22,17 +21,16 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  TableSkeleton,
   useTable,
 } from 'src/components/table';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useGetInvitationsQuery } from 'src/store/Reducer/invitations-api';
-import { MEMBERSHIP_STATUS_OPTIONS, mockInvitationsResponse } from '../mocks/data';
+import { MEMBERSHIP_STATUS_OPTIONS } from '../mocks/data';
 import { useInvitationActions } from '../use-invitation-actions';
 import { InvitationActionDialog } from '../invitation-action-dialog';
 import { MembershipTableRow } from '../membership-table-row';
@@ -50,7 +48,7 @@ const TABLE_HEAD = [
   { id: 'role', label: 'Role', minWidth: 120 },
   { id: 'branch', label: 'Site', minWidth: 140 },
   { id: 'jobTitle', label: 'Job Title', minWidth: 140 },
-  { id: 'departments', label: 'Departments', minWidth: 160 },
+  // { id: 'departments', label: 'Departments', minWidth: 160 },
   { id: 'startDate', label: 'Start Date', width: 130 },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
   { id: 'createdAt', label: 'Created', width: 130 },
@@ -65,20 +63,20 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function MembershipListView() {
-  const table = useTable({ defaultOrderBy: 'createdAt', defaultOrder: 'desc' });
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
 
   const { organizationId, organizationName: orgName } = useCurrentOrganization();
-  const { branchesMap, jobTitlesMap, departmentsMap } = useOrganizationLookups(organizationId);
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
-
-  const [reloadKey, setReloadKey] = useState(0);
-  const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
+  const trimmedKeyword = keyword.trim();
+  const { status } = filters.state;
 
   const { resend, askRevoke, askDelete, confirmProps } = useInvitationActions({
     organizationId,
-    onChanged: refresh,
   });
 
   const statusFilterField = useMemo(
@@ -90,69 +88,38 @@ export function MembershipListView() {
     []
   );
 
-  // --- Data source ---------------------------------------------------------
-  const {
-    data: apiData,
-    isLoading,
-    isFetching,
-    isError,
-    error: apiError,
-  } = useGetInvitationsQuery(
+  const { data, isLoading, isFetching } = useGetInvitationsQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      status: filters.state.status,
-      keyword,
+      ...(status && status !== 'all' ? { status } : {}),
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
     },
     { skip: !organizationId }
   );
-  const usesApi = Boolean(organizationId);
-  const data = usesApi ? apiData : mockInvitationsResponse;
 
-  const allInvitations = useMemo(
-    () =>
-      (data?.data ?? []).filter(
-        (invitation) => !organizationId || invitation.organizationId === organizationId
-      ),
-    [data, organizationId, reloadKey]
-  );
-
-  const mockFilteredInvitations = useMemo(() => {
-    const search = keyword.trim().toLowerCase();
-
-    return allInvitations.filter((invitation) => {
-      const matchesStatus =
-        filters.state.status === 'all' || invitation.status === filters.state.status;
-
-      const matchesSearch =
-        !search ||
-        invitation.name?.toLowerCase().includes(search) ||
-        invitation.email?.toLowerCase().includes(search);
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [allInvitations, filters.state.status, keyword]);
-
-  const mockPageInvitations = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return mockFilteredInvitations.slice(start, start + table.rowsPerPage);
-  }, [mockFilteredInvitations, table.page, table.rowsPerPage]);
-
-  const paginatedInvitations = usesApi ? allInvitations : mockPageInvitations;
-  const totalRecords = usesApi
-    ? apiData?.meta?.totalRecords ?? apiData?.data?.length ?? 0
-    : mockFilteredInvitations.length;
+  const invitations = useMemo(() => data?.data ?? [], [data]);
+  const meta = data?.meta ?? {};
+  const statusCounts = meta.counts ?? {};
+  const totalRecords = meta.totalRecords ?? invitations.length;
 
   const getStatusCount = useCallback(
-    (status) =>
-      status === 'all'
-        ? allInvitations.length
-        : allInvitations.filter((invitation) => invitation.status === status).length,
-    [allInvitations]
+    (tabStatus) => {
+      if (tabStatus === 'all') {
+        const totalFromCounts = Object.values(statusCounts).reduce(
+          (sum, count) => sum + (Number(count) || 0),
+          0
+        );
+        return totalFromCounts || totalRecords;
+      }
+
+      return statusCounts[tabStatus] ?? 0;
+    },
+    [statusCounts, totalRecords]
   );
 
-  const notFound = !isLoading && !isFetching && totalRecords === 0;
+  const notFound = !isLoading && !isFetching && invitations.length === 0;
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -185,6 +152,7 @@ export function MembershipListView() {
             component={RouterLink}
             href={paths.owner.memberships.invitations.new}
             variant="contained"
+            color="primary"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             New Invitation
@@ -194,12 +162,6 @@ export function MembershipListView() {
       />
 
       <Card>
-        {isError && (
-          <Alert severity="error">
-            {apiError?.data?.message || 'Unable to load invitations. Please try again.'}
-          </Alert>
-        )}
-
         {statusFilterField && (
           <StatusTabsFilterWrapper
             filterField={statusFilterField}
@@ -219,20 +181,17 @@ export function MembershipListView() {
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1080 }}>
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headLabel={TABLE_HEAD}
-              />
+              <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
                 {isLoading || isFetching ? (
-                  [...Array(table.rowsPerPage)].map((_, index) => (
-                    <TableSkeleton key={index} />
-                  ))
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                  />
                 ) : (
                   <>
-                    {paginatedInvitations.map((row, index) => (
+                    {invitations.map((row, index) => (
                       <MembershipTableRow
                         key={row._id}
                         row={row}
@@ -240,9 +199,6 @@ export function MembershipListView() {
                         onResend={resend}
                         onRevoke={askRevoke}
                         onDelete={askDelete}
-                        branchesMap={branchesMap}
-                        jobTitlesMap={jobTitlesMap}
-                        departmentsMap={departmentsMap}
                       />
                     ))}
 

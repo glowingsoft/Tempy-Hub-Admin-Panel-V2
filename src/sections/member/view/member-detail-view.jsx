@@ -1,20 +1,13 @@
-import { useCallback, useState } from 'react';
-
-import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
-import { useGetMemberQuery } from 'src/store/Reducer/members-api';
-
-import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
-import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { useParams, useRouter } from 'src/routes/hooks';
+import { useParams } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 
@@ -24,104 +17,79 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { DashboardContent } from 'src/layouts/dashboard';
+
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetMemberQuery } from 'src/store/Reducer/members-api';
 
 import {
   getMemberPermissionLabels,
   getMemberRoleLabel,
   getMemberStatusMeta,
 } from '../mocks/data';
+import { MemberDetailSkeleton } from '../member-detail-skeleton';
 import { useMemberActions } from '../use-member-actions';
 import { MemberActionDialog } from '../member-action-dialog';
 
 // ----------------------------------------------------------------------
 
+function getInitials(name) {
+  return String(name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
+// ----------------------------------------------------------------------
+
 export function MemberDetailView() {
   const { id } = useParams();
-  const router = useRouter();
   const { organizationId } = useCurrentOrganization();
-  const { branchesMap, jobTitlesMap, departmentsMap, resolveBranchName, resolveJobTitleName, resolveDepartmentNames } =
-    useOrganizationLookups(organizationId);
 
-  const [, setReloadKey] = useState(0);
-  const refresh = useCallback(() => setReloadKey((key) => key + 1), []);
+  const { askDeactivate, confirmProps } = useMemberActions({ organizationId });
 
-  const { askDeactivate, confirmProps } = useMemberActions({ organizationId, onChanged: refresh });
-
-  const {
-    data: member,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useGetMemberQuery(
+  const { data: member, isLoading } = useGetMemberQuery(
     { membershipId: id, organizationId },
     { skip: !id || !organizationId }
   );
 
   if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (isError) {
-    return (
-      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
-        <Alert
-          severity="error"
-          action={
-            <Button color="inherit" size="small" onClick={refetch}>
-              Retry
-            </Button>
-          }
-        >
-          {error?.data?.message || 'Unable to load member details.'}
-        </Alert>
-      </Box>
-    );
+    return <MemberDetailSkeleton />;
   }
 
   if (!member) {
     return (
-      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
-        <Button
-          onClick={() => router.push(paths.owner.memberships.members.root)}
-          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-          sx={{ mb: 2 }}
-        >
-          Back
-        </Button>
+      <DashboardContent>
         <EmptyContent filled title="Member not found" sx={{ py: 10 }} />
-      </Box>
+      </DashboardContent>
     );
   }
 
+  const name = member.name || member.user?.name || '—';
+  const email = member.email || member.user?.email || '';
   const status = getMemberStatusMeta(member.status);
   const permissionLabels = getMemberPermissionLabels(member.permissions);
-  const branchName = resolveBranchName(member, branchesMap);
-  const jobTitleName = resolveJobTitleName(member, jobTitlesMap);
-  const departmentNames = resolveDepartmentNames(member, departmentsMap);
+  const roleLabel = getMemberRoleLabel(member.role);
+  const branchName = member.branch?.name || '—';
+  const jobTitleName = member.jobTitle?.name || '—';
+  const departmentNames =
+    (member.departments || []).map((department) => department.name).filter(Boolean).join(', ') || '—';
+  const employeeCode = member.staffProfile?.employeeCode || '';
   const isActive = member.status === 'active';
 
   return (
-    <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ mb: 2 }}>
-        <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-          Back
-        </Button>
-      </Box>
-
+    <DashboardContent>
       <CustomBreadcrumbs
-        heading={member.name}
+        heading={name}
         links={[
           { name: 'Dashboard', href: paths.owner.root },
           { name: 'Members', href: paths.owner.memberships.members.root },
-          { name: member.name },
+          { name },
         ]}
         action={
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
             {isActive && (
               <Button
                 color="error"
@@ -137,94 +105,199 @@ export function MemberDetailView() {
               component={RouterLink}
               href={paths.owner.memberships.members.edit(member._id)}
               variant="contained"
+              color="primary"
               startIcon={<Iconify icon="solar:pen-bold" />}
             >
               Edit
             </Button>
           </Stack>
         }
-        sx={{ mb: { xs: 3, md: 5 } }}
+        sx={{ mb: 3 }}
       />
 
-      <Stack spacing={3}>
-        <DetailCard title="Member details">
-          <DetailItem label="Name" value={member.name} />
-          <DetailItem label="Email" value={member.email} />
-          <DetailItem label="Role" value={getMemberRoleLabel(member.role)} />
-          <DetailItem
-            label="Status"
-            value={
-              <Label variant="soft" color={status.color}>
+      <Card sx={{ p: { xs: 2.5, md: 3 }, mb: 2.5 }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2.5}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+        >
+          <Avatar
+            alt={name}
+            src={member.user?.profileIcon || undefined}
+            sx={{ width: 72, height: 72, typography: 'h4', bgcolor: 'primary.main', color: 'white' }}
+          >
+            {getInitials(name)}
+          </Avatar>
+
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="h5" sx={{ textTransform: 'capitalize' }}>
+              {name}
+            </Typography>
+
+            {email && (
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
+                {email}
+              </Typography>
+            )}
+
+            <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1} sx={{ mt: 1.25 }}>
+              <Label variant="soft" color={status.color} sx={{ textTransform: 'capitalize' }}>
                 {status.label}
               </Label>
-            }
-          />
-          <DetailItem label="Site" value={branchName} />
-          <DetailItem label="Job title" value={jobTitleName} />
-          <DetailItem label="Departments" value={departmentNames} />
-          <DetailItem
-            label="Start date"
-            value={fDate(member.startDate || member.staffProfile?.startDate) || '—'}
-          />
-        </DetailCard>
+              <Label variant="soft" color="default" sx={{ textTransform: 'capitalize' }}>
+                {roleLabel}
+              </Label>
+              {employeeCode && (
+                <Label variant="soft" color="info">
+                  {employeeCode}
+                </Label>
+              )}
+            </Stack>
+          </Box>
+        </Stack>
+      </Card>
 
-        <Card sx={{ p: 3 }}>
-          <Typography variant="h6">Permissions</Typography>
-          <Divider sx={{ my: 2 }} />
-          {permissionLabels.length ? (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {permissionLabels.map((label) => (
-                <Chip key={label} label={label} size="small" variant="soft" />
-              ))}
-            </Box>
-          ) : (
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              No permissions assigned.
-            </Typography>
-          )}
-        </Card>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          mb: 2.5,
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+        }}
+      >
+        <SummaryTile
+          icon="solar:buildings-2-bold"
+          label="Site"
+          value={branchName}
+        />
+        <SummaryTile
+          icon="solar:case-round-bold"
+          label="Job title"
+          value={jobTitleName}
+        />
+        <SummaryTile
+          icon="solar:calendar-date-bold"
+          label="Start date"
+          value={fDate(member.startDate || member.staffProfile?.startDate) || '—'}
+          capitalize={false}
+        />
+      </Box>
 
-        <DetailCard title="Membership">
-          <DetailItem label="Organization" value={member.organization?.name || '—'} />
+      <Card sx={{ p: { xs: 2.5, md: 3 }, mb: 2.5 }}>
+        <Typography variant="h6">Member details</Typography>
+        <Divider sx={{ my: 2 }} />
+
+        <Box
+          sx={{
+            display: 'grid',
+            rowGap: 2,
+            columnGap: 3,
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+          }}
+        >
+          <DetailItem label="Name" value={name} capitalize />
+          <DetailItem label="Email" value={email || '—'} />
+          <DetailItem label="Role" value={roleLabel} capitalize />
+          <DetailItem label="Site" value={branchName} capitalize />
+          <DetailItem label="Job title" value={jobTitleName} capitalize />
+          <DetailItem label="Departments" value={departmentNames} capitalize />
+        </Box>
+      </Card>
+
+      <Card sx={{ p: { xs: 2.5, md: 3 }, mb: 2.5 }}>
+        <Typography variant="h6">Permissions</Typography>
+        <Divider sx={{ my: 2 }} />
+        {permissionLabels.length ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {permissionLabels.map((label) => (
+              <Chip key={label} label={label} size="small" variant="soft" color="primary" />
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            No permissions assigned.
+          </Typography>
+        )}
+      </Card>
+
+      <Card sx={{ p: { xs: 2.5, md: 3 } }}>
+        <Typography variant="h6">Membership</Typography>
+        <Divider sx={{ my: 2 }} />
+
+        <Box
+          sx={{
+            display: 'grid',
+            rowGap: 2,
+            columnGap: 3,
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+            mb: 2.5,
+          }}
+        >
+          <DetailItem label="Organization" value={member.organization?.name || '—'} capitalize />
           <DetailItem label="Deactivated at" value={fDateTime(member.deactivatedAt)} />
-          <DetailItem label="Created at" value={fDateTime(member.createdAt)} />
-          <DetailItem label="Updated at" value={fDateTime(member.updatedAt)} />
-        </DetailCard>
-      </Stack>
+          <DetailItem label="Employee code" value={employeeCode || '—'} />
+        </Box>
+
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 1, sm: 4 }}
+          sx={{ color: 'text.secondary' }}
+        >
+          <Typography variant="caption">Created {fDateTime(member.createdAt)}</Typography>
+          <Typography variant="caption">Updated {fDateTime(member.updatedAt)}</Typography>
+        </Stack>
+      </Card>
 
       <MemberActionDialog {...confirmProps} />
-    </Box>
+    </DashboardContent>
   );
 }
 
 // ----------------------------------------------------------------------
 
-function DetailCard({ title, children }) {
+function SummaryTile({ icon, label, value, capitalize = true }) {
   return (
-    <Card sx={{ p: 3 }}>
-      <Typography variant="h6">{title}</Typography>
-      <Divider sx={{ my: 2 }} />
-      <Box
-        sx={{
-          display: 'grid',
-          rowGap: 2.5,
-          columnGap: 3,
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-        }}
-      >
-        {children}
-      </Box>
+    <Card sx={{ p: 2 }}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: 'primary.lighter',
+            color: 'primary.dark',
+          }}
+        >
+          <Iconify icon={icon} width={22} />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            {label}
+          </Typography>
+          <Typography variant="subtitle2" noWrap sx={capitalize ? { textTransform: 'capitalize' } : undefined}>
+            {value}
+          </Typography>
+        </Box>
+      </Stack>
     </Card>
   );
 }
 
-function DetailItem({ label, value }) {
+function DetailItem({ label, value, capitalize = false }) {
   return (
     <Stack spacing={0.5}>
       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
         {label}
       </Typography>
-      <Typography variant="body2" component="div" sx={{ fontWeight: 600 }}>
+      <Typography
+        variant="body2"
+        component="div"
+        sx={{ fontWeight: 600, ...(capitalize ? { textTransform: 'capitalize' } : {}) }}
+      >
         {value}
       </Typography>
     </Stack>

@@ -12,7 +12,7 @@ export const invitationsApi = createApi({
 
   endpoints: (builder) => ({
     getInvitations: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, status, keyword = '' }) => ({
+      query: ({ organizationId, page = 1, limit = 10, status, keyword }) => ({
         url: API_ROUTES.ORGANIZATION_INVITATIONS(organizationId),
         method: 'GET',
         params: {
@@ -56,11 +56,13 @@ export const invitationsApi = createApi({
     }),
 
     updateInvitation: builder.mutation({
-      query: ({ invitationId, ...body }) => ({
-        url: API_ROUTES.INVITATION_BY_ID(invitationId),
-        method: 'PUT',
+      query: ({ invitationId, organizationId, ...body }) => ({
+        url: API_ROUTES.ORGANIZATION_INVITATION_BY_ID(organizationId, invitationId),
+        method: 'PATCH',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
         body,
       }),
+      transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { invitationId, organizationId }) => [
         { type: 'Invitation', id: invitationId },
         ...(organizationId ? [listTag(organizationId)] : []),
