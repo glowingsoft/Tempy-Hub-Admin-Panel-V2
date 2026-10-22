@@ -37,7 +37,6 @@ import { mockFloors } from 'src/sections/floor-plans/mocks/data';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetPeepFloorSummaryQuery } from 'src/store/Reducer/peep-floor-plan-api';
-import { useGetFloorPlansQuery } from 'src/store/Reducer/floor-plans-api';
 
 import { OrgRollupSiteTableRow } from '../org-rollup-site-table-row';
 import { getAssignedBranch } from '../utils';
@@ -126,39 +125,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
         { skip: !activeOrgId || (!ownerDashboard && !queryBranchId) }
     );
 
-
-    // --- Query floor plans API for exact live floor plan data ----------------
-    const { data: floorPlansData } = useGetFloorPlansQuery(
-        {
-            organizationId: activeOrgId,
-            branchId: queryBranchId || '',
-            limit: 100,
-        },
-        { skip: !activeOrgId }
-    );
-
-    const realFloorSummaryBySite = useMemo(() => {
-        if (!Array.isArray(floorPlansData?.data)) return null;
-        const map = new Map();
-        floorPlansData.data.forEach((floor) => {
-            const bId =
-                floor.branchId ||
-                floor.branch?._id ||
-                (typeof floor.branch === 'string' ? floor.branch : null) ||
-                queryBranchId;
-            if (!bId) return;
-            const entry = map.get(bId) || { total: 0, uploaded: 0, floors: [] };
-            entry.total += 1;
-            const isUp =
-                floor.status === 'uploaded' ||
-                Boolean(floor.imageUrl || floor.pdfUrl || floor.fileUrl);
-            if (isUp) entry.uploaded += 1;
-            entry.floors.push(floor);
-            map.set(bId, entry);
-        });
-        return map;
-    }, [floorPlansData, queryBranchId]);
-
     // --- Fallback Mock Aggregates --------------------------------------------
     const levelCountsBySite = useMemo(() => {
         const map = new Map();
@@ -216,8 +182,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
                 const high = item.levels?.high ?? 0;
                 const total = item.levels?.total ?? (low + medium + high);
 
-                const realSummary = siteObj._id ? realFloorSummaryBySite?.get(siteObj._id) : null;
-
                 return {
                     site: {
                         _id: siteObj._id,
@@ -225,7 +189,7 @@ export function OrgRollupView({ ownerDashboard = true }) {
                         code: siteObj.code,
                     },
                     levels: { low, medium, high, total },
-                    floorsSummary: realSummary || item.floorsSummary || {
+                    floorsSummary: item.floorsSummary || {
                         total: item.floors?.total ?? 0,
                         uploaded: item.floors?.uploaded ?? 0,
                     },
@@ -238,7 +202,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
             const low = summaryData.levels?.low ?? 0;
             const medium = summaryData.levels?.medium ?? 0;
             const high = summaryData.levels?.high ?? 0;
-            const realSummary = realFloorSummaryBySite?.get(assignedBranchId);
 
             return [
                 {
@@ -253,7 +216,7 @@ export function OrgRollupView({ ownerDashboard = true }) {
                         high,
                         total: summaryData.levels?.total ?? (low + medium + high),
                     },
-                    floorsSummary: realSummary || summaryData.floorsSummary || {
+                    floorsSummary: summaryData.floorsSummary || {
                         total: summaryData.floors?.total ?? 0,
                         uploaded: summaryData.floors?.uploaded ?? 0,
                     },
@@ -262,19 +225,12 @@ export function OrgRollupView({ ownerDashboard = true }) {
         }
 
         if (ownerDashboard) {
-            return mockSiteRows.map((row) => {
-                const realSummary = realFloorSummaryBySite?.get(row.site._id);
-                if (realSummary) {
-                    return { ...row, floorsSummary: realSummary };
-                }
-                return row;
-            });
+            return mockSiteRows;
         }
 
         // Fallback for Site Manager if summaryData is not yet loaded or on mock
         if (!ownerDashboard && assignedBranchId) {
             const assignedMockSite = mockBranches.find((b) => b._id === assignedBranchId);
-            const realSummary = realFloorSummaryBySite?.get(assignedBranchId);
             const mockFloorSummary = floorSummaryBySite.get(assignedBranchId) || EMPTY_FLOORS;
             return [
                 {
@@ -283,7 +239,7 @@ export function OrgRollupView({ ownerDashboard = true }) {
                         name: assignedBranch?.name || 'Assigned site',
                     },
                     levels: levelCountsBySite.get(assignedBranchId) || EMPTY_LEVELS,
-                    floorsSummary: realSummary || mockFloorSummary,
+                    floorsSummary: mockFloorSummary,
                 },
             ];
         }
@@ -295,7 +251,6 @@ export function OrgRollupView({ ownerDashboard = true }) {
         assignedBranchId,
         assignedBranch,
         mockSiteRows,
-        realFloorSummaryBySite,
         levelCountsBySite,
         floorSummaryBySite,
     ]);

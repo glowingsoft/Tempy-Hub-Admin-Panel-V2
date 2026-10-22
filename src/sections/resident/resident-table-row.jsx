@@ -105,15 +105,15 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             </TableCell>
 
             {/* Status */}
-            <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+            <TableCell align="center">
                 <Label variant="soft" color={status?.color || 'default'}>{status?.label || '—'}</Label>
             </TableCell>
 
             {/* Actions */}
             <TableCell align="center" onClick={(event) => event.stopPropagation()} sx={{ whiteSpace: 'nowrap' }}>
-                <Stack direction="row" alignItems="center" justifyContent="center">
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <GenericTableRowActions actions={actions} />
-                </Stack>
+                </Box>
             </TableCell>
         </TableRow>
     );
