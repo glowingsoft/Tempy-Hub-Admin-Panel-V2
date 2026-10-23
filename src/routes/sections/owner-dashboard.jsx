@@ -77,6 +77,13 @@ const CommunityWallPage = lazy(() => import('src/pages/dashboard/active-routes/f
 const NewslettersPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/newsletters'));
 const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
 const FamilyGroupsPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/family-groups'));
+const FamilyInvitationListPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/list'));
+const FamilyInvitationDetailPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/detail'));
+const FamilyInvitationCreatePage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/new'));
+const FamilyInvitationEditPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/edit'));
+const FamilyMemberListPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/list'));
+const FamilyMemberDetailPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/detail'));
+const FamilyMemberEditPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/edit'));
 
 
 // Compatibility redirect helpers for legacy bookmark / link stability
@@ -285,6 +292,29 @@ export const ownerDashboardRoutes = [
           { path: 'newsletters', element: <NewslettersPage /> },
           { path: 'gazettes', element: <GazettesPage /> },
           { path: 'family-groups', element: <FamilyGroupsPage /> },
+          {
+            path: 'memberships',
+            children: [
+              { element: <Navigate to="invitations" replace />, index: true },
+              {
+                path: 'invitations',
+                children: [
+                  { element: <FamilyInvitationListPage />, index: true },
+                  { path: 'new', element: <FamilyInvitationCreatePage /> },
+                  { path: ':id', element: <FamilyInvitationDetailPage /> },
+                  { path: ':id/edit', element: <FamilyInvitationEditPage /> },
+                ],
+              },
+              {
+                path: 'members',
+                children: [
+                  { element: <FamilyMemberListPage />, index: true },
+                  { path: ':id', element: <FamilyMemberDetailPage /> },
+                  { path: ':id/edit', element: <FamilyMemberEditPage /> },
+                ],
+              },
+            ],
+          },
         ],
       },
       { path: 'account', element: <UserAccountPage /> },

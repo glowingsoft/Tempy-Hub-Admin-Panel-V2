@@ -244,6 +244,20 @@ export const paths = {
       newsletters: `${ROOTS.DASHBOARD}/family-engagement/newsletters`,
       gazettes: `${ROOTS.DASHBOARD}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.DASHBOARD}/family-engagement/family-groups`,
+      memberships: {
+        root: `${ROOTS.DASHBOARD}/family-engagement/memberships`,
+        invitations: {
+          root: `${ROOTS.DASHBOARD}/family-engagement/memberships/invitations`,
+          new: `${ROOTS.DASHBOARD}/family-engagement/memberships/invitations/new`,
+          detail: (id) => `${ROOTS.DASHBOARD}/family-engagement/memberships/invitations/${id}`,
+          edit: (id) => `${ROOTS.DASHBOARD}/family-engagement/memberships/invitations/${id}/edit`,
+        },
+        members: {
+          root: `${ROOTS.DASHBOARD}/family-engagement/memberships/members`,
+          detail: (id) => `${ROOTS.DASHBOARD}/family-engagement/memberships/members/${id}`,
+          edit: (id) => `${ROOTS.DASHBOARD}/family-engagement/memberships/members/${id}/edit`,
+        },
+      },
     },
   },
   // SITE MANAGER  DASHBOARD
@@ -305,6 +319,20 @@ export const paths = {
       newsletters: `${ROOTS.SITE_MANAGER}/family-engagement/newsletters`,
       gazettes: `${ROOTS.SITE_MANAGER}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.SITE_MANAGER}/family-engagement/family-groups`,
+      memberships: {
+        root: `${ROOTS.SITE_MANAGER}/family-engagement/memberships`,
+        invitations: {
+          root: `${ROOTS.SITE_MANAGER}/family-engagement/memberships/invitations`,
+          new: `${ROOTS.SITE_MANAGER}/family-engagement/memberships/invitations/new`,
+          detail: (id) => `${ROOTS.SITE_MANAGER}/family-engagement/memberships/invitations/${id}`,
+          edit: (id) => `${ROOTS.SITE_MANAGER}/family-engagement/memberships/invitations/${id}/edit`,
+        },
+        members: {
+          root: `${ROOTS.SITE_MANAGER}/family-engagement/memberships/members`,
+          detail: (id) => `${ROOTS.SITE_MANAGER}/family-engagement/memberships/members/${id}`,
+          edit: (id) => `${ROOTS.SITE_MANAGER}/family-engagement/memberships/members/${id}/edit`,
+        },
+      },
     },
 
     mail: `${ROOTS.ADMIN_DASHBOARD}/mail`,
@@ -427,6 +455,20 @@ export const paths = {
       newsletters: `${ROOTS.LINE_MANAGER}/family-engagement/newsletters`,
       gazettes: `${ROOTS.LINE_MANAGER}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.LINE_MANAGER}/family-engagement/family-groups`,
+      memberships: {
+        root: `${ROOTS.LINE_MANAGER}/family-engagement/memberships`,
+        invitations: {
+          root: `${ROOTS.LINE_MANAGER}/family-engagement/memberships/invitations`,
+          new: `${ROOTS.LINE_MANAGER}/family-engagement/memberships/invitations/new`,
+          detail: (id) => `${ROOTS.LINE_MANAGER}/family-engagement/memberships/invitations/${id}`,
+          edit: (id) => `${ROOTS.LINE_MANAGER}/family-engagement/memberships/invitations/${id}/edit`,
+        },
+        members: {
+          root: `${ROOTS.LINE_MANAGER}/family-engagement/memberships/members`,
+          detail: (id) => `${ROOTS.LINE_MANAGER}/family-engagement/memberships/members/${id}`,
+          edit: (id) => `${ROOTS.LINE_MANAGER}/family-engagement/memberships/members/${id}/edit`,
+        },
+      },
     },
     account: `${ROOTS.LINE_MANAGER}/account`,
     profile: `${ROOTS.LINE_MANAGER}/account`,
@@ -454,6 +496,20 @@ export const paths = {
       newsletters: `${ROOTS.OWNER_DASHBOARD}/family-engagement/newsletters`,
       gazettes: `${ROOTS.OWNER_DASHBOARD}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.OWNER_DASHBOARD}/family-engagement/family-groups`,
+      memberships: {
+        root: `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships`,
+        invitations: {
+          root: `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships/invitations`,
+          new: `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships/invitations/new`,
+          detail: (id) => `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships/invitations/${id}`,
+          edit: (id) => `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships/invitations/${id}/edit`,
+        },
+        members: {
+          root: `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships/members`,
+          detail: (id) => `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships/members/${id}`,
+          edit: (id) => `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships/members/${id}/edit`,
+        },
+      },
     },
     root: `${ROOTS.OWNER_DASHBOARD}`,
     departments: {

@@ -19,10 +19,8 @@ export function FamilyGroupTableRow({
   row,
   isSelected,
   onSelectRow,
+  onView,
   onManage,
-  onInvite,
-  onResend,
-  onAddNok,
 }) {
   const theme = useTheme();
   const residentName = row.resident || row.name || '';
@@ -49,70 +47,28 @@ export function FamilyGroupTableRow({
     }
   };
 
-  // Contextual icon actions matching requested row actions:
-  // - Active: Manage · Invite
-  // - Invite pending: Resend · Manage
-  // - No family: Add next of kin
-  const actions = [];
-
-  if (status === 'active') {
-    actions.push(
-      {
-        key: 'manage',
-        icon: 'solar:pen-bold',
-        tooltip: 'Manage',
-        color: 'primary',
-        onClick: (e) => {
-          e.stopPropagation();
-          onManage?.(row);
-        },
-      },
-      {
-        key: 'invite',
-        icon: 'solar:user-plus-bold',
-        tooltip: 'Invite',
-        color: 'info',
-        onClick: (e) => {
-          e.stopPropagation();
-          onInvite?.(row);
-        },
-      }
-    );
-  } else if (status === 'invite_pending') {
-    actions.push(
-      {
-        key: 'resend',
-        icon: 'solar:restart-bold',
-        tooltip: 'Resend',
-        color: 'warning',
-        onClick: (e) => {
-          e.stopPropagation();
-          onResend?.(row);
-        },
-      },
-      {
-        key: 'manage',
-        icon: 'solar:pen-bold',
-        tooltip: 'Manage',
-        color: 'primary',
-        onClick: (e) => {
-          e.stopPropagation();
-          onManage?.(row);
-        },
-      }
-    );
-  } else if (status === 'no_family') {
-    actions.push({
-      key: 'add-nok',
-      icon: 'solar:user-plus-bold',
-      tooltip: 'Add next of kin',
-      color: 'success',
+  // Only show the View icon and Manage icon
+  const actions = [
+    {
+      key: 'view',
+      icon: 'solar:eye-bold',
+      tooltip: 'View details',
       onClick: (e) => {
         e.stopPropagation();
-        onAddNok?.(row);
+        onView?.(row);
       },
-    });
-  }
+    },
+    {
+      key: 'manage',
+      icon: 'solar:users-group-rounded-bold',
+      tooltip: 'Manage members',
+      color: 'primary',
+      onClick: (e) => {
+        e.stopPropagation();
+        onManage?.(row);
+      },
+    },
+  ];
 
   return (
     <TableRow
@@ -120,7 +76,7 @@ export function FamilyGroupTableRow({
       tabIndex={-1}
       onClick={() => onSelectRow?.(row)}
       sx={{
-        cursor: 'default',
+        cursor: 'pointer',
         bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
         borderLeft: isSelected ? `4px solid ${theme.palette.primary.main}` : '4px solid transparent',
         transition: theme.transitions.create(['background-color', 'border-color'], {
@@ -234,10 +190,8 @@ FamilyGroupTableRow.propTypes = {
   row: PropTypes.object,
   isSelected: PropTypes.bool,
   onSelectRow: PropTypes.func,
+  onView: PropTypes.func,
   onManage: PropTypes.func,
-  onInvite: PropTypes.func,
-  onResend: PropTypes.func,
-  onAddNok: PropTypes.func,
 };
 
 export default FamilyGroupTableRow;

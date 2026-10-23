@@ -107,6 +107,15 @@ export const navDataOwner = [
       { title: 'Newsletters', path: paths.owner.familyEngagement.newsletters, icon: ICONS.mail },
       { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document },
       { title: 'Family Groups', path: paths.owner.familyEngagement.familyGroups, icon: ICONS.user },
+      {
+        title: 'Memberships',
+        path: paths.owner.familyEngagement.memberships.root,
+        icon: ICONS.invitations,
+        children: [
+          { title: 'Invitations', path: paths.owner.familyEngagement.memberships.invitations.root },
+          { title: 'Members', path: paths.owner.familyEngagement.memberships.members.root },
+        ],
+      },
       { title: 'Messages', path: paths.owner.messages, icon: ICONS.chat },
     ],
   },

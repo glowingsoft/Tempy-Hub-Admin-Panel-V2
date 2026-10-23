@@ -39,10 +39,10 @@ const TABLE_HEAD = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
+  { value: 'all', label: 'All', color: 'primary' },
+  { value: 'pending', label: 'Pending', color: 'warning' },
+  { value: 'approved', label: 'Approved', color: 'success' },
+  { value: 'rejected', label: 'Rejected', color: 'error' },
 ];
 
 const FILTER_FIELDS = [
