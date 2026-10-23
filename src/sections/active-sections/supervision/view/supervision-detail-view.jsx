@@ -25,6 +25,7 @@ import { useGetSupervisionByIdQuery } from 'src/store/Reducer/supervision-api';
 
 import LogSessionDialog from '../log-session-dialog';
 import { CompleteSupervisionDialog } from '../complete-supervision-dialog';
+import { SessionSignOffDialog } from '../../common/session-sign-off-dialog';
 import { STATUS_LABEL_COLOR, STATUS_LABEL_TEXT } from '../supervision-table-row';
 
 // ----------------------------------------------------------------------
@@ -37,6 +38,7 @@ export default function SupervisionDetailView() {
 
   const logModal = useBoolean();
   const completeModal = useBoolean();
+  const signOffModal = useBoolean();
 
   const {
     data: supervisionData,
@@ -56,6 +58,7 @@ export default function SupervisionDetailView() {
         dashboardName: 'Dashboard',
         dashboardHref: paths.siteManager.root,
         supervisionHref: paths.siteManager.supervision,
+        signOffHref: paths.siteManager.supervisionSignOff(id),
       };
     }
     if (pathname.startsWith('/owner-dashboard')) {
@@ -63,14 +66,16 @@ export default function SupervisionDetailView() {
         dashboardName: 'Dashboard',
         dashboardHref: paths.owner.root,
         supervisionHref: paths.owner.supervision,
+        signOffHref: paths.owner.supervisionSignOff(id),
       };
     }
     return {
       dashboardName: 'Dashboard',
       dashboardHref: paths.lineManager.root,
       supervisionHref: paths.lineManager.supervision,
+      signOffHref: paths.lineManager.supervisionSignOff(id),
     };
-  }, [pathname]);
+  }, [pathname, id]);
 
   if (isLoading) {
     return (
@@ -117,6 +122,8 @@ export default function SupervisionDetailView() {
   const conductedBy = supervision.conductedBy || '—';
   const status = supervision.status || 'scheduled';
   const isScheduled = status === 'scheduled';
+  const isCompleted = status === 'completed';
+  const isSignedOff = Boolean(supervision.signedOff || supervision.signature);
   const topics = supervision.topics || [];
   const actionPoints = supervision.actionPoints || [];
 
@@ -156,6 +163,28 @@ export default function SupervisionDetailView() {
             >
               {isScheduled ? 'Reschedule supervision' : 'Book supervision'}
             </Button>
+
+            {isCompleted && (
+              <Button
+                variant={isSignedOff ? 'outlined' : 'contained'}
+                color="primary"
+                startIcon={<Iconify icon={isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold'} />}
+                onClick={() => router.push(dashboardRoutes.signOffHref)}
+              >
+                {isSignedOff ? 'View signed document' : 'Sign off session'}
+              </Button>
+            )}
+
+            {!isCompleted && (
+              <Button
+                variant={isScheduled ? 'outlined' : 'contained'}
+                color="primary"
+                startIcon={<Iconify icon={isScheduled ? 'solar:calendar-mark-bold' : 'solar:calendar-add-bold'} />}
+                onClick={logModal.onTrue}
+              >
+                {isScheduled ? 'Reschedule supervision' : 'Book supervision'}
+              </Button>
+            )}
           </Stack>
         }
         sx={{ mb: 3 }}
@@ -379,6 +408,74 @@ export default function SupervisionDetailView() {
         )}
       </Card>
 
+      {/* Formal Signed Off Document Card */}
+      {(supervision.signature || supervision.signedOff) && (
+        <Card sx={{ p: 3, mt: 3, border: (theme) => `1px solid ${theme.palette.success.light}` }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ mb: 2 }}>
+            <Box>
+              <Typography variant="h6">Formal Electronic Sign-Off</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Document recorded with valid electronic verification
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Iconify icon="solar:eye-bold" />}
+              onClick={() => router.push(dashboardRoutes.signOffHref)}
+            >
+              View Document
+            </Button>
+          </Stack>
+
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 1.5,
+              bgcolor: 'background.neutral',
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2">
+                Signed by: {supervision.signedOffBy || 'Manager'}
+              </Typography>
+              {supervision.signerRole && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  Role: {supervision.signerRole}
+                </Typography>
+              )}
+              {supervision.signedOffAt && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  Date: {fDateTime(supervision.signedOffAt)}
+                </Typography>
+              )}
+            </Box>
+
+            {supervision.signature && (
+              <Box
+                component="img"
+                src={supervision.signature}
+                alt="Electronic Signature"
+                sx={{
+                  maxHeight: 70,
+                  maxWidth: 200,
+                  objectFit: 'contain',
+                  bgcolor: '#ffffff',
+                  p: 0.5,
+                  borderRadius: 1,
+                  border: '1px solid #e2e8f0',
+                }}
+              />
+            )}
+          </Box>
+        </Card>
+      )}
+
       {/* Reschedule / Book Dialog */}
       <LogSessionDialog
         open={logModal.value}
@@ -401,6 +498,20 @@ export default function SupervisionDetailView() {
           completeModal.onFalse();
           refetch();
         }}
+      />
+
+      {/* Formal Sign-Off Dialog */}
+      <SessionSignOffDialog
+        open={signOffModal.value}
+        onClose={signOffModal.onFalse}
+        session={supervision}
+        organizationId={organizationId}
+        type="supervision"
+        onSave={() => {
+          refetch();
+          signOffModal.onFalse();
+        }}
+        readOnly={isSignedOff}
       />
     </DashboardContent>
   );

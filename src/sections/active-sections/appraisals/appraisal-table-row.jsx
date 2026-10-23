@@ -51,23 +51,29 @@ export function appraisalStatusText(row) {
 
 // ----------------------------------------------------------------------
 
-export default function AppraisalTableRow({ row, serialNumber, onBook, basePath }) {
+export default function AppraisalTableRow({ row, serialNumber, onBook, onComplete, onSignOff, basePath }) {
   const router = useRouter();
   const pathname = usePathname();
   const rowId = row?._id || row?.id || row?.staffId;
 
   let detailPath = paths.lineManager.appraisalDetail(rowId);
+  let signOffPath = paths.lineManager.appraisalSignOff(rowId);
   if (basePath) {
     detailPath = `${basePath}/${rowId}`;
+    signOffPath = `${basePath}/${rowId}/sign-off`;
   } else if (pathname.startsWith('/site-manager')) {
     detailPath = paths.siteManager.appraisalDetail(rowId);
+    signOffPath = paths.siteManager.appraisalSignOff(rowId);
   } else if (pathname.startsWith('/owner-dashboard')) {
     detailPath = paths.owner.appraisalDetail(rowId);
+    signOffPath = paths.owner.appraisalSignOff(rowId);
   }
 
   const currentStatus = getAppraisalRowStatus(row);
   const isCompleted = currentStatus === 'completed';
+  const isSignedOff = Boolean(row?.signedOff || row?.signature);
   const isScheduled = currentStatus === 'booked' || currentStatus === 'scheduled' || !!row?.upcoming;
+  const canComplete = isScheduled && !isCompleted;
 
   const isMongoId = (val) => typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val);
 
@@ -113,6 +119,38 @@ export default function AppraisalTableRow({ row, serialNumber, onBook, basePath 
             onClick: (event) => {
               event.stopPropagation();
               onBook?.(row);
+            },
+          },
+        ]
+      : []),
+    ...(canComplete
+      ? [
+          {
+            key: 'complete',
+            icon: 'solar:check-circle-bold',
+            tooltip: 'Complete session',
+            color: 'success',
+            onClick: (event) => {
+              event.stopPropagation();
+              onComplete?.(row);
+            },
+          },
+        ]
+      : []),
+    ...(isCompleted
+      ? [
+          {
+            key: 'signOff',
+            icon: isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold',
+            tooltip: isSignedOff ? 'View signed document' : 'Sign off session',
+            color: isSignedOff ? 'default' : 'primary',
+            onClick: (event) => {
+              event.stopPropagation();
+              if (onSignOff) {
+                onSignOff(row);
+              } else {
+                router.push(signOffPath);
+              }
             },
           },
         ]
@@ -183,5 +221,7 @@ AppraisalTableRow.propTypes = {
   row: PropTypes.object,
   serialNumber: PropTypes.number,
   onBook: PropTypes.func,
+  onComplete: PropTypes.func,
+  onSignOff: PropTypes.func,
   basePath: PropTypes.string,
 };

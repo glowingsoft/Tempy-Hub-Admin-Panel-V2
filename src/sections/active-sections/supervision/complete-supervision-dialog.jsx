@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
-import dayjs from 'dayjs';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Avatar from '@mui/material/Avatar';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -30,9 +28,43 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
 
   const [updateSupervision, { isLoading: isSubmitting }] = useRescheduleSupervisionMutation();
 
-  const staffName = row?.name || row?.staffName || row?.employeeCode || 'Staff Member';
-  const staffEmail = row?.email || '';
-  const staffAvatar = row?.image || row?.avatar;
+  const staffObj =
+    (typeof row?.staff === 'object' ? row.staff : null) ||
+    (typeof row?.staffProfile === 'object' ? row.staffProfile : null) ||
+    (typeof row?.staffUser === 'object' ? row.staffUser : null) ||
+    (typeof row?.staffId === 'object' ? row.staffId : null) ||
+    (typeof row?.user === 'object' ? row.user : null) ||
+    (typeof row?.userId === 'object' ? row.userId : null) ||
+    {};
+
+  const staffUser =
+    (typeof staffObj.user === 'object' ? staffObj.user : null) ||
+    (typeof staffObj.userId === 'object' ? staffObj.userId : null) ||
+    {};
+
+  const isMongoId = (val) => typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val);
+
+  const rawStaffName =
+    row?.name ||
+    row?.staffName ||
+    staffObj.name ||
+    staffUser.name ||
+    (typeof row?.userId === 'object' ? row?.userId?.name : null) ||
+    (typeof row?.user === 'object' ? row?.user?.name : null);
+
+  const staffName =
+    rawStaffName && !isMongoId(rawStaffName)
+      ? rawStaffName
+      : staffObj.employeeCode || row?.employeeCode || '—';
+
+  const staffEmail =
+    staffObj.email ||
+    staffUser.email ||
+    row?.email ||
+    (typeof row?.userId === 'object' ? row?.userId?.email : null) ||
+    (typeof row?.user === 'object' ? row?.user?.email : null) ||
+    (typeof row?.staffId === 'object' ? row?.staffId?.email : null) ||
+    '';
 
   const handleReset = () => {
     setTopics('');
@@ -118,24 +150,16 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
               p: 1.5,
               borderRadius: 1.5,
               bgcolor: 'background.neutral',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
             }}
           >
-            <Avatar alt={staffName} src={staffAvatar} sx={{ width: 44, height: 44 }}>
-              {staffName.charAt(0).toUpperCase()}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="subtitle2" noWrap>
-                {staffName}
+            <Typography variant="subtitle2" noWrap>
+              {staffName}
+            </Typography>
+            {staffEmail && (
+              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                {staffEmail}
               </Typography>
-              {staffEmail && (
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {staffEmail}
-                </Typography>
-              )}
-            </Box>
+            )}
           </Box>
 
           {/* Discussion Topics */}

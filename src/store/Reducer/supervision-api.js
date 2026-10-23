@@ -53,6 +53,17 @@ export const supervisionApi = createApi({
       transformResponse: (res) => res?.data ?? res,
       invalidatesTags: ['Supervision'],
     }),
+
+    signOffSupervisionActionPoints: builder.mutation({
+      query: ({ organizationId, supervisionId, actionPointIds }) => ({
+        url: API_ROUTES.ORGANIZATION_SUPERVISION_ACTION_POINTS_SIGN_OFF(organizationId, supervisionId),
+        method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body: { actionPointIds },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: ['Supervision'],
+    }),
   }),
 });
 
@@ -61,4 +72,5 @@ export const {
   useGetSupervisionByIdQuery,
   useBookSupervisionMutation,
   useRescheduleSupervisionMutation,
+  useSignOffSupervisionActionPointsMutation,
 } = supervisionApi;

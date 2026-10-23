@@ -96,8 +96,10 @@ const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/acti
 //supervision, appraisals, competencies, training
 const SupervisionPage = lazy(() => import('src/pages/site-manager/supervision'));
 const SupervisionDetailPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/detail'));
+const SupervisionSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/sign-off'));
 const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals'));
 const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
+const AppraisalSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/sign-off'));
 const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance'));
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 
@@ -236,6 +238,7 @@ export const siteManagerDashboardRoutes = [
         children: [
           { index: true, element: <SupervisionPage /> },
           { path: ":id", element: <SupervisionDetailPage /> },
+          { path: ":id/sign-off", element: <SupervisionSignOffPage /> },
         ],
       },
       {
@@ -243,6 +246,7 @@ export const siteManagerDashboardRoutes = [
         children: [
           { index: true, element: <AppraisalPage /> },
           { path: ":id", element: <AppraisalDetailPage /> },
+          { path: ":id/sign-off", element: <AppraisalSignOffPage /> },
         ],
       },
       {

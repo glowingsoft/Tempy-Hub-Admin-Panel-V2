@@ -24,6 +24,8 @@ import { fDateTime, fDate } from 'src/utils/format-time';
 import { useGetAppraisalByIdQuery } from 'src/store/Reducer/appraisals-api';
 
 import { BookAppraisalDialog } from '../book-appraisal-dialog';
+import { CompleteAppraisalDialog } from '../complete-appraisal-dialog';
+import { SessionSignOffDialog } from '../../common/session-sign-off-dialog';
 import { APPRAISAL_STATUS_COLOR, APPRAISAL_STATUS_LABEL } from '../appraisal-table-row';
 
 // ----------------------------------------------------------------------
@@ -35,6 +37,8 @@ export default function AppraisalDetailView() {
   const { organizationId } = useCurrentOrganization();
 
   const bookModal = useBoolean();
+  const completeModal = useBoolean();
+  const signOffModal = useBoolean();
 
   const {
     data: appraisalData,
@@ -54,6 +58,7 @@ export default function AppraisalDetailView() {
         dashboardName: 'Dashboard',
         dashboardHref: paths.siteManager.root,
         appraisalHref: paths.siteManager.appraisal,
+        signOffHref: paths.siteManager.appraisalSignOff(id),
       };
     }
     if (pathname.startsWith('/owner-dashboard')) {
@@ -61,14 +66,16 @@ export default function AppraisalDetailView() {
         dashboardName: 'Dashboard',
         dashboardHref: paths.owner.root,
         appraisalHref: paths.owner.appraisal,
+        signOffHref: paths.owner.appraisalSignOff(id),
       };
     }
     return {
       dashboardName: 'Dashboard',
       dashboardHref: paths.lineManager.root,
       appraisalHref: paths.lineManager.appraisal,
+      signOffHref: paths.lineManager.appraisalSignOff(id),
     };
-  }, [pathname]);
+  }, [pathname, id]);
 
   if (isLoading) {
     return (
@@ -121,6 +128,7 @@ export default function AppraisalDetailView() {
   const status = appraisal.status || appraisal.badge || 'scheduled';
   const isScheduled = status === 'scheduled' || status === 'booked';
   const isCompleted = status === 'completed';
+  const isSignedOff = Boolean(appraisal.signedOff || appraisal.signature);
 
   const topics = appraisal.topics || appraisal.competencies || [];
   const actionPoints = appraisal.actionPoints || appraisal.objectives || [];
@@ -142,8 +150,30 @@ export default function AppraisalDetailView() {
           { name: staffName },
         ]}
         action={
-          !isCompleted ? (
-            <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1}>
+            {!isCompleted && isScheduled && (
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<Iconify icon="solar:check-circle-bold" />}
+                onClick={completeModal.onTrue}
+              >
+                Complete session
+              </Button>
+            )}
+
+            {isCompleted && (
+              <Button
+                variant={isSignedOff ? 'outlined' : 'contained'}
+                color="primary"
+                startIcon={<Iconify icon={isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold'} />}
+                onClick={() => router.push(dashboardRoutes.signOffHref)}
+              >
+                {isSignedOff ? 'View signed document' : 'Sign off session'}
+              </Button>
+            )}
+
+            {!isCompleted && (
               <Button
                 variant={isScheduled ? 'outlined' : 'contained'}
                 color="primary"
@@ -152,8 +182,8 @@ export default function AppraisalDetailView() {
               >
                 {isScheduled ? 'Reschedule appraisal' : 'Book appraisal'}
               </Button>
-            </Stack>
-          ) : null
+            )}
+          </Stack>
         }
         sx={{ mb: 3 }}
       />
@@ -304,22 +334,57 @@ export default function AppraisalDetailView() {
       </Card>
 
       {/* Review & Performance Notes */}
+      {/* Review & Performance Notes / Manager Comments */}
       <Card sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 1.5, textTransform: 'capitalize' }}>
           Review Notes
+          {appraisal.managerComments ? 'Manager Comments' : 'Review Notes'}
         </Typography>
         <Typography
           variant="body2"
           sx={{
             color: appraisal.notes ? 'text.primary' : 'text.secondary',
+            color: appraisal.managerComments || appraisal.notes ? 'text.primary' : 'text.secondary',
             whiteSpace: 'pre-line',
             lineHeight: 1.7,
             textTransform: 'capitalize',
           }}
         >
           {appraisal.notes || 'No review notes provided.'}
+          {appraisal.managerComments || appraisal.notes || 'No review comments provided.'}
         </Typography>
       </Card>
+
+      {/* Goals & Training Needs */}
+      {(appraisal.goals || appraisal.trainingNeeds) && (
+        <Grid container spacing={2.5} sx={{ mb: 3 }}>
+          {appraisal.goals && (
+            <Grid item xs={12} md={6}>
+              <Card sx={{ p: 3, height: '100%' }}>
+                <Typography variant="h6" sx={{ mb: 1.5 }}>
+                  Goals
+                </Typography>
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                  {appraisal.goals}
+                </Typography>
+              </Card>
+            </Grid>
+          )}
+
+          {appraisal.trainingNeeds && (
+            <Grid item xs={12} md={6}>
+              <Card sx={{ p: 3, height: '100%' }}>
+                <Typography variant="h6" sx={{ mb: 1.5 }}>
+                  Training Needs
+                </Typography>
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                  {appraisal.trainingNeeds}
+                </Typography>
+              </Card>
+            </Grid>
+          )}
+        </Grid>
+      )}
 
       {/* Action Points / Objectives */}
       <Card sx={{ p: 3 }}>
@@ -377,6 +442,74 @@ export default function AppraisalDetailView() {
         )}
       </Card>
 
+      {/* Formal Signed Off Document Card */}
+      {(appraisal.signature || appraisal.signedOff) && (
+        <Card sx={{ p: 3, mt: 3, border: (theme) => `1px solid ${theme.palette.success.light}` }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ mb: 2 }}>
+            <Box>
+              <Typography variant="h6">Formal Electronic Sign-Off</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Document recorded with valid electronic verification
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Iconify icon="solar:eye-bold" />}
+              onClick={() => router.push(dashboardRoutes.signOffHref)}
+            >
+              View Document
+            </Button>
+          </Stack>
+
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 1.5,
+              bgcolor: 'background.neutral',
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2">
+                Signed by: {appraisal.signedOffBy || 'Manager'}
+              </Typography>
+              {appraisal.signerRole && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  Role: {appraisal.signerRole}
+                </Typography>
+              )}
+              {appraisal.signedOffAt && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  Date: {fDateTime(appraisal.signedOffAt)}
+                </Typography>
+              )}
+            </Box>
+
+            {appraisal.signature && (
+              <Box
+                component="img"
+                src={appraisal.signature}
+                alt="Electronic Signature"
+                sx={{
+                  maxHeight: 70,
+                  maxWidth: 200,
+                  objectFit: 'contain',
+                  bgcolor: '#ffffff',
+                  p: 0.5,
+                  borderRadius: 1,
+                  border: '1px solid #e2e8f0',
+                }}
+              />
+            )}
+          </Box>
+        </Card>
+      )}
+
       {/* Book / Reschedule Dialog */}
       <BookAppraisalDialog
         open={bookModal.value}
@@ -387,6 +520,32 @@ export default function AppraisalDetailView() {
           bookModal.onFalse();
           refetch();
         }}
+      />
+
+      {/* Complete Appraisal Dialog */}
+      <CompleteAppraisalDialog
+        open={completeModal.value}
+        row={appraisal}
+        organizationId={organizationId}
+        onClose={completeModal.onFalse}
+        onSave={() => {
+          completeModal.onFalse();
+          refetch();
+        }}
+      />
+
+      {/* Formal Sign-Off Dialog */}
+      <SessionSignOffDialog
+        open={signOffModal.value}
+        onClose={signOffModal.onFalse}
+        session={appraisal}
+        organizationId={organizationId}
+        type="appraisal"
+        onSave={() => {
+          refetch();
+          signOffModal.onFalse();
+        }}
+        readOnly={isSignedOff}
       />
     </DashboardContent>
   );

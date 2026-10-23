@@ -40,8 +40,10 @@ const LeaveRequestDetailPage = lazy(() => import('src/pages/owner-dashboard/leav
 const AttendanceListPage = lazy(() => import('src/pages/owner-dashboard/attendance/list'));
 const SupervisionPage = lazy(() => import('src/pages/owner-dashboard/supervision'));
 const SupervisionDetailPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/detail'));
+const SupervisionSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/sign-off'));
 const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals'));
 const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
+const AppraisalSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/sign-off'));
 const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance'));
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
@@ -280,6 +282,7 @@ export const ownerDashboardRoutes = [
         children: [
           { index: true, element: <SupervisionPage /> },
           { path: ':id', element: <SupervisionDetailPage /> },
+          { path: ':id/sign-off', element: <SupervisionSignOffPage /> },
         ],
       },
       {
@@ -287,6 +290,7 @@ export const ownerDashboardRoutes = [
         children: [
           { index: true, element: <AppraisalPage /> },
           { path: ':id', element: <AppraisalDetailPage /> },
+          { path: ':id/sign-off', element: <AppraisalSignOffPage /> },
         ],
       },
       { path: 'team-compliance', element: <TeamCompliancePage /> },

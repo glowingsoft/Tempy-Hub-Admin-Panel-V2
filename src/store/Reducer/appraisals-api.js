@@ -42,6 +42,43 @@ export const appraisalsApi = createApi({
       transformResponse: (res) => res?.data ?? res,
       invalidatesTags: ['Appraisals'],
     }),
+
+    updateAppraisal: builder.mutation({
+      query: ({ organizationId, appraisalId, ...body }) => ({
+        url: API_ROUTES.ORGANIZATION_APPRAISAL_BY_ID(organizationId, appraisalId),
+        method: 'PUT',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: ['Appraisals'],
+    }),
+
+    signOffAppraisalActionPoints: builder.mutation({
+      query: ({ organizationId, appraisalId, actionPointIds }) => ({
+        url: API_ROUTES.ORGANIZATION_APPRAISAL_ACTION_POINTS_SIGN_OFF(organizationId, appraisalId),
+        method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body: { actionPointIds },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: ['Appraisals'],
+    }),
+
+    signOffAppraisalActionPoint: builder.mutation({
+      query: ({ organizationId, appraisalId, appraisalActionPointId, ...body }) => ({
+        url: API_ROUTES.ORGANIZATION_APPRAISAL_ACTION_POINT_SIGN_OFF(
+          organizationId,
+          appraisalId,
+          appraisalActionPointId
+        ),
+        method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: ['Appraisals'],
+    }),
   }),
 });
 
@@ -49,4 +86,7 @@ export const {
   useGetAppraisalsQuery,
   useGetAppraisalByIdQuery,
   useBookAppraisalMutation,
+  useUpdateAppraisalMutation,
+  useSignOffAppraisalActionPointsMutation,
+  useSignOffAppraisalActionPointMutation,
 } = appraisalsApi;

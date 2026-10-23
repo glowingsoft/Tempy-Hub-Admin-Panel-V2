@@ -32,10 +32,12 @@ const TeamAttendancePage = lazy(() => import('src/pages/dashboard/active-routes/
 //supervision
 const SupervisionPage = lazy(() => import('src/pages/dashboard/active-routes/supervision'));
 const SupervisionDetailPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/detail'));
+const SupervisionSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/sign-off'));
 
 //appraisals
 const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals'));
 const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
+const AppraisalSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/sign-off'));
 
 //training
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
@@ -111,9 +113,13 @@ export const lineManagerDashboardRoutes = [
 
             { path: "supervision/:id", element: <SupervisionDetailPage /> },
 
+            { path: "supervision/:id/sign-off", element: <SupervisionSignOffPage /> },
+
             { path: "appraisals", element: <AppraisalPage /> },
 
             { path: "appraisals/:id", element: <AppraisalDetailPage /> },
+
+            { path: "appraisals/:id/sign-off", element: <AppraisalSignOffPage /> },
 
             { path: "training", element: <TrainingPage /> },
 

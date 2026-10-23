@@ -33,13 +33,15 @@ import { useSetState } from 'src/hooks/use-set-state';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
-import { usePathname } from 'src/routes/hooks';
+import { usePathname, useRouter } from 'src/routes/hooks';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
 import { useGetAppraisalsQuery } from 'src/store/Reducer/appraisals-api';
 
 import AppraisalTableRow, { getAppraisalRowStatus } from '../appraisal-table-row';
 import BookAppraisalDialog from '../book-appraisal-dialog';
 import LogAppraisalDialog from '../log-appraisal-dialog';
+import { CompleteAppraisalDialog } from '../complete-appraisal-dialog';
+import { SessionSignOffDialog } from '../../common/session-sign-off-dialog';
 import { _mockAppraisals } from '../mocks/data';
 
 // ----------------------------------------------------------------------
@@ -57,7 +59,6 @@ const TABLE_HEAD = [
 const APPRAISAL_STATUS_OPTIONS = [
   { value: 'scheduled', label: 'Scheduled', color: 'info' },
   { value: 'completed', label: 'Completed', color: 'success' },
-  { value: 'cancelled', label: 'Cancelled', color: 'default' },
 ];
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...APPRAISAL_STATUS_OPTIONS];
@@ -82,6 +83,7 @@ export function AppraisalListView({
   showTabs = true,
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const dashboardHref =
     dashboardHrefProp ||
     (pathname.startsWith(paths.siteManager.root)
@@ -99,6 +101,8 @@ export function AppraisalListView({
 
   const bookModal = useBoolean();
   const logModal = useBoolean();
+  const completeModal = useBoolean();
+  const signOffModal = useBoolean();
   const [selectedRow, setSelectedRow] = useState(null);
 
   const filters = useSetState({ name: '', status: 'all' });
@@ -181,8 +185,8 @@ export function AppraisalListView({
 
   const effectiveTotal = useMemo(() => {
     if (filters.state.status === 'all') {
-      const sumFromCounts = Object.values(counts).reduce(
-        (sum, val) => sum + (Number(val) || 0),
+      const sumFromCounts = APPRAISAL_STATUS_OPTIONS.reduce(
+        (sum, opt) => sum + (Number(counts[opt.value]) || 0),
         0
       );
       return sumFromCounts || totalRecords;
@@ -195,8 +199,8 @@ export function AppraisalListView({
   const getStatusCount = useCallback(
     (statusValue) => {
       if (statusValue === 'all') {
-        const sumFromCounts = Object.values(counts).reduce(
-          (sum, val) => sum + (Number(val) || 0),
+        const sumFromCounts = APPRAISAL_STATUS_OPTIONS.reduce(
+          (sum, opt) => sum + (Number(counts[opt.value]) || 0),
           0
         );
         return sumFromCounts || totalRecords;
@@ -218,9 +222,33 @@ export function AppraisalListView({
     logModal.onTrue();
   };
 
+  const handleOpenComplete = (row = null) => {
+    setSelectedRow(row);
+    completeModal.onTrue();
+  };
+
+  const handleOpenSignOff = (row = null) => {
+    const rowId = row?._id || row?.id || row?.staffId;
+    let signOffPath = paths.lineManager.appraisalSignOff(rowId);
+    if (basePath) {
+      signOffPath = `${basePath}/${rowId}/sign-off`;
+    } else if (pathname.startsWith('/site-manager')) {
+      signOffPath = paths.siteManager.appraisalSignOff(rowId);
+    } else if (pathname.startsWith('/owner-dashboard')) {
+      signOffPath = paths.owner.appraisalSignOff(rowId);
+    }
+    router.push(signOffPath);
+  };
+
   const handleSaveBook = () => {
     refetch();
     bookModal.onFalse();
+    setSelectedRow(null);
+  };
+
+  const handleSaveComplete = () => {
+    refetch();
+    completeModal.onFalse();
     setSelectedRow(null);
   };
 
@@ -369,6 +397,8 @@ export function AppraisalListView({
                           row={row}
                           serialNumber={table.page * table.rowsPerPage + index + 1}
                           onBook={() => handleOpenBook(row)}
+                          onComplete={() => handleOpenComplete(row)}
+                          onSignOff={() => handleOpenSignOff(row)}
                           basePath={basePath}
                         />
                       ))}
@@ -417,6 +447,34 @@ export function AppraisalListView({
           logModal.onFalse();
           setSelectedRow(null);
         }}
+      />
+
+      <CompleteAppraisalDialog
+        open={completeModal.value}
+        row={selectedRow}
+        organizationId={organizationId}
+        onClose={() => {
+          completeModal.onFalse();
+          setSelectedRow(null);
+        }}
+        onSave={handleSaveComplete}
+      />
+
+      <SessionSignOffDialog
+        open={signOffModal.value}
+        session={selectedRow}
+        organizationId={organizationId}
+        type="appraisal"
+        onClose={() => {
+          signOffModal.onFalse();
+          setSelectedRow(null);
+        }}
+        onSave={() => {
+          refetch();
+          signOffModal.onFalse();
+          setSelectedRow(null);
+        }}
+        readOnly={Boolean(selectedRow?.signedOff || selectedRow?.signature)}
       />
     </DashboardContent>
   );

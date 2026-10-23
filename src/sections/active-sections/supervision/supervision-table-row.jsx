@@ -43,20 +43,24 @@ export function statusText(row) {
     return '—';
 }
 
-const SupervisionTableRow = ({ row, onLog, onComplete, serialNumber }) => {
+const SupervisionTableRow = ({ row, onLog, onComplete, onSignOff, serialNumber }) => {
     const router = useRouter();
     const pathname = usePathname();
     const rowId = row._id || row.id || row.staffId;
 
     let detailPath = paths.lineManager.supervisionDetail(rowId);
+    let signOffPath = paths.lineManager.supervisionSignOff(rowId);
     if (pathname.startsWith('/site-manager')) {
         detailPath = paths.siteManager.supervisionDetail(rowId);
+        signOffPath = paths.siteManager.supervisionSignOff(rowId);
     } else if (pathname.startsWith('/owner-dashboard')) {
         detailPath = paths.owner.supervisionDetail(rowId);
+        signOffPath = paths.owner.supervisionSignOff(rowId);
     }
 
     const currentStatus = getRowStatus(row);
     const isCompleted = currentStatus === 'completed';
+    const isSignedOff = Boolean(row.signedOff || row.signature);
     const isBooked = currentStatus === 'booked' || currentStatus === 'scheduled' || !!row.upcoming;
 
     const isLineManager = pathname.startsWith('/line-manager');
@@ -87,6 +91,24 @@ const SupervisionTableRow = ({ row, onLog, onComplete, serialNumber }) => {
                       onClick: (event) => {
                           event.stopPropagation();
                           onComplete?.();
+                      },
+                  },
+              ]
+            : []),
+        ...(isCompleted
+            ? [
+                  {
+                      key: 'signOff',
+                      icon: isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold',
+                      tooltip: isSignedOff ? 'View signed document' : 'Sign off session',
+                      color: isSignedOff ? 'default' : 'primary',
+                      onClick: (event) => {
+                          event.stopPropagation();
+                          if (onSignOff) {
+                              onSignOff(row);
+                          } else {
+                              router.push(signOffPath);
+                          }
                       },
                   },
               ]
@@ -203,6 +225,7 @@ SupervisionTableRow.propTypes = {
     row: PropTypes.object,
     onLog: PropTypes.func,
     onComplete: PropTypes.func,
+    onSignOff: PropTypes.func,
     serialNumber: PropTypes.number,
 };
 

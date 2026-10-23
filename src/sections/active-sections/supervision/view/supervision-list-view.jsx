@@ -28,11 +28,14 @@ import { useSetState } from 'src/hooks/use-set-state';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
+import { useRouter, usePathname } from 'src/routes/hooks';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
+import { fDateTime } from 'src/utils/format-time';
 import { useGetSupervisionsQuery } from 'src/store/Reducer/supervision-api';
 
 import LogSessionDialog from '../log-session-dialog';
 import { CompleteSupervisionDialog } from '../complete-supervision-dialog';
+import { SessionSignOffDialog } from '../../common/session-sign-off-dialog';
 import SupervisionTableRow, { getRowStatus } from '../supervision-table-row';
 
 // ----------------------------------------------------------------------
@@ -50,7 +53,6 @@ const TABLE_HEAD = [
 const SUPERVISION_STATUS_OPTIONS = [
   { value: 'scheduled', label: 'Scheduled', color: 'info' },
   { value: 'completed', label: 'Completed', color: 'success' },
-  { value: 'cancelled', label: 'Cancelled', color: 'default' },
 ];
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...SUPERVISION_STATUS_OPTIONS];
@@ -73,6 +75,8 @@ function SupervisionListView({
   showTabs = true,
   branchId: branchIdProp,
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const { organizationId, user } = useCurrentOrganization();
   const userBranchId = branchIdProp || user?.branchId?._id || user?.branchId;
 
@@ -83,6 +87,7 @@ function SupervisionListView({
 
   const logModal = useBoolean();
   const completeModal = useBoolean();
+  const signOffModal = useBoolean();
   const filters = useSetState({ name: '', status: 'all' });
   const [selectedRow, setSelectedRow] = useState(null);
 
@@ -125,6 +130,17 @@ function SupervisionListView({
   const handleOpenComplete = (row) => {
     setSelectedRow(row);
     completeModal.onTrue();
+  };
+
+  const handleOpenSignOff = (row) => {
+    const rowId = row?._id || row?.id || row?.staffId;
+    let signOffPath = paths.lineManager.supervisionSignOff(rowId);
+    if (pathname.startsWith('/site-manager')) {
+      signOffPath = paths.siteManager.supervisionSignOff(rowId);
+    } else if (pathname.startsWith('/owner-dashboard')) {
+      signOffPath = paths.owner.supervisionSignOff(rowId);
+    }
+    router.push(signOffPath);
   };
 
   const handleSaveSession = () => {
@@ -170,8 +186,8 @@ function SupervisionListView({
 
   const effectiveTotal = useMemo(() => {
     if (filters.state.status === 'all') {
-      const sumFromCounts = Object.values(counts).reduce(
-        (sum, val) => sum + (Number(val) || 0),
+      const sumFromCounts = SUPERVISION_STATUS_OPTIONS.reduce(
+        (sum, opt) => sum + (Number(counts[opt.value]) || 0),
         0
       );
       return sumFromCounts || totalRecords;
@@ -184,8 +200,8 @@ function SupervisionListView({
   const getStatusCount = useCallback(
     (statusValue) => {
       if (statusValue === 'all') {
-        const sumFromCounts = Object.values(counts).reduce(
-          (sum, val) => sum + (Number(val) || 0),
+        const sumFromCounts = SUPERVISION_STATUS_OPTIONS.reduce(
+          (sum, opt) => sum + (Number(counts[opt.value]) || 0),
           0
         );
         return sumFromCounts || totalRecords;
@@ -351,6 +367,7 @@ function SupervisionListView({
                           row={row}
                           onLog={() => handleOpenLog(row)}
                           onComplete={() => handleOpenComplete(row)}
+                          onSignOff={() => handleOpenSignOff(row)}
                         />
                       ))}
 
@@ -394,6 +411,23 @@ function SupervisionListView({
           setSelectedRow(null);
         }}
         onSave={handleSaveComplete}
+      />
+
+      <SessionSignOffDialog
+        open={signOffModal.value}
+        session={selectedRow}
+        organizationId={organizationId}
+        type="supervision"
+        onClose={() => {
+          signOffModal.onFalse();
+          setSelectedRow(null);
+        }}
+        onSave={() => {
+          refetch();
+          signOffModal.onFalse();
+          setSelectedRow(null);
+        }}
+        readOnly={Boolean(selectedRow?.signedOff || selectedRow?.signature)}
       />
     </DashboardContent>
   );

@@ -126,8 +126,14 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/supervision`,
     ORGANIZATION_SUPERVISION_BY_ID: (organizationId, supervisionId) =>
         `/admin/organizations/${organizationId}/supervision/${supervisionId}`,
+    ORGANIZATION_SUPERVISION_ACTION_POINTS_SIGN_OFF: (organizationId, supervisionId) =>
+        `/admin/organizations/${organizationId}/supervision/${supervisionId}/action-points/sign-off`,
     ORGANIZATION_APPRAISALS: (organizationId) =>
         `/admin/organizations/${organizationId}/appraisals`,
     ORGANIZATION_APPRAISAL_BY_ID: (organizationId, appraisalId) =>
         `/admin/organizations/${organizationId}/appraisals/${appraisalId}`,
+    ORGANIZATION_APPRAISAL_ACTION_POINTS_SIGN_OFF: (organizationId, appraisalId) =>
+        `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/sign-off`,
+    ORGANIZATION_APPRAISAL_ACTION_POINT_SIGN_OFF: (organizationId, appraisalId, appraisalActionPointId) =>
+        `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/${appraisalActionPointId}/sign-off`,
 };
