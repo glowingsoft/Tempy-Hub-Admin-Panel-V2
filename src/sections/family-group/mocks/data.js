@@ -194,10 +194,10 @@ export const mockFamilyGroupsData = {
 };
 
 export const FAMILY_GROUP_STATUS_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'invite_pending', label: 'Invite pending' },
-  { value: 'no_family', label: 'No family' },
+  { value: 'all', label: 'All', color: 'primary' },
+  { value: 'active', label: 'Active', color: 'success' },
+  { value: 'invite_pending', label: 'Invite pending', color: 'warning' },
+  { value: 'no_family', label: 'No family', color: 'error' },
 ];
 
 export default mockFamilyGroupsData;

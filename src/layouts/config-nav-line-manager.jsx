@@ -99,6 +99,15 @@ export const navDataLineManager = [
     items: [
       { title: 'Moderation', path: paths.lineManager.familyEngagement.moderation, icon: ICONS.pendingApproval },
       { title: 'Community Wall', path: paths.lineManager.familyEngagement.communityWall, icon: ICONS.blog },
+      {
+        title: 'Memberships',
+        path: paths.lineManager.familyEngagement.memberships.root,
+        icon: ICONS.invitations,
+        children: [
+          { title: 'Invitations', path: paths.lineManager.familyEngagement.memberships.invitations.root },
+          { title: 'Members', path: paths.lineManager.familyEngagement.memberships.members.root },
+        ],
+      },
       { title: 'Messages', path: paths.lineManager.messages, icon: ICONS.chat },
     ],
   },

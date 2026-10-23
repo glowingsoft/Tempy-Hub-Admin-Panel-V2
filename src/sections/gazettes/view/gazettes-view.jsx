@@ -53,12 +53,12 @@ const TABLE_HEAD = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'ready', label: 'Ready to print' },
-  { value: 'no_content', label: 'No content' },
-  { value: 'over_limit', label: 'Over 30 messages' },
-  { value: 'printed', label: 'Printed' },
-  { value: 'no_family', label: 'No family linked' },
+  { value: 'all', label: 'All', color: 'primary' },
+  { value: 'ready', label: 'Ready to print', color: 'success' },
+  { value: 'no_content', label: 'No content', color: 'warning' },
+  { value: 'over_limit', label: 'Over 30 messages', color: 'warning' },
+  { value: 'printed', label: 'Printed', color: 'info' },
+  { value: 'no_family', label: 'No family linked', color: 'error' },
 ];
 
 const FILTER_FIELDS = [
