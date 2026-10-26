@@ -18,6 +18,7 @@ export function useFamilyEngagementPaths() {
         newsletters: paths.owner.familyEngagement.newsletters,
         gazettes: paths.owner.familyEngagement.gazettes,
         familyGroups: paths.owner.familyEngagement.familyGroups,
+        familyMemberships: paths.owner.familyEngagement.memberships,
         directory: paths.owner.directory.root,
         residents: paths.owner.residents.root,
       };
@@ -32,6 +33,7 @@ export function useFamilyEngagementPaths() {
         newsletters: paths.lineManager.familyEngagement.newsletters,
         gazettes: paths.lineManager.familyEngagement.gazettes,
         familyGroups: paths.lineManager.familyEngagement.familyGroups,
+        familyMemberships: paths.lineManager.familyEngagement.memberships,
         directory: paths.lineManager.residents,
         residents: paths.lineManager.residents,
         feedback: paths.lineManager.feedback,
@@ -67,6 +69,7 @@ export function useFamilyEngagementPaths() {
       newsletters: paths.siteManager.familyEngagement.newsletters,
       gazettes: paths.siteManager.familyEngagement.gazettes,
       familyGroups: paths.siteManager.familyEngagement.familyGroups,
+      familyMemberships: paths.siteManager.familyEngagement.memberships,
       directory: paths.siteManager.directory.root,
       residents: paths.siteManager.residents.root,
       feedback: paths.siteManager.feedback,

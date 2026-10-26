@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 import { CONFIG } from 'src/config-global';
 import { DashboardLayout } from 'src/layouts/dashboard';
@@ -32,10 +32,12 @@ const TeamAttendancePage = lazy(() => import('src/pages/dashboard/active-routes/
 //supervision
 const SupervisionPage = lazy(() => import('src/pages/dashboard/active-routes/supervision'));
 const SupervisionDetailPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/detail'));
+const SupervisionSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/sign-off'));
 
 //appraisals
 const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals'));
 const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
+const AppraisalSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/sign-off'));
 
 //training
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
@@ -67,6 +69,13 @@ const CommunityWallPage = lazy(() => import('src/pages/dashboard/active-routes/f
 const NewslettersPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/newsletters'));
 const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
 const FamilyGroupsPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/family-groups'));
+const FamilyInvitationListPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/list'));
+const FamilyInvitationDetailPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/detail'));
+const FamilyInvitationCreatePage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/new'));
+const FamilyInvitationEditPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/edit'));
+const FamilyMemberListPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/list'));
+const FamilyMemberDetailPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/detail'));
+const FamilyMemberEditPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/edit'));
 const UserAccountPage = lazy(() => import('src/pages/dashboard/user/account'));
 
 // ----------------------------------------------------------------------
@@ -104,9 +113,13 @@ export const lineManagerDashboardRoutes = [
 
             { path: "supervision/:id", element: <SupervisionDetailPage /> },
 
+            { path: "supervision/:id/sign-off", element: <SupervisionSignOffPage /> },
+
             { path: "appraisals", element: <AppraisalPage /> },
 
             { path: "appraisals/:id", element: <AppraisalDetailPage /> },
+
+            { path: "appraisals/:id/sign-off", element: <AppraisalSignOffPage /> },
 
             { path: "training", element: <TrainingPage /> },
 
@@ -135,6 +148,29 @@ export const lineManagerDashboardRoutes = [
                     { path: 'newsletters', element: <NewslettersPage /> },
                     { path: 'gazettes', element: <GazettesPage /> },
                     { path: 'family-groups', element: <FamilyGroupsPage /> },
+                    {
+                        path: 'memberships',
+                        children: [
+                            { element: <Navigate to="invitations" replace />, index: true },
+                            {
+                                path: 'invitations',
+                                children: [
+                                    { element: <FamilyInvitationListPage />, index: true },
+                                    { path: 'new', element: <FamilyInvitationCreatePage /> },
+                                    { path: ':id', element: <FamilyInvitationDetailPage /> },
+                                    { path: ':id/edit', element: <FamilyInvitationEditPage /> },
+                                ],
+                            },
+                            {
+                                path: 'members',
+                                children: [
+                                    { element: <FamilyMemberListPage />, index: true },
+                                    { path: ':id', element: <FamilyMemberDetailPage /> },
+                                    { path: ':id/edit', element: <FamilyMemberEditPage /> },
+                                ],
+                            },
+                        ],
+                    },
                 ],
             },
             { path: 'account', element: <UserAccountPage /> },

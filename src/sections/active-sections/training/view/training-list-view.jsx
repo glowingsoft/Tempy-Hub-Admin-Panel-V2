@@ -25,6 +25,7 @@ import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 's
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
+import { usePathname } from 'src/routes/hooks';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
 import { fDate } from 'src/utils/format-time';
 
@@ -97,7 +98,16 @@ const STATUS_COLOR = {
 
 const DEFAULT_FILTERS = { name: '', status: 'all' };
 
-export default function TrainingListView() {
+export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
+  const pathname = usePathname();
+  const dashboardHref =
+    dashboardHrefProp ||
+    (pathname.startsWith(paths.siteManager.root)
+      ? paths.siteManager.root
+      : pathname.startsWith(paths.owner.root)
+        ? paths.owner.root
+        : paths.lineManager.root);
+
   const table = useTable();
   const filters = useSetState(DEFAULT_FILTERS);
 
@@ -161,7 +171,7 @@ export default function TrainingListView() {
       <CustomBreadcrumbs
         heading="Training Records"
         links={[
-          { name: 'Dashboard', href: paths.lineManager.root },
+          { name: 'Dashboard', href: dashboardHref },
           { name: 'Training' },
         ]}
         action={

@@ -23,6 +23,7 @@ import { peepFloorPlanApi } from './Reducer/peep-floor-plan-api';
 import { floorPlansApi } from './Reducer/floor-plans-api';
 import { uploadApi } from './Reducer/upload-api';
 import { supervisionApi } from './Reducer/supervision-api';
+import { appraisalsApi } from './Reducer/appraisals-api';
 
 // Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
@@ -83,6 +84,7 @@ const apiSlices = [
   floorPlansApi,
   uploadApi,
   supervisionApi,
+  appraisalsApi,
 ];
 
 const clearApiCachesOnLogout = ({ dispatch }) => (next) => (action) => {
@@ -122,6 +124,7 @@ export const store = configureStore({
     [floorPlansApi.reducerPath]: floorPlansApi.reducer,
     [uploadApi.reducerPath]: uploadApi.reducer,
     [supervisionApi.reducerPath]: supervisionApi.reducer,
+    [appraisalsApi.reducerPath]: appraisalsApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -152,6 +155,7 @@ export const store = configureStore({
       floorPlansApi.middleware,
       uploadApi.middleware,
       supervisionApi.middleware,
+      appraisalsApi.middleware,
       clearApiCachesOnLogout,
     ),
 });

@@ -56,8 +56,6 @@ export const API_ROUTES = {
     ORGANIZATION_STAFF_PROFILES: (organizationId) =>
         `/admin/organizations/${organizationId}/staff-profiles`,
     STAFF_PROFILE_BY_ID: (staffProfileId) => `/admin/staff-profiles/${staffProfileId}`,
-    ORGANIZATION_SUPERVISION: (organizationId) =>
-        `/admin/organizations/${organizationId}/supervision`,
     ORGANIZATION_SHIFTS: (organizationId) => `/admin/organizations/${organizationId}/shifts`,
     SHIFT_BY_ID: (shiftId) => `/admin/shifts/${shiftId}`,
     STAFF_SHIFT_CLAIMS: (shiftId) => `/app/shifts/${shiftId}/claims`,
@@ -122,4 +120,20 @@ export const API_ROUTES = {
     FLOOR_PLAN_PINS: (floorPlanId) => `/admin/floor-plans/${floorPlanId}/pins`,
     FLOOR_PLAN_PIN_BY_ID: (floorPlanId, floorPlanPinId) =>
         `/admin/floor-plans/${floorPlanId}/pins/${floorPlanPinId}`,
+
+    // Supervision & Appraisal
+    ORGANIZATION_SUPERVISION: (organizationId) =>
+        `/admin/organizations/${organizationId}/supervision`,
+    ORGANIZATION_SUPERVISION_BY_ID: (organizationId, supervisionId) =>
+        `/admin/organizations/${organizationId}/supervision/${supervisionId}`,
+    ORGANIZATION_SUPERVISION_ACTION_POINTS_SIGN_OFF: (organizationId, supervisionId) =>
+        `/admin/organizations/${organizationId}/supervision/${supervisionId}/action-points/sign-off`,
+    ORGANIZATION_APPRAISALS: (organizationId) =>
+        `/admin/organizations/${organizationId}/appraisals`,
+    ORGANIZATION_APPRAISAL_BY_ID: (organizationId, appraisalId) =>
+        `/admin/organizations/${organizationId}/appraisals/${appraisalId}`,
+    ORGANIZATION_APPRAISAL_ACTION_POINTS_SIGN_OFF: (organizationId, appraisalId) =>
+        `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/sign-off`,
+    ORGANIZATION_APPRAISAL_ACTION_POINT_SIGN_OFF: (organizationId, appraisalId, appraisalActionPointId) =>
+        `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/${appraisalActionPointId}/sign-off`,
 };

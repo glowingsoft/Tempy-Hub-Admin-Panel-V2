@@ -23,6 +23,15 @@ export const supervisionApi = createApi({
       providesTags: ['Supervision'],
     }),
 
+    getSupervisionById: builder.query({
+      query: ({ organizationId, supervisionId }) => ({
+        url: API_ROUTES.ORGANIZATION_SUPERVISION_BY_ID(organizationId, supervisionId),
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: ['Supervision'],
+    }),
+
     bookSupervision: builder.mutation({
       query: ({ organizationId, ...body }) => ({
         url: API_ROUTES.ORGANIZATION_SUPERVISION(organizationId),
@@ -33,7 +42,35 @@ export const supervisionApi = createApi({
       transformResponse: (res) => res?.data ?? res,
       invalidatesTags: ['Supervision'],
     }),
+
+    rescheduleSupervision: builder.mutation({
+      query: ({ organizationId, supervisionId, ...body }) => ({
+        url: API_ROUTES.ORGANIZATION_SUPERVISION_BY_ID(organizationId, supervisionId),
+        method: 'PUT',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: ['Supervision'],
+    }),
+
+    signOffSupervisionActionPoints: builder.mutation({
+      query: ({ organizationId, supervisionId, actionPointIds }) => ({
+        url: API_ROUTES.ORGANIZATION_SUPERVISION_ACTION_POINTS_SIGN_OFF(organizationId, supervisionId),
+        method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body: { actionPointIds },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: ['Supervision'],
+    }),
   }),
 });
 
-export const { useGetSupervisionsQuery, useBookSupervisionMutation } = supervisionApi;
+export const {
+  useGetSupervisionsQuery,
+  useGetSupervisionByIdQuery,
+  useBookSupervisionMutation,
+  useRescheduleSupervisionMutation,
+  useSignOffSupervisionActionPointsMutation,
+} = supervisionApi;

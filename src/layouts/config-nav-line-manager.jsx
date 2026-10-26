@@ -74,6 +74,7 @@ export const navDataLineManager = [
       { title: 'Supervision', path: paths.lineManager.supervision, icon: ICONS.directory },
 
       { title: 'Appraisals', path: paths.lineManager.appraisal, icon: ICONS.reports },
+      // { title: 'Appraisals', path: paths.lineManager.appraisal, icon: ICONS.reports },
 
       { title: 'Training Records', path: paths.lineManager.training, icon: ICONS.course },
 
@@ -98,6 +99,15 @@ export const navDataLineManager = [
     items: [
       { title: 'Moderation', path: paths.lineManager.familyEngagement.moderation, icon: ICONS.pendingApproval },
       { title: 'Community Wall', path: paths.lineManager.familyEngagement.communityWall, icon: ICONS.blog },
+      {
+        title: 'Memberships',
+        path: paths.lineManager.familyEngagement.memberships.root,
+        icon: ICONS.invitations,
+        children: [
+          { title: 'Invitations', path: paths.lineManager.familyEngagement.memberships.invitations.root },
+          { title: 'Members', path: paths.lineManager.familyEngagement.memberships.members.root },
+        ],
+      },
       { title: 'Messages', path: paths.lineManager.messages, icon: ICONS.chat },
     ],
   },

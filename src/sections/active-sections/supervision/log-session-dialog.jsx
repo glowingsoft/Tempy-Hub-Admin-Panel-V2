@@ -19,22 +19,24 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
-import { useBookSupervisionMutation } from 'src/store/Reducer/supervision-api';
+import { useBookSupervisionMutation, useRescheduleSupervisionMutation } from 'src/store/Reducer/supervision-api';
 
 // ----------------------------------------------------------------------
 
 function mapStaffOption(item) {
   const name =
-    item?.userId?.name ||
     item?.user?.name ||
+    item?.userId?.name ||
     item?.name ||
     item?.employeeCode ||
     item?._id;
-  const email = item?.userId?.email || item?.user?.email || item?.email || '';
+  const email = item?.user?.email || item?.userId?.email || item?.email || '';
   const label = email ? `${name} (${email})` : name;
   return {
     value: item?._id,
     label,
+    name,
+    email,
     raw: item,
   };
 }
@@ -48,24 +50,96 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
   const [error, setError] = useState('');
 
   const [bookSupervision, { isLoading: isBooking }] = useBookSupervisionMutation();
+  const [rescheduleSupervision, { isLoading: isRescheduling }] = useRescheduleSupervisionMutation();
+  const isSubmitting = isBooking || isRescheduling;
 
   const today = dayjs().startOf('day');
 
-  const queryArgs = useMemo(() => ({ organizationId }), [organizationId]);
+  // Determine if this is a reschedule action for an existing supervision
+  const existingSupervisionId = row?.upcoming?._id || row?.supervisionId || (row?.status === 'scheduled' ? row?._id : null);
+  const isReschedule = Boolean(existingSupervisionId);
+
+  const queryArgs = useMemo(
+    () => ({ organizationId, role: 'staff' }),
+    [organizationId]
+  );
 
   useEffect(() => {
     if (open) {
       if (row) {
+        const staffObj =
+          (typeof row.staff === 'object' ? row.staff : null) ||
+          (typeof row.staffProfile === 'object' ? row.staffProfile : null) ||
+          (typeof row.staffId === 'object' ? row.staffId : null) ||
+          (typeof row.user === 'object' ? row.user : null) ||
+          (typeof row.userId === 'object' ? row.userId : null) ||
+          {};
+
+        const staffUser =
+          (typeof staffObj.user === 'object' ? staffObj.user : null) ||
+          (typeof staffObj.userId === 'object' ? staffObj.userId : null) ||
+          {};
+
+        const staffId =
+          (typeof row.staffId === 'string' ? row.staffId : null) ||
+          staffObj._id ||
+          staffObj.id ||
+          row._id ||
+          row.id;
+
+        const isMongoId = (val) => typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val);
+
+        const rawStaffName =
+          row.name ||
+          row.staffName ||
+          staffObj.name ||
+          staffUser.name ||
+          (typeof row.userId === 'object' ? row.userId?.name : null) ||
+          (typeof row.user === 'object' ? row.user?.name : null);
+
+        const staffName =
+          rawStaffName && !isMongoId(rawStaffName)
+            ? rawStaffName
+            : staffObj.employeeCode || row.employeeCode || staffId;
+
+        const staffEmail =
+          staffObj.email ||
+          staffUser.email ||
+          row.email ||
+          '';
+
+        const label = staffEmail ? `${staffName} (${staffEmail})` : staffName;
+
         setSelectedStaff({
-          value: row._id || row.id,
-          label: row.name || row.employeeCode || row.id,
+          value: staffId,
+          label,
+          name: staffName,
+          email: staffEmail,
           raw: row,
         });
+
+        const scheduledTime = row.upcoming?.scheduledAt || row.nextDueAt || row.scheduledAt;
+        if (scheduledTime) {
+          const parsed = dayjs(scheduledTime);
+          if (parsed.isValid()) {
+            setScheduledDateTime(parsed);
+          } else {
+            setScheduledDateTime(dayjs());
+          }
+        } else {
+          setScheduledDateTime(dayjs());
+        }
+
+        if (row.upcoming?.locationLabel || row.locationLabel) {
+          setLocationLabel(row.upcoming?.locationLabel || row.locationLabel);
+        } else {
+          setLocationLabel('Office');
+        }
       } else {
         setSelectedStaff(null);
+        setScheduledDateTime(dayjs());
+        setLocationLabel('Office');
       }
-      setScheduledDateTime(dayjs());
-      setLocationLabel('Office');
       setError('');
     }
   }, [open, row]);
@@ -94,9 +168,21 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
         locationLabel: locationLabel.trim() || 'Office',
       };
 
-      const res = await bookSupervision(payload).unwrap();
+      let res;
+      if (isReschedule) {
+        res = await rescheduleSupervision({
+          organizationId,
+          supervisionId: existingSupervisionId,
+          ...payload,
+        }).unwrap();
+      } else {
+        res = await bookSupervision(payload).unwrap();
+      }
 
-      const message = res?.message || res?.msg || 'Supervision saved';
+      const message =
+        res?.message ||
+        res?.msg ||
+        (isReschedule ? 'Supervision rescheduled successfully' : 'Supervision booked successfully');
       toast.success(message);
 
       onSave?.({
@@ -110,9 +196,9 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
 
       onClose();
     } catch (err) {
-      console.error('Book supervision error:', err);
+      console.error('Supervision save error:', err);
       const errorMessage =
-        err?.data?.message || err?.data?.msg || err?.message || 'Failed to book supervision session';
+        err?.data?.message || err?.data?.msg || err?.message || 'Failed to save supervision session';
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -120,16 +206,11 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <Stack spacing={0.5}>
-          <Typography variant="subtitle1">Book session</Typography>
-          {selectedStaff && (
-            <Typography variant="caption" color="text.secondary">
-              {selectedStaff.label}
-            </Typography>
-          )}
-        </Stack>
-        <IconButton onClick={onClose} size="small" disabled={isBooking}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="subtitle1">
+          {isReschedule ? 'Reschedule supervision' : 'Book supervision'}
+        </Typography>
+        <IconButton onClick={onClose} size="small" disabled={isSubmitting}>
           <Iconify icon="mingcute:close-line" />
         </IconButton>
       </DialogTitle>
@@ -143,12 +224,30 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
             label="Staff member"
             placeholder="Search staff..."
             value={selectedStaff}
-            onChange={(event, newValue) => setSelectedStaff(newValue)}
+            onChange={(newValue) => setSelectedStaff(newValue)}
             useQuery={useGetStaffProfilesQuery}
             queryArgs={queryArgs}
             mapOption={mapStaffOption}
             enabled={open}
-            disabled={isBooking}
+            disabled={isSubmitting}
+            renderOption={(props, option) => (
+              <li {...props} key={option.value}>
+                {option.email ? (
+                  <Stack sx={{ typography: 'body2' }}>
+                    <Typography variant="body2" sx={{ textTransform: 'capitalize', fontWeight: 500 }}>
+                      {option.name || option.label}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'none' }}>
+                      {option.email}
+                    </Typography>
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" sx={{ textTransform: 'none' }}>
+                    {option.label}
+                  </Typography>
+                )}
+              </li>
+            )}
           />
 
           {/* Scheduled Date and Time */}
@@ -156,7 +255,7 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
             label="Scheduled date & time"
             value={scheduledDateTime}
             minDate={today}
-            disabled={isBooking}
+            disabled={isSubmitting}
             onChange={(newVal) => setScheduledDateTime(newVal)}
             slotProps={{
               textField: {
@@ -171,7 +270,7 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
             fullWidth
             label="Location"
             value={locationLabel}
-            disabled={isBooking}
+            disabled={isSubmitting}
             onChange={(e) => setLocationLabel(e.target.value)}
             placeholder="Office"
           />
@@ -179,16 +278,16 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
       </DialogContent>
 
       <DialogActions>
-        <Button color="inherit" onClick={onClose} disabled={isBooking}>
+        <Button color="inherit" onClick={onClose} disabled={isSubmitting}>
           Cancel
         </Button>
         <LoadingButton
           variant="contained"
           color="primary"
           onClick={handleSave}
-          loading={isBooking}
+          loading={isSubmitting}
         >
-          Book session
+          {isReschedule ? 'Reschedule' : 'Book supervision'}
         </LoadingButton>
       </DialogActions>
     </Dialog>

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 import { CONFIG } from 'src/config-global';
 import { DashboardLayout } from 'src/layouts/dashboard';
@@ -93,8 +93,15 @@ const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/docum
 const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
 const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/active-routes/documents/acknowledgements'));
 
-//supervision
+//supervision, appraisals, competencies, training
 const SupervisionPage = lazy(() => import('src/pages/site-manager/supervision'));
+const SupervisionDetailPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/detail'));
+const SupervisionSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/sign-off'));
+const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals'));
+const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
+const AppraisalSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/sign-off'));
+const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance'));
+const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 
 //reports
 
@@ -129,6 +136,13 @@ const CommunityWallPage = lazy(() => import('src/pages/dashboard/active-routes/f
 const NewslettersPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/newsletters'));
 const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
 const FamilyGroupsPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/family-groups'));
+const FamilyInvitationListPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/list'));
+const FamilyInvitationDetailPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/detail'));
+const FamilyInvitationCreatePage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/new'));
+const FamilyInvitationEditPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/edit'));
+const FamilyMemberListPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/list'));
+const FamilyMemberDetailPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/detail'));
+const FamilyMemberEditPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/members/edit'));
 
 // ----------------------------------------------------------------------
 
@@ -144,7 +158,6 @@ const layoutContent = (
 export const siteManagerDashboardRoutes = [
   {
     path: 'site-manager',
-    // element: CONFIG.auth.skip ? <>{layoutContent}</> : <>{layoutContent}</>,
     element: CONFIG.auth.skip ? <>{layoutContent}</> : <ProtectedRoute requiredPermission={[2]}>{layoutContent}</ProtectedRoute>,
     children: [
       { element: <IndexPage />, index: true },
@@ -221,7 +234,26 @@ export const siteManagerDashboardRoutes = [
       { path: "documents/:id", element: <DocumentDetailPage /> },
       { path: "documents/:id/acknowledgements", element: <DocumentAcknowledgementsPage /> },
       {
-        path: "supervision", element: <SupervisionPage />
+        path: "supervision",
+        children: [
+          { index: true, element: <SupervisionPage /> },
+          { path: ":id", element: <SupervisionDetailPage /> },
+          { path: ":id/sign-off", element: <SupervisionSignOffPage /> },
+        ],
+      },
+      {
+        path: "appraisals",
+        children: [
+          { index: true, element: <AppraisalPage /> },
+          { path: ":id", element: <AppraisalDetailPage /> },
+          { path: ":id/sign-off", element: <AppraisalSignOffPage /> },
+        ],
+      },
+      {
+        path: "team-compliance", element: <TeamCompliancePage />
+      },
+      {
+        path: "training", element: <TrainingPage />
       },
       {
         path: "configuration", element: <ConfigurationPage />
@@ -335,6 +367,29 @@ export const siteManagerDashboardRoutes = [
           { path: 'newsletters', element: <NewslettersPage /> },
           { path: 'gazettes', element: <GazettesPage /> },
           { path: 'family-groups', element: <FamilyGroupsPage /> },
+          {
+            path: 'memberships',
+            children: [
+              { element: <Navigate to="invitations" replace />, index: true },
+              {
+                path: 'invitations',
+                children: [
+                  { element: <FamilyInvitationListPage />, index: true },
+                  { path: 'new', element: <FamilyInvitationCreatePage /> },
+                  { path: ':id', element: <FamilyInvitationDetailPage /> },
+                  { path: ':id/edit', element: <FamilyInvitationEditPage /> },
+                ],
+              },
+              {
+                path: 'members',
+                children: [
+                  { element: <FamilyMemberListPage />, index: true },
+                  { path: ':id', element: <FamilyMemberDetailPage /> },
+                  { path: ':id/edit', element: <FamilyMemberEditPage /> },
+                ],
+              },
+            ],
+          },
         ],
       },
     ],

@@ -1,93 +1,83 @@
-import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
-import Collapse from '@mui/material/Collapse';
-import IconButton from '@mui/material/IconButton';
+import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
-import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData } from 'src/components/table';
+import { LoadingScreen } from 'src/components/loading-screen';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { useParams, useRouter } from 'src/routes/hooks';
+import { useParams, useRouter, usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
-import { fDate } from 'src/utils/format-time';
+import { fDateTime } from 'src/utils/format-time';
+import { useGetSupervisionByIdQuery } from 'src/store/Reducer/supervision-api';
 
 import LogSessionDialog from '../log-session-dialog';
-import { _teamSupervision, _teamSupervisionSessions, logTeamSupervisionSession, signOffTeamActionPoint } from '../mocks/data';
-import { STATUS_LABEL_COLOR, STATUS_LABEL_TEXT, statusText } from '../supervision-table-row';
-
-const TABLE_HEAD = [
-  { id: 'expand', label: '', width: 48 },
-  { id: 'date', label: 'Date', width: 140 },
-  { id: 'topics', label: 'Topics discussed', minWidth: 220 },
-  { id: 'actionPoints', label: 'Action points', minWidth: 160 },
-];
+import { CompleteSupervisionDialog } from '../complete-supervision-dialog';
+import { SessionSignOffDialog } from '../../common/session-sign-off-dialog';
+import { STATUS_LABEL_COLOR, STATUS_LABEL_TEXT } from '../supervision-table-row';
 
 // ----------------------------------------------------------------------
 
 export default function SupervisionDetailView() {
   const { id } = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { organizationId } = useCurrentOrganization();
+
   const logModal = useBoolean();
+  const completeModal = useBoolean();
+  const signOffModal = useBoolean();
 
-  // Bumped after saving a session or signing off an action point — the mock
-  // helpers mutate their arrays in place rather than replacing them.
-  const [reloadKey, setReloadKey] = useState(0);
-
-  const row = useMemo(
-    () => _teamSupervision.find((item) => item.id === id),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id, reloadKey]
+  const {
+    data: supervisionData,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetSupervisionByIdQuery(
+    { organizationId, supervisionId: id },
+    { skip: !organizationId || !id }
   );
 
-  const sessions = useMemo(
-    () =>
-      _teamSupervisionSessions
-        .filter((session) => session.staffId === id)
-        .sort((a, b) => dayjs(b.sessionDate).valueOf() - dayjs(a.sessionDate).valueOf()),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [id, reloadKey]
-  );
+  const supervision = supervisionData?.data || supervisionData;
 
-  const handleSaveSession = (session) => {
-    logTeamSupervisionSession(session.staffId, session);
-
-    if (row) {
-      row.lastSession = dayjs(session.dateHeld).format('YYYY-MM-DD');
-      row.nextDue = dayjs(session.nextDue).format('D MMM');
-      row.status = 'booked';
-      row.overdueDays = undefined;
+  const dashboardRoutes = useMemo(() => {
+    if (pathname.startsWith('/site-manager')) {
+      return {
+        dashboardName: 'Dashboard',
+        dashboardHref: paths.siteManager.root,
+        supervisionHref: paths.siteManager.supervision,
+        signOffHref: paths.siteManager.supervisionSignOff(id),
+      };
     }
+    if (pathname.startsWith('/owner-dashboard')) {
+      return {
+        dashboardName: 'Dashboard',
+        dashboardHref: paths.owner.root,
+        supervisionHref: paths.owner.supervision,
+        signOffHref: paths.owner.supervisionSignOff(id),
+      };
+    }
+    return {
+      dashboardName: 'Dashboard',
+      dashboardHref: paths.lineManager.root,
+      supervisionHref: paths.lineManager.supervision,
+      signOffHref: paths.lineManager.supervisionSignOff(id),
+    };
+  }, [pathname, id]);
 
-    setReloadKey((key) => key + 1);
-    logModal.onFalse();
-  };
-
-  const handleSignOff = (sessionId, actionPointId) => {
-    signOffTeamActionPoint(sessionId, actionPointId);
-    setReloadKey((key) => key + 1);
-  };
-
-  if (!row) {
+  if (isLoading) {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
@@ -95,10 +85,47 @@ export default function SupervisionDetailView() {
             Back
           </Button>
         </Box>
-        <EmptyContent filled title="Staff member not found" sx={{ py: 10 }} />
+        <LoadingScreen sx={{ py: 10 }} />
       </DashboardContent>
     );
   }
+
+  if (isError || !supervision) {
+    return (
+      <DashboardContent>
+        <Box sx={{ mb: 2 }}>
+          <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+            Back
+          </Button>
+        </Box>
+        <EmptyContent
+          filled
+          title="Supervision session not found"
+          description="Could not load the requested supervision session details."
+          action={
+            <Button variant="contained" onClick={() => router.push(dashboardRoutes.supervisionHref)}>
+              Return to Supervisions
+            </Button>
+          }
+          sx={{ py: 10 }}
+        />
+      </DashboardContent>
+    );
+  }
+
+  const staff = supervision.staff || supervision.staffProfile || supervision.staffUser || {};
+  const staffName = staff.name || supervision.staffName || supervision.name || '—';
+  const staffEmail = staff.email || supervision.email || '—';
+  const staffCode = staff.employeeCode || supervision.employeeCode || '';
+  const staffAvatar = staff.image || supervision.image || '';
+  const branchName = supervision.branch?.name || staff.branch?.name || '';
+  const conductedBy = supervision.conductedBy || '—';
+  const status = supervision.status || 'scheduled';
+  const isScheduled = status === 'scheduled';
+  const isCompleted = status === 'completed';
+  const isSignedOff = Boolean(supervision.signedOff || supervision.signature);
+  const topics = supervision.topics || [];
+  const actionPoints = supervision.actionPoints || [];
 
   return (
     <DashboardContent>
@@ -108,160 +135,384 @@ export default function SupervisionDetailView() {
         </Button>
       </Box>
 
+      {/* Top Breadcrumbs & Actions */}
       <CustomBreadcrumbs
         heading="Supervision details"
         links={[
-          { name: 'Dashboard', href: paths.lineManager.root },
-          { name: 'Supervision', href: paths.lineManager.supervision },
-          { name: row.name },
+          { name: dashboardRoutes.dashboardName, href: dashboardRoutes.dashboardHref },
+          { name: 'Supervision', href: dashboardRoutes.supervisionHref },
+          { name: staffName },
         ]}
         action={
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<Iconify icon="solar:calendar-add-bold" />}
-            onClick={logModal.onTrue}
-          >
-            Book session
-          </Button>
+          <Stack direction="row" spacing={1}>
+            {isScheduled && !pathname.startsWith('/line-manager') && (
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<Iconify icon="solar:check-circle-bold" />}
+                onClick={completeModal.onTrue}
+              >
+                Complete session
+              </Button>
+            )}
+            <Button
+              variant={isScheduled ? 'outlined' : 'contained'}
+              color="primary"
+              startIcon={<Iconify icon={isScheduled ? 'solar:calendar-mark-bold' : 'solar:calendar-add-bold'} />}
+              onClick={logModal.onTrue}
+            >
+              {isScheduled ? 'Reschedule supervision' : 'Book supervision'}
+            </Button>
+
+            {isCompleted && (
+              <Button
+                variant={isSignedOff ? 'outlined' : 'contained'}
+                color="primary"
+                startIcon={<Iconify icon={isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold'} />}
+                onClick={() => router.push(dashboardRoutes.signOffHref)}
+              >
+                {isSignedOff ? 'View signed document' : 'Sign off session'}
+              </Button>
+            )}
+
+            {!isCompleted && (
+              <Button
+                variant={isScheduled ? 'outlined' : 'contained'}
+                color="primary"
+                startIcon={<Iconify icon={isScheduled ? 'solar:calendar-mark-bold' : 'solar:calendar-add-bold'} />}
+                onClick={logModal.onTrue}
+              >
+                {isScheduled ? 'Reschedule supervision' : 'Book supervision'}
+              </Button>
+            )}
+          </Stack>
         }
         sx={{ mb: 3 }}
       />
 
+      {/* Staff & Session Header Card */}
       <Card sx={{ p: 3, mb: 3 }}>
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={2.5}
+          alignItems={{ xs: 'flex-start', md: 'center' }}
           justifyContent="space-between"
         >
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Avatar alt={row.name} src={row.avatar} sx={{ width: 56, height: 56 }}>
-              {row.name?.charAt(0)}
+          <Stack direction="row" spacing={2.5} alignItems="center">
+            <Avatar alt={staffName} src={staffAvatar} sx={{ width: 64, height: 64 }}>
+              {staffName?.charAt(0)?.toUpperCase()}
             </Avatar>
-            <Stack>
-              <Typography variant="subtitle1">{row.name}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {row.role}
+            <Stack spacing={0.5}>
+              <Typography variant="h6" fontWeight={700} sx={{ textTransform: 'capitalize' }}>
+                {staffName}
               </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {/* Email preserved without capitalization */}
+                {staffEmail}
+              </Typography>
+              {(staffCode || branchName) && (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {staffCode && (
+                    <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'capitalize' }}>
+                      Code: {staffCode}
+                    </Typography>
+                  )}
+                  {staffCode && branchName && (
+                    <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                      •
+                    </Typography>
+                  )}
+                  {branchName && (
+                    <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'capitalize' }}>
+                      Branch: {branchName}
+                    </Typography>
+                  )}
+                </Stack>
+              )}
             </Stack>
           </Stack>
 
-          <Stack direction={{ xs: 'row', sm: 'column' }} spacing={{ xs: 2, sm: 0.5 }} alignItems={{ xs: 'center', sm: 'flex-end' }}>
-            <Label color={STATUS_LABEL_COLOR[row.status]}>{STATUS_LABEL_TEXT[row.status]}</Label>
-            <Typography variant="body2" color={row.status === 'overdue' ? 'error.main' : 'text.secondary'}>
-              {statusText(row)}
-            </Typography>
+          <Stack
+            direction={{ xs: 'row', md: 'column' }}
+            spacing={{ xs: 1.5, md: 0.75 }}
+            alignItems={{ xs: 'center', md: 'flex-end' }}
+          >
+            <Label
+              variant="soft"
+              color={STATUS_LABEL_COLOR[status] || 'default'}
+              sx={{ px: 1.5, py: 0.75, textTransform: 'capitalize' }}
+            >
+              {STATUS_LABEL_TEXT[status] || status}
+            </Label>
+            {supervision.scheduledAt && (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Scheduled:{' '}
+                <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                  {fDateTime(supervision.scheduledAt)}
+                </Box>
+              </Typography>
+            )}
+            {supervision.completedAt && (
+              <Typography variant="caption" sx={{ color: 'success.main' }}>
+                Completed:{' '}
+                <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                  {fDateTime(supervision.completedAt)}
+                </Box>
+              </Typography>
+            )}
           </Stack>
         </Stack>
       </Card>
 
-      <Typography variant="h6" sx={{ mb: 1.5 }}>
-        Session history
-      </Typography>
-      <Card>
-        <TableContainer sx={{ overflow: 'unset' }}>
-          <Scrollbar>
-            <Table>
-              <TableHeadCustom headLabel={TABLE_HEAD} />
+      {/* Summary Tiles Grid */}
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 2.5, bgcolor: 'background.neutral' }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
+              Scheduled At
+            </Typography>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 0.5, textTransform: 'capitalize' }}>
+              {supervision.scheduledAt ? fDateTime(supervision.scheduledAt) : '—'}
+            </Typography>
+          </Card>
+        </Grid>
 
-              <TableBody key={reloadKey}>
-                {sessions.map((session) => (
-                  <SessionRow key={session._id} session={session} onSignOff={handleSignOff} />
-                ))}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 2.5, bgcolor: 'background.neutral' }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
+              Conducted By
+            </Typography>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 0.5, textTransform: 'capitalize' }}>
+              {conductedBy}
+            </Typography>
+          </Card>
+        </Grid>
 
-                <TableNoData notFound={!sessions.length} title="No sessions logged yet" />
-              </TableBody>
-            </Table>
-          </Scrollbar>
-        </TableContainer>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 2.5, bgcolor: 'background.neutral' }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
+              Location
+            </Typography>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 0.5, textTransform: 'capitalize' }}>
+              {supervision.locationLabel || 'Office'}
+            </Typography>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ p: 2.5, bgcolor: 'background.neutral' }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
+              Created At
+            </Typography>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 0.5, textTransform: 'capitalize' }}>
+              {supervision.createdAt ? fDateTime(supervision.createdAt) : '—'}
+            </Typography>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Topics Discussed */}
+      <Card sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2, textTransform: 'capitalize' }}>
+          Topics Discussed
+        </Typography>
+        {topics.length > 0 ? (
+          <Stack direction="row" flexWrap="wrap" gap={1}>
+            {topics.map((topic, index) => (
+              <Chip
+                key={index}
+                label={topic}
+                color="info"
+                variant="soft"
+                sx={{ textTransform: 'capitalize' }}
+              />
+            ))}
+          </Stack>
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+            No topics listed
+          </Typography>
+        )}
       </Card>
 
+      {/* Meeting Notes */}
+      <Card sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" sx={{ mb: 1.5, textTransform: 'capitalize' }}>
+          Meeting Notes
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            color: supervision.notes ? 'text.primary' : 'text.secondary',
+            whiteSpace: 'pre-line',
+            lineHeight: 1.7,
+            textTransform: 'capitalize',
+          }}
+        >
+          {supervision.notes || 'No meeting notes provided.'}
+        </Typography>
+      </Card>
+
+      {/* Action Points */}
+      <Card sx={{ p: 3 }}>
+        <Typography variant="h6" sx={{ mb: 2, textTransform: 'capitalize' }}>
+          Action Points ({actionPoints.length})
+        </Typography>
+
+        {actionPoints.length > 0 ? (
+          <Stack spacing={2} divider={<Divider />}>
+            {actionPoints.map((point, index) => {
+              const text = typeof point === 'string' ? point : point.text;
+              const signedOff = typeof point === 'object' && point.signedOffAt;
+              const signedOffBy = typeof point === 'object' ? point.signedOffBy : '';
+
+              return (
+                <Stack key={point._id || index} direction="row" spacing={1.5} alignItems="flex-start">
+                  <Iconify
+                    icon={signedOff ? 'solar:check-circle-bold' : 'solar:record-circle-bold'}
+                    sx={{
+                      width: 22,
+                      height: 22,
+                      color: signedOff ? 'success.main' : 'warning.main',
+                      mt: 0.25,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Stack spacing={0.5}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        textTransform: 'capitalize',
+                        color: signedOff ? 'text.disabled' : 'text.primary',
+                        textDecoration: signedOff ? 'line-through' : 'none',
+                      }}
+                    >
+                      {text}
+                    </Typography>
+                    {signedOff && (
+                      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+                        Signed off on {fDateTime(point.signedOffAt)}
+                        {signedOffBy ? ` by ${signedOffBy}` : ''}
+                      </Typography>
+                    )}
+                  </Stack>
+                </Stack>
+              );
+            })}
+          </Stack>
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+            No action points recorded for this session.
+          </Typography>
+        )}
+      </Card>
+
+      {/* Formal Signed Off Document Card */}
+      {(supervision.signature || supervision.signedOff) && (
+        <Card sx={{ p: 3, mt: 3, border: (theme) => `1px solid ${theme.palette.success.light}` }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1} sx={{ mb: 2 }}>
+            <Box>
+              <Typography variant="h6">Formal Electronic Sign-Off</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Document recorded with valid electronic verification
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Iconify icon="solar:eye-bold" />}
+              onClick={() => router.push(dashboardRoutes.signOffHref)}
+            >
+              View Document
+            </Button>
+          </Stack>
+
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 1.5,
+              bgcolor: 'background.neutral',
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            <Box>
+              <Typography variant="subtitle2">
+                Signed by: {supervision.signedOffBy || 'Manager'}
+              </Typography>
+              {supervision.signerRole && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  Role: {supervision.signerRole}
+                </Typography>
+              )}
+              {supervision.signedOffAt && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  Date: {fDateTime(supervision.signedOffAt)}
+                </Typography>
+              )}
+            </Box>
+
+            {supervision.signature && (
+              <Box
+                component="img"
+                src={supervision.signature}
+                alt="Electronic Signature"
+                sx={{
+                  maxHeight: 70,
+                  maxWidth: 200,
+                  objectFit: 'contain',
+                  bgcolor: '#ffffff',
+                  p: 0.5,
+                  borderRadius: 1,
+                  border: '1px solid #e2e8f0',
+                }}
+              />
+            )}
+          </Box>
+        </Card>
+      )}
+
+      {/* Reschedule / Book Dialog */}
       <LogSessionDialog
         open={logModal.value}
-        row={row}
+        row={supervision}
         organizationId={organizationId}
         onClose={logModal.onFalse}
-        onSave={handleSaveSession}
+        onSave={() => {
+          logModal.onFalse();
+          refetch();
+        }}
+      />
+
+      {/* Complete Dialog */}
+      <CompleteSupervisionDialog
+        open={completeModal.value}
+        row={supervision}
+        organizationId={organizationId}
+        onClose={completeModal.onFalse}
+        onSave={() => {
+          completeModal.onFalse();
+          refetch();
+        }}
+      />
+
+      {/* Formal Sign-Off Dialog */}
+      <SessionSignOffDialog
+        open={signOffModal.value}
+        onClose={signOffModal.onFalse}
+        session={supervision}
+        organizationId={organizationId}
+        type="supervision"
+        onSave={() => {
+          refetch();
+          signOffModal.onFalse();
+        }}
+        readOnly={isSignedOff}
       />
     </DashboardContent>
-  );
-}
-
-// ----------------------------------------------------------------------
-
-function SessionRow({ session, onSignOff }) {
-  const expanded = useBoolean();
-  const actionPoints = session.actionPoints || [];
-  const signedOffCount = actionPoints.filter((point) => point.signedOff).length;
-  const hasExpandableContent = !!actionPoints.length || !!session.notes;
-
-  return (
-    <>
-      <TableRow hover>
-        <TableCell>
-          {hasExpandableContent && (
-            <IconButton size="small" onClick={expanded.onToggle}>
-              <Iconify
-                icon="eva:arrow-ios-downward-fill"
-                sx={{ transform: expanded.value ? 'rotate(180deg)' : 'none' }}
-              />
-            </IconButton>
-          )}
-        </TableCell>
-        <TableCell>{fDate(session.sessionDate)}</TableCell>
-        <TableCell>
-          {session.topics?.length ? (
-            <Stack direction="row" flexWrap="wrap" gap={0.75}>
-              {session.topics.map((topic) => (
-                <Chip key={topic} label={topic} size="small" variant="soft" />
-              ))}
-            </Stack>
-          ) : (
-            '—'
-          )}
-        </TableCell>
-        <TableCell>{actionPoints.length ? `${signedOffCount}/${actionPoints.length} signed off` : '—'}</TableCell>
-      </TableRow>
-
-      {hasExpandableContent && (
-        <TableRow>
-          <TableCell colSpan={TABLE_HEAD.length} sx={{ py: 0, borderBottom: expanded.value ? undefined : 'none' }}>
-            <Collapse in={expanded.value} unmountOnExit>
-              <Stack spacing={1.5} sx={{ py: 2, pl: 5, pr: 2 }}>
-                {session.notes && (
-                  <Typography variant="body2" color="text.secondary">
-                    {session.notes}
-                  </Typography>
-                )}
-
-                {!!actionPoints.length && (
-                  <Stack spacing={0.5}>
-                    {actionPoints.map((point) => (
-                      <Stack key={point.id} direction="row" alignItems="center" spacing={1}>
-                        <Checkbox
-                          size="small"
-                          checked={point.signedOff}
-                          onChange={() => onSignOff(session._id, point.id)}
-                        />
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: point.signedOff ? 'text.disabled' : 'text.primary',
-                            textDecoration: point.signedOff ? 'line-through' : 'none',
-                          }}
-                        >
-                          {point.text}
-                        </Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-                )}
-              </Stack>
-            </Collapse>
-          </TableCell>
-        </TableRow>
-      )}
-    </>
   );
 }
