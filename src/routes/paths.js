@@ -313,6 +313,7 @@ export const paths = {
     },
     documents: {
       root: `${ROOTS.SITE_MANAGER}/documents`,
+      categories: `${ROOTS.SITE_MANAGER}/documents/categories`,
       detail: (id) => `${ROOTS.SITE_MANAGER}/documents/${id}`,
       acknowledgements: (id) => `${ROOTS.SITE_MANAGER}/documents/${id}/acknowledgements`,
     },
@@ -454,7 +455,9 @@ export const paths = {
     residentsDetail: (id) => `${ROOTS.LINE_MANAGER}/residents/${id}`,
     documents: {
       root: `${ROOTS.LINE_MANAGER}/documents`,
+      categories: `${ROOTS.LINE_MANAGER}/documents/categories`,
       detail: (id) => `${ROOTS.LINE_MANAGER}/documents/${id}`,
+      acknowledgements: (id) => `${ROOTS.LINE_MANAGER}/documents/${id}/acknowledgements`,
     },
     tempyConnection: `${ROOTS.LINE_MANAGER}/tempy-connection`,
     familyEngagement: {
@@ -589,7 +592,9 @@ export const paths = {
     },
     documents: {
       root: `${ROOTS.OWNER_DASHBOARD}/documents`,
+      categories: `${ROOTS.OWNER_DASHBOARD}/documents/categories`,
       detail: (id) => `${ROOTS.OWNER_DASHBOARD}/documents/${id}`,
+      acknowledgements: (id) => `${ROOTS.OWNER_DASHBOARD}/documents/${id}/acknowledgements`,
     },
     supervision: `${ROOTS.OWNER_DASHBOARD}/supervision`,
     supervisionDetail: (id) => `${ROOTS.OWNER_DASHBOARD}/supervision/${id}`,

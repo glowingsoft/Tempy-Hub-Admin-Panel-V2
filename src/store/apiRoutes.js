@@ -136,4 +136,27 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/sign-off`,
     ORGANIZATION_APPRAISAL_ACTION_POINT_SIGN_OFF: (organizationId, appraisalId, appraisalActionPointId) =>
         `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/${appraisalActionPointId}/sign-off`,
+
+    // Documents
+    ORGANIZATION_DOCUMENTS: (organizationId) =>
+        `/admin/organizations/${organizationId}/documents`,
+    DOCUMENT_BY_ID: (documentId) =>
+        `/admin/documents/${documentId}`,
+    UPDATE_DOCUMENT: (documentId) =>
+        `/admin/documents/${documentId}`,
+    REPLACE_DOCUMENT_VERSION: (documentId) =>
+        `/admin/documents/${documentId}/versions`,
+    DELETE_DOCUMENT: (documentId) =>
+        `/admin/documents/${documentId}`,
+
+    // Document Categories
+    ORGANIZATION_DOCUMENT_CATEGORIES: (organizationId) =>
+        `/admin/organizations/${organizationId}/document-categories`,
+    ORGANIZATION_DOCUMENT_CATEGORY_BY_ID: (organizationId, categoryId) =>
+        `/admin/organizations/${organizationId}/document-categories/${categoryId}`,
+
+    // Kiosks
+    KIOSKS: '/admin/kiosks',
+    KIOSK_BY_ID: (kioskId) => `/admin/kiosks/${kioskId}`,
+    KIOSK_TOGGLE_LOCK: (kioskId) => `/admin/kiosks/${kioskId}/toggle-lock`,
 };

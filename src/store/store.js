@@ -24,6 +24,9 @@ import { floorPlansApi } from './Reducer/floor-plans-api';
 import { uploadApi } from './Reducer/upload-api';
 import { supervisionApi } from './Reducer/supervision-api';
 import { appraisalsApi } from './Reducer/appraisals-api';
+import { documentsApi } from './Reducer/documents-api';
+import { documentCategoriesApi } from './Reducer/document-categories-api';
+import { kiosksApi } from './Reducer/kiosks-api';
 
 // Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
@@ -85,6 +88,9 @@ const apiSlices = [
   uploadApi,
   supervisionApi,
   appraisalsApi,
+  documentsApi,
+  documentCategoriesApi,
+  kiosksApi,
 ];
 
 const clearApiCachesOnLogout = ({ dispatch }) => (next) => (action) => {
@@ -125,6 +131,9 @@ export const store = configureStore({
     [uploadApi.reducerPath]: uploadApi.reducer,
     [supervisionApi.reducerPath]: supervisionApi.reducer,
     [appraisalsApi.reducerPath]: appraisalsApi.reducer,
+    [documentsApi.reducerPath]: documentsApi.reducer,
+    [documentCategoriesApi.reducerPath]: documentCategoriesApi.reducer,
+    [kiosksApi.reducerPath]: kiosksApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -156,6 +165,9 @@ export const store = configureStore({
       uploadApi.middleware,
       supervisionApi.middleware,
       appraisalsApi.middleware,
+      documentsApi.middleware,
+      documentCategoriesApi.middleware,
+      kiosksApi.middleware,
       clearApiCachesOnLogout,
     ),
 });

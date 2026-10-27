@@ -2,12 +2,12 @@
 // Document detail page supporting inline multi-page PDF viewing, metadata,
 // and replacement. Signature pad is NOT shown to line manager, site manager,
 // or owner — signing is reserved for the designated staff member.
-
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
@@ -15,6 +15,8 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
+
+import { SignaturePad } from 'src/sections/staff/documents/signature-pad';
 
 import { useParams, useRouter, usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
@@ -26,11 +28,20 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { convertPdfToImage } from 'src/utils/pdf-to-image';
 
 import { AcknowledgementTrackerCard } from './acknowledgement-tracker-card';
 import { getFolderLabel, getDocumentById } from '../mocks/data';
 import UploadDocumentModal from '../upload-document-modal';
+import ReplaceDocumentModal from '../replace-document-modal';
+import {
+  useGetDocumentByIdQuery,
+  useDeleteDocumentMutation,
+} from 'src/store/Reducer/documents-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { ConfirmDialog } from 'src/components/custom-dialog';
+import { toast } from 'src/components/snackbar';
+import LoadingButton from '@mui/lab/LoadingButton';
+import { fDateTime } from 'src/utils/format-time';
 
 // ----------------------------------------------------------------------
 
@@ -53,62 +64,10 @@ function isImage(fileType) {
 }
 
 // ----------------------------------------------------------------------
-// Document viewer — renders ALL pages of PDF via PDF.js canvas with iframe fallback
+// Document viewer — renders PDF directly via browser viewer, and images directly
 // ----------------------------------------------------------------------
 
 function DocumentViewer({ fileUrl, fileType, name }) {
-  const [pages, setPages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-
-  const isPdf =
-    (fileType || '').toLowerCase() === 'pdf' ||
-    (typeof fileUrl === 'string' &&
-      (fileUrl.toLowerCase().includes('.pdf') || fileUrl.startsWith('blob:')));
-
-  useEffect(() => {
-    let isMounted = true;
-    if (!fileUrl) return;
-
-    if (isImage(fileType)) {
-      setPages([{ pageNumber: 1, imageUrl: fileUrl, dataUrl: fileUrl }]);
-      setLoading(false);
-      return;
-    }
-
-    if (isPdf) {
-      setLoading(true);
-      setError(false);
-      const targetUrl =
-        typeof fileUrl === 'string' && !fileUrl.startsWith('blob:')
-          ? encodeURI(fileUrl)
-          : fileUrl;
-
-      convertPdfToImage(targetUrl, { scale: 1.8 })
-        .then((res) => {
-          if (isMounted) {
-            if (res.pages && res.pages.length > 0) {
-              setPages(res.pages);
-            } else if (res.imageUrl || res.dataUrl) {
-              setPages([{ pageNumber: 1, imageUrl: res.imageUrl || res.dataUrl }]);
-            }
-            setLoading(false);
-          }
-        })
-        .catch((err) => {
-          console.warn('PDF to image conversion fallback to iframe:', err);
-          if (isMounted) {
-            setError(true);
-            setLoading(false);
-          }
-        });
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [fileUrl, fileType, isPdf]);
-
   if (!fileUrl) {
     return (
       <EmptyContent
@@ -119,28 +78,9 @@ function DocumentViewer({ fileUrl, fileType, name }) {
     );
   }
 
-  if (loading) {
-    return (
-      <Stack
-        alignItems="center"
-        justifyContent="center"
-        sx={{
-          py: 12,
-          bgcolor: 'background.neutral',
-          borderRadius: 1,
-          gap: 1.5,
-        }}
-      >
-        <CircularProgress size={36} />
-        <Typography variant="body2" color="text.secondary">
-          Rendering document preview…
-        </Typography>
-      </Stack>
-    );
-  }
+  const safeUrl = typeof fileUrl === 'string' ? encodeURI(fileUrl) : fileUrl;
 
-  // If rendered as image pages (multi-page PDF or single image)
-  if (pages.length > 0 && !error) {
+  if (isImage(fileType)) {
     return (
       <Box
         sx={{
@@ -149,79 +89,48 @@ function DocumentViewer({ fileUrl, fileType, name }) {
           borderRadius: 1.5,
           p: { xs: 1, sm: 2 },
           border: (theme) => `1px solid ${theme.palette.divider}`,
-          maxHeight: { xs: 580, md: 800 },
-          overflowY: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
         }}
       >
-        <Stack spacing={2} sx={{ width: 1, alignItems: 'center' }}>
-          {pages.map((page, index) => (
-            <Box
-              key={page.pageNumber || index}
-              sx={{
-                width: 1,
-                bgcolor: 'common.white',
-                borderRadius: 1,
-                boxShadow: (theme) => theme.customShadows?.z4 || '0 2px 8px rgba(0,0,0,0.08)',
-                border: (theme) => `1px solid ${theme.palette.divider}`,
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-              }}
-            >
-              {pages.length > 1 && (
-                <Box
-                  sx={{
-                    width: 1,
-                    px: 2,
-                    py: 0.75,
-                    bgcolor: (theme) => alpha(theme.palette.grey[500], 0.08),
-                    borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                    Page {page.pageNumber || index + 1} of {pages.length}
-                  </Typography>
-                </Box>
-              )}
-
-              <Box
-                component="img"
-                src={page.imageUrl || page.dataUrl}
-                alt={`${name} - Page ${page.pageNumber || index + 1}`}
-                sx={{
-                  width: 1,
-                  height: 'auto',
-                  display: 'block',
-                  objectFit: 'contain',
-                }}
-              />
-            </Box>
-          ))}
-        </Stack>
+        <Box
+          component="img"
+          src={safeUrl}
+          alt={name}
+          sx={{
+            maxWidth: 1,
+            maxHeight: 740,
+            borderRadius: 1,
+            objectFit: 'contain',
+          }}
+        />
       </Box>
     );
   }
 
-  // Fallback: iframe with encoded URI
-  const safeUrl = typeof fileUrl === 'string' ? encodeURI(fileUrl) : fileUrl;
-
   return (
     <Box
-      component="iframe"
-      src={safeUrl}
-      title={name}
       sx={{
         width: 1,
-        height: { xs: 520, md: 740 },
-        border: 0,
-        borderRadius: 1,
+        borderRadius: 1.5,
+        overflow: 'hidden',
+        border: (theme) => `1px solid ${theme.palette.divider}`,
         bgcolor: 'background.neutral',
       }}
-    />
+    >
+      <Box
+        component="iframe"
+        src={`${safeUrl}#toolbar=1&navpanes=0`}
+        title={name}
+        sx={{
+          width: 1,
+          height: { xs: 580, md: 800 },
+          border: 0,
+          display: 'block',
+        }}
+      />
+    </Box>
   );
 }
 
@@ -245,26 +154,120 @@ function MetaRow({ icon, label, children }) {
 
 // ----------------------------------------------------------------------
 
-export function DocumentDetailView({ ownerDashboard = false, basePath }) {
+export function DocumentDetailView({ ownerDashboard = false, basePath, isStaff: isStaffProp = false }) {
   const { id } = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { organizationId } = useCurrentOrganization();
 
-  const document_ = getDocumentById(id);
+  const isStaff = Boolean(isStaffProp || pathname.startsWith('/staff'));
+
+  const { data: apiResponse, isLoading, isError } = useGetDocumentByIdQuery(
+    { documentId: id, organizationId },
+    {
+      skip: !id || !organizationId,
+    }
+  );
+
+  const [deleteDocument, { isLoading: isDeleting }] = useDeleteDocumentMutation();
+
+  const apiDoc = apiResponse?.data || apiResponse?.document || apiResponse;
+  const mockDoc = getDocumentById(id);
+
+  const document_ = useMemo(() => {
+    if (apiDoc && (apiDoc._id || apiDoc.id || apiDoc.title)) {
+      const fileData = apiDoc.file || {};
+      const fileUrl =
+        fileData.url ||
+        apiDoc.fileUrl ||
+        (fileData.key ? `${import.meta.env.VITE_BASE_URL || ''}/files/${fileData.key}` : '');
+
+      return {
+        id: apiDoc._id || apiDoc.id,
+        _id: apiDoc._id || apiDoc.id,
+        name: apiDoc.title || apiDoc.name || 'Untitled Document',
+        title: apiDoc.title || apiDoc.name || 'Untitled Document',
+        category: apiDoc.category?.title || apiDoc.category?.name || apiDoc.category || 'General',
+        folder: apiDoc.folder?.name || apiDoc.folder || '',
+        actionType: apiDoc.requiresSignature ? 'sign' : (apiDoc.actionType || 'continue'),
+        scopeType: Array.isArray(apiDoc.audiences) ? apiDoc.audiences.join(', ') : (apiDoc.scopeType || 'all_staff'),
+        scopeLabel: Array.isArray(apiDoc.audiences) ? apiDoc.audiences.join(', ') : (apiDoc.scopeLabel || 'All staff'),
+        fileUrl,
+        fileType: fileData.mimeType?.includes('pdf') || fileData.key?.endsWith('.pdf') ? 'pdf' : (apiDoc.fileType || 'pdf'),
+        version: typeof apiDoc.version === 'object' ? apiDoc.version?.version : (apiDoc.version || 'v1'),
+        updatedAt: apiDoc.updatedAt || apiDoc.createdAt || '',
+        uploadedBy: apiDoc.uploadedBy?.name || apiDoc.uploadedBy || 'Administrator',
+        assignedTo: apiDoc.assignedTo?.name || apiDoc.assignedTo || null,
+        audiences: apiDoc.audiences || [],
+        requiresSignature: apiDoc.requiresSignature ?? false,
+        signature: apiDoc.signature || null,
+        signedAt: apiDoc.signedAt || null,
+        description: apiDoc.description || '',
+      };
+    }
+    return mockDoc;
+  }, [apiDoc, mockDoc]);
+
+  const [staffSignature, setStaffSignature] = useState(null);
+  const [isStaffSigned, setIsStaffSigned] = useState(false);
+
+  useEffect(() => {
+    if (document_?.signature) {
+      setStaffSignature(document_.signature);
+      setIsStaffSigned(true);
+    }
+  }, [document_?.signature]);
+
+  const handleSaveSignature = (dataUrl) => {
+    setStaffSignature(dataUrl);
+    setIsStaffSigned(true);
+    toast.success('Document signed successfully!');
+  };
+
   const replaceModal = useBoolean();
+  const deleteModal = useBoolean();
+
+  const handleDeleteDocument = async () => {
+    try {
+      await deleteDocument({
+        documentId: id,
+        organizationId,
+      }).unwrap();
+      deleteModal.onFalse();
+      toast.success('Document deleted successfully!');
+      router.push(listPath);
+    } catch (err) {
+      console.error('Failed to delete document:', err);
+      toast.error(err?.data?.message || err?.message || 'Failed to delete document!');
+    }
+  };
 
   const listPath =
     basePath ||
     pathname.substring(0, pathname.lastIndexOf('/')) ||
-    (ownerDashboard ? paths.owner.documents.root : paths.siteManager.documents.root);
+    (isStaff
+      ? paths.staff?.documents?.root || '/staff/documents'
+      : (ownerDashboard ? paths.owner.documents.root : paths.siteManager.documents.root));
 
-  const dashboardRoot = pathname.startsWith('/admin-dashboard')
-    ? paths.adminDashboard?.root || '/admin-dashboard'
-    : pathname.startsWith('/owner-dashboard')
-      ? paths.owner?.root || '/owner-dashboard'
-      : pathname.startsWith('/line-manager')
-        ? paths.lineManager?.root || '/line-manager'
-        : paths.siteManager?.root || '/site-manager';
+  const dashboardRoot = isStaff
+    ? paths.staff?.dashboard || '/staff/dashboard'
+    : pathname.startsWith('/admin-dashboard')
+      ? paths.adminDashboard?.root || '/admin-dashboard'
+      : pathname.startsWith('/owner-dashboard')
+        ? paths.owner?.root || '/owner-dashboard'
+        : pathname.startsWith('/line-manager')
+          ? paths.lineManager?.root || '/line-manager'
+          : paths.siteManager?.root || '/site-manager';
+
+  if (isLoading) {
+    return (
+      <DashboardContent>
+        <Box sx={{ py: 10, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <CircularProgress />
+        </Box>
+      </DashboardContent>
+    );
+  }
 
   if (!document_) {
     return (
@@ -288,15 +291,24 @@ export function DocumentDetailView({ ownerDashboard = false, basePath }) {
     pathname.startsWith('/site-manager') ||
     pathname.startsWith('/owner-dashboard');
   const acknowledgementTrackerPath = pathname.startsWith('/owner-dashboard')
-    ? paths.owner.documents.acknowledgements(id)
+    ? (paths.owner?.documents?.acknowledgements?.(id) || paths.owner?.acknowledgements?.(id) || `/owner-dashboard/documents/${id}/acknowledgements`)
     : pathname.startsWith('/line-manager')
-      ? paths.lineManager.documents.acknowledgements(id)
-      : paths.siteManager.documents.acknowledgements(id);
+      ? (paths.lineManager?.documents?.acknowledgements?.(id) || `/line-manager/documents/${id}/acknowledgements`)
+      : (paths.siteManager?.documents?.acknowledgements?.(id) || `/site-manager/documents/${id}/acknowledgements`);
 
   return (
     <DashboardContent>
+      <Box sx={{ mb: 2 }}>
+        <Button
+          color="primary"
+          onClick={() => router.push(listPath)}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+        >
+          Back
+        </Button>
+      </Box>
+
       <CustomBreadcrumbs
-        heading={document_.name}
         links={[
           {
             name: 'Dashboard',
@@ -306,17 +318,30 @@ export function DocumentDetailView({ ownerDashboard = false, basePath }) {
           { name: document_.name },
         ]}
         action={
-          <Stack direction="row" spacing={1}>
-            <Tooltip title="Replace document">
-              <Button
-                variant="outlined"
-                startIcon={<Iconify icon="solar:refresh-bold" />}
-                onClick={replaceModal.onTrue}
-              >
-                Replace
-              </Button>
-            </Tooltip>
-          </Stack>
+          !isStaff ? (
+            <Stack direction="row" spacing={1}>
+              <Tooltip title="Replace document">
+                <Button
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:refresh-bold" />}
+                  onClick={replaceModal.onTrue}
+                >
+                  Replace
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Delete document">
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                  onClick={deleteModal.onTrue}
+                >
+                  Delete
+                </Button>
+              </Tooltip>
+            </Stack>
+          ) : null
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -368,7 +393,7 @@ export function DocumentDetailView({ ownerDashboard = false, basePath }) {
           </Card>
 
           {/* Captured Signature Card (Read-only for managers/owners if document was signed by staff) */}
-          {document_.signature && (
+          {!isStaff && document_.signature && (
             <Card sx={{ p: 3 }}>
               <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
                 <Iconify icon="solar:check-circle-bold" width={22} sx={{ color: 'success.main' }} />
@@ -396,6 +421,69 @@ export function DocumentDetailView({ ownerDashboard = false, basePath }) {
                   bgcolor: 'background.neutral',
                 }}
               />
+            </Card>
+          )}
+
+          {/* Staff Signature Card: only shown to staff when signature is required */}
+          {isStaff && (document_.requiresSignature || document_.actionType === 'sign') && (
+            <Card>
+              <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+                {isStaffSigned && staffSignature ? (
+                  <Stack spacing={2} alignItems="center" sx={{ py: 2 }}>
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: '50%',
+                        bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'success.main',
+                      }}
+                    >
+                      <Iconify icon="solar:check-circle-bold" width={32} />
+                    </Box>
+                    <Typography variant="h6" textAlign="center">
+                      Document signed and acknowledged
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                      Your signature and acknowledgment have been recorded. Thank you.
+                    </Typography>
+                    <Box
+                      sx={{
+                        border: (theme) => `1px solid ${theme.palette.divider}`,
+                        borderRadius: 1,
+                        p: 1,
+                        bgcolor: 'background.neutral',
+                        width: 1,
+                        maxWidth: 400,
+                      }}
+                    >
+                      <Typography variant="caption" color="text.disabled" display="block" sx={{ mb: 0.5 }}>
+                        Your signature
+                      </Typography>
+                      <Box
+                        component="img"
+                        src={staffSignature}
+                        alt="Signature"
+                        sx={{ width: 1, height: 80, objectFit: 'contain' }}
+                      />
+                    </Box>
+                  </Stack>
+                ) : (
+                  <Stack spacing={2.5}>
+                    <Stack spacing={0.5}>
+                      <Typography variant="subtitle1">Sign document</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Please read the document above carefully, then draw your signature below to confirm you have read and agree to its contents.
+                      </Typography>
+                    </Stack>
+                    <Divider />
+                    <SignaturePad onSign={handleSaveSignature} />
+                  </Stack>
+                )}
+              </CardContent>
             </Card>
           )}
         </Stack>
@@ -455,14 +543,10 @@ export function DocumentDetailView({ ownerDashboard = false, basePath }) {
               )}
 
               <MetaRow icon="solar:calendar-bold" label="Last updated">
-                <Typography variant="body2">{document_.updatedAt || '—'}</Typography>
+                <Typography variant="body2">
+                  {document_.updatedAt ? (fDateTime(document_.updatedAt) || document_.updatedAt) : '—'}
+                </Typography>
               </MetaRow>
-
-              {document_.uploadedBy && (
-                <MetaRow icon="solar:user-id-bold" label="Uploaded by">
-                  <Typography variant="body2">{document_.uploadedBy}</Typography>
-                </MetaRow>
-              )}
 
               {document_.assignedTo && (
                 <MetaRow icon="solar:user-bold" label="Assigned to">
@@ -485,30 +569,60 @@ export function DocumentDetailView({ ownerDashboard = false, basePath }) {
               )}
           </Card>
 
-          {/* Quick actions card */}
-          <Card sx={{ p: 3 }}>
-            <Typography variant="subtitle1" sx={{ mb: 2 }}>
-              Quick actions
-            </Typography>
-            <Stack spacing={1.5}>
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<Iconify icon="solar:refresh-bold" />}
-                onClick={replaceModal.onTrue}
-              >
-                Replace document
-              </Button>
-            </Stack>
-          </Card>
+          {/* Quick actions card (Admin/Managers only) */}
+          {!isStaff && (
+            <Card sx={{ p: 3 }}>
+              <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                Quick actions
+              </Typography>
+              <Stack spacing={1.5}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:refresh-bold" />}
+                  onClick={replaceModal.onTrue}
+                >
+                  Replace document
+                </Button>
+
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                  onClick={deleteModal.onTrue}
+                >
+                  Delete document
+                </Button>
+              </Stack>
+            </Card>
+          )}
         </Stack>
       </Box>
 
-      {/* Re-use the Upload modal as a Replace modal by passing currentDocument */}
-      <UploadDocumentModal
+      {/* Dedicated Replace document modal */}
+      <ReplaceDocumentModal
         open={replaceModal.value}
         onClose={replaceModal.onFalse}
         currentDocument={document_}
+      />
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={deleteModal.value}
+        onClose={deleteModal.onFalse}
+        title="Delete Document"
+        content="Are you sure you want to delete this document? This action cannot be undone."
+        action={
+          <LoadingButton
+            variant="contained"
+            color="error"
+            loading={isDeleting}
+            onClick={handleDeleteDocument}
+          >
+            Delete
+          </LoadingButton>
+        }
       />
     </DashboardContent>
   );

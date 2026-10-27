@@ -1,5 +1,5 @@
 // document-list-view.jsx
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -8,11 +8,10 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
-
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
-import { usePathname } from 'src/routes/hooks';
+import { usePathname, useRouter } from 'src/routes/hooks';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -21,6 +20,7 @@ import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filte
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
@@ -28,85 +28,141 @@ import {
 } from 'src/components/table';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { mockDocuments, FOLDER_OPTIONS, getAllDocuments } from '../mocks/data';
+import InputAdornment from '@mui/material/InputAdornment';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetDocumentsQuery, useDeleteDocumentMutation } from 'src/store/Reducer/documents-api';
 import UploadDocumentModal from '../upload-document-modal';
-import BulkUploadDocumentModal from '../bulk-upload-document-modal';
-import { DocumentTableRow } from '../document-table-row';
+import ReplaceDocumentModal from '../replace-document-modal';
+import {
+  DocumentTableRow,
+  DocumentTableRowSkeleton,
+} from '../document-table-row';
 import { paths } from 'src/routes/paths';
 import { ConfirmDialog } from 'src/components/custom-dialog';
-import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
+import { toast } from 'src/components/snackbar';
+import LoadingButton from '@mui/lab/LoadingButton';
 
 // ----------------------------------------------------------------------
 
-const CATEGORY_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'fire_safety', label: 'Fire & safety' },
-  { value: 'contractor', label: 'Contractor' },
-  { value: 'personal_hr', label: 'Personal / HR' },
-];
+const ALL_BRANCHES_VALUE = 'all';
 
-// Client feedback: documents need to be groupable into folders — a plain
-// filter dropdown, same convention as the existing Scope filter, rather than
-// a new folder-tree UI. The dense table view stays exactly as-is.
-const FOLDER_FILTER_OPTIONS = [{ value: 'all', label: 'All folders' }, ...FOLDER_OPTIONS];
+const mapBranchOption = (item) => ({
+  value: item._id,
+  label: item.name,
+});
+
+const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
+
+const SCOPE_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'org', label: 'Organization' },
+  { value: 'branch', label: 'Branch' },
+  { value: 'personal', label: 'Personal' },
+];
 
 const TABLE_HEAD = [
-  { id: "sr#", label: "Sr#", width: 60 },
-  { id: 'documentName', label: 'Document' },
-  { id: 'folder', label: 'Folder' },
-  { id: 'scope', label: 'Scope' },
-  { id: 'version', label: 'Version', align: "center" },
-  { id: 'updatedAt', label: 'Updated At', align: "center" },
-  { id: 'actions', label: 'Actions', align: 'center' },
+  { id: 'sr#', label: 'Sr#', width: 64, align: 'center' },
+  { id: 'documentName', label: 'Document', width: 320 },
+  { id: 'scope', label: 'Scope', width: 160 },
+  { id: 'version', label: 'Version', width: 130, align: 'center' },
+  { id: 'updatedAt', label: 'Updated At', width: 160, align: 'center' },
+  { id: 'actions', label: 'Actions', width: 130, align: 'center' },
 ];
 
-
 const FILTER_FIELDS = [
-
   createFilterField.search({
     placeholder: 'Search documents...',
   }),
   createFilterField.select({
     key: 'scope',
     label: 'Scope',
-    options: CATEGORY_OPTIONS,
-    defaultValue: 'all',
-  }),
-  createFilterField.select({
-    key: 'folder',
-    label: 'Folder',
-    options: FOLDER_FILTER_OPTIONS,
+    options: SCOPE_OPTIONS,
     defaultValue: 'all',
   }),
 ];
 
-const DEFAULT_FILTERS = FILTER_FIELDS.reduce((acc, field) => {
-  acc[field.key] = field.defaultValue;
-  return acc;
-}, {});
-
 // ----------------------------------------------------------------------
 
-export function DocumentListView({ ownerDashboard = false }) {
-  const table = useTable();
+export function DocumentListView({ ownerDashboard = false, isStaff: isStaffProp = false }) {
+  const table = useTable({ defaultDense: true });
+  const router = useRouter();
   const pathname = usePathname();
-  const { branchId, onBranchChange } = useOwnerBranchFilter();
+  const { organizationId } = useCurrentOrganization();
 
-  const filters = useSetState({ name: '', category: 'all', actionType: 'all', folder: 'all' });
+  const isStaff = Boolean(isStaffProp || pathname.startsWith('/staff'));
+  const isLineManager = pathname.startsWith('/line-manager');
+  const isOwner = Boolean(!isStaff && (ownerDashboard || pathname.startsWith('/owner-dashboard')));
+
+  const categoriesPath = isOwner
+    ? paths.owner.documents.categories
+    : isLineManager
+      ? paths.lineManager?.documents?.categories || '/line-manager/documents/categories'
+      : paths.siteManager.documents.categories;
+
+  const [selectedBranch, setSelectedBranch] = useState(EXTRA_BRANCH_OPTIONS[0]);
+
+  const filters = useSetState({
+    search: '',
+    category: 'all',
+    scope: 'all',
+  });
 
   const openUploadModal = useBoolean();
-
-  const openBulkUploadModal = useBoolean();
-
+  const replaceModal = useBoolean();
   const deleteModal = useBoolean();
+  const [selectedDocument, setSelectedDocument] = useState(null);
 
-  const keyword = useDebounce(filters.state.name, 500);
+  const [deleteDocument, { isLoading: isDeleting }] = useDeleteDocumentMutation();
 
-  const isLoading = false;
+  const keyword = useDebounce(filters.state.search, 500);
 
-  const apiDocuments = getAllDocuments();
+  const queryScope =
+    filters.state.scope && filters.state.scope !== 'all'
+      ? filters.state.scope
+      : undefined;
 
-  const meta = {};
+  const branchId = isOwner && selectedBranch?.value !== ALL_BRANCHES_VALUE ? selectedBranch?.value : undefined;
+
+  const handleBranchChange = useCallback(
+    (option) => {
+      table.onResetPage();
+      setSelectedBranch(option || EXTRA_BRANCH_OPTIONS[0]);
+    },
+    [table]
+  );
+
+  const { data: documentsData, isLoading, isFetching } = useGetDocumentsQuery(
+    {
+      organizationId,
+      branchId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      keyword: keyword || undefined,
+      scope: queryScope,
+    },
+    { skip: !organizationId }
+  );
+
+  const apiDocuments = useMemo(() => {
+    if (Array.isArray(documentsData?.data)) {
+      return documentsData.data;
+    }
+    if (Array.isArray(documentsData?.documents)) {
+      return documentsData.documents;
+    }
+    if (Array.isArray(documentsData)) {
+      return documentsData;
+    }
+    return [];
+  }, [documentsData]);
+
+  const totalCount =
+    documentsData?.total ||
+    documentsData?.meta?.total ||
+    documentsData?.totalRecords ||
+    apiDocuments.length;
 
   const categoryFilterField = useMemo(
     () => FILTER_FIELDS.find((f) => f.type === 'status'),
@@ -118,38 +174,74 @@ export function DocumentListView({ ownerDashboard = false }) {
     []
   );
 
-  // Folder filter — client feedback: documents need to be groupable into
-  // folders. Filtered here client-side, same as every other mock listing.
-  const folderFilteredDocuments = useMemo(
-    () => apiDocuments.filter((doc) => filters.state.folder === 'all' || doc.folder === filters.state.folder),
-    [apiDocuments, filters.state.folder]
-  );
+  const tableData = apiDocuments.map((doc) => {
+    // Some backend APIs return `version` as an object: {_id, version, createdAt, uploadedBy, file}
+    // or as a number/string.
+    const resolvedVersion =
+      typeof doc.version === 'object' && doc.version !== null
+        ? doc.version.version || doc.version.name || '1.0'
+        : doc.version != null
+          ? String(doc.version)
+          : '1.0';
 
-  const tableData = folderFilteredDocuments.map((doc) => ({
-    id: doc._id,
-    name: doc.name,
-    folder: doc.folder,
-    scopeType: doc.scopeType,
-    scopeLabel: doc.scopeLabel,
-    version: doc.version,
-    updatedAt: doc.updatedAt,
-  }));
+    const resolvedFolder =
+      typeof doc.folder === 'object' && doc.folder !== null
+        ? doc.folder.name || doc.folder.title || doc.folder._id || ''
+        : typeof doc.folder === 'string'
+          ? doc.folder
+          : '';
 
-  const tableDataInPage = useMemo(
-    () => tableData.slice(table.page * table.rowsPerPage, table.page * table.rowsPerPage + table.rowsPerPage),
-    [table.page, table.rowsPerPage, tableData]
-  );
+    const rawScope = doc.scopeLabel || doc.scope || doc.scopeType || doc.category;
+    const resolvedScopeLabel =
+      typeof rawScope === 'object' && rawScope !== null
+        ? rawScope.name || rawScope.label || ''
+        : typeof rawScope === 'string'
+          ? rawScope.toLowerCase() === 'org'
+            ? 'Organization'
+            : rawScope.toLowerCase() === 'branch'
+              ? 'Branch'
+              : rawScope.toLowerCase() === 'personal'
+                ? 'Personal'
+                : rawScope
+          : '';
+
+    const resolvedFileType =
+      typeof doc.fileType === 'string'
+        ? doc.fileType
+        : typeof doc.mimeType === 'string'
+          ? doc.mimeType.split('/')[1] || 'pdf'
+          : typeof doc.file === 'object' && typeof doc.file?.mimeType === 'string'
+            ? doc.file.mimeType.split('/')[1] || 'pdf'
+            : 'pdf';
+
+    const resolvedUpdatedAt =
+      doc.updatedAt ||
+      doc.createdAt ||
+      (typeof doc.version === 'object' ? doc.version?.createdAt : null) ||
+      '';
+
+    return {
+      id: doc._id || doc.id,
+      _id: doc._id || doc.id,
+      name: typeof doc.name === 'string' ? doc.name : (doc.title || 'Untitled Document'),
+      folder: resolvedFolder,
+      scopeType: doc.scopeType || doc.category,
+      scopeLabel: resolvedScopeLabel,
+      version: resolvedVersion,
+      fileType: resolvedFileType,
+      updatedAt: resolvedUpdatedAt,
+      raw: doc,
+    };
+  });
 
   const getCategoryCount = useCallback(
     (category) => {
-      const counts = meta?.categoryCounts || {};
-      if (category === 'all') return counts.total || tableData.length;
+      const counts = documentsData?.meta?.categoryCounts || {};
+      if (category === 'all') return counts.total || totalCount;
       return counts[category] || 0;
     },
-    [meta, tableData.length]
+    [documentsData, totalCount]
   );
-
-  const canReset = !!filters.state.name || filters.state.category !== 'all';
 
   const handleFilterStatus = useCallback(
     (event, newValue) => {
@@ -162,38 +254,84 @@ export function DocumentListView({ ownerDashboard = false }) {
   const handleFilterChange = useCallback(
     (key, value) => {
       table.onResetPage();
-      filters.setState({ [key]: value });
+      const resolvedValue =
+        value && typeof value === 'object' && 'target' in value
+          ? value.target.value
+          : value;
+      filters.setState({ [key]: resolvedValue });
     },
     [filters, table]
   );
-  const handleSearchChange = () => { };
 
-  const handleView = useCallback((doc) => {
-    console.info('view', doc);
-  }, []);
+  const handleSearchChange = useCallback(
+    (eventOrValue) => {
+      table.onResetPage();
+      const text =
+        eventOrValue && typeof eventOrValue === 'object' && 'target' in eventOrValue
+          ? eventOrValue.target.value
+          : typeof eventOrValue === 'string'
+            ? eventOrValue
+            : '';
+      filters.setState({ search: text });
+    },
+    [filters, table]
+  );
 
-  const handleReplace = useCallback((doc) => {
-    console.info('replace', doc);
-  }, []);
+  const handleEdit = useCallback(
+    (doc) => {
+      setSelectedDocument(doc?.raw || doc);
+      openUploadModal.onTrue();
+    },
+    [openUploadModal]
+  );
 
-  const handleDelete = useCallback((doc) => {
-    console.info('delete', doc);
-    deleteModal.onTrue();
-  }, []);
+  const handleReplace = useCallback(
+    (doc) => {
+      setSelectedDocument(doc?.raw || doc);
+      replaceModal.onTrue();
+    },
+    [replaceModal]
+  );
 
-  // Client feedback: management needs the option to upload one document or
-  // several at once — same primary-action row, just a second button.
+  const handleDelete = useCallback(
+    (doc) => {
+      setSelectedDocument(doc?.raw || doc);
+      deleteModal.onTrue();
+    },
+    [deleteModal]
+  );
+
+  const handleConfirmDelete = async () => {
+    const docId = selectedDocument?._id || selectedDocument?.id;
+    if (!docId) return;
+
+    try {
+      await deleteDocument({
+        documentId: docId,
+        organizationId,
+      }).unwrap();
+      deleteModal.onFalse();
+      setSelectedDocument(null);
+      toast.success('Document deleted successfully!');
+    } catch (err) {
+      console.error('Delete document failed:', err);
+      toast.error(err?.data?.message || err?.message || 'Failed to delete document!');
+    }
+  };
+
   const uploadActions = (
     <Stack direction="row" spacing={1.5}>
       <Button
         variant="outlined"
-        onClick={openBulkUploadModal.onTrue}
-        startIcon={<Iconify icon="solar:upload-square-bold" />}
+        color="primary"
+        onClick={() => router.push(categoriesPath)}
+        startIcon={<Iconify icon="solar:folder-with-files-bold" />}
       >
-        Bulk upload
+        Categories
       </Button>
       <Button
         variant="contained"
+        color="primary"
         onClick={openUploadModal.onTrue}
         startIcon={<Iconify icon="mingcute:add-line" />}
       >
@@ -209,18 +347,48 @@ export function DocumentListView({ ownerDashboard = false }) {
         links={[
           {
             name: 'Dashboard',
-            href: ownerDashboard ? paths.owner.root : paths.siteManager.root,
+            href: isStaff ? paths.staff?.dashboard || '/staff/dashboard' : (ownerDashboard ? paths.owner.root : paths.siteManager.root),
           },
           { name: 'Documents' },
         ]}
         action={
-          ownerDashboard ? (
-            <OwnerBranchFilterActions value={branchId} onChange={onBranchChange}>
+          !isStaff ? (
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              {isOwner && (
+                <InfiniteAutocomplete
+                  value={selectedBranch}
+                  onChange={handleBranchChange}
+                  useQuery={useGetBranchesQuery}
+                  queryArgs={{ organizationId }}
+                  mapOption={mapBranchOption}
+                  extraOptions={EXTRA_BRANCH_OPTIONS}
+                  label="Site"
+                  placeholder="Search site..."
+                  disabled={!organizationId}
+                  size="small"
+                  sx={{ minWidth: { xs: 1, sm: 260 } }}
+                  textFieldProps={{
+                    InputProps: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Iconify
+                            icon="solar:buildings-2-bold-duotone"
+                            width={20}
+                            sx={{ color: 'text.disabled' }}
+                          />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              )}
               {uploadActions}
-            </OwnerBranchFilterActions>
-          ) : (
-            uploadActions
-          )
+            </Stack>
+          ) : null
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -240,9 +408,9 @@ export function DocumentListView({ ownerDashboard = false }) {
           onSearchChange={handleSearchChange}
         />
 
-        <Box sx={{ position: 'relative' }}>
-          <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} >
+        <Box sx={{ position: 'relative', width: 1, minWidth: 0 }}>
+          <Scrollbar sx={{ width: 1 }}>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
               <TableHeadCustom
                 order={table.order}
                 orderBy={table.orderBy}
@@ -251,18 +419,30 @@ export function DocumentListView({ ownerDashboard = false }) {
               />
 
               <TableBody>
-                {tableDataInPage.length > 0 ? (
-                  tableDataInPage.map((row, index) => (
-                    <DocumentTableRow
-                      key={row.id || row._id}
-                      row={row}
-                      serialNumber={table.page * table.rowsPerPage + index + 1}
-                      detailPath={`${pathname.replace(/\/$/, '')}/${row.id || row._id}`}
-                      onReplace={() => handleReplace(row)}
+                {isLoading || isFetching ? (
+                  [...Array(table.rowsPerPage)].map((_, index) => (
+                    <DocumentTableRowSkeleton
+                      key={`document-skeleton-${index}`}
+                      dense={table.dense}
                     />
                   ))
                 ) : (
-                  <TableNoData notFound />
+                  <>
+                    {tableData.map((row, index) => (
+                      <DocumentTableRow
+                        key={row.id || row._id}
+                        row={row}
+                        serialNumber={table.page * table.rowsPerPage + index + 1}
+                        detailPath={`${pathname.replace(/\/$/, '')}/${row.id || row._id}`}
+                        isStaff={isStaff}
+                        onEdit={() => handleEdit(row)}
+                        onReplace={() => handleReplace(row)}
+                        onDelete={() => handleDelete(row)}
+                      />
+                    ))}
+
+                    <TableNoData notFound={!isLoading && !isFetching && tableData.length === 0} />
+                  </>
                 )}
               </TableBody>
             </Table>
@@ -272,7 +452,7 @@ export function DocumentListView({ ownerDashboard = false }) {
         <TablePaginationCustom
           page={table.page}
           dense={table.dense}
-          count={meta?.totalRecords || tableData.length}
+          count={totalCount}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           onChangeDense={table.onChangeDense}
@@ -282,19 +462,41 @@ export function DocumentListView({ ownerDashboard = false }) {
 
       <ConfirmDialog
         open={deleteModal.value}
-        onClose={deleteModal.onFalse}
+        onClose={() => {
+          deleteModal.onFalse();
+          setSelectedDocument(null);
+        }}
         title="Delete Document"
-        content="Are you sure want to delete this document?"
+        content="Are you sure you want to delete this document? This action cannot be undone."
         action={
-          <Button variant="contained" color="error" onClick={deleteModal.onTrue}>
+          <LoadingButton
+            variant="contained"
+            color="error"
+            loading={isDeleting}
+            onClick={handleConfirmDelete}
+          >
             Delete
-          </Button>
+          </LoadingButton>
         }
       />
 
-      <UploadDocumentModal open={openUploadModal.value} onClose={openUploadModal.onFalse} />
+      <UploadDocumentModal
+        open={openUploadModal.value}
+        onClose={() => {
+          openUploadModal.onFalse();
+          setSelectedDocument(null);
+        }}
+        currentDocument={selectedDocument}
+      />
 
-      <BulkUploadDocumentModal open={openBulkUploadModal.value} onClose={openBulkUploadModal.onFalse} />
+      <ReplaceDocumentModal
+        open={replaceModal.value}
+        onClose={() => {
+          replaceModal.onFalse();
+          setSelectedDocument(null);
+        }}
+        currentDocument={selectedDocument}
+      />
     </DashboardContent>
   );
 }

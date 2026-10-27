@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 
 import Avatar from '@mui/material/Avatar';
@@ -9,96 +8,62 @@ import CardHeader from '@mui/material/CardHeader';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
 
+import { toast } from 'src/components/snackbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData } from 'src/components/table';
-import { toast } from 'src/components/snackbar';
+import { TableHeadCustom, TableNoData, TableBodySkeleton } from 'src/components/table';
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useParams, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
+import { useGetKioskByIdQuery, useToggleKioskLockMutation } from 'src/store/Reducer/kiosks-api';
+import { fDateTime } from 'src/utils/format-time';
 
-import { mockKiosks } from '../mocks/data';
 import QuickAddKioskModal from '../quick-add-kiosk-modal';
 
 // ----------------------------------------------------------------------
 
-const ACTIVITY_TABLE_HEAD = [
-  { id: 'time', label: 'Time', width: 140 },
-  { id: 'user', label: 'User / Visitor', minWidth: 180 },
-  { id: 'type', label: 'Event Type', width: 160 },
-  { id: 'method', label: 'Method', width: 140 },
-  { id: 'status', label: 'Status', align: 'center', width: 120 },
-];
-
-const MOCK_KIOSK_ACTIVITIES = [
-  {
-    id: 'act-1',
-    time: '10:42 AM Today',
-    user: 'Sarah Jenkins',
-    role: 'Care Assistant',
-    type: 'Staff Check-In',
-    method: 'PIN',
-    status: 'success',
-  },
-  {
-    id: 'act-2',
-    time: '10:15 AM Today',
-    user: 'Michael Chang',
-    role: 'Visitor (Elsie Hall)',
-    type: 'Visitor Sign-In',
-    method: 'QR Code',
-    status: 'success',
-  },
-  {
-    id: 'act-3',
-    time: '09:58 AM Today',
-    user: 'Amara Nwosu',
-    role: 'Senior Carer',
-    type: 'Break Start',
-    method: 'Employee ID',
-    status: 'success',
-  },
-  {
-    id: 'act-4',
-    time: '08:02 AM Today',
-    user: 'David Ross',
-    role: 'Maintenance Technician',
-    type: 'Staff Check-In',
-    method: 'Employee ID',
-    status: 'success',
-  },
-  {
-    id: 'act-5',
-    time: '07:45 AM Today',
-    user: 'Elena Rostova',
-    role: 'Registered Nurse',
-    type: 'Staff Check-Out',
-    method: 'PIN',
-    status: 'success',
-  },
+const VISIT_TABLE_HEAD = [
+  { id: 'visitor', label: 'Visitor Name', minWidth: 180 },
+  { id: 'personType', label: 'Person Type', width: 140 },
+  { id: 'method', label: 'Method', width: 130 },
+  { id: 'purpose', label: 'Purpose', minWidth: 160 },
+  { id: 'arrivedAt', label: 'Arrival Time', minWidth: 160 },
+  { id: 'checkInAt', label: 'Check-In', minWidth: 160 },
+  { id: 'checkOutAt', label: 'Check-Out', minWidth: 160 },
+  { id: 'status', label: 'Status', align: 'center', width: 130 },
 ];
 
 function DetailRow({ label, value }) {
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
+    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1.25 }}>
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      <Typography variant="subtitle2" fontWeight={600} textAlign="right">
-        {value || '—'}
-      </Typography>
+      <Box textAlign="right">
+        {typeof value === 'string' || typeof value === 'number' ? (
+          <Typography variant="subtitle2" fontWeight={600}>
+            {value}
+          </Typography>
+        ) : (
+          value || '—'
+        )}
+      </Box>
     </Stack>
   );
 }
@@ -113,13 +78,37 @@ DetailRow.propTypes = {
 export function KioskDetailView({ ownerDashboard = false }) {
   const { id } = useParams();
   const router = useRouter();
+  const { organizationId } = useCurrentOrganization();
 
   const editModal = useBoolean();
-  const [locked, setLocked] = useState(false);
+  const confirmLock = useBoolean();
 
-  const kiosk = useMemo(() => {
-    return mockKiosks.find((item) => item._id === id || item.kioskCode === id);
-  }, [id]);
+  const {
+    data: kioskResponse,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useGetKioskByIdQuery(
+    { kioskId: id, organizationId },
+    { skip: !id || !organizationId }
+  );
+
+  const kiosk = kioskResponse?.data || null;
+  const isLocked = Boolean(kiosk?.isLocked || kiosk?.isLock || kiosk?.locked);
+
+  const [toggleKioskLock, { isLoading: isTogglingLock }] = useToggleKioskLockMutation();
+
+  const handleToggleLock = async () => {
+    if (!id) return;
+    try {
+      await toggleKioskLock({ kioskId: id, organizationId }).unwrap();
+      toast.success(isLocked ? 'Kiosk device unlocked successfully' : 'Kiosk device locked successfully');
+      confirmLock.onFalse();
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.data?.message || error?.message || 'Failed to toggle kiosk lock');
+    }
+  };
 
   const rootPath = ownerDashboard ? paths.owner.root : paths.siteManager.root;
   const kioskListPath = ownerDashboard ? paths.owner.kiosk : paths.siteManager.kiosk;
@@ -128,12 +117,7 @@ export function KioskDetailView({ ownerDashboard = false }) {
     router.push(kioskListPath);
   };
 
-  const handleToggleLock = () => {
-    setLocked((prev) => !prev);
-    toast.success(locked ? 'Kiosk unlocked successfully' : 'Kiosk locked for maintenance');
-  };
-
-  if (!kiosk) {
+  if (!isLoading && !kiosk) {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
@@ -144,7 +128,7 @@ export function KioskDetailView({ ownerDashboard = false }) {
         <EmptyContent
           filled
           title="Kiosk Not Found"
-          description="The kiosk device you are looking for does not exist or has been removed."
+          description="The kiosk device you are looking for does not exist or could not be loaded."
           action={
             <Button variant="contained" onClick={handleBack}>
               Return to Kiosks List
@@ -156,23 +140,16 @@ export function KioskDetailView({ ownerDashboard = false }) {
     );
   }
 
-  const statusColor =
-    kiosk.status === 'online' ? 'success' : kiosk.status === 'offline' ? 'error' : 'warning';
-
+  const presenceColor = kiosk?.presence === 'online' ? 'success' : 'error';
   const setupColor =
-    kiosk.setupStatus === 'registered'
+    kiosk?.setupStatus === 'registered'
       ? 'success'
-      : kiosk.setupStatus === 'pending'
+      : kiosk?.setupStatus === 'pending'
       ? 'warning'
       : 'default';
 
-  const checkInMethodsMap = {
-    employee_id: 'Employee ID',
-    pin: 'Name & PIN',
-    qr_code: 'QR Code',
-    qr: 'QR Code',
-    express: 'Express Tap',
-  };
+  const headingTitle = kiosk?.locationLabel || kiosk?.deviceId || 'Kiosk Detail';
+  const recentVisits = Array.isArray(kiosk?.recentVisits) ? kiosk.recentVisits : [];
 
   return (
     <DashboardContent>
@@ -185,23 +162,21 @@ export function KioskDetailView({ ownerDashboard = false }) {
 
       {/* Breadcrumbs Header */}
       <CustomBreadcrumbs
-        heading={kiosk.name}
+        heading={headingTitle}
         links={[
           { name: ownerDashboard ? 'Owner Dashboard' : 'Dashboard', href: rootPath },
           { name: 'Kiosks', href: kioskListPath },
-          { name: kiosk.name },
+          { name: headingTitle },
         ]}
         action={
           <Stack direction="row" spacing={1.5}>
             <Button
               variant="outlined"
-              color={locked ? 'error' : 'inherit'}
-              startIcon={
-                <Iconify icon={locked ? 'solar:lock-bold' : 'solar:lock-unlocked-bold'} />
-              }
-              onClick={handleToggleLock}
+              color={isLocked ? 'error' : 'inherit'}
+              startIcon={<Iconify icon={isLocked ? 'solar:lock-bold' : 'solar:lock-unlocked-bold'} />}
+              onClick={confirmLock.onTrue}
             >
-              {locked ? 'Unlock Kiosk' : 'Lock Kiosk'}
+              {isLocked ? 'Unlock Device' : 'Lock Device'}
             </Button>
 
             <Button
@@ -217,333 +192,346 @@ export function KioskDetailView({ ownerDashboard = false }) {
         sx={{ mb: 3 }}
       />
 
-      {/* Main Kiosk Dossier Card */}
+      {/* Main Dossier Banner Card */}
       <Card sx={{ p: 3, mb: 3 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={2.5}
-          alignItems={{ xs: 'flex-start', md: 'center' }}
-          justifyContent="space-between"
-        >
-          {/* Identity & Device Avatar */}
-          <Stack direction="row" spacing={2.5} alignItems="center">
-            <Avatar
-              sx={{
-                width: 64,
-                height: 64,
-                bgcolor: 'primary.lighter',
-                color: 'primary.main',
-              }}
-            >
-              <Iconify
-                icon={
-                  kiosk.device?.type === 'ipad'
-                    ? 'solar:tablet-bold'
-                    : kiosk.device?.type === 'android'
-                    ? 'solar:tablet-bold'
-                    : 'solar:monitor-bold'
-                }
-                width={32}
-              />
-            </Avatar>
+        {isLoading ? (
+          <Skeleton variant="rounded" height={80} />
+        ) : (
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2.5}
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+            justifyContent="space-between"
+          >
+            {/* Identity & Device Avatar */}
+            <Stack direction="row" spacing={2.5} alignItems="center">
+              <Avatar
+                sx={{
+                  width: 60,
+                  height: 60,
+                  bgcolor: 'primary.lighter',
+                  color: 'primary.main',
+                }}
+              >
+                <Iconify
+                  icon={
+                    kiosk?.deviceType?.toLowerCase().includes('ipad') ||
+                    kiosk?.deviceType?.toLowerCase().includes('tablet')
+                      ? 'solar:tablet-bold'
+                      : 'solar:monitor-bold'
+                  }
+                  width={32}
+                />
+              </Avatar>
 
-            <Stack spacing={0.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="h6" fontWeight={700}>
-                  {kiosk.name}
+              <Stack spacing={0.5}>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                  <Typography variant="h6" fontWeight={700}>
+                    {kiosk?.locationLabel || kiosk?.deviceId || 'Kiosk'}
+                  </Typography>
+
+                  {kiosk?.deviceId && (
+                    <Label variant="soft" color="default">
+                      {kiosk.deviceId}
+                    </Label>
+                  )}
+                </Stack>
+
+                <Typography variant="body2" color="text.secondary">
+                  Site: {kiosk?.branch?.name || '—'} {kiosk?.branch?.code ? `(${kiosk.branch.code})` : ''} ·{' '}
+                  Reception: {kiosk?.receptionIdentifier || '—'}
                 </Typography>
-                <Label variant="soft" color="default">
-                  {kiosk.kioskCode}
+
+                <Typography variant="caption" color="text.disabled">
+                  Created: {fDateTime(kiosk?.createdAt) || '—'} · Last Updated: {fDateTime(kiosk?.updatedAt) || '—'}
+                </Typography>
+              </Stack>
+            </Stack>
+
+            {/* Status Badges */}
+            <Stack
+              direction={{ xs: 'row', md: 'column' }}
+              spacing={{ xs: 1.5, md: 0.75 }}
+              alignItems={{ xs: 'center', md: 'flex-end' }}
+            >
+              <Stack direction="row" spacing={1}>
+                <Label variant="soft" color={presenceColor} sx={{ px: 1.5, py: 0.5, fontWeight: 700, textTransform: 'capitalize' }}>
+                  {kiosk?.presence || 'offline'}
+                </Label>
+
+                <Label variant="soft" color={setupColor} sx={{ px: 1.5, py: 0.5, textTransform: 'capitalize' }}>
+                  {kiosk?.setupStatus || 'registered'}
                 </Label>
               </Stack>
 
-              <Typography variant="body2" color="text.secondary">
-                {kiosk.site?.name || kiosk.site} {kiosk.site?.code ? `(${kiosk.site.code})` : ''} ·{' '}
-                Device: {kiosk.device?.name || '—'}
-              </Typography>
-
-              {kiosk.registrationDate && (
-                <Typography variant="caption" color="text.disabled">
-                  Registered: {kiosk.registrationDate} · Last active: {kiosk.lastActive || '—'}
+              {kiosk?.lastHeartbeatAt && (
+                <Typography variant="caption" color="text.secondary">
+                  Last Heartbeat: {fDateTime(kiosk.lastHeartbeatAt)}
                 </Typography>
               )}
             </Stack>
           </Stack>
-
-          {/* Status Badges */}
-          <Stack
-            direction={{ xs: 'row', md: 'column' }}
-            spacing={{ xs: 1.5, md: 0.75 }}
-            alignItems={{ xs: 'center', md: 'flex-end' }}
-          >
-            <Stack direction="row" spacing={1}>
-              <Label variant="soft" color={statusColor} sx={{ px: 1.5, py: 0.5, fontWeight: 700 }}>
-                {kiosk.status ? kiosk.status.toUpperCase() : 'OFFLINE'}
-              </Label>
-              <Label variant="soft" color={setupColor} sx={{ px: 1.5, py: 0.5 }}>
-                {kiosk.setupStatus === 'registered' ? 'Registered' : 'Pending Setup'}
-              </Label>
-            </Stack>
-
-            <Typography variant="caption" color="text.secondary">
-              IP: {kiosk.lastIp || '192.168.1.101'}
-            </Typography>
-          </Stack>
-        </Stack>
+        )}
       </Card>
 
       {/* KPI Metric Summary Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 2.5, bgcolor: 'background.neutral' }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              fontWeight={600}
-              textTransform="uppercase"
-            >
-              Total Activity
-            </Typography>
-            <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5 }}>
-              {kiosk.activity?.total ?? 50}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Total transactions recorded
-            </Typography>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 2.5, bgcolor: 'background.neutral' }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              fontWeight={600}
-              textTransform="uppercase"
-            >
-              Staff Check-Ins
-            </Typography>
-            <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5, color: 'success.main' }}>
-              {kiosk.activity?.checkIns ?? 32}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Completed check-ins
-            </Typography>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 2.5, bgcolor: 'background.neutral' }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              fontWeight={600}
-              textTransform="uppercase"
-            >
-              Staff Check-Outs
-            </Typography>
-            <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5, color: 'info.main' }}>
-              {kiosk.activity?.checkOuts ?? 18}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Completed check-outs
-            </Typography>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ p: 2.5, bgcolor: 'background.neutral' }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              fontWeight={600}
-              textTransform="uppercase"
-            >
-              Visitors Signed In
-            </Typography>
-            <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5, color: 'warning.main' }}>
-              {kiosk.activity?.visitors ?? 4}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Visitor sessions logged
-            </Typography>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Two-Column Specification Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        {/* Device & Hardware Specs */}
+        <Grid item xs={12} sm={6} md={3}>
+          {isLoading ? (
+            <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+          ) : (
+            <DataUsageSummaryCard
+              title="Visitors On Site"
+              total={kiosk?.visitorsOnSite ?? 0}
+              color="primary"
+              icon="solar:users-group-rounded-bold-duotone"
+            />
+          )}
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          {isLoading ? (
+            <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+          ) : (
+            <DataUsageSummaryCard
+              title="Visitor Check-Ins"
+              total={kiosk?.visitorCheckIns ?? 0}
+              color="success"
+              icon="solar:login-2-bold-duotone"
+            />
+          )}
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          {isLoading ? (
+            <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+          ) : (
+            <DataUsageSummaryCard
+              title="Visitor Check-Outs"
+              total={kiosk?.visitorCheckOuts ?? 0}
+              color="warning"
+              icon="solar:logout-2-bold-duotone"
+            />
+          )}
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          {isLoading ? (
+            <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+          ) : (
+            <DataUsageSummaryCard
+              title="Connection Status"
+              total={kiosk?.presence === 'online' ? 'Online' : 'Offline'}
+              color={presenceColor}
+              icon={kiosk?.presence === 'online' ? 'solar:check-circle-bold-duotone' : 'solar:close-circle-bold-duotone'}
+            />
+          )}
+        </Grid>
+      </Grid>
+
+      {/* Two Column Layout: Kiosk Hardware Info + Branch Settings */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {/* Device & Hardware Specifications */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ p: 3, height: '100%' }}>
+          <Card sx={{ p: 3, height: 1 }}>
             <CardHeader
-              title="Hardware & Network"
-              subheader="Assigned device details and network connectivity"
+              title="Device Specifications"
+              subheader="Terminal hardware and identification details"
               sx={{ p: 0, mb: 2 }}
             />
-            <Divider sx={{ borderStyle: 'dashed', mb: 2 }} />
 
-            <Stack spacing={1}>
-              <DetailRow label="Device Name" value={kiosk.device?.name || 'Reception iPad'} />
-              <DetailRow
-                label="Device Platform / OS"
-                value={
-                  <Chip
-                    size="small"
-                    label={kiosk.device?.type ? kiosk.device.type.toUpperCase() : 'TABLET'}
-                    variant="outlined"
-                  />
-                }
-              />
-              <DetailRow label="IP Address" value={kiosk.lastIp || '192.168.1.101'} />
-              <DetailRow label="Kiosk Code" value={kiosk.kioskCode} />
-              <DetailRow
-                label="Assigned Site"
-                value={`${kiosk.site?.name || kiosk.site} ${
-                  kiosk.site?.code ? `(${kiosk.site.code})` : ''
-                }`}
-              />
-              <DetailRow
-                label="Registration Date"
-                value={kiosk.registrationDate || 'Aug 10, 2026'}
-              />
-              <DetailRow label="Last Heartbeat" value={kiosk.lastActive || '2 minutes ago'} />
-            </Stack>
+            <Divider sx={{ mb: 2 }} />
+
+            {isLoading ? (
+              <Skeleton variant="rounded" height={180} />
+            ) : (
+              <Stack spacing={0.5}>
+                <DetailRow label="Device ID" value={kiosk?.deviceId || '—'} />
+                <DetailRow label="Location Label" value={kiosk?.locationLabel || '—'} />
+                <DetailRow label="Reception Identifier" value={kiosk?.receptionIdentifier || '—'} />
+                <DetailRow label="Device Type" value={kiosk?.deviceType || '—'} />
+                <DetailRow label="NFC Tag ID" value={kiosk?.nfcTagId || '—'} />
+                <DetailRow
+                  label="Kiosk Mode"
+                  value={
+                    <Label variant="soft" color="info" sx={{ textTransform: 'capitalize' }}>
+                      {kiosk?.kioskMode || 'Setup'}
+                    </Label>
+                  }
+                />
+                <DetailRow
+                  label="Fire Evacuation"
+                  value={
+                    <Label variant="soft" color={kiosk?.fireEvacuation ? 'error' : 'default'}>
+                      {kiosk?.fireEvacuation ? 'Enabled' : 'Disabled'}
+                    </Label>
+                  }
+                />
+                <DetailRow
+                  label="Last Check-In"
+                  value={fDateTime(kiosk?.lastCheckInAt) || '—'}
+                />
+              </Stack>
+            )}
           </Card>
         </Grid>
 
-        {/* Operational Rules & Settings */}
+        {/* Site & Branch Details */}
         <Grid item xs={12} md={6}>
-          <Card sx={{ p: 3, height: '100%' }}>
+          <Card sx={{ p: 3, height: 1 }}>
             <CardHeader
-              title="Operational Configuration"
-              subheader="Enabled check-in modes and terminal policies"
+              title="Site & Branch Information"
+              subheader="Assigned facility location and site settings"
               sx={{ p: 0, mb: 2 }}
             />
-            <Divider sx={{ borderStyle: 'dashed', mb: 2 }} />
 
-            <Stack spacing={1}>
-              <DetailRow
-                label="Reception Identifier"
-                value={kiosk.settings?.receptionIdentifier || 'FRONT-DESK'}
-              />
-              <DetailRow
-                label="Screen Auto-Timeout"
-                value={`${kiosk.settings?.screenTimeout ?? 60} seconds`}
-              />
-              <DetailRow
-                label="Allow Staff Check-Out"
-                value={
-                  <Label color={kiosk.settings?.allowCheckOut ? 'success' : 'error'}>
-                    {kiosk.settings?.allowCheckOut ? 'Enabled' : 'Disabled'}
-                  </Label>
-                }
-              />
-              <DetailRow
-                label="Break Tracking"
-                value={
-                  <Label color={kiosk.settings?.enableBreaks ? 'success' : 'default'}>
-                    {kiosk.settings?.enableBreaks ? 'Enabled' : 'Disabled'}
-                  </Label>
-                }
-              />
-              <DetailRow
-                label="Phone / Remote Check-In"
-                value={
-                  <Label color={kiosk.settings?.phoneCheckIn ? 'info' : 'default'}>
-                    {kiosk.settings?.phoneCheckIn ? 'Allowed' : 'Not Allowed'}
-                  </Label>
-                }
-              />
-              <Box sx={{ pt: 1 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Allowed Check-in Methods:
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {(kiosk.settings?.checkInMethods?.length
-                    ? kiosk.settings.checkInMethods
-                    : ['pin', 'employee_id']
-                  ).map((m) => (
-                    <Chip
-                      key={m}
-                      size="small"
-                      label={checkInMethodsMap[m] || m}
-                      color="primary"
-                      variant="soft"
-                    />
-                  ))}
-                </Stack>
-              </Box>
-            </Stack>
+            <Divider sx={{ mb: 2 }} />
+
+            {isLoading ? (
+              <Skeleton variant="rounded" height={180} />
+            ) : (
+              <Stack spacing={0.5}>
+                <DetailRow label="Site Name" value={kiosk?.branch?.name || '—'} />
+                <DetailRow label="Site Code" value={kiosk?.branch?.code || '—'} />
+                <DetailRow label="Timezone" value={kiosk?.branch?.timezone || 'Europe/London'} />
+                <DetailRow
+                  label="Breaks Allowed"
+                  value={
+                    <Label color={kiosk?.branch?.settings?.enableBreaks ? 'success' : 'default'}>
+                      {kiosk?.branch?.settings?.enableBreaks ? 'Enabled' : 'Disabled'}
+                    </Label>
+                  }
+                />
+                <DetailRow
+                  label="Paid Breaks"
+                  value={
+                    <Label color={kiosk?.branch?.settings?.paidBreaks ? 'success' : 'default'}>
+                      {kiosk?.branch?.settings?.paidBreaks ? 'Yes' : 'No'}
+                    </Label>
+                  }
+                />
+                <DetailRow
+                  label="Phone Check-In"
+                  value={
+                    <Label color={kiosk?.branch?.settings?.allowPhoneCheckIn ? 'info' : 'default'}>
+                      {kiosk?.branch?.settings?.allowPhoneCheckIn ? 'Allowed' : 'Not Allowed'}
+                    </Label>
+                  }
+                />
+                <DetailRow
+                  label="Late Grace Period"
+                  value={`${kiosk?.branch?.settings?.lateGraceMinutes ?? 0} mins`}
+                />
+                <DetailRow
+                  label="Leave Requests"
+                  value={
+                    <Label color={kiosk?.branch?.settings?.enableLeaveRequests ? 'success' : 'default'}>
+                      {kiosk?.branch?.settings?.enableLeaveRequests ? 'Enabled' : 'Disabled'}
+                    </Label>
+                  }
+                />
+              </Stack>
+            )}
           </Card>
         </Grid>
       </Grid>
 
-      {/* Recent Activity Table Card */}
+      {/* Recent Visits Table Card */}
       <Card>
         <CardHeader
-          title="Recent Activity"
-          subheader="Latest check-in, check-out, and visitor records logged at this terminal"
+          title="Recent Visits"
+          subheader="Latest visitor sign-in and sign-out activities logged at this kiosk"
           sx={{ mb: 1.5 }}
         />
 
-        <TableContainer>
+        <Box sx={{ position: 'relative' }}>
           <Scrollbar>
-            <Table size="medium">
-              <TableHeadCustom headLabel={ACTIVITY_TABLE_HEAD} />
+            <Table size="medium" sx={{ minWidth: 900 }}>
+              <TableHeadCustom headLabel={VISIT_TABLE_HEAD} />
 
               <TableBody>
-                {MOCK_KIOSK_ACTIVITIES.map((row) => (
-                  <TableRow key={row.id} hover>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {row.time}
-                      </Typography>
-                    </TableCell>
+                {isLoading || isFetching ? (
+                  <TableBodySkeleton rowCount={3} cellCount={VISIT_TABLE_HEAD.length} />
+                ) : recentVisits.length > 0 ? (
+                  recentVisits.map((visit) => {
+                    const statusColorMap = {
+                      checkedIn: 'success',
+                      checkedOut: 'default',
+                      awaitingApproval: 'warning',
+                      rejected: 'error',
+                    };
 
-                    <TableCell>
-                      <Stack>
-                        <Typography variant="subtitle2">{row.user}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {row.role}
-                        </Typography>
-                      </Stack>
-                    </TableCell>
+                    return (
+                      <TableRow key={visit._id || visit.id} hover>
+                        <TableCell>
+                          <Typography variant="subtitle2" noWrap>
+                            {visit.name || 'Anonymous Visitor'}
+                          </Typography>
+                        </TableCell>
 
-                    <TableCell>
-                      <Label
-                        variant="soft"
-                        color={
-                          row.type.includes('Check-In')
-                            ? 'success'
-                            : row.type.includes('Check-Out')
-                            ? 'info'
-                            : row.type.includes('Break')
-                            ? 'warning'
-                            : 'default'
-                        }
-                      >
-                        {row.type}
-                      </Label>
-                    </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                            {visit.personType || 'visitor'}
+                          </Typography>
+                        </TableCell>
 
-                    <TableCell>
-                      <Chip size="small" variant="outlined" label={row.method} />
-                    </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={visit.method === 'walkIn' ? 'Walk-in' : visit.method || '—'}
+                          />
+                        </TableCell>
 
-                    <TableCell align="center">
-                      <Label variant="soft" color="success">
-                        Successful
-                      </Label>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {visit.purposeOfVisit || '—'}
+                          </Typography>
+                        </TableCell>
 
-                <TableNoData notFound={false} />
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {fDateTime(visit.arrivedAt) || '—'}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {fDateTime(visit.checkInAt) || '—'}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {fDateTime(visit.checkOutAt) || '—'}
+                          </Typography>
+                        </TableCell>
+
+                        <TableCell align="center">
+                          <Label
+                            variant="soft"
+                            color={statusColorMap[visit.status] || 'default'}
+                            sx={{ textTransform: 'capitalize' }}
+                          >
+                            {visit.status === 'awaitingApproval'
+                              ? 'Awaiting Approval'
+                              : visit.status === 'checkedOut'
+                              ? 'Checked Out'
+                              : visit.status === 'checkedIn'
+                              ? 'Checked In'
+                              : visit.status || '—'}
+                          </Label>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableNoData notFound={!recentVisits.length} title="No recent visits recorded" />
+                )}
               </TableBody>
             </Table>
           </Scrollbar>
-        </TableContainer>
+        </Box>
       </Card>
 
       {/* Edit Kiosk Modal */}
@@ -551,6 +539,30 @@ export function KioskDetailView({ ownerDashboard = false }) {
         open={editModal.value}
         onClose={editModal.onFalse}
         currentKiosk={kiosk}
+        ownerDashboard={ownerDashboard}
+      />
+
+      {/* Confirm Lock / Unlock Dialog */}
+      <ConfirmDialog
+        open={confirmLock.value}
+        onClose={confirmLock.onFalse}
+        title={isLocked ? 'Unlock Kiosk Device' : 'Lock Kiosk Device'}
+        content={
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to {isLocked ? 'unlock' : 'lock'} this kiosk terminal (
+            <strong>{kiosk?.locationLabel || kiosk?.deviceId || 'Kiosk'}</strong>)?
+          </Typography>
+        }
+        action={
+          <LoadingButton
+            variant="contained"
+            color={isLocked ? 'primary' : 'warning'}
+            loading={isTogglingLock}
+            onClick={handleToggleLock}
+          >
+            {isLocked ? 'Unlock Device' : 'Lock Device'}
+          </LoadingButton>
+        }
       />
     </DashboardContent>
   );

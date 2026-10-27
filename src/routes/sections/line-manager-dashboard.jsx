@@ -61,6 +61,7 @@ const TempyConnectionPage = lazy(() => import('src/pages/dashboard/active-routes
 //documents
 const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/documents'));
 const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
+const DocumentCategoriesPage = lazy(() => import('src/pages/dashboard/active-routes/documents/categories'));
 
 //family engagement
 const FamilyOverviewPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/overview'));
@@ -134,6 +135,7 @@ export const lineManagerDashboardRoutes = [
             { path: "residents/:id", element: <ResidentDetailPage /> },
 
             { path: "documents", element: <DocumentsPage /> },
+            { path: "documents/categories", element: <DocumentCategoriesPage /> },
             { path: "documents/:id", element: <DocumentDetailPage /> },
 
             { path: "tempy-connection", element: <TempyConnectionPage /> },
