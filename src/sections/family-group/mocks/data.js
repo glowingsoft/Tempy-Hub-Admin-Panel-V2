@@ -1,203 +1,51 @@
-// Mock Data for Family Groups Management
-
-export const mockFamilyGroupsData = {
-  summary: {
-    totalGroups: 6,
-    activeGroups: 2,
-    pendingInvites: 2,
-    noFamilyLinked: 2,
-  },
-  residents: [
-    {
-      id: 'fg-1',
-      _id: 'resident-001',
-      name: 'Margaret Hughes',
-      resident: 'Margaret Hughes',
-      room: '12',
-      roomNumber: '12',
-      avatarUrl: 'https://i.pravatar.cc/150?img=47',
-      image: 'https://i.pravatar.cc/150?img=47',
-      nextOfKin: 'Sarah Hughes',
-      nextOfKinRelationship: 'Daughter',
-      nextOfKinEmail: 'sarah.hughes@example.com',
-      nextOfKinPhone: '+44 7700 900123',
-      members: 3,
-      status: 'active',
-      statusLabel: 'Active',
-      membersList: [
-        {
-          id: 'mem-1-1',
-          name: 'Sarah Hughes',
-          relation: 'Daughter',
-          isNok: true,
-          email: 'sarah.hughes@example.com',
-          phone: '+44 7700 900123',
-          role: 'Primary Admin',
-          status: 'Active',
-        },
-        {
-          id: 'mem-1-2',
-          name: 'David Hughes',
-          relation: 'Son',
-          isNok: false,
-          email: 'david.h@example.com',
-          phone: '+44 7700 900124',
-          role: 'Member',
-          status: 'Active',
-        },
-        {
-          id: 'mem-1-3',
-          name: 'Emily Hughes',
-          relation: 'Granddaughter',
-          isNok: false,
-          email: 'emily.h@example.com',
-          phone: '+44 7700 900125',
-          role: 'Member',
-          status: 'Active',
-        },
-      ],
-    },
-    {
-      id: 'fg-2',
-      _id: 'resident-002',
-      name: 'Dennis Rowe',
-      resident: 'Dennis Rowe',
-      room: '4',
-      roomNumber: '4',
-      avatarUrl: 'https://i.pravatar.cc/150?img=12',
-      image: 'https://i.pravatar.cc/150?img=12',
-      nextOfKin: 'Ellen Price',
-      nextOfKinRelationship: 'Niece',
-      nextOfKinEmail: 'ellen.price@example.com',
-      nextOfKinPhone: '+44 7700 900456',
-      members: 2,
-      status: 'invite_pending',
-      statusLabel: 'Invite pending',
-      membersList: [
-        {
-          id: 'mem-2-1',
-          name: 'Ellen Price',
-          relation: 'Niece',
-          isNok: true,
-          email: 'ellen.price@example.com',
-          phone: '+44 7700 900456',
-          role: 'Primary Contact',
-          status: 'Invite pending',
-        },
-        {
-          id: 'mem-2-2',
-          name: 'Mark Price',
-          relation: 'Nephew',
-          isNok: false,
-          email: 'mark.p@example.com',
-          phone: '+44 7700 900457',
-          role: 'Member',
-          status: 'Invite pending',
-        },
-      ],
-    },
-    {
-      id: 'fg-3',
-      _id: 'resident-003',
-      name: 'Joan Parr',
-      resident: 'Joan Parr',
-      room: '8',
-      roomNumber: '8',
-      avatarUrl: 'https://i.pravatar.cc/150?img=44',
-      image: 'https://i.pravatar.cc/150?img=44',
-      nextOfKin: null,
-      nextOfKinRelationship: '',
-      nextOfKinEmail: '',
-      nextOfKinPhone: '',
-      members: 0,
-      status: 'no_family',
-      statusLabel: 'No family',
-      membersList: [],
-    },
-    {
-      id: 'fg-4',
-      _id: 'resident-004',
-      name: 'Albert Cole',
-      resident: 'Albert Cole',
-      room: '15',
-      roomNumber: '15',
-      avatarUrl: 'https://i.pravatar.cc/150?img=11',
-      image: 'https://i.pravatar.cc/150?img=11',
-      nextOfKin: 'Mark Cole',
-      nextOfKinRelationship: 'Son',
-      nextOfKinEmail: 'mark.c@example.com',
-      nextOfKinPhone: '+44 7700 900789',
-      members: 4,
-      status: 'active',
-      statusLabel: 'Active',
-      membersList: [
-        {
-          id: 'mem-4-1',
-          name: 'Mark Cole',
-          relation: 'Son',
-          isNok: true,
-          email: 'mark.c@example.com',
-          phone: '+44 7700 900789',
-          role: 'Primary Admin',
-          status: 'Active',
-        },
-      ],
-    },
-    {
-      id: 'fg-5',
-      _id: 'resident-005',
-      name: 'Rose Bell',
-      resident: 'Rose Bell',
-      room: '2',
-      roomNumber: '2',
-      avatarUrl: 'https://i.pravatar.cc/150?img=32',
-      image: 'https://i.pravatar.cc/150?img=32',
-      nextOfKin: 'Priya Bell',
-      nextOfKinRelationship: 'Granddaughter',
-      nextOfKinEmail: 'priya.b@example.com',
-      nextOfKinPhone: '+44 7700 900321',
-      members: 2,
-      status: 'invite_pending',
-      statusLabel: 'Invite pending',
-      membersList: [
-        {
-          id: 'mem-5-1',
-          name: 'Priya Bell',
-          relation: 'Granddaughter',
-          isNok: true,
-          email: 'priya.b@example.com',
-          phone: '+44 7700 900321',
-          role: 'Primary Contact',
-          status: 'Invite pending',
-        },
-      ],
-    },
-    {
-      id: 'fg-6',
-      _id: 'resident-006',
-      name: 'Frank Hill',
-      resident: 'Frank Hill',
-      room: '9',
-      roomNumber: '9',
-      avatarUrl: 'https://i.pravatar.cc/150?img=60',
-      image: 'https://i.pravatar.cc/150?img=60',
-      nextOfKin: null,
-      nextOfKinRelationship: '',
-      nextOfKinEmail: '',
-      nextOfKinPhone: '',
-      members: 0,
-      status: 'no_family',
-      statusLabel: 'No family',
-      membersList: [],
-    },
-  ],
-};
-
 export const FAMILY_GROUP_STATUS_OPTIONS = [
-  { value: 'all', label: 'All', color: 'primary' },
+  { value: 'all', label: 'All', color: 'default' },
   { value: 'active', label: 'Active', color: 'success' },
-  { value: 'invite_pending', label: 'Invite pending', color: 'warning' },
-  { value: 'no_family', label: 'No family', color: 'error' },
+  { value: 'invitePending', label: 'Invite pending', color: 'warning' },
+  { value: 'noFamily', label: 'No family', color: 'error' },
 ];
 
-export default mockFamilyGroupsData;
+export function getFamilyGroupStatusMeta(status) {
+  return (
+    FAMILY_GROUP_STATUS_OPTIONS.find((option) => option.value === status) || {
+      value: status,
+      label: status
+        ? status
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/[_-]/g, ' ')
+            .replace(/^\w/, (char) => char.toUpperCase())
+            .trim()
+        : '—',
+      color: 'default',
+    }
+  );
+}
+
+export function getRelationshipLabel(value, options = []) {
+  const match = options.find((option) => option.value === value);
+  if (match?.label) return match.label;
+  if (!value) return '—';
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function getInvitationId(invitation) {
+  return invitation?._id || invitation?.invitationId || invitation?.pendingInvitationId || '';
+}
+
+export function getMemberStatusMeta(status) {
+  if (status === 'pending' || status === 'invitePending') {
+    return { label: 'Invite pending', color: 'warning' };
+  }
+  return getFamilyGroupStatusMeta(status);
+}
+
+export function toResidentOption(group) {
+  if (!group?.residentId) return null;
+
+  return {
+    value: group.residentId,
+    label: group.roomNumber
+      ? `${group.residentName} - Room ${group.roomNumber}`
+      : group.residentName,
+  };
+}

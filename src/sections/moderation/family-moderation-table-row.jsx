@@ -5,14 +5,26 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Label } from 'src/components/label';
 import { fDate } from 'src/utils/format-time';
 
 // ----------------------------------------------------------------------
+
+function getStatusMeta(status) {
+  if (status === 'approved') return { label: 'Approved', color: 'success' };
+  if (status === 'rejected') return { label: 'Rejected', color: 'error' };
+  return { label: 'Pending', color: 'warning' };
+}
+
+function getPhotoUrls(row) {
+  return (Array.isArray(row?.photos) ? row.photos : [])
+    .map((photo) => photo?.url)
+    .filter(Boolean);
+}
 
 export function FamilyModerationTableRow({
   serialNumber,
@@ -21,6 +33,14 @@ export function FamilyModerationTableRow({
   onApprove,
   onDisapprove,
 }) {
+  const isWaiting = row.status === 'waiting';
+  const photoUrls = getPhotoUrls(row);
+  const thumbnail = photoUrls[0];
+  const photoCount = photoUrls.length;
+  const statusMeta = getStatusMeta(row.status);
+  const residentName = row.residentName || 'Unknown';
+  const authorName = row.authorName || '—';
+
   const actions = [
     {
       key: 'preview',
@@ -29,57 +49,59 @@ export function FamilyModerationTableRow({
       color: 'default',
       onClick: onPreview,
     },
-    {
-      key: 'approve',
-      icon: 'solar:check-circle-bold',
-      tooltip: row.status === 'approved' ? 'Approved (click to re-confirm)' : 'Approve upload',
-      color: 'success',
-      onClick: onApprove,
-    },
-    {
-      key: 'disapprove',
-      icon: 'solar:close-circle-bold',
-      tooltip: row.status === 'rejected' ? 'Disapproved (click to edit reason)' : 'Disapprove upload',
-      color: 'error',
-      onClick: onDisapprove,
-    },
+    ...(isWaiting
+      ? [
+        {
+          key: 'approve',
+          icon: 'solar:check-circle-bold',
+          tooltip: 'Approve upload',
+          color: 'success',
+          onClick: onApprove,
+        },
+        {
+          key: 'disapprove',
+          icon: 'solar:close-circle-bold',
+          tooltip: 'Reject upload',
+          color: 'error',
+          onClick: onDisapprove,
+        },
+      ]
+      : []),
   ];
-
-  const getStatusColor = (status) => {
-    if (status === 'approved') return 'success';
-    if (status === 'rejected') return 'error';
-    return 'warning';
-  };
 
   return (
     <TableRow hover onClick={onPreview} sx={{ cursor: 'pointer' }}>
       <TableCell>{serialNumber}</TableCell>
 
-      {/* Photo */}
       <TableCell>
         <Tooltip
           arrow
-          title={row.photoCount > 1 ? `${row.photoCount} photos in this upload` : 'Click to preview'}
+          title={photoCount > 1 ? `${photoCount} photos in this upload` : 'Click to preview'}
         >
           <Box sx={{ position: 'relative', width: 48, height: 48 }}>
-            <Box
-              component="img"
-              src={row.thumbnail}
-              alt={row.caption}
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: 1,
-                objectFit: 'cover',
-                cursor: 'pointer',
-                transition: 'transform 0.2s ease-in-out',
-                '&:hover': {
-                  transform: 'scale(1.06)',
-                },
-              }}
-              onClick={onPreview}
-            />
-            {row.photoCount > 1 && (
+            {thumbnail ? (
+              <Box
+                component="img"
+                src={thumbnail}
+                alt={row.message || residentName}
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 1,
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 1,
+                  bgcolor: 'background.neutral',
+                }}
+              />
+            )}
+            {photoCount > 1 && (
               <Box
                 sx={{
                   position: 'absolute',
@@ -97,63 +119,66 @@ export function FamilyModerationTableRow({
                   fontWeight: 700,
                 }}
               >
-                {row.photoCount}
+                {photoCount}
               </Box>
             )}
           </Box>
         </Tooltip>
       </TableCell>
 
-      {/* Resident */}
       <TableCell>
         <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar alt={row.residentName} src={row.residentAvatar}>
-            {row.residentName?.charAt(0)}
+          <Avatar alt={residentName} src={row.residentPhotoUrl || undefined} sx={{ width: 36, height: 36, fontSize: 16, textTransform: 'capitalize' }}>
+            {residentName?.charAt(0)}
           </Avatar>
 
           <Stack>
-            <Typography variant="body2" fontWeight={600}>
-              {row.residentName}
+            <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
+              {residentName}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Room {row.room}
+              {row.roomNumber ? `Room ${row.roomNumber}` : '—'}
             </Typography>
           </Stack>
         </Stack>
       </TableCell>
 
-      {/* Caption / Story */}
       <TableCell>
         <Typography variant="body2" sx={{ maxWidth: 240 }} noWrap>
-          {row.caption}
+          {row.message || '—'}
         </Typography>
       </TableCell>
 
-      {/* Uploaded by */}
-      <TableCell>{row.uploadedBy}</TableCell>
+      <TableCell>
+        <Stack>
+          <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+            {authorName}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+            {row.authorRelationship || row.authorEmail || '—'}
+          </Typography>
+        </Stack>
+      </TableCell>
 
-      {/* Submitted Date */}
-      <TableCell>{fDate(row.uploadedAt)}</TableCell>
+      <TableCell>{fDate(row.createdAt)}</TableCell>
 
-      {/* Status */}
       <TableCell align="center">
         <Tooltip
           arrow
           title={
             row.status === 'rejected' && row.rejectionReason
               ? `Reason: ${row.rejectionReason}`
-              : row.status === 'approved' && row.approvedAt
-              ? `Approved on ${fDate(row.approvedAt)}`
-              : 'Pending approval'
+              : row.status === 'approved' && row.decidedAt
+                ? `Approved${row.decidedByName ? ` by ${row.decidedByName}` : ''} on ${fDate(row.decidedAt)}`
+                : 'Waiting for approval'
           }
         >
-          <Label variant="soft" color={getStatusColor(row.status)}>
-            {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : 'Pending'}
+          <Label variant="soft" color={statusMeta.color}>
+            {statusMeta.label}
           </Label>
         </Tooltip>
       </TableCell>
 
-      {/* Actions */}
       <TableCell align="center">
         <Box
           onClick={(event) => event.stopPropagation()}

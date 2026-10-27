@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 import Dialog from '@mui/material/Dialog';
@@ -14,128 +14,133 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Avatar from '@mui/material/Avatar';
 import Chip from '@mui/material/Chip';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Autocomplete from '@mui/material/Autocomplete';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { Upload } from 'src/components/upload';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { _mockResidentsList } from 'src/sections/family-engagement/mocks/data';
+import {
+  useCreateFamilyPostMutation,
+  useGetTaggableResidentsQuery,
+  useUploadFamilyPostMediaBatchMutation,
+  useUploadFamilyPostMediaMutation,
+} from 'src/store/Reducer/family-posts-api';
+
+import { FAMILY_POST_AUDIENCE_OPTIONS, FamilyPostAudience, MAX_POST_PHOTOS } from './utils';
 
 // ----------------------------------------------------------------------
 
-const AUDIENCE_OPTIONS = [
-  {
-    value: 'All Families & Residents',
-    label: 'All Families & Residents',
-    description: 'Visible to all residents and connected family members across Florence House',
-    icon: 'solar:users-group-rounded-bold',
-  },
-  {
-    value: 'Florence House Families',
-    label: 'Florence House Families',
-    description: 'Visible only to registered family contacts for Florence House branch',
-    icon: 'solar:home-smile-bold',
-  },
-  {
-    value: 'Tagged Resident Families Only',
-    label: 'Tagged Resident Families Only',
-    description: 'Private post shared only with relatives of the tagged residents',
-    icon: 'solar:lock-keyhole-bold',
-  },
-  {
-    value: 'Staff Only',
-    label: 'Staff Only',
-    description: 'Internal update visible only to Florence House care team and managers',
-    icon: 'solar:shield-user-bold',
-  },
-];
-
-export function NewWallPostDialog({ open, onClose, onCreated }) {
+export function NewWallPostDialog({ open, onClose, organizationId, branchId }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [audience, setAudience] = useState(AUDIENCE_OPTIONS[0].value);
+  const [audience, setAudience] = useState(FamilyPostAudience.ALL);
   const [taggedResidents, setTaggedResidents] = useState([]);
   const [photos, setPhotos] = useState([]);
+  const [isPinned, setIsPinned] = useState(false);
 
-  const handleDropPhotos = useCallback((acceptedFiles) => {
-    const imageFiles = acceptedFiles.filter((file) => file.type.startsWith('image/'));
-    if (imageFiles.length < acceptedFiles.length) {
-      toast.error('Only image files (JPG, PNG, WebP, GIF) are allowed. PDFs and documents are not accepted.');
-    }
-    const newFiles = imageFiles.map((file) =>
-      Object.assign(file, {
-        preview: URL.createObjectURL(file),
-      })
-    );
-    setPhotos((prev) => [...prev, ...newFiles]);
-  }, []);
-
-  const handleRemovePhoto = useCallback(
-    (inputFile) => {
-      const filtered = photos.filter((file) => file !== inputFile);
-      setPhotos(filtered);
-    },
-    [photos]
+  const { data: taggableResidents = [] } = useGetTaggableResidentsQuery(
+    { organizationId, branchId },
+    { skip: !open || !organizationId || !branchId }
   );
 
-  const handleRemoveAllPhotos = useCallback(() => {
+  const [uploadFamilyPostMedia] = useUploadFamilyPostMediaMutation();
+  const [uploadFamilyPostMediaBatch] = useUploadFamilyPostMediaBatchMutation();
+  const [createFamilyPost, { isLoading: isCreating }] = useCreateFamilyPostMutation();
+  const [uploading, setUploading] = useState(false);
+  const saving = isCreating || uploading;
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle('');
+    setContent('');
+    setAudience(FamilyPostAudience.ALL);
+    setTaggedResidents([]);
     setPhotos([]);
+    setIsPinned(false);
+  }, [open]);
+
+  const handleDropPhotos = useCallback(
+    (acceptedFiles) => {
+      const imageFiles = acceptedFiles.filter((file) => file.type.startsWith('image/'));
+      if (imageFiles.length < acceptedFiles.length) {
+        toast.error('Only image files (JPG, PNG, WebP, GIF) are allowed.');
+      }
+
+      setPhotos((prev) => {
+        const remaining = MAX_POST_PHOTOS - prev.length;
+        if (remaining <= 0) {
+          toast.error(`You can attach up to ${MAX_POST_PHOTOS} photos.`);
+          return prev;
+        }
+        const nextFiles = imageFiles.slice(0, remaining).map((file) =>
+          Object.assign(file, { preview: URL.createObjectURL(file) })
+        );
+        if (imageFiles.length > remaining) {
+          toast.error(`You can attach up to ${MAX_POST_PHOTOS} photos.`);
+        }
+        return [...prev, ...nextFiles];
+      });
+    },
+    []
+  );
+
+  const handleRemovePhoto = useCallback((inputFile) => {
+    setPhotos((prev) => prev.filter((file) => file !== inputFile));
   }, []);
 
-  const handleSubmit = () => {
+  const handleClose = () => {
+    if (saving) return;
+    onClose?.();
+  };
+
+  const handleSubmit = async () => {
     if (!content.trim()) {
       toast.error('Please enter post content.');
       return;
     }
+    if (!branchId) {
+      toast.error('Please select a site first.');
+      return;
+    }
+    if (audience === FamilyPostAudience.TAGGED && !taggedResidents.length) {
+      toast.error('Tag at least one resident for tagged-family posts.');
+      return;
+    }
 
-    const photoUrls = photos
-      .map((p) => {
-        if (typeof p === 'string') return p;
-        return p.preview || (p instanceof File ? URL.createObjectURL(p) : '');
-      })
-      .filter(Boolean);
+    try {
+      setUploading(true);
+      let mediaIds = [];
+      const files = photos.filter((photo) => photo instanceof File);
 
-    const newPost = {
-      id: `post-${Date.now()}`,
-      title: title.trim() || 'Community Update',
-      content: content.trim(),
-      audience,
-      taggedResidents,
-      photos: photoUrls.length > 0 ? photoUrls : [],
-      author: {
-        name: 'Florence House Activities',
-        handle: '@florencehouse',
-        role: 'Activities Coordinator',
-        avatarUrl: 'https://i.pravatar.cc/150?img=33',
-      },
-      createdAt: new Date().toISOString(),
-      isPinned: false,
-      reactions: {
-        like: 1,
-        heart: 0,
-        smile: 0,
-        userReaction: 'like',
-      },
-      seenBy: {
-        count: 1,
-        recentViewers: [],
-      },
-      commentsCount: 0,
-      sharesCount: 0,
-    };
+      if (files.length === 1) {
+        const uploaded = await uploadFamilyPostMedia({ organizationId, file: files[0] }).unwrap();
+        mediaIds = uploaded.map((item) => item.mediaId);
+      } else if (files.length > 1) {
+        const uploaded = await uploadFamilyPostMediaBatch({ organizationId, files }).unwrap();
+        mediaIds = uploaded.map((item) => item.mediaId);
+      }
 
-    onCreated?.(newPost);
-    toast.success('Post published to Community Wall!');
-    handleClose();
-  };
+      await createFamilyPost({
+        organizationId,
+        branchId,
+        title: title.trim(),
+        message: content.trim(),
+        mediaIds,
+        taggedResidentIds: taggedResidents.map((resident) => resident.residentId),
+        audience,
+        isPinned,
+      }).unwrap();
 
-  const handleClose = () => {
-    setTitle('');
-    setContent('');
-    setAudience(AUDIENCE_OPTIONS[0].value);
-    setTaggedResidents([]);
-    setPhotos([]);
-    onClose();
+      toast.success('Post published to Community Wall');
+      onClose?.();
+    } catch (error) {
+      toast.error(error?.data?.message || error?.message || 'Unable to publish post');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -150,48 +155,45 @@ export function NewWallPostDialog({ open, onClose, onCreated }) {
               Create New Post
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Share updates, stories & photos with families
+              Share updates, stories and photos with families
             </Typography>
           </Box>
         </Stack>
-
-        <IconButton size="small" onClick={handleClose}>
+        <IconButton size="small" onClick={handleClose} disabled={saving}>
           <Iconify icon="solar:close-circle-bold" />
         </IconButton>
       </DialogTitle>
 
       <DialogContent dividers sx={{ pt: 2.5, pb: 3 }}>
         <Stack spacing={2.5}>
-          {/* Post Title (Optional headline) */}
           <TextField
             fullWidth
             label="Title (optional)"
-            placeholder="e.g. Autumn courtyard walk or Craft club fun"
+            placeholder="e.g. Autumn courtyard walk"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
           />
 
-          {/* Post Content */}
           <TextField
             fullWidth
             multiline
             rows={4}
-            label="Post Content *"
-            placeholder="What's happening at Florence House? Add hashtags like #autumn #crafts..."
+            label="Post content"
+            placeholder="What's happening at this site?"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(event) => setContent(event.target.value)}
+            required
           />
 
-          {/* Audience Selector */}
           <TextField
             select
             fullWidth
             label="Who can see this post?"
             value={audience}
-            onChange={(e) => setAudience(e.target.value)}
-            helperText={AUDIENCE_OPTIONS.find((opt) => opt.value === audience)?.description}
+            onChange={(event) => setAudience(event.target.value)}
+            helperText={FAMILY_POST_AUDIENCE_OPTIONS.find((opt) => opt.value === audience)?.description}
           >
-            {AUDIENCE_OPTIONS.map((opt) => (
+            {FAMILY_POST_AUDIENCE_OPTIONS.map((opt) => (
               <MenuItem key={opt.value} value={opt.value}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
                   <Iconify icon={opt.icon} width={20} sx={{ color: 'primary.main' }} />
@@ -203,58 +205,62 @@ export function NewWallPostDialog({ open, onClose, onCreated }) {
             ))}
           </TextField>
 
-          {/* Resident Tagging */}
           <Autocomplete
             multiple
-            options={_mockResidentsList}
-            getOptionLabel={(option) => option.name}
+            options={taggableResidents}
+            getOptionLabel={(option) =>
+              option.roomNumber ? `${option.name} (Room ${option.roomNumber})` : option.name
+            }
+            isOptionEqualToValue={(option, value) => option.residentId === value.residentId}
             value={taggedResidents}
             onChange={(_, newValue) => setTaggedResidents(newValue)}
             renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Tag Residents"
-                placeholder="Search and tag residents in this post..."
-              />
+              <TextField {...params} label="Tag residents" placeholder="Search residents..." />
             )}
             renderTags={(tagValue, getTagProps) =>
               tagValue.map((option, index) => (
                 <Chip
                   {...getTagProps({ index })}
-                  key={option.id}
+                  key={option.residentId}
                   size="small"
-                  avatar={<Avatar src={option.avatarUrl}>{option.name?.charAt(0)}</Avatar>}
-                  label={`${option.name} (Rm ${option.room})`}
+                  avatar={<Avatar src={option.photoUrl || undefined}>{option.name?.charAt(0)}</Avatar>}
+                  label={option.roomNumber ? `${option.name} (Rm ${option.roomNumber})` : option.name}
                 />
               ))
             }
           />
 
-          {/* Photo Upload (Images only) */}
+          <FormControlLabel
+            control={
+              <Switch checked={isPinned} onChange={(event) => setIsPinned(event.target.checked)} color="primary" />
+            }
+            label={
+              <Stack spacing={0}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Pin this post
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Keep it at the top of the community wall
+                </Typography>
+              </Stack>
+            }
+          />
+
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Attach Photos (multiple allowed)
+              Attach photos (max {MAX_POST_PHOTOS})
             </Typography>
             <Upload
               multiple
-              accept={{
-                'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.gif'],
-              }}
+              accept={{ 'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.gif'] }}
+              value={photos}
               files={photos}
               onDrop={handleDropPhotos}
               onRemove={handleRemovePhoto}
-              onRemoveAll={handleRemoveAllPhotos}
+              onRemoveAll={() => setPhotos([])}
               helperText={
-                <Typography
-                  variant="caption"
-                  sx={{
-                    mt: 1,
-                    display: 'block',
-                    textAlign: 'center',
-                    color: 'text.disabled',
-                  }}
-                >
-                  Allowed *.jpeg, *.jpg, *.png, *.webp, *.gif. Upload 2+ photos to enable carousel with dots.
+                <Typography variant="caption" sx={{ mt: 1, display: 'block', textAlign: 'center', color: 'text.disabled' }}>
+                  Allowed *.jpeg, *.jpg, *.png, *.webp, *.gif. Maximum {MAX_POST_PHOTOS} images.
                 </Typography>
               }
             />
@@ -263,18 +269,17 @@ export function NewWallPostDialog({ open, onClose, onCreated }) {
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button variant="outlined" color="inherit" onClick={handleClose}>
+        <Button variant="outlined" color="inherit" onClick={handleClose} disabled={saving}>
           Cancel
         </Button>
         <Button
           variant="contained"
           color="primary"
           onClick={handleSubmit}
-          disabled={!content.trim()}
-          startIcon={<Iconify icon="solar:send-bold" />}
-          sx={{ fontWeight: 700, px: 2.5 }}
+          disabled={!content.trim() || saving}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Iconify icon="solar:send-bold" />}
         >
-          Publish Post
+          Publish post
         </Button>
       </DialogActions>
     </Dialog>
@@ -284,7 +289,6 @@ export function NewWallPostDialog({ open, onClose, onCreated }) {
 NewWallPostDialog.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
-  onCreated: PropTypes.func,
+  organizationId: PropTypes.string,
+  branchId: PropTypes.string,
 };
-
-export default NewWallPostDialog;
