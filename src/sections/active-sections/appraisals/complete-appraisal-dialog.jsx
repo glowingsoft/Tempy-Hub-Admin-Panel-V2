@@ -26,6 +26,7 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
   const [trainingNeeds, setTrainingNeeds] = useState('');
   const [actionPoints, setActionPoints] = useState('');
   const [error, setError] = useState('');
+  const [touched, setTouched] = useState(false);
 
   const [updateAppraisal, { isLoading: isSubmitting }] = useUpdateAppraisalMutation();
 
@@ -81,6 +82,7 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
           : ''
       );
       setError('');
+      setTouched(false);
     }
   }, [open, row]);
 
@@ -90,6 +92,7 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
     setTrainingNeeds('');
     setActionPoints('');
     setError('');
+    setTouched(false);
   };
 
   const handleClose = () => {
@@ -97,7 +100,23 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
     onClose();
   };
 
+  const isManagerCommentsInvalid = touched && !managerComments.trim();
+  const isGoalsInvalid = touched && !goals.trim();
+  const isTrainingNeedsInvalid = touched && !trainingNeeds.trim();
+  const isActionPointsInvalid = touched && !actionPoints.trim();
+
   const handleComplete = async () => {
+    setTouched(true);
+
+    if (
+      !managerComments.trim() ||
+      !goals.trim() ||
+      !trainingNeeds.trim() ||
+      !actionPoints.trim()
+    ) {
+      return;
+    }
+
     const appraisalId =
       row?.upcoming?._id ||
       row?.upcoming?.id ||
@@ -123,10 +142,10 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
         organizationId,
         appraisalId,
         status: 'completed',
-        managerComments: managerComments.trim() || 'Meeting held',
-        goals: goals.trim() || 'Complete NVQ',
-        trainingNeeds: trainingNeeds.trim() || 'Medication refresher',
-        actionPoints: actionPointsArray.length > 0 ? actionPointsArray : ['Book the next review'],
+        managerComments: managerComments.trim(),
+        goals: goals.trim(),
+        trainingNeeds: trainingNeeds.trim(),
+        actionPoints: actionPointsArray,
       };
 
       const res = await updateAppraisal(payload).unwrap();
@@ -183,11 +202,14 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
 
           {/* Manager Comments */}
           <TextField
+            required
             fullWidth
             multiline
             rows={2}
             label="Manager Comments"
             placeholder="e.g. Meeting held"
+            helperText={isManagerCommentsInvalid ? 'Manager comments are required' : ''}
+            error={isManagerCommentsInvalid}
             value={managerComments}
             disabled={isSubmitting}
             onChange={(e) => setManagerComments(e.target.value)}
@@ -195,11 +217,14 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
 
           {/* Goals */}
           <TextField
+            required
             fullWidth
             multiline
             rows={2}
             label="Goals"
             placeholder="e.g. Complete NVQ"
+            helperText={isGoalsInvalid ? 'Goals are required' : ''}
+            error={isGoalsInvalid}
             value={goals}
             disabled={isSubmitting}
             onChange={(e) => setGoals(e.target.value)}
@@ -207,11 +232,14 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
 
           {/* Training Needs */}
           <TextField
+            required
             fullWidth
             multiline
             rows={2}
             label="Training Needs"
             placeholder="e.g. Medication refresher"
+            helperText={isTrainingNeedsInvalid ? 'Training needs are required' : ''}
+            error={isTrainingNeedsInvalid}
             value={trainingNeeds}
             disabled={isSubmitting}
             onChange={(e) => setTrainingNeeds(e.target.value)}
@@ -219,12 +247,18 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
 
           {/* Action Points */}
           <TextField
+            required
             fullWidth
             multiline
             rows={2}
             label="Action Points"
             placeholder="e.g. Book the next review"
-            helperText="Enter one action point per line"
+            helperText={
+              isActionPointsInvalid
+                ? 'Action points are required'
+                : 'Enter one action point per line'
+            }
+            error={isActionPointsInvalid}
             value={actionPoints}
             disabled={isSubmitting}
             onChange={(e) => setActionPoints(e.target.value)}
