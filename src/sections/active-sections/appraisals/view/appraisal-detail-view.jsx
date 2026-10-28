@@ -81,7 +81,7 @@ export default function AppraisalDetailView() {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
-          <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+          <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
             Back
           </Button>
         </Box>
@@ -94,7 +94,7 @@ export default function AppraisalDetailView() {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
-          <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+          <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
             Back
           </Button>
         </Box>
@@ -136,7 +136,7 @@ export default function AppraisalDetailView() {
   return (
     <DashboardContent>
       <Box sx={{ mb: 2 }}>
-        <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+        <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
           Back
         </Button>
       </Box>

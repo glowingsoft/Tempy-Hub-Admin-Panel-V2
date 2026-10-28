@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 
 import { CONFIG } from 'src/config-global';
-import { StaffDocumentListView } from 'src/sections/staff/documents/view/staff-document-list-view';
+import { DocumentListView } from 'src/sections/active-sections/documents/view/document-list-view';
 
 export default function Page() {
     return (
@@ -9,7 +9,7 @@ export default function Page() {
             <Helmet>
                 <title>Documents | Staff Dashboard - {CONFIG.site.name}</title>
             </Helmet>
-            <StaffDocumentListView />
+            <DocumentListView isStaff />
         </>
     );
 }

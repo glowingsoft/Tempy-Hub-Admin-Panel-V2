@@ -53,6 +53,7 @@ const KioskDetailPage = lazy(() => import('src/pages/dashboard/active-routes/kio
 const DocumentsPage = lazy(() => import('src/pages/dashboard/active-routes/documents'));
 const DocumentDetailPage = lazy(() => import('src/pages/dashboard/active-routes/documents/detail'));
 const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/active-routes/documents/acknowledgements'));
+const DocumentCategoriesPage = lazy(() => import('src/pages/dashboard/active-routes/documents/categories'));
 //reports
 const ReportsPage = lazy(() => import('src/pages/dashboard/active-routes/reports'));
 const PeepFloorPlanPage = lazy(() => import('src/pages/dashboard/active-routes/floor-plan'));
@@ -242,6 +243,7 @@ export const ownerDashboardRoutes = [
       },
       { path: 'org-rollup', element: <Navigate to="/owner-dashboard/peep-and-floor-plan" replace /> },
       { path: "documents", element: <DocumentsPage ownerDashboard /> },
+      { path: "documents/categories", element: <DocumentCategoriesPage ownerDashboard /> },
       { path: "documents/:id", element: <DocumentDetailPage ownerDashboard /> },
       { path: "reports", element: <ReportsPage ownerDashboard /> },
       { path: "messages", element: <MessagesPage /> },

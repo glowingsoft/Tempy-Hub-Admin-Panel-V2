@@ -60,16 +60,35 @@ function StatusLabel({ status }) {
     return <Label variant="soft" color={meta.color}>{meta.label}</Label>;
 }
 
-export function StaffSupervisionListView({ heading, dashboardHref }) {
+export function StaffSupervisionListView({ heading, dashboardHref, type: explicitType }) {
     const pathname = usePathname();
     const table = useTable();
     const currentMonth = dayjs();
+
+    const viewType = useMemo(() => {
+        if (explicitType) return explicitType;
+        if (pathname?.includes('/appraisals') || pathname?.includes('/appraisal')) return 'appraisal';
+        if (pathname?.includes('/supervision')) return 'supervision';
+        return 'all';
+    }, [explicitType, pathname]);
+
     const supervisionStatus = getStaffSupervisionStatus(staffSupervisionSummary.supervision.nextDueAt, currentMonth);
     const appraisalStatus = getStaffSupervisionStatus(staffSupervisionSummary.appraisal.nextDueAt, currentMonth);
+
+    const filteredSessions = useMemo(() => {
+        if (viewType === 'supervision') {
+            return staffSupervisionSessions.filter((s) => s.type === 'supervision');
+        }
+        if (viewType === 'appraisal') {
+            return staffSupervisionSessions.filter((s) => s.type === 'appraisal');
+        }
+        return staffSupervisionSessions;
+    }, [viewType]);
+
     const paginatedSessions = useMemo(() => {
         const start = table.page * table.rowsPerPage;
-        return staffSupervisionSessions.slice(start, start + table.rowsPerPage);
-    }, [table.page, table.rowsPerPage]);
+        return filteredSessions.slice(start, start + table.rowsPerPage);
+    }, [table.page, table.rowsPerPage, filteredSessions]);
 
     const resolvedDashboardHref = useMemo(() => {
         if (dashboardHref) return dashboardHref;
@@ -80,11 +99,13 @@ export function StaffSupervisionListView({ heading, dashboardHref }) {
 
     const resolvedHeading = useMemo(() => {
         if (heading) return heading;
+        if (viewType === 'supervision') return 'Supervision';
+        if (viewType === 'appraisal') return 'Appraisal';
         if (pathname?.startsWith('/owner-dashboard') || pathname?.startsWith('/site-manager')) {
             return 'Supervision & Appraisal';
         }
         return 'My Supervision & Appraisal';
-    }, [heading, pathname]);
+    }, [heading, pathname, viewType]);
 
     // Bumped after a sign-off so rows re-render — `signOffMockActionPoint`
     // mutates the mock array in place rather than replacing it.
@@ -96,57 +117,63 @@ export function StaffSupervisionListView({ heading, dashboardHref }) {
         setReloadKey((key) => key + 1);
     };
 
+    const showSupervisionCard = viewType === 'supervision' || viewType === 'all';
+    const showAppraisalCard = viewType === 'appraisal' || viewType === 'all';
+    const hasUpcoming = staffUpcomingSupervision && (viewType === 'all' || staffUpcomingSupervision.type === viewType);
+
     return (
         <DashboardContent>
             <CustomBreadcrumbs
                 heading={resolvedHeading}
-                links={[{ name: 'Dashboard', href: resolvedDashboardHref }, { name: 'Supervision & Appraisal' }]}
+                links={[{ name: 'Dashboard', href: resolvedDashboardHref }, { name: resolvedHeading }]}
                 sx={{ mb: { xs: 3, md: 5 } }}
             />
 
-            {/* <Card sx={{ mb: 3, p: 2.5, bgcolor: 'info.lighter', color: 'info.darker' }}>
-                <Typography variant="body2">
-                    This page is read-only. Sessions are logged by your manager in the team supervision view.
-                </Typography>
-            </Card> */}
-
             <Grid container spacing={3} sx={{ mb: 3 }}>
-                <Grid xs={12} md={6}>
-                    <SummaryCard
-                        title="Supervision"
-                        frequency={staffSupervisionSummary.supervision.frequency}
-                        summary={`${staffSupervisionSummary.supervision.completedThisYear} of ${staffSupervisionSummary.supervision.expectedThisYear} completed this year`}
-                        lastDate={staffSupervisionSummary.supervision.lastCompletedAt}
-                        nextDate={staffSupervisionSummary.supervision.nextDueAt}
-                        status={supervisionStatus}
-                    />
-                </Grid>
-                <Grid xs={12} md={6}>
-                    <SummaryCard
-                        title="Appraisal"
-                        frequency={staffSupervisionSummary.appraisal.frequency}
-                        summary={`${staffSupervisionSummary.appraisal.completedThisYear} of ${staffSupervisionSummary.appraisal.expectedThisYear} completed this year`}
-                        lastDate={staffSupervisionSummary.appraisal.lastCompletedAt}
-                        nextDate={staffSupervisionSummary.appraisal.nextDueAt}
-                        status={appraisalStatus}
-                    />
-                </Grid>
+                {showSupervisionCard && (
+                    <Grid xs={12} md={showAppraisalCard ? 6 : 12}>
+                        <SummaryCard
+                            title="Supervision"
+                            frequency={staffSupervisionSummary.supervision.frequency}
+                            summary={`${staffSupervisionSummary.supervision.completedThisYear} of ${staffSupervisionSummary.supervision.expectedThisYear} completed this year`}
+                            lastDate={staffSupervisionSummary.supervision.lastCompletedAt}
+                            nextDate={staffSupervisionSummary.supervision.nextDueAt}
+                            status={supervisionStatus}
+                        />
+                    </Grid>
+                )}
+                {showAppraisalCard && (
+                    <Grid xs={12} md={showSupervisionCard ? 6 : 12}>
+                        <SummaryCard
+                            title="Appraisal"
+                            frequency={staffSupervisionSummary.appraisal.frequency}
+                            summary={`${staffSupervisionSummary.appraisal.completedThisYear} of ${staffSupervisionSummary.appraisal.expectedThisYear} completed this year`}
+                            lastDate={staffSupervisionSummary.appraisal.lastCompletedAt}
+                            nextDate={staffSupervisionSummary.appraisal.nextDueAt}
+                            status={appraisalStatus}
+                        />
+                    </Grid>
+                )}
             </Grid>
 
-            <Typography variant="h6" sx={{ mb: 1.5 }}>Upcoming</Typography>
-            <Card sx={{ mb: 3, p: 2.5 }}>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between">
-                    <Box>
-                        <Typography variant="body1" fontWeight={600}>
-                            {staffUpcomingSupervision.type[0].toUpperCase() + staffUpcomingSupervision.type.slice(1)} session — {fDateTime(staffUpcomingSupervision.sessionDate)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            With {staffUpcomingSupervision.conductedBy} · {staffUpcomingSupervision.location}
-                        </Typography>
-                    </Box>
-                    <StatusLabel status={staffUpcomingSupervision.status} />
-                </Stack>
-            </Card>
+            {hasUpcoming && (
+                <>
+                    <Typography variant="h6" sx={{ mb: 1.5 }}>Upcoming</Typography>
+                    <Card sx={{ mb: 3, p: 2.5 }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between">
+                            <Box>
+                                <Typography variant="body1" fontWeight={600}>
+                                    {staffUpcomingSupervision.type[0].toUpperCase() + staffUpcomingSupervision.type.slice(1)} session — {fDateTime(staffUpcomingSupervision.sessionDate)}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    With {staffUpcomingSupervision.conductedBy} · {staffUpcomingSupervision.location}
+                                </Typography>
+                            </Box>
+                            <StatusLabel status={staffUpcomingSupervision.status} />
+                        </Stack>
+                    </Card>
+                </>
+            )}
 
             <Typography variant="h6" sx={{ mb: 1.5 }}>History</Typography>
             <Card>
@@ -163,7 +190,7 @@ export function StaffSupervisionListView({ heading, dashboardHref }) {
                                         onViewDocument={setPreviewDocument}
                                     />
                                 ))}
-                                <TableNoData notFound={!staffSupervisionSessions.length} title="No sessions recorded" />
+                                <TableNoData notFound={!filteredSessions.length} title="No sessions recorded" />
                             </TableBody>
                         </Table>
                     </Scrollbar>
@@ -171,7 +198,7 @@ export function StaffSupervisionListView({ heading, dashboardHref }) {
                 <TablePaginationCustom
                     page={table.page}
                     dense={table.dense}
-                    count={staffSupervisionSessions.length}
+                    count={filteredSessions.length}
                     rowsPerPage={table.rowsPerPage}
                     onPageChange={table.onChangePage}
                     onChangeDense={table.onChangeDense}
@@ -279,4 +306,5 @@ function SummaryCard({ title, frequency, summary, lastDate, nextDate, status }) 
 StaffSupervisionListView.propTypes = {
     heading: PropTypes.string,
     dashboardHref: PropTypes.string,
+    type: PropTypes.string,
 };

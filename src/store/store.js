@@ -29,6 +29,9 @@ import { familyInvitationsApi } from './Reducer/family-invitations-api';
 import { familyGroupsApi } from './Reducer/family-groups-api';
 import { familyMembersApi } from './Reducer/family-members-api';
 import { familyPostsApi } from './Reducer/family-posts-api';
+import { documentsApi } from './Reducer/documents-api';
+import { documentCategoriesApi } from './Reducer/document-categories-api';
+import { kiosksApi } from './Reducer/kiosks-api';
 
 // Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
@@ -95,6 +98,9 @@ const apiSlices = [
   familyGroupsApi,
   familyMembersApi,
   familyPostsApi,
+  documentsApi,
+  documentCategoriesApi,
+  kiosksApi,
 ];
 
 const clearApiCachesOnLogout = ({ dispatch }) => (next) => (action) => {
@@ -140,6 +146,9 @@ export const store = configureStore({
     [familyGroupsApi.reducerPath]: familyGroupsApi.reducer,
     [familyMembersApi.reducerPath]: familyMembersApi.reducer,
     [familyPostsApi.reducerPath]: familyPostsApi.reducer,
+    [documentsApi.reducerPath]: documentsApi.reducer,
+    [documentCategoriesApi.reducerPath]: documentCategoriesApi.reducer,
+    [kiosksApi.reducerPath]: kiosksApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -176,6 +185,9 @@ export const store = configureStore({
       familyGroupsApi.middleware,
       familyMembersApi.middleware,
       familyPostsApi.middleware,
+      documentsApi.middleware,
+      documentCategoriesApi.middleware,
+      kiosksApi.middleware,
       clearApiCachesOnLogout,
     ),
 });

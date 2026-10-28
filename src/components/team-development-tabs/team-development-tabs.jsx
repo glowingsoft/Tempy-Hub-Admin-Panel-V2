@@ -10,17 +10,21 @@ import { useRouter, usePathname } from 'src/routes/hooks';
 // ----------------------------------------------------------------------
 
 export function getTeamDevelopmentTabs(prefix = paths.lineManager.root) {
+  const isStaff = prefix === paths.staff.root;
   return [
     {
       value: 'supervision',
       label: 'Supervision',
       href: `${prefix}/supervision`,
+      href: isStaff ? paths.staff.supervision : `${prefix}/supervision`,
       prefetch: () => import('src/pages/dashboard/active-routes/supervision'),
     },
     {
       value: 'appraisals',
       label: 'Appraisals',
       href: `${prefix}/appraisals`,
+      label: 'Appraisal',
+      href: isStaff ? paths.staff.appraisal : `${prefix}/appraisals`,
       prefetch: () => import('src/pages/dashboard/active-routes/appraisals'),
     },
     {
@@ -28,11 +32,18 @@ export function getTeamDevelopmentTabs(prefix = paths.lineManager.root) {
       label: 'Competencies',
       href: `${prefix}/team-compliance`,
       prefetch: () => import('src/pages/dashboard/active-routes/team-compliance'),
+      href: isStaff ? paths.staff.competencies : `${prefix}/team-compliance`,
+      prefetch: () =>
+        isStaff
+          ? import('src/pages/staff/competencies')
+          : import('src/pages/dashboard/active-routes/team-compliance'),
     },
     {
       value: 'training',
       label: 'Training Records',
       href: `${prefix}/training`,
+      label: 'Training Record',
+      href: isStaff ? paths.staff.training : `${prefix}/training`,
       prefetch: () => import('src/pages/dashboard/active-routes/training'),
     },
   ];
@@ -44,48 +55,10 @@ export const TEAM_DEVELOPMENT_TABS = getTeamDevelopmentTabs(paths.lineManager.ro
  * Shared sub-navigation tabs for team development pages
  * (Supervision / Appraisals / Competencies / Training Records)
  * across Line Manager, Site Manager, and Owner Dashboards.
+ * across Line Manager, Site Manager, Owner, and Staff Dashboards.
  */
-export function TeamDevelopmentTabs({ sx }) {
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const tabs = useMemo(() => {
-    if (pathname.startsWith(paths.siteManager.root)) {
-      return getTeamDevelopmentTabs(paths.siteManager.root);
-    }
-    if (pathname.startsWith(paths.owner.root)) {
-      return getTeamDevelopmentTabs(paths.owner.root);
-    }
-    return getTeamDevelopmentTabs(paths.lineManager.root);
-  }, [pathname]);
-
-  const currentTab = tabs.find((tab) => tab.href === pathname)?.value ?? false;
-
-  useEffect(() => {
-    tabs.forEach((tab) => {
-      if (tab.value !== currentTab) tab.prefetch();
-    });
-  }, [currentTab, tabs]);
-
-  const handleChangeTab = (event, newValue) => {
-    const nextTab = tabs.find((tab) => tab.value === newValue);
-    if (nextTab && nextTab.href !== pathname) {
-      router.push(nextTab.href);
-    }
-  };
-
-  return (
-    <Tabs value={currentTab} onChange={handleChangeTab} sx={{ mb: 3, borderBottom: 1, borderColor: 'divider', ...sx }}>
-      {tabs.map((tab) => (
-        <Tab
-          key={tab.value}
-          label={tab.label}
-          value={tab.value}
-          onMouseEnter={tab.prefetch}
-        />
-      ))}
-    </Tabs>
-  );
+export function TeamDevelopmentTabs() {
+  return null;
 }
 
 TeamDevelopmentTabs.propTypes = {

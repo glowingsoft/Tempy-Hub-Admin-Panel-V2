@@ -30,6 +30,17 @@ export const navDataStaff = [
       { title: 'Shifts', path: paths.staff.shifts, icon: ICONS.shifts },
       { title: 'My Competencies', path: paths.staff.competencies, icon: ICONS.competencies },
       { title: 'Supervision & Appraisal', path: paths.staff.supervision, icon: ICONS.supervision },
+      {
+        title: 'Supervision & Appraisal',
+        path: paths.staff.supervision,
+        icon: ICONS.supervision,
+        children: [
+          { title: 'Supervision', path: paths.staff.supervision },
+          { title: 'Appraisal', path: paths.staff.appraisal },
+          { title: 'Competencies', path: paths.staff.competencies },
+          { title: 'Training Record', path: paths.staff.training },
+        ],
+      },
       { title: 'Documents', path: paths.staff.documents.root, icon: ICONS.document },
     ],
   },

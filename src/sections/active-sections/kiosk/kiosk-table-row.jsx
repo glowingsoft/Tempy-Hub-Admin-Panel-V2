@@ -1,36 +1,46 @@
 import PropTypes from 'prop-types';
 
 import Avatar from '@mui/material/Avatar';
-import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import Tooltip from '@mui/material/Tooltip';
+import Box from '@mui/material/Box';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
-import { Box } from '@mui/material';
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 
 // ----------------------------------------------------------------------
 
-export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow }) {
-  const statusColor =
-    row.status === 'online'
-      ? 'success'
-      : row.status === 'offline'
-        ? 'error'
-        : 'warning';
+export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow, onLockRow }) {
+  const presence = row.presence || row.status || 'offline';
+  const statusColor = presence === 'online' ? 'success' : 'error';
 
   const setupColor =
     row.setupStatus === 'registered'
       ? 'success'
       : row.setupStatus === 'pending'
         ? 'warning'
-        : 'error';
+        : 'default';
+
+  const isLocked = Boolean(
+    row.isLocked ||
+    row.isLock ||
+    row.locked ||
+    row.raw?.isLocked ||
+    row.raw?.isLock ||
+    row.raw?.locked
+  );
 
   const actions = [
+    {
+      key: 'lock',
+      icon: isLocked ? 'solar:lock-bold' : 'solar:lock-unlocked-bold',
+      tooltip: isLocked ? 'Unlock device' : 'Lock device',
+      color: isLocked ? 'error' : 'default',
+      onClick: onLockRow,
+    },
     {
       key: 'view',
       icon: 'solar:eye-bold',
@@ -45,15 +55,24 @@ export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow }) {
     },
   ];
 
+  const kioskTitle = row.name || row.locationLabel || row.receptionIdentifier || row.deviceId || 'Kiosk';
+  const kioskSubtitle = row.deviceId || row.kioskCode || row.receptionIdentifier || '';
+
+  const deviceName = row.device?.name || row.deviceId || '—';
+  const deviceType = row.deviceType || row.device?.type || row.kioskMode || '—';
+
+  const branchName = row.branch?.name || row.site?.name || row.site || '—';
+  const branchCode = row.branch?.code || row.site?.code || '';
+
   return (
     <TableRow hover onClick={onViewRow} sx={{ cursor: 'pointer' }}>
       {/* Sr # */}
-      <TableCell onClick={(e) => e.stopPropagation()}>
+      <TableCell onClick={(e) => e.stopPropagation()} sx={{ width: 60 }}>
         {serialNumber}
       </TableCell>
 
       {/* Kiosk */}
-      <TableCell>
+      <TableCell sx={{ minWidth: 220 }}>
         <Stack direction="row" alignItems="center" spacing={1.5}>
           <Avatar
             sx={{
@@ -66,51 +85,33 @@ export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow }) {
             <Iconify icon="solar:monitor-bold" />
           </Avatar>
 
-          <Stack>
-            <Typography variant="subtitle2">
-              {row.name}
+          <Stack sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2" noWrap>
+              {kioskTitle}
             </Typography>
 
-            <Typography
-              variant="caption"
-              color="text.secondary"
-            >
-              {row.kioskCode}
-            </Typography>
+            {kioskSubtitle && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+              >
+                {kioskSubtitle}
+              </Typography>
+            )}
           </Stack>
         </Stack>
       </TableCell>
 
       {/* Device */}
-      <TableCell>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Iconify
-            icon={
-              row.device?.type === 'ipad'
-                ? 'solar:tablet-bold'
-                : 'solar:monitor-bold'
-            }
-            width={20}
-          />
-
-          <Stack>
-            <Typography variant="body2">
-              {row.device?.name || '—'}
-            </Typography>
-
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ textTransform: 'capitalize' }}
-            >
-              {row.device?.type || '—'}
-            </Typography>
-          </Stack>
-        </Stack>
+      <TableCell sx={{ minWidth: 170 }}>
+        <Typography variant="body2" noWrap>
+          {deviceName || '—'}
+        </Typography>
       </TableCell>
 
       {/* Site */}
-      <TableCell>
+      <TableCell sx={{ minWidth: 220 }}>
         <Stack direction="row" spacing={1} alignItems="center">
           <Iconify
             icon="solar:buildings-2-bold"
@@ -118,17 +119,18 @@ export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow }) {
             color="text.secondary"
           />
 
-          <Stack>
-            <Typography variant="body2">
-              {row.site?.name || row.site || '—'}
+          <Stack sx={{ minWidth: 0 }}>
+            <Typography variant="body2" noWrap>
+              {branchName}
             </Typography>
 
-            {row.site?.code && (
+            {branchCode && (
               <Typography
                 variant="caption"
                 color="text.secondary"
+                noWrap
               >
-                {row.site.code}
+                {branchCode}
               </Typography>
             )}
           </Stack>
@@ -136,50 +138,26 @@ export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow }) {
       </TableCell>
 
       {/* Setup Status */}
-      <TableCell align="center">
-        <Stack spacing={0.5} alignItems="center">
-          <Label color={setupColor}>
-            {row.setupStatus === 'registered'
-              ? 'Registered'
-              : row.setupStatus === 'pending'
-                ? 'Pending Setup'
-                : 'Not Registered'}
-          </Label>
-
-          {row.registrationDate && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-            >
-              {row.registrationDate}
-            </Typography>
-          )}
-        </Stack>
-      </TableCell>
-
-      {/* Online Status */}
-      <TableCell align="center">
-        <Label color={statusColor}>
-          {row.status}
+      <TableCell align="center" sx={{ minWidth: 140 }}>
+        <Label variant="soft" color={setupColor} sx={{ textTransform: 'capitalize' }}>
+          {row.setupStatus || 'Unknown'}
         </Label>
       </TableCell>
 
-      {/*
-      <TableCell>
-        Last Seen
+      {/* Presence / Status */}
+      <TableCell align="center" sx={{ width: 120 }}>
+        <Label variant="soft" color={statusColor} sx={{ textTransform: 'capitalize' }}>
+          {presence}
+        </Label>
       </TableCell>
-
-      <TableCell>
-        Activity
-      </TableCell>
-      */}
 
       {/* Actions */}
       <TableCell
         align="center"
+        sx={{ width: 100 }}
         onClick={(e) => e.stopPropagation()}
       >
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <GenericTableRowActions actions={actions} />
         </Box>
       </TableCell>
@@ -194,4 +172,5 @@ KioskTableRow.propTypes = {
   serialNumber: PropTypes.number,
   onEditRow: PropTypes.func,
   onViewRow: PropTypes.func,
+  onLockRow: PropTypes.func,
 };

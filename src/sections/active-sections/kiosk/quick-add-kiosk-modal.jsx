@@ -1,522 +1,282 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { LoadingButton } from '@mui/lab';
-import {
-    Box,
-    Button,
-    Checkbox,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    FormControlLabel,
-    MenuItem,
-    Typography,
-} from '@mui/material';
 import { useEffect, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { z as zod } from 'zod';
+
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import MenuItem from '@mui/material/MenuItem';
+import LoadingButton from '@mui/lab/LoadingButton';
 
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
+import { useGetBranchesQuery, useGetBranchQuery } from 'src/store/Reducer/branches-api';
+import {
+  useCreateKioskMutation,
+  useUpdateKioskMutation,
+} from 'src/store/Reducer/kiosks-api';
 
 // ----------------------------------------------------------------------
-
-const SITE_OPTIONS = [
-    {
-        value: 'LHR-001',
-        label: 'Lahore Office',
-    },
-    {
-        value: 'ISB-001',
-        label: 'Islamabad Office',
-    },
-    {
-        value: 'KHI-001',
-        label: 'Karachi Office',
-    },
-];
 
 const DEVICE_TYPE_OPTIONS = [
-    {
-        value: 'ipad',
-        label: 'iPad',
-    },
-    {
-        value: 'android',
-        label: 'Android',
-    },
-    {
-        value: 'windows',
-        label: 'Windows',
-    },
+  { value: 'ipad', label: 'iPad' },
+  { value: 'android', label: 'Android' },
 ];
 
-const CHECK_IN_METHOD_OPTIONS = [
-    {
-        value: 'employee_id',
-        label: 'Employee ID',
-    },
-    {
-        value: 'pin',
-        label: 'PIN',
-    },
-    {
-        value: 'qr_code',
-        label: 'QR Code',
-    },
-];
-
-const STATUS_OPTIONS = [
-    {
-        value: 'online',
-        label: 'Online',
-    },
-    {
-        value: 'offline',
-        label: 'Offline',
-    },
-    {
-        value: 'inactive',
-        label: 'Inactive',
-    },
-];
-
-const SCREEN_TIMEOUT_OPTIONS = [
-    {
-        value: 30,
-        label: '30 seconds',
-    },
-    {
-        value: 60,
-        label: '1 minute',
-    },
-    {
-        value: 90,
-        label: '90 seconds',
-    },
-    {
-        value: 120,
-        label: '2 minutes',
-    },
-    {
-        value: 300,
-        label: '5 minutes',
-    },
-];
-
-// ----------------------------------------------------------------------
+const mapBranchOption = (item) => ({
+  value: item._id || item.id,
+  label: item.name || '',
+});
 
 const schema = zod.object({
-    name: zod
-        .string()
-        .trim()
-        .min(1, 'Kiosk name is required'),
-
-    kioskCode: zod
-        .string()
-        .trim()
-        .min(1, 'Kiosk code is required'),
-
-    site: zod
-        .string()
-        .min(1, 'Site is required'),
-
-    status: zod
-        .string()
-        .min(1, 'Kiosk status is required'),
-
-    deviceName: zod
-        .string()
-        .trim()
-        .min(1, 'Device name is required'),
-
-    deviceType: zod
-        .string()
-        .min(1, 'Device type is required'),
-
-    checkInMethods: zod
-        .array(zod.string())
-        .min(1, 'Select at least one check-in method'),
-
-    allowCheckOut: zod.boolean(),
-
-    enableBreaks: zod.boolean(),
-
-    phoneCheckIn: zod.boolean(),
-
-    showPeeps: zod.boolean(),
-
-    allowVisitorCheckIn: zod.boolean(),
-
-    allowOfflineMode: zod.boolean(),
-
-    screenTimeout: zod.coerce.number(),
-
-    receptionIdentifier: zod.string().optional(),
+  branch: zod
+    .object({ value: zod.string(), label: zod.string() })
+    .nullable()
+    .optional(),
+  receptionIdentifier: zod.string().trim().min(1, 'Reception identifier is required'),
+  locationLabel: zod.string().trim().min(1, 'Location label is required'),
+  deviceType: zod.string().min(1, 'Device type is required'),
+  fireEvacuation: zod.boolean().default(true),
 });
 
 // ----------------------------------------------------------------------
 
 export default function QuickAddKioskModal({
-    open,
-    onClose,
-    currentKiosk,
+  open,
+  onClose,
+  currentKiosk,
+  ownerDashboard = false,
 }) {
-    const isEdit = Boolean(
-        currentKiosk?._id || currentKiosk?.id
-    );
+  const { organizationId, isOwner, user } = useCurrentOrganization();
+  const isEdit = Boolean(currentKiosk);
 
-    const defaultValues = useMemo(
-        () => ({
-            name: currentKiosk?.name || '',
+  const [createKiosk, { isLoading: isCreating }] = useCreateKioskMutation();
+  const [updateKiosk, { isLoading: isUpdating }] = useUpdateKioskMutation();
 
-            kioskCode:
-                currentKiosk?.kioskCode || '',
+  const isFullOwner = ownerDashboard || isOwner;
 
-            site:
-                currentKiosk?.site?.code || '',
+  // Site manager's assigned branch
+  const assigned = getAssignedBranch(user);
+  const userBranchId =
+    assigned?.id ||
+    user?.branchId?._id ||
+    user?.branchId ||
+    (typeof user?.branch === 'object' ? user?.branch?._id : user?.branch) ||
+    '';
 
-            status: currentKiosk?.status || 'offline',
+  const { data: userBranchData } = useGetBranchQuery(
+    { branchId: userBranchId, organizationId },
+    { skip: !userBranchId || !organizationId || Boolean(assigned?.name) }
+  );
 
-            deviceName:
-                currentKiosk?.device?.name || '',
+  const userBranchName =
+    assigned?.name ||
+    userBranchData?.data?.name ||
+    user?.branch?.name ||
+    user?.branchName ||
+    'Assigned Site';
 
-            deviceType:
-                currentKiosk?.device?.type || 'ipad',
+  const defaultBranchOption = useMemo(() => {
+    if (currentKiosk?.branch) {
+      return {
+        value: currentKiosk.branch._id || currentKiosk.branch.id || currentKiosk.branchId,
+        label: currentKiosk.branch.name || 'Site',
+      };
+    }
+    if (currentKiosk?.branchId) {
+      return {
+        value: currentKiosk.branchId,
+        label: currentKiosk.branchName || currentKiosk.site?.name || 'Site',
+      };
+    }
+    if (!isFullOwner && userBranchId) {
+      return {
+        value: userBranchId,
+        label: userBranchName,
+      };
+    }
+    return null;
+  }, [currentKiosk, isFullOwner, userBranchId, userBranchName]);
 
-            checkInMethods:
-                currentKiosk?.settings?.checkInMethods || [],
+  const defaultValues = useMemo(
+    () => ({
+      branch: defaultBranchOption,
+      receptionIdentifier: currentKiosk?.receptionIdentifier || '',
+      locationLabel: currentKiosk?.locationLabel || '',
+      deviceType: currentKiosk?.deviceType || 'ipad',
+      fireEvacuation: currentKiosk?.fireEvacuation ?? true,
+    }),
+    [currentKiosk, defaultBranchOption]
+  );
 
-            allowCheckOut:
-                currentKiosk?.settings?.allowCheckOut ?? true,
+  const methods = useForm({
+    resolver: zodResolver(schema),
+    defaultValues,
+  });
 
-            enableBreaks:
-                currentKiosk?.settings?.enableBreaks ?? false,
+  const {
+    reset,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = methods;
 
-            phoneCheckIn:
-                currentKiosk?.settings?.phoneCheckIn ?? false,
+  useEffect(() => {
+    if (open) {
+      reset(defaultValues);
+    }
+  }, [open, defaultValues, reset]);
 
-            showPeeps:
-                currentKiosk?.settings?.showPeeps ?? false,
+  const handleClose = () => {
+    reset(defaultValues);
+    onClose();
+  };
 
-            allowVisitorCheckIn:
-                currentKiosk?.settings?.allowVisitorCheckIn ?? false,
+  const onSubmit = handleSubmit(async (data) => {
+    try {
+      const kioskId = currentKiosk?._id || currentKiosk?.id;
 
-            allowOfflineMode:
-                currentKiosk?.settings?.allowOfflineMode ?? false,
+      if (isEdit && kioskId) {
+        // PATCH api/admin/kiosks/:kioskId
+        const patchPayload = {
+          kioskId,
+          organizationId,
+          receptionIdentifier: data.receptionIdentifier.trim(),
+          locationLabel: data.locationLabel.trim(),
+          deviceType: data.deviceType,
+          fireEvacuation: Boolean(data.fireEvacuation),
+        };
 
-            screenTimeout:
-                currentKiosk?.settings?.screenTimeout ?? 60,
-
-            receptionIdentifier:
-                currentKiosk?.settings?.receptionIdentifier || '',
-        }),
-        [currentKiosk]
-    );
-
-    const methods = useForm({
-        resolver: zodResolver(schema),
-        defaultValues,
-    });
-
-    const {
-        reset,
-        formState: { isSubmitting },
-    } = methods;
-
-    useEffect(() => {
-        reset(defaultValues);
-    }, [defaultValues, reset]);
-
-    // ----------------------------------------------------------------------
-
-    const handleClose = () => {
-        reset(defaultValues);
-        onClose();
-    };
-
-    // ----------------------------------------------------------------------
-
-    const onSubmit = async (data) => {
-        try {
-            const selectedSite = SITE_OPTIONS.find(
-                (site) => site.value === data.site
-            );
-
-            const payload = {
-                name: data.name.trim(),
-
-                kioskCode: data.kioskCode.trim(),
-
-                site: {
-                    code: data.site,
-                    name: selectedSite?.label || '',
-                },
-
-                status: data.status,
-
-                device: {
-                    name: data.deviceName.trim(),
-                    type: data.deviceType,
-                },
-
-                settings: {
-                    checkInMethods: data.checkInMethods,
-                    allowCheckOut: data.allowCheckOut,
-                    enableBreaks: data.enableBreaks,
-                    phoneCheckIn: data.phoneCheckIn,
-                    showPeeps: data.showPeeps,
-                    allowVisitorCheckIn: data.allowVisitorCheckIn,
-                    allowOfflineMode: data.allowOfflineMode,
-                    screenTimeout: Number(data.screenTimeout),
-                    receptionIdentifier:
-                        data.receptionIdentifier?.trim() || '',
-                },
-            };
-
-            console.log(
-                isEdit
-                    ? 'Update Kiosk:'
-                    : 'Register Kiosk:',
-                payload
-            );
-
-            toast.success(
-                isEdit
-                    ? 'Kiosk updated successfully'
-                    : 'Kiosk registered successfully'
-            );
-
-            handleClose();
-        } catch (error) {
-            console.error(error);
-
-            toast.error(
-                error?.data?.message ||
-                'Something went wrong'
-            );
+        await updateKiosk(patchPayload).unwrap();
+        toast.success('Device updated successfully!');
+      } else {
+        // POST api/admin/kiosks
+        const branchId = data.branch?.value || userBranchId;
+        if (!branchId) {
+          toast.error('Please select a site');
+          return;
         }
-    };
 
-    // ----------------------------------------------------------------------
+        const createPayload = {
+          organizationId,
+          branchId,
+          receptionIdentifier: data.receptionIdentifier.trim(),
+          locationLabel: data.locationLabel.trim(),
+          deviceType: data.deviceType,
+          fireEvacuation: Boolean(data.fireEvacuation),
+        };
 
-    return (
-        <Dialog
-            open={open}
-            onClose={handleClose}
-            fullWidth
-            maxWidth="sm"
-        >
-            <Form
-                methods={methods}
-                onSubmit={methods.handleSubmit(onSubmit)}
-            >
-                <DialogTitle>
-                    {isEdit
-                        ? 'Edit Kiosk'
-                        : 'Register Kiosk'}
-                </DialogTitle>
+        await createKiosk(createPayload).unwrap();
+        toast.success('Device registered successfully!');
+      }
 
-                <DialogContent>
-                    <Box
-                        sx={{
-                            display: 'grid',
-                            gap: 2.5,
-                            pt: 1,
-                        }}
-                    >
-                        {/* Basic Information */}
+      handleClose();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error?.data?.message ||
+        error?.message ||
+        (isEdit ? 'Failed to update device' : 'Failed to register device')
+      );
+    }
+  });
 
-                        <Typography
-                            variant="subtitle2"
-                            color="text.secondary"
-                        >
-                            Basic Information
-                        </Typography>
+  return (
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <Form methods={methods} onSubmit={onSubmit}>
+        <DialogTitle sx={{ pb: 2 }}>
+          {isEdit ? 'Edit Device' : 'Register Device'}
+        </DialogTitle>
 
-                        <Field.Text
-                            name="name"
-                            label="Kiosk Name"
-                            placeholder="e.g. Front Desk Kiosk"
-                        />
+        <DialogContent dividers>
+          <Box
+            sx={{
+              pt: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2.5,
+            }}
+          >
+            {/* Site / Branch Selection via InfiniteAutocomplete */}
+            <Field.InfiniteAutocomplete
+              name="branch"
+              label="Site"
+              placeholder="Search and select site..."
+              useQuery={useGetBranchesQuery}
+              queryArgs={{ organizationId }}
+              mapOption={mapBranchOption}
+              extraOptions={defaultBranchOption ? [defaultBranchOption] : []}
+              enabled={open && Boolean(organizationId) && isFullOwner && !isEdit}
+              disabled={!isFullOwner || isEdit}
+              helperText={
+                !isFullOwner
+                  ? 'Locked to your assigned site'
+                  : isEdit
+                    ? 'Site cannot be changed after registration'
+                    : undefined
+              }
+            />
 
-                        <Field.Text
-                            name="kioskCode"
-                            label="Kiosk Code"
-                            placeholder="e.g. KSK-001"
-                            disabled={isEdit}
-                        />
+            {/* Reception Identifier */}
+            <Field.Text
+              name="receptionIdentifier"
+              label="Reception Identifier"
+              placeholder="e.g. Main Entrance"
+            />
 
-                        <Field.Select
-                            name="site"
-                            label="Site"
-                        >
-                            {SITE_OPTIONS.map((option) => (
-                                <MenuItem
-                                    key={option.value}
-                                    value={option.value}
-                                >
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </Field.Select>
+            {/* Location Label */}
+            <Field.Text
+              name="locationLabel"
+              label="Location Label"
+              placeholder="e.g. Reception"
+            />
 
-                        <Field.Select
-                            name="status"
-                            label="Kiosk Status"
-                        >
-                            {STATUS_OPTIONS.map((option) => (
-                                <MenuItem
-                                    key={option.value}
-                                    value={option.value}
-                                >
-                                    {option.label}
-                                </MenuItem>
-                            ))}
-                        </Field.Select>
+            {/* Device Type */}
+            <Field.Select name="deviceType" label="Device Type">
+              {DEVICE_TYPE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Field.Select>
 
-                        <Divider />
+            {/* Fire Evacuation */}
+            <Field.Switch
+              name="fireEvacuation"
+              label="Fire Evacuation"
+              helperText="Enable kiosk participation in fire evacuation rolls"
+            />
+          </Box>
+        </DialogContent>
 
-                        {/* Device */}
+        <DialogActions>
+          <Button variant="outlined" color="inherit" onClick={handleClose}>
+            Cancel
+          </Button>
 
-                        <Typography
-                            variant="subtitle2"
-                            color="text.secondary"
-                        >
-                            Device Information
-                        </Typography>
-
-                        <Field.Text
-                            name="deviceName"
-                            label="Device Name"
-                            placeholder="e.g. Reception iPad"
-                        />
-
-                        <Field.Select
-                            name="deviceType"
-                            label="Device Type"
-                        >
-                            {DEVICE_TYPE_OPTIONS.map(
-                                (option) => (
-                                    <MenuItem
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </MenuItem>
-                                )
-                            )}
-                        </Field.Select>
-
-                        <Divider />
-
-                        {/* Attendance */}
-
-                        <Typography
-                            variant="subtitle2"
-                            color="text.secondary"
-                        >
-                            Attendance Settings
-                        </Typography>
-
-                        <Field.MultiSelect
-                            name="checkInMethods"
-                            label="Check-in Methods"
-                            chip
-                            options={CHECK_IN_METHOD_OPTIONS}
-                        />
-
-                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-
-                            <Field.Checkbox name="allowCheckOut" label="Allow Check-out" />
-
-                            <Field.Checkbox name="enableBreaks" label="Enable Breaks" />
-
-                            <Field.Checkbox name="phoneCheckIn" label="Allow Phone Check-in" />
-
-                        </Box>
-
-                        <Field.Select
-                            name="screenTimeout"
-                            label="Screen Timeout"
-                        >
-                            {SCREEN_TIMEOUT_OPTIONS.map(
-                                (option) => (
-                                    <MenuItem
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </MenuItem>
-                                )
-                            )}
-                        </Field.Select>
-
-                        <Divider />
-
-                        {/* Kiosk Access */}
-
-                        <Typography
-                            variant="subtitle2"
-                            color="text.secondary"
-                        >
-                            Kiosk Access
-                        </Typography>
-
-                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                            <Field.Checkbox name="showPeeps" label="Show PEEPs" />
-
-                            <Field.Checkbox
-                                name="allowVisitorCheckIn"
-                                label="Allow Visitor Check-in"
-                            />
-
-                            <Field.Checkbox
-                                name="allowOfflineMode"
-                                label="Allow Offline Mode"
-                            />
-                        </Box>
-
-                        <Divider />
-
-                        {/* Reception */}
-
-                        <Typography
-                            variant="subtitle2"
-                            color="text.secondary"
-                        >
-                            Reception Settings
-                        </Typography>
-
-                        <Field.Text
-                            name="receptionIdentifier"
-                            label="Reception Identifier"
-                            placeholder="e.g. FRONT-DESK"
-                        />
-
-                    </Box>
-                </DialogContent>
-
-                <DialogActions>
-                    <Button
-                        variant="outlined"
-                        onClick={handleClose}
-                    >
-                        Cancel
-                    </Button>
-
-                    <LoadingButton
-                        type="submit"
-                        variant="contained"
-                        loading={isSubmitting}
-                    >
-                        {isEdit
-                            ? 'Save Changes'
-                            : 'Register Kiosk'}
-                    </LoadingButton>
-                </DialogActions>
-            </Form>
-        </Dialog>
-    );
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            color="primary"
+            loading={isSubmitting || isCreating || isUpdating}
+          >
+            {isEdit ? 'Save Changes' : 'Register Device'}
+          </LoadingButton>
+        </DialogActions>
+      </Form>
+    </Dialog>
+  );
 }
+
+QuickAddKioskModal.propTypes = {
+  open: PropTypes.bool,
+  onClose: PropTypes.func,
+  currentKiosk: PropTypes.object,
+  ownerDashboard: PropTypes.bool,
+};

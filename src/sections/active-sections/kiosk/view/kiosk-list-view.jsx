@@ -8,6 +8,8 @@ import {
   Stack,
   Table,
   TableBody,
+  Skeleton,
+  InputAdornment,
 } from '@mui/material';
 
 import { paths } from 'src/routes/paths';
@@ -16,35 +18,44 @@ import { useRouter } from 'src/routes/hooks';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 
-import {
-  TableHeadCustom,
-  TableNoData,
-  TablePaginationCustom,
-  useTable,
-} from 'src/components/table';
+import { toast } from 'src/components/snackbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
+import LoadingButton from '@mui/lab/LoadingButton';
+import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
+import Typography from '@mui/material/Typography';
 
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 
+import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
 import { CONFIG } from 'src/config-global';
 
 import { KioskTableRow } from '../kiosk-table-row';
 import QuickAddKioskModal from '../quick-add-kiosk-modal';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetKiosksQuery, useToggleKioskLockMutation } from 'src/store/Reducer/kiosks-api';
 
-import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
+const ALL_BRANCHES_VALUE = 'all';
 
-import { mockKiosks } from '../mocks/data';
+const mapBranchOption = (item) => ({
+  value: item._id,
+  label: item.name,
+});
 
-// ----------------------------------------------------------------------
+const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
 
 const STATUS_OPTIONS = [
   {
@@ -60,36 +71,7 @@ const STATUS_OPTIONS = [
   {
     value: 'offline',
     label: 'Offline',
-    color: 'warning',
-  },
-  {
-    value: 'locked',
-    label: 'Locked',
     color: 'error',
-  },
-  {
-    value: 'pending_setup',
-    label: 'Pending Setup',
-    color: 'info',
-  },
-];
-
-const DEVICE_OPTIONS = [
-  {
-    value: 'all',
-    label: 'All Devices',
-  },
-  {
-    value: 'ipad',
-    label: 'iPad',
-  },
-  {
-    value: 'android',
-    label: 'Android',
-  },
-  {
-    value: 'windows',
-    label: 'Windows',
   },
 ];
 
@@ -159,38 +141,78 @@ const FILTER_FIELDS = [
   createFilterField.search({
     placeholder: 'Search kiosk or device...',
   }),
-
-  createFilterField.select({
-    key: 'device',
-    label: 'Device',
-    options: DEVICE_OPTIONS,
-    defaultValue: 'all',
-  }),
 ];
 
 // ----------------------------------------------------------------------
 
 export function KioskListView({ ownerDashboard = false }) {
   const router = useRouter();
-  const { branchId, onBranchChange } = useOwnerBranchFilter();
   const table = useTable();
+  const { organizationId, isOwner, user } = useCurrentOrganization();
+
+  const isFullOwner = ownerDashboard || isOwner;
+
+  const userBranchId =
+    user?.branchId?._id ||
+    user?.branchId ||
+    (typeof user?.branch === 'object' ? user?.branch?._id : user?.branch) ||
+    undefined;
+
+  const [selectedBranch, setSelectedBranch] = useState(EXTRA_BRANCH_OPTIONS[0]);
 
   const filters = useSetState({
-    name: '',
+    search: '',
     status: 'all',
-    device: 'all',
   });
 
   const [currentKiosk, setCurrentKiosk] = useState(null);
-
+  const [kioskToLock, setKioskToLock] = useState(null);
   const openModal = useBoolean();
+  const lockConfirm = useBoolean();
+  const keyword = useDebounce(filters.state.search, 500);
 
-  const keyword = useDebounce(filters.state.name, 500);
+  // Status mapping: 'online' -> presence 'online', 'offline' -> presence 'offline'
+  const queryPresence =
+    filters.state.status === 'online'
+      ? 'online'
+      : filters.state.status === 'offline'
+        ? 'offline'
+        : undefined;
 
-  const isLoading = false;
-  const isFetching = false;
+  const activeBranchId = isFullOwner
+    ? selectedBranch?.value && selectedBranch.value !== ALL_BRANCHES_VALUE
+      ? selectedBranch.value
+      : undefined
+    : userBranchId;
 
-  // ----------------------------------------------------------------------
+  const handleBranchChange = useCallback(
+    (option) => {
+      table.onResetPage();
+      setSelectedBranch(option || EXTRA_BRANCH_OPTIONS[0]);
+    },
+    [table]
+  );
+
+  const {
+    data: kiosksResponse,
+    isLoading,
+    isFetching,
+  } = useGetKiosksQuery(
+    {
+      organizationId,
+      branchId: activeBranchId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      keyword: keyword || undefined,
+      presence: queryPresence,
+    },
+    { skip: !organizationId }
+  );
+
+  const meta = kiosksResponse?.meta || {};
+  const apiKiosks = Array.isArray(kiosksResponse?.data) ? kiosksResponse.data : [];
+  const totalRecords = meta.totalRecords || meta.total || apiKiosks.length;
+  const isSummaryCardsLoading = Boolean(organizationId && !kiosksResponse && (isLoading || isFetching));
 
   const statusFilterField = useMemo(
     () => FILTER_FIELDS.find((field) => field.type === 'status'),
@@ -206,106 +228,57 @@ export function KioskListView({ ownerDashboard = false }) {
   // Data
   // ----------------------------------------------------------------------
 
-  const apiKiosks = mockKiosks || [];
-
   const tableData = useMemo(
     () =>
       apiKiosks.map((kiosk) => ({
-        id: kiosk._id,
-
-        name: kiosk.name,
-
-        kioskCode: kiosk.kioskCode,
-
-        site: kiosk.site || 'Current Site',
-
+        id: kiosk._id || kiosk.id,
+        _id: kiosk._id || kiosk.id,
+        name: kiosk.locationLabel || kiosk.receptionIdentifier || kiosk.deviceId || kiosk.name || 'Kiosk',
+        locationLabel: kiosk.locationLabel,
+        receptionIdentifier: kiosk.receptionIdentifier,
+        deviceId: kiosk.deviceId,
+        kioskCode: kiosk.deviceId || kiosk.kioskCode,
+        site: kiosk.branch?.name || kiosk.site?.name || kiosk.site || '—',
+        branch: kiosk.branch || (typeof kiosk.site === 'object' ? kiosk.site : { name: kiosk.site }),
+        deviceType: kiosk.deviceType || kiosk.device?.type || '—',
         device: {
-          name: kiosk.device?.name || '—',
-          type: kiosk.device?.type || '—',
+          name: kiosk.deviceId || kiosk.device?.name || '—',
+          type: kiosk.deviceType || kiosk.device?.type || '—',
         },
-
-        status: kiosk.status || 'offline',
-
+        kioskMode: kiosk.kioskMode,
+        isLocked: Boolean(kiosk.isLocked || kiosk.isLock || kiosk.locked),
+        status: kiosk.presence || kiosk.status || 'offline',
+        presence: kiosk.presence || kiosk.status || 'offline',
         setupStatus: kiosk.setupStatus || 'registered',
-
-        lastSeen: kiosk.lastSeen || kiosk.lastActive || '—',
-
-        settings: {
-          checkInMethods:
-            kiosk.settings?.checkInMethods || [
-              'qr',
-              'name_pin',
-              'express',
-            ],
-
-          allowCheckIn:
-            kiosk.settings?.allowCheckIn ?? true,
-
-          allowCheckOut:
-            kiosk.settings?.allowCheckOut ?? true,
-
-          enableBreaks:
-            kiosk.settings?.enableBreaks ?? false,
-
-          phoneCheckIn:
-            kiosk.settings?.phoneCheckIn ?? false,
-
-          screenTimeout:
-            kiosk.settings?.screenTimeout ?? 60,
-
-          receptionIdentifier:
-            kiosk.settings?.receptionIdentifier || '',
-
-          adminPinConfigured:
-            kiosk.settings?.adminPinConfigured ?? false,
-        },
+        lastSeen: kiosk.lastHeartbeatAt || kiosk.lastCheckInAt || kiosk.updatedAt || '—',
+        raw: kiosk,
       })),
     [apiKiosks]
   );
 
   // ----------------------------------------------------------------------
-  // Statistics
+  // Statistics directly from API meta
   // ----------------------------------------------------------------------
 
-  const kioskStats = useMemo(() => {
-    return {
-      total: tableData.length,
-
-      online: tableData.filter(
-        (kiosk) => kiosk.status === 'online'
-      ).length,
-
-      offline: tableData.filter(
-        (kiosk) => kiosk.status === 'offline'
-      ).length,
-
-      pendingSetup: tableData.filter(
-        (kiosk) => kiosk.setupStatus === 'pending_setup'
-      ).length,
-    };
-  }, [tableData]);
+  const kioskStats = useMemo(() => ({
+    total: meta.total ?? meta.totalRecords ?? 0,
+    online: meta.online ?? 0,
+    offline: meta.offline ?? 0,
+    registered: meta.registered ?? 0,
+  }), [meta]);
 
   // ----------------------------------------------------------------------
-  // Status counts
+  // Status counts for StatusTabsFilterWrapper (All, Online, Offline)
   // ----------------------------------------------------------------------
 
   const getStatusCount = useCallback(
     (status) => {
-      if (status === 'all') {
-        return tableData.length;
-      }
-
-      if (status === 'pending_setup') {
-        return tableData.filter(
-          (kiosk) => kiosk.setupStatus === 'pending_setup'
-        ).length;
-      }
-
-      return tableData.filter(
-        (kiosk) => kiosk.status === status
-      ).length;
+      if (status === 'all') return meta.total ?? meta.totalRecords ?? 0;
+      if (status === 'online') return meta.online ?? 0;
+      if (status === 'offline') return meta.offline ?? 0;
+      return 0;
     },
-    [tableData]
+    [meta]
   );
 
   // ----------------------------------------------------------------------
@@ -315,7 +288,6 @@ export function KioskListView({ ownerDashboard = false }) {
   const handleFilterStatus = useCallback(
     (event, newValue) => {
       table.onResetPage();
-
       filters.setState({
         status: newValue,
       });
@@ -326,20 +298,28 @@ export function KioskListView({ ownerDashboard = false }) {
   const handleFilterChange = useCallback(
     (key, value) => {
       table.onResetPage();
-
+      const resolvedValue =
+        value && typeof value === 'object' && 'target' in value
+          ? value.target.value
+          : value;
       filters.setState({
-        [key]: value,
+        [key]: resolvedValue,
       });
     },
     [filters, table]
   );
 
   const handleSearchChange = useCallback(
-    (value) => {
+    (eventOrValue) => {
       table.onResetPage();
-
+      const text =
+        eventOrValue && typeof eventOrValue === 'object' && 'target' in eventOrValue
+          ? eventOrValue.target.value
+          : typeof eventOrValue === 'string'
+            ? eventOrValue
+            : '';
       filters.setState({
-        name: value,
+        search: text,
       });
     },
     [filters, table]
@@ -356,7 +336,7 @@ export function KioskListView({ ownerDashboard = false }) {
 
   const handleEditKiosk = useCallback(
     (kiosk) => {
-      setCurrentKiosk(kiosk);
+      setCurrentKiosk(kiosk?.raw || kiosk);
       openModal.onTrue();
     },
     [openModal]
@@ -364,7 +344,7 @@ export function KioskListView({ ownerDashboard = false }) {
 
   const handleViewKiosk = useCallback(
     (kiosk) => {
-      const targetId = kiosk.id || kiosk._id || kiosk.kioskCode;
+      const targetId = kiosk.id || kiosk._id || kiosk.deviceId;
       const href = ownerDashboard
         ? paths.owner.kioskDetail(targetId)
         : paths.siteManager.kioskDetail(targetId);
@@ -373,13 +353,44 @@ export function KioskListView({ ownerDashboard = false }) {
     [ownerDashboard, router]
   );
 
+  const [toggleKioskLock, { isLoading: isTogglingLock }] = useToggleKioskLockMutation();
+
   const handleKioskSettings = useCallback((kiosk) => {
     console.log('Open kiosk settings:', kiosk);
   }, []);
 
   const handleLockKiosk = useCallback((kiosk) => {
-    console.log('Lock / unlock kiosk:', kiosk);
-  }, []);
+    setKioskToLock(kiosk);
+    lockConfirm.onTrue();
+  }, [lockConfirm]);
+
+  const handleConfirmLockToggle = useCallback(async () => {
+    if (!kioskToLock) return;
+    const kioskId = kioskToLock.id || kioskToLock._id || kioskToLock.deviceId;
+    const isCurrentlyLocked = Boolean(
+      kioskToLock.isLocked ||
+      kioskToLock.isLock ||
+      kioskToLock.locked ||
+      kioskToLock.raw?.isLocked ||
+      kioskToLock.raw?.isLock ||
+      kioskToLock.raw?.locked
+    );
+
+    if (!kioskId) return;
+    try {
+      await toggleKioskLock({ kioskId, organizationId }).unwrap();
+      toast.success(
+        isCurrentlyLocked
+          ? 'Kiosk device unlocked successfully'
+          : 'Kiosk device locked successfully'
+      );
+      lockConfirm.onFalse();
+      setKioskToLock(null);
+    } catch (error) {
+      console.error(error);
+      toast.error(error?.data?.message || error?.message || 'Failed to toggle kiosk lock');
+    }
+  }, [kioskToLock, organizationId, toggleKioskLock, lockConfirm]);
 
   // ----------------------------------------------------------------------
 
@@ -400,25 +411,49 @@ export function KioskListView({ ownerDashboard = false }) {
           },
         ]}
         action={
-          ownerDashboard ? (
-            <OwnerBranchFilterActions value={branchId} onChange={onBranchChange}>
-              <Button
-                variant="contained"
-                onClick={handleRegisterKiosk}
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                Register Kiosk
-              </Button>
-            </OwnerBranchFilterActions>
-          ) : (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+          >
+            {isFullOwner && (
+              <InfiniteAutocomplete
+                value={selectedBranch}
+                onChange={handleBranchChange}
+                useQuery={useGetBranchesQuery}
+                queryArgs={{ organizationId }}
+                mapOption={mapBranchOption}
+                extraOptions={EXTRA_BRANCH_OPTIONS}
+                label="Site"
+                placeholder="Search site..."
+                disabled={!organizationId}
+                size="small"
+                sx={{ minWidth: { xs: 1, sm: 260 } }}
+                textFieldProps={{
+                  InputProps: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify
+                          icon="solar:buildings-2-bold-duotone"
+                          width={20}
+                          sx={{ color: 'text.disabled' }}
+                        />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            )}
+
             <Button
               variant="contained"
+              color="primary"
               onClick={handleRegisterKiosk}
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Register Kiosk
+              Register Device
             </Button>
-          )
+          </Stack>
         }
         sx={{
           mb: { xs: 3, md: 5 },
@@ -431,39 +466,55 @@ export function KioskListView({ ownerDashboard = false }) {
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <CourseWidgetSummary
-            title="Total Kiosks"
-            total={kioskStats.total}
-            color="primary"
-            icon={`${CONFIG.site.basePath}/assets/icons/navbar/ic-course.svg`}
-          />
+          {isSummaryCardsLoading ? (
+            <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+          ) : (
+            <DataUsageSummaryCard
+              title="Total Kiosks"
+              total={kioskStats.total}
+              color="primary"
+              icon="solar:monitor-bold-duotone"
+            />
+          )}
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <CourseWidgetSummary
-            title="Online"
-            total={kioskStats.online}
-            color="success"
-            icon={`${CONFIG.site.basePath}/assets/icons/navbar/ic-course.svg`}
-          />
+          {isSummaryCardsLoading ? (
+            <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+          ) : (
+            <DataUsageSummaryCard
+              title="Online"
+              total={kioskStats.online}
+              color="success"
+              icon="solar:check-circle-bold-duotone"
+            />
+          )}
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <CourseWidgetSummary
-            title="Offline"
-            total={kioskStats.offline}
-            color="warning"
-            icon={`${CONFIG.site.basePath}/assets/icons/navbar/ic-course.svg`}
-          />
+          {isSummaryCardsLoading ? (
+            <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+          ) : (
+            <DataUsageSummaryCard
+              title="Offline"
+              total={kioskStats.offline}
+              color="error"
+              icon="solar:close-circle-bold-duotone"
+            />
+          )}
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <CourseWidgetSummary
-            title="Pending Setup"
-            total={kioskStats.pendingSetup}
-            color="info"
-            icon={`${CONFIG.site.basePath}/assets/icons/navbar/ic-course.svg`}
-          />
+          {isSummaryCardsLoading ? (
+            <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+          ) : (
+            <DataUsageSummaryCard
+              title="Registered"
+              total={kioskStats.registered}
+              color="info"
+              icon="solar:devices-bold-duotone"
+            />
+          )}
         </Grid>
       </Grid>
 
@@ -486,60 +537,119 @@ export function KioskListView({ ownerDashboard = false }) {
           onSearchChange={handleSearchChange}
         />
 
-        <Box sx={{ position: 'relative', overflowX: 'hidden' }}>
-          <Table
-            size={table.dense ? 'small' : 'medium'}
-            sx={{ width: 1, tableLayout: 'fixed' }}
-          >
-            <TableHeadCustom
-              order={table.order}
-              orderBy={table.orderBy}
-              headLabel={TABLE_HEAD}
-              numSelected={table.selected.length}
-            />
+        <Box sx={{ position: 'relative' }}>
+          <Scrollbar>
+            <Table
+              size={table.dense ? 'small' : 'medium'}
+              sx={{ minWidth: 960 }}
+            >
+              <TableHeadCustom
+                order={table.order}
+                orderBy={table.orderBy}
+                headLabel={TABLE_HEAD}
+                numSelected={table.selected.length}
+              />
 
-            <TableBody>
-              {isLoading || isFetching ? (
-                <TableNoData notFound={false} />
-              ) : tableData.length > 0 ? (
-                tableData.map((row, index) => (
-                  <KioskTableRow
-                    key={row.id}
-                    row={row}
-                    serialNumber={
-                      index +
-                      1 +
-                      table.page *
-                      table.rowsPerPage
-                    }
-                    selected={table.selected.includes(
-                      row.id
-                    )}
-                    onEditRow={() =>
-                      handleEditKiosk(row)
-                    }
-                    onViewRow={() =>
-                      handleViewKiosk(row)
-                    }
-                    onSettings={() =>
-                      handleKioskSettings(row)
-                    }
-                    onLock={() =>
-                      handleLockKiosk(row)
-                    }
-                  />
-                ))
-              ) : (
-                <TableNoData notFound />
-              )}
-            </TableBody>
-          </Table>
+              <TableBody>
+                {isLoading || isFetching ? (
+                  [...Array(table.rowsPerPage || 5)].map((_, rowIndex) => (
+                    <TableRow key={`kiosk-skeleton-row-${rowIndex}`}>
+                      {/* Sr# */}
+                      <TableCell sx={{ width: 60, py: table.dense ? 0.8 : 1.5 }}>
+                        <Skeleton variant="rounded" width={24} height={18} />
+                      </TableCell>
+
+                      {/* Kiosk */}
+                      <TableCell sx={{ minWidth: 220, py: table.dense ? 0.8 : 1.5 }}>
+                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                          <Skeleton variant="circular" width={40} height={40} />
+                          <Stack spacing={0.5} sx={{ flex: 1 }}>
+                            <Skeleton variant="text" width="70%" height={16} />
+                            <Skeleton variant="text" width="45%" height={12} />
+                          </Stack>
+                        </Stack>
+                      </TableCell>
+
+                      {/* Device */}
+                      <TableCell sx={{ minWidth: 170, py: table.dense ? 0.8 : 1.5 }}>
+                        <Skeleton variant="text" width="60%" height={16} />
+                      </TableCell>
+
+                      {/* Site */}
+                      <TableCell sx={{ minWidth: 220, py: table.dense ? 0.8 : 1.5 }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Skeleton variant="circular" width={18} height={18} />
+                          <Skeleton variant="text" width="65%" height={16} />
+                        </Stack>
+                      </TableCell>
+
+                      {/* Setup */}
+                      <TableCell align="center" sx={{ minWidth: 140, py: table.dense ? 0.8 : 1.5 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                          <Skeleton variant="rounded" width={80} height={24} sx={{ borderRadius: 1 }} />
+                        </Box>
+                      </TableCell>
+
+                      {/* Status */}
+                      <TableCell align="center" sx={{ width: 120, py: table.dense ? 0.8 : 1.5 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                          <Skeleton variant="rounded" width={65} height={24} sx={{ borderRadius: 1 }} />
+                        </Box>
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell align="center" sx={{ width: 100, py: table.dense ? 0.8 : 1.5 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                          <Skeleton variant="rounded" width={70} height={24} />
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <>
+                    {tableData.map((row, index) => (
+                      <KioskTableRow
+                        key={row.id}
+                        row={row}
+                        serialNumber={
+                          index +
+                          1 +
+                          table.page *
+                          table.rowsPerPage
+                        }
+                        selected={table.selected.includes(
+                          row.id
+                        )}
+                        onEditRow={() =>
+                          handleEditKiosk(row)
+                        }
+                        onViewRow={() =>
+                          handleViewKiosk(row)
+                        }
+                        onLockRow={() =>
+                          handleLockKiosk(row)
+                        }
+                        onSettings={() =>
+                          handleKioskSettings(row)
+                        }
+                        onLock={() =>
+                          handleLockKiosk(row)
+                        }
+                      />
+                    ))}
+
+                    <TableNoData notFound={!tableData.length} />
+                  </>
+                )}
+              </TableBody>
+            </Table>
+          </Scrollbar>
         </Box>
 
         <TablePaginationCustom
           page={table.page}
           dense={table.dense}
-          count={tableData.length}
+          count={totalRecords}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           onChangeDense={table.onChangeDense}
@@ -557,7 +667,86 @@ export function KioskListView({ ownerDashboard = false }) {
         open={openModal.value}
         onClose={openModal.onFalse}
         currentKiosk={currentKiosk}
+        ownerDashboard={ownerDashboard}
       />
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Lock / Unlock Confirmation Dialog */}
+      {/* ------------------------------------------------------------------ */}
+      {kioskToLock && (
+        <ConfirmDialog
+          open={lockConfirm.value}
+          onClose={() => {
+            lockConfirm.onFalse();
+            setKioskToLock(null);
+          }}
+          title={
+            Boolean(
+              kioskToLock.isLocked ||
+              kioskToLock.isLock ||
+              kioskToLock.locked ||
+              kioskToLock.raw?.isLocked ||
+              kioskToLock.raw?.isLock ||
+              kioskToLock.raw?.locked
+            )
+              ? 'Unlock Kiosk Device'
+              : 'Lock Kiosk Device'
+          }
+          content={
+            <Typography variant="body2" color="text.secondary">
+              Are you sure you want to{' '}
+              {Boolean(
+                kioskToLock.isLocked ||
+                kioskToLock.isLock ||
+                kioskToLock.locked ||
+                kioskToLock.raw?.isLocked ||
+                kioskToLock.raw?.isLock ||
+                kioskToLock.raw?.locked
+              )
+                ? 'unlock'
+                : 'lock'}{' '}
+              kiosk terminal (
+              <strong>
+                {kioskToLock.locationLabel ||
+                  kioskToLock.name ||
+                  kioskToLock.deviceId ||
+                  'Kiosk'}
+              </strong>
+              )?
+            </Typography>
+          }
+          action={
+            <LoadingButton
+              variant="contained"
+              color={
+                Boolean(
+                  kioskToLock.isLocked ||
+                  kioskToLock.isLock ||
+                  kioskToLock.locked ||
+                  kioskToLock.raw?.isLocked ||
+                  kioskToLock.raw?.isLock ||
+                  kioskToLock.raw?.locked
+                )
+                  ? 'primary'
+                  : 'warning'
+              }
+              loading={isTogglingLock}
+              onClick={handleConfirmLockToggle}
+            >
+              {Boolean(
+                kioskToLock.isLocked ||
+                kioskToLock.isLock ||
+                kioskToLock.locked ||
+                kioskToLock.raw?.isLocked ||
+                kioskToLock.raw?.isLock ||
+                kioskToLock.raw?.locked
+              )
+                ? 'Unlock Device'
+                : 'Lock Device'}
+            </LoadingButton>
+          }
+        />
+      )}
     </DashboardContent>
   );
 }

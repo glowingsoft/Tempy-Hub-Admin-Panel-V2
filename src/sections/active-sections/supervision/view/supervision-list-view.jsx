@@ -284,8 +284,6 @@ function SupervisionListView({
         sx={{ mb: 3 }}
       />
 
-      {showTabs && <TeamDevelopmentTabs />}
-
       <Card>
         {isError && (
           <Alert severity="error" sx={{ m: 2 }}>

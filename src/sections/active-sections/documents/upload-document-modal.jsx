@@ -1,8 +1,8 @@
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { z as zod } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 import LoadingButton from '@mui/lab/LoadingButton';
 import Button from '@mui/material/Button';
@@ -10,48 +10,39 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import Chip from '@mui/material/Chip';
 
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
-
-import { mockEmployees } from 'src/sections/user/mocks/data';
-import { mockDepartments } from 'src/sections/department/mocks/data';
-
-import { FOLDER_OPTIONS, addUploadedDocument, updateDocument } from './mocks/data';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetDocumentCategoriesQuery } from 'src/store/Reducer/document-categories-api';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import {
+  useUploadDocumentMutation,
+  useUpdateDocumentMutation,
+} from 'src/store/Reducer/documents-api';
+import { useUploadFileMutation } from 'src/store/Reducer/upload-api';
 
 // ----------------------------------------------------------------------
-// Option lists exported so the bulk-upload modal (bulk-upload-document-modal.jsx)
-// can reuse them rather than redefining the same lists.
+
+const mapBranchOption = (item) => ({
+  value: item._id || item.id,
+  label: item.name || '',
+});
+
 // ----------------------------------------------------------------------
+
+export const AUDIENCE_OPTIONS = [
+  { value: 'staff', label: 'Staff' },
+  { value: 'visitor', label: 'Visitor' },
+];
 
 export const CATEGORY_OPTIONS = [
   { value: 'health_safety', label: 'Health & Safety' },
   { value: 'fire_safety', label: 'Fire & Safety' },
   { value: 'contractor', label: 'Contractor' },
-];
-
-const toDepartmentOption = (department) => ({
-  value: department.name
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, ''),
-  label: department.name,
-});
-
-export const DEPARTMENT_OPTIONS = [
-  ...new Map(mockDepartments.map((department) => {
-    const option = toDepartmentOption(department);
-    return [option.value, option];
-  })).values(),
-];
-
-const ACTION_TYPE_OPTIONS = [
-  { value: 'sign', label: 'Sign' },
-  { value: 'continue', label: 'Continue' },
 ];
 
 export const SCOPE_TYPE_OPTIONS = [
@@ -62,64 +53,26 @@ export const SCOPE_TYPE_OPTIONS = [
   { value: 'personal', label: 'Personal' },
 ];
 
-export const ROLE_OPTIONS = [
-  { value: 'care_assistant', label: 'Care Assistant' },
-  { value: 'senior_care', label: 'Senior Care' },
-  { value: 'lead_care_assistant', label: 'Lead Care Assistant' },
-  { value: 'cook', label: 'Cook' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'administrator', label: 'Administrator' },
-  { value: 'domestic_assistant', label: 'Domestic Assistant' },
-];
-
-export const STAFF_OPTIONS = mockEmployees.map((employee) => ({
-  value: employee.id,
-  name: employee.name,
-  designation: employee.role || '—',
-}));
+export const UploadDocumentSchema = zod.object({
+  title: zod.string().min(1, { message: 'Document title is required!' }),
+  category: zod.string().optional(),
+  branchId: zod
+    .object({ value: zod.string(), label: zod.string() })
+    .nullable()
+    .optional(),
+  audiences: zod
+    .array(zod.string())
+    .min(1, { message: 'Select at least one audience!' }),
+  requiresSignature: zod.boolean().default(true),
+  file: zod.any().optional(),
+});
 
 // ----------------------------------------------------------------------
 
-export const UploadDocumentSchema = zod
-  .object({
-    name: zod.string().min(1, {
-      message: 'Document name is required!',
-    }),
-
-    category: zod.string().min(1, {
-      message: 'Category is required!',
-    }),
-
-    folder: zod.string().optional(),
-
-    actionType: zod.string().min(1, {
-      message: 'Action type is required!',
-    }),
-
-    scopeType: zod.string().min(1, {
-      message: 'Scope type is required!',
-    }),
-
-    scopeValue: zod.string().optional(),
-
-    file: zod.custom((val) => val !== null, {
-      message: 'File is required!',
-    }),
-  })
-  .superRefine((data, ctx) => {
-    if (
-      ['department', 'role', 'specific_staff', 'personal'].includes(
-        data.scopeType
-      ) &&
-      !data.scopeValue
-    ) {
-      ctx.addIssue({
-        code: zod.ZodIssueCode.custom,
-        path: ['scopeValue'],
-        message: 'Please select a scope!',
-      });
-    }
-  });
+const mapCategoryOption = (item) => ({
+  value: item.title || item.name || item._id || item.id,
+  label: item.title || item.name || '',
+});
 
 // ----------------------------------------------------------------------
 
@@ -128,14 +81,30 @@ export default function UploadDocumentModal({
   onClose,
   currentDocument,
 }) {
+  const { organizationId } = useCurrentOrganization();
+  const isEdit = Boolean(currentDocument);
+
+  const [uploadFile, { isLoading: isUploadingFile }] = useUploadFileMutation();
+  const [uploadDocumentApi, { isLoading: isPostingDocument }] = useUploadDocumentMutation();
+  const [updateDocumentApi, { isLoading: isUpdatingDocument }] = useUpdateDocumentMutation();
+
+  const [selectedBranch, setSelectedBranch] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
   const defaultValues = useMemo(
     () => ({
-      name: currentDocument?.name || '',
+      title: currentDocument?.title || currentDocument?.name || '',
       category: currentDocument?.category || '',
-      folder: currentDocument?.folder || '',
-      actionType: currentDocument?.actionType || '',
-      scopeType: currentDocument?.scopeType || '',
-      scopeValue: currentDocument?.scopeValue || '',
+      branchId: currentDocument?.branchId
+        ? {
+            value: currentDocument.branchId,
+            label: currentDocument.branchName || 'Site',
+          }
+        : null,
+      audiences: Array.isArray(currentDocument?.audiences)
+        ? currentDocument.audiences
+        : ['staff'],
+      requiresSignature: currentDocument?.requiresSignature ?? true,
       file: currentDocument?.file || null,
     }),
     [currentDocument]
@@ -149,15 +118,81 @@ export default function UploadDocumentModal({
 
   const {
     reset,
-    watch,
     setValue,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
-  const scopeType = watch('scopeType');
+  useEffect(() => {
+    if (open) {
+      if (currentDocument) {
+        reset({
+          title: currentDocument.title || currentDocument.name || '',
+          category: currentDocument.category || '',
+          branchId: currentDocument.branchId
+            ? {
+                value: currentDocument.branchId,
+                label: currentDocument.branchName || 'Site',
+              }
+            : null,
+          audiences: Array.isArray(currentDocument.audiences) && currentDocument.audiences.length > 0
+            ? currentDocument.audiences
+            : ['staff'],
+          requiresSignature: currentDocument.requiresSignature ?? true,
+          file: null,
+        });
 
-  // ----------------------------------------------------------------------
+        setSelectedBranch(
+          currentDocument.branchId
+            ? {
+                value: currentDocument.branchId,
+                label: currentDocument.branchName || 'Site',
+              }
+            : null
+        );
+
+        setSelectedCategory(
+          currentDocument.category
+            ? {
+                value: currentDocument.categoryId || currentDocument.category,
+                label: currentDocument.categoryLabel || currentDocument.category,
+              }
+            : null
+        );
+      } else {
+        reset({
+          title: '',
+          category: '',
+          branchId: null,
+          audiences: ['staff'],
+          requiresSignature: true,
+          file: null,
+        });
+        setSelectedBranch(null);
+        setSelectedCategory(null);
+      }
+    }
+  }, [open, currentDocument, reset]);
+
+  const handleCategoryChange = useCallback(
+    (option) => {
+      setSelectedCategory(option);
+      setValue('category', option?.value || option?.label || '', {
+        shouldValidate: true,
+      });
+    },
+    [setValue]
+  );
+
+  const handleBranchChange = useCallback(
+    (option) => {
+      setSelectedBranch(option);
+      setValue('branchId', option || null, {
+        shouldValidate: true,
+      });
+    },
+    [setValue]
+  );
 
   const handleDrop = (acceptedFiles) => {
     const newFile = acceptedFiles[0];
@@ -167,8 +202,9 @@ export default function UploadDocumentModal({
         shouldValidate: true,
       });
 
-      if (!methods.getValues('name')) {
-        setValue('name', newFile.name, {
+      if (!methods.getValues('title')) {
+        const cleanName = newFile.name.replace(/\.[^/.]+$/, '');
+        setValue('title', cleanName, {
           shouldValidate: true,
         });
       }
@@ -181,254 +217,225 @@ export default function UploadDocumentModal({
     });
   };
 
-  const handleScopeTypeChange = (event) => {
-    const value = event.target.value;
-
-    setValue('scopeType', value, {
-      shouldValidate: true,
-    });
-
-    // Clear previous scope selection
-    setValue('scopeValue', '', {
-      shouldValidate: true,
-    });
-  };
-
-  // ----------------------------------------------------------------------
-
   const onSubmit = handleSubmit(async (data) => {
-    const promise = new Promise((resolve) => setTimeout(resolve, 1000));
-
     try {
-      await promise;
+      if (isEdit) {
+        const docId = currentDocument?._id || currentDocument?.id;
+        if (!docId) {
+          toast.error('Document ID not found!');
+          return;
+        }
 
-      console.info('DOCUMENT DATA', data);
+        const patchPayload = {
+          title: data.title,
+          audiences: data.audiences,
+          requiresSignature: Boolean(data.requiresSignature),
+        };
 
-      // Determine file type from the actual file, fall back to the form value
-      const file = data.file;
-      const rawType = file?.type || '';
-      const fileExt = file?.name?.split('.').pop()?.toLowerCase() || '';
-      const fileType = rawType.includes('pdf') || fileExt === 'pdf'
-        ? 'pdf'
-        : rawType.startsWith('image/')
-          ? fileExt || 'image'
-          : fileExt || 'file';
+        await updateDocumentApi({
+          documentId: docId,
+          organizationId,
+          ...patchPayload,
+        }).unwrap();
 
-      // Build an object-URL so the detail page can render it immediately
-      const fileUrl = file ? URL.createObjectURL(file) : null;
+        reset();
+        setSelectedCategory(null);
+        setSelectedBranch(null);
+        onClose();
 
-      const selectedStaff =
-        data.scopeType === 'specific_staff' || data.scopeType === 'personal'
-          ? STAFF_OPTIONS.find((s) => String(s.value) === String(data.scopeValue))
-          : null;
-      const selectedDept =
-        data.scopeType === 'department'
-          ? DEPARTMENT_OPTIONS.find((d) => d.value === data.scopeValue)
-          : null;
-      const selectedRole =
-        data.scopeType === 'role'
-          ? ROLE_OPTIONS.find((r) => r.value === data.scopeValue)
-          : null;
-
-      const scopeLabel =
-        selectedStaff?.name ||
-        selectedDept?.label ||
-        selectedRole?.label ||
-        (data.scopeType === 'all_staff' ? 'All staff' : data.scopeType?.replace(/_/g, ' '));
-
-      if (currentDocument?._id) {
-        updateDocument(currentDocument._id, {
-          name: data.name,
-          fileType,
-          fileUrl: fileUrl || currentDocument.fileUrl,
-          category: data.category,
-          folder: data.folder || null,
-          actionType: data.actionType,
-          scopeType: data.scopeType,
-          scopeValue: data.scopeValue,
-          scopeLabel,
-          assignedTo: selectedStaff?.name || currentDocument.assignedTo || null,
-          assignedToId: selectedStaff?.value || currentDocument.assignedToId || null,
-          updatedAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-        });
-      } else {
-        addUploadedDocument({
-          _id: `uploaded-${Date.now()}`,
-          name: data.name,
-          fileType,
-          fileUrl,
-          category: data.category,
-          folder: data.folder || null,
-          actionType: data.actionType,
-          scopeType: data.scopeType,
-          scopeValue: data.scopeValue,
-          scopeLabel,
-          assignedTo: selectedStaff?.name || null,
-          assignedToId: selectedStaff?.value || null,
-          version: 'v1',
-          updatedAt: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-          uploadedBy: 'You',
-          description: '',
-        });
+        toast.success('Document updated successfully!');
+        return;
       }
 
+      // Create Flow
+      const fileToUpload = data.file;
+
+      if (!fileToUpload) {
+        toast.error('Please select a file to upload!');
+        return;
+      }
+
+      // Step 1: Upload file to S3
+      const uploadResult = await uploadFile(fileToUpload).unwrap();
+      const s3Key = uploadResult?.key || uploadResult?.fileKey || uploadResult?.path || '';
+
+      if (!s3Key) {
+        throw new Error('Upload succeeded but no S3 key was returned.');
+      }
+
+      // Step 2: Post document payload with S3 file key
+      const payload = {
+        title: data.title,
+        category: data.category,
+        audiences: data.audiences,
+        branchId: data.branchId?.value || null,
+        requiresSignature: data.requiresSignature,
+        file: {
+          key: s3Key,
+          originalName: fileToUpload.name,
+          mimeType: fileToUpload.type || 'application/pdf',
+          sizeBytes: fileToUpload.size || 0,
+        },
+      };
+
+      await uploadDocumentApi({
+        organizationId,
+        ...payload,
+      }).unwrap();
+
       reset();
+      setSelectedCategory(null);
+      setSelectedBranch(null);
       onClose();
 
-      toast.success(currentDocument?._id ? 'Document updated!' : 'Document uploaded!');
+      toast.success('Document uploaded successfully!');
     } catch (error) {
-      console.error(error);
-
-      toast.error('Upload failed!');
+      console.error('Document save error:', error);
+      toast.error(error?.data?.message || error?.message || 'Failed to save document!');
     }
   });
 
-  // ----------------------------------------------------------------------
-
-  const renderScopeValue = () => {
-    switch (scopeType) {
-      case 'department':
-        return (
-          <Field.Select name="scopeValue" label="Department">
-            {DEPARTMENT_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Field.Select>
-        );
-
-      case 'role':
-        return (
-          <Field.Select name="scopeValue" label="Role">
-            {ROLE_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Field.Select>
-        );
-
-      case 'specific_staff':
-        return (
-          <Field.Select name="scopeValue" label="Staff Member">
-            {STAFF_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: 1 }}>
-                  <Typography variant="body2">{option.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {option.designation}
-                  </Typography>
-                </Stack>
-              </MenuItem>
-            ))}
-          </Field.Select>
-        );
-
-      case 'personal':
-        return (
-          <Field.Select name="scopeValue" label="Staff Member">
-            {STAFF_OPTIONS.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ width: 1 }}>
-                  <Typography variant="body2">{option.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {option.designation}
-                  </Typography>
-                </Stack>
-              </MenuItem>
-            ))}
-          </Field.Select>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  // ----------------------------------------------------------------------
+  const isBusy =
+    isSubmitting ||
+    isUploadingFile ||
+    isPostingDocument ||
+    isUpdatingDocument;
 
   return (
     <Dialog
       fullWidth
       maxWidth={false}
       open={open}
-      onClose={onClose}
+      onClose={isBusy ? undefined : onClose}
       PaperProps={{
         sx: {
-          maxWidth: 560,
+          maxWidth: 580,
         },
       }}
     >
       <Form methods={methods} onSubmit={onSubmit}>
-        <DialogTitle>Upload document</DialogTitle>
+        <DialogTitle>{isEdit ? 'Edit Document' : 'Upload document'}</DialogTitle>
 
-        <DialogContent>
+        <DialogContent dividers>
           <Stack spacing={3} sx={{ pt: 1 }}>
-            <Field.Upload
-              name="file"
-              accept={{
-                'application/pdf': ['.pdf'],
-                'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
-              }}
-              onDrop={handleDrop}
-              onDelete={handleRemoveFile}
+            {!isEdit && (
+              <Field.Upload
+                name="file"
+                accept={{
+                  'application/pdf': ['.pdf'],
+                }}
+                onDrop={handleDrop}
+                onDelete={handleRemoveFile}
+              />
+            )}
+
+            <Field.Text name="title" label="Document Title" placeholder="e.g. Health & Safety Policy" />
+
+            {!isEdit && (
+              <>
+                <Controller
+                  name="category"
+                  control={methods.control}
+                  render={({ field, fieldState: { error } }) => (
+                    <InfiniteAutocomplete
+                      value={selectedCategory}
+                      onChange={(option) => {
+                        handleCategoryChange(option);
+                        field.onChange(option?.value || option?.label || '');
+                      }}
+                      useQuery={useGetDocumentCategoriesQuery}
+                      queryArgs={{ organizationId, active: true }}
+                      mapOption={mapCategoryOption}
+                      label="Category"
+                      placeholder="Search and select category..."
+                      enabled={open && !!organizationId}
+                      disabled={!organizationId}
+                      textFieldProps={{
+                        error: !!error,
+                        helperText: error?.message,
+                      }}
+                    />
+                  )}
+                />
+
+                <Controller
+                  name="branchId"
+                  control={methods.control}
+                  render={({ field, fieldState: { error } }) => (
+                    <InfiniteAutocomplete
+                      value={selectedBranch}
+                      onChange={(option) => {
+                        handleBranchChange(option);
+                        field.onChange(option || null);
+                      }}
+                      useQuery={useGetBranchesQuery}
+                      queryArgs={{ organizationId }}
+                      mapOption={mapBranchOption}
+                      label="Site (Optional)"
+                      placeholder="Search and select site..."
+                      enabled={open && !!organizationId}
+                      disabled={!organizationId}
+                      textFieldProps={{
+                        error: !!error,
+                        helperText: error?.message,
+                      }}
+                    />
+                  )}
+                />
+              </>
+            )}
+
+            <Field.Autocomplete
+              name="audiences"
+              label="Audiences"
+              placeholder="Select audiences"
+              multiple
+              disableCloseOnSelect
+              options={AUDIENCE_OPTIONS.map((opt) => opt.value)}
+              getOptionLabel={(option) =>
+                AUDIENCE_OPTIONS.find((opt) => opt.value === option)?.label || option
+              }
+              renderTags={(selected, getTagProps) =>
+                selected.map((option, index) => {
+                  const label =
+                    AUDIENCE_OPTIONS.find((opt) => opt.value === option)?.label || option;
+                  return (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option}
+                      label={label}
+                      size="small"
+                      variant="soft"
+                    />
+                  );
+                })
+              }
             />
 
-            <Field.Text name="name" label="Document name" />
-
-            <Field.Select name="category" label="Category">
-              {CATEGORY_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
-
-            <Field.Select name="folder" label="Folder (optional)">
-              <MenuItem value="">None</MenuItem>
-              {FOLDER_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
-
-            <Field.Select name="actionType" label="Action Type">
-              {ACTION_TYPE_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
-
-            <Field.Select
-              name="scopeType"
-              label="Scope Type"
-              onChange={handleScopeTypeChange}
-            >
-              {SCOPE_TYPE_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
-
-            {renderScopeValue()}
+            <Field.Switch name="requiresSignature" label="Requires Signature" />
           </Stack>
         </DialogContent>
 
         <DialogActions>
-          <Button variant="outlined" onClick={onClose}>
+          <Button
+            variant="outlined"
+            disabled={isBusy}
+            onClick={() => {
+              reset();
+              setSelectedCategory(null);
+              setSelectedBranch(null);
+              onClose();
+            }}
+          >
             Cancel
           </Button>
 
           <LoadingButton
             type="submit"
             variant="contained"
-            loading={isSubmitting}
+            loading={isBusy}
           >
-            Upload
+            {isEdit ? 'Save Changes' : 'Upload'}
           </LoadingButton>
         </DialogActions>
       </Form>

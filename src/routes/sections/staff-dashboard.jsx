@@ -24,6 +24,8 @@ const StaffMyResidentsPage = lazy(() => import('src/pages/staff/family-engagemen
 const StaffMyResidentDetailPage = lazy(() => import('src/pages/staff/family-engagement/my-resident-detail'));
 const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
 
+const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
+
 const layoutContent = (
   <DashboardLayout>
     <Suspense fallback={<LoadingScreen />}>
@@ -59,6 +61,8 @@ export const staffDashboardRoutes = [
       { path: 'shifts', element: <StaffShiftsPage /> },
       { path: 'competencies', element: <StaffCompetenciesPage /> },
       { path: 'supervision', element: <StaffSupervisionPage /> },
+      { path: 'appraisals', element: <StaffSupervisionPage /> },
+      { path: 'training', element: <TrainingPage /> },
       { path: 'documents', element: <StaffDocumentsPage /> },
       { path: 'documents/:id', element: <StaffDocumentDetailPage /> },
       { path: 'rota', element: <RotaPage /> },
