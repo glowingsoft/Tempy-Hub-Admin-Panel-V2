@@ -28,11 +28,15 @@ export const navDataStaff = [
       { title: 'Attendance', path: paths.staff.attendance, icon: ICONS.clock },
       { title: 'Leave Requests', path: paths.staff.leaveRequests, icon: ICONS.calendar },
       { title: 'Shifts', path: paths.staff.shifts, icon: ICONS.shifts },
-      { title: 'My Competencies', path: paths.staff.competencies, icon: ICONS.competencies },
-      { title: 'Supervision & Appraisal', path: paths.staff.supervision, icon: ICONS.supervision },
       {
         title: 'Supervision & Appraisal',
         path: paths.staff.supervision,
+        activePaths: [
+          paths.staff.supervision,
+          paths.staff.appraisal,
+          paths.staff.competencies,
+          paths.staff.training,
+        ],
         icon: ICONS.supervision,
         children: [
           { title: 'Supervision', path: paths.staff.supervision },

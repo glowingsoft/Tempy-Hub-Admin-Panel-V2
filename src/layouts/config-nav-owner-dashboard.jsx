@@ -73,6 +73,12 @@ export const navDataOwner = [
       {
         title: 'Supervision & Appraisal',
         path: paths.owner.supervision,
+        activePaths: [
+          paths.owner.supervision,
+          paths.owner.appraisal,
+          paths.owner.teamCompliance,
+          paths.owner.training,
+        ],
         icon: ICONS.supervision,
         children: [
           { title: 'Supervision', path: paths.owner.supervision },
