@@ -21,6 +21,8 @@ import { useTheme } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';
 
+import { getPostId, getPostPhotoUrls } from './utils';
+
 // ----------------------------------------------------------------------
 
 function getAuthorAvatarProps(name = '') {
@@ -67,7 +69,7 @@ export function CommunityWallPostCard({
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Like reaction state
-  const initialLikes = post.reactions?.heart ?? 0;
+  const initialLikes = post.reactionCount ?? post.reactions?.heart ?? 0;
   const [likesCount, setLikesCount] = useState(initialLikes);
   const [isLiked, setIsLiked] = useState(post.reactions?.userReaction === 'heart');
 
@@ -77,27 +79,24 @@ export function CommunityWallPostCard({
   // Options Menu state (Pin, Edit, Delete)
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
 
-  // Fallback to existing data photo if array is empty
-  const rawPhotos = post.photos && post.photos.length > 0
-    ? post.photos
-    : ['https://picsum.photos/seed/birthday-tea-1/1200/900'];
-
-  const photos = rawPhotos;
+  const photos = getPostPhotoUrls(post);
+  const hasPhotos = photos.length > 0;
   const hasMultiplePhotos = photos.length > 1;
+  const postId = getPostId(post);
 
-  // Author details
-  const authorName = post.author?.name || 'Jane Smith';
-  const authorRole = post.author?.role || 'Carer';
-  const authorAvatarUrl = post.author?.avatarUrl;
+  const authorName = post.authorName || post.author?.name || '—';
+  const authorRole = post.authorRole || post.author?.role || '';
+  const authorAvatarUrl = post.authorPhotoUrl || post.author?.avatarUrl;
   const avatarStyle = getAuthorAvatarProps(authorName);
 
-  const timeText = post.timeText || 'Today';
-  const audienceText = post.audience || 'All families & residents';
+  const timeText = post.timeText || '';
+  const audienceText = post.audienceLabel || post.audience || '—';
+  const postBody = post.message || post.content || '';
   const isPinned = !!post.isPinned;
 
   // Viewers
-  const seenCount = post.seenCount ?? post.seenBy?.count ?? 28;
-  const totalAudience = post.totalAudience ?? 42;
+  const seenCount = post.seenCount ?? post.seenBy?.count ?? 0;
+  const totalAudience = post.audienceCount ?? post.totalAudience ?? 0;
   const recentViewers = post.seenBy?.recentViewers || [
     { name: 'Sarah Smith', relation: 'Daughter of John Smith', avatarUrl: 'https://i.pravatar.cc/150?img=48' },
     { name: 'David Johnson', relation: 'Son of Mary Johnson', avatarUrl: 'https://i.pravatar.cc/150?img=53' },
@@ -142,13 +141,12 @@ export function CommunityWallPostCard({
       setIsLiked(true);
       setLikesCount((prev) => prev + 1);
     }
-    onReactionToggle?.(post.id, 'heart');
+    onReactionToggle?.(postId, 'heart');
   };
 
   const handleCardImageClick = () => {
-    if (photos.length > 0) {
-      onPreviewPhoto?.(photos[activeImageIndex] || photos[0], photos);
-    }
+    if (!hasPhotos) return;
+    onPreviewPhoto?.(photos[activeImageIndex] || photos[0], photos);
   };
 
   return (
@@ -189,20 +187,23 @@ export function CommunityWallPostCard({
           cursor: 'pointer',
         }}
       >
-        {/* Active Image */}
-        <Box
-          component="img"
-          src={photos[activeImageIndex] || photos[0]}
-          alt={post.title}
-          sx={{
-            width: 1,
-            height: 1,
-            objectFit: 'cover',
-            display: 'block',
-            transition: 'transform 0.3s ease',
-            '&:hover': { transform: 'scale(1.02)' },
-          }}
-        />
+        {hasPhotos ? (
+          <Box
+            component="img"
+            src={photos[activeImageIndex] || photos[0]}
+            alt={post.title}
+            sx={{
+              width: 1,
+              height: 1,
+              objectFit: 'cover',
+              display: 'block',
+              transition: 'transform 0.3s ease',
+              '&:hover': { transform: 'scale(1.02)' },
+            }}
+          />
+        ) : (
+          <Iconify icon="solar:gallery-minimalistic-bold" width={48} sx={{ color: 'text.disabled' }} />
+        )}
 
         {/* Multiple Photos Navigation (< and > buttons) */}
         {hasMultiplePhotos && (
@@ -423,20 +424,20 @@ export function CommunityWallPostCard({
               mb: 1.25,
             }}
           >
-            {post.content}
+            {postBody}
           </Typography>
 
           {/* Tagged Residents */}
           <Stack direction="row" spacing={0.75} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
             {post.taggedResidents?.map((resident, idx) => (
               <Chip
-                key={resident.id || idx}
+                key={resident.residentId || resident.id || idx}
                 size="small"
                 avatar={
-                  resident.avatarUrl ? (
+                  resident.photoUrl || resident.avatarUrl ? (
                     <Avatar
                       alt={resident.name}
-                      src={resident.avatarUrl}
+                      src={resident.photoUrl || resident.avatarUrl}
                       sx={{ width: 18, height: 18 }}
                     />
                   ) : undefined
@@ -619,7 +620,7 @@ export function CommunityWallPostCard({
         <MenuItem
           onClick={() => {
             handleCloseMenu();
-            onPin?.(post.id);
+            onPin?.(post);
           }}
         >
           <ListItemIcon>
@@ -643,7 +644,7 @@ export function CommunityWallPostCard({
         <MenuItem
           onClick={() => {
             handleCloseMenu();
-            onRemove?.(post.id);
+            onRemove?.(post);
           }}
           sx={{ color: 'error.main' }}
         >

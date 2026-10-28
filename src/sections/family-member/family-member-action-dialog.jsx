@@ -4,49 +4,6 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 
 // ----------------------------------------------------------------------
 
-export function FamilyMembershipActionDialog({
-  open,
-  onClose,
-  onConfirm,
-  title,
-  confirmLabel,
-  name,
-  isDelete,
-  loading,
-}) {
-  return (
-    <ConfirmDialog
-      open={open}
-      onClose={onClose}
-      title={title}
-      content={
-        isDelete ? (
-          <>
-            Permanently remove family membership for <strong>{name}</strong>? This cannot be undone.
-          </>
-        ) : (
-          <>
-            Revoke the invitation for <strong>{name}</strong>? They will no longer have access
-            to the family portal.
-          </>
-        )
-      }
-      action={
-        <LoadingButton
-          variant="contained"
-          color="error"
-          loading={loading}
-          onClick={onConfirm}
-        >
-          {confirmLabel}
-        </LoadingButton>
-      }
-    />
-  );
-}
-
-// ----------------------------------------------------------------------
-
 export function FamilyMemberActionDialog({
   open,
   onClose,

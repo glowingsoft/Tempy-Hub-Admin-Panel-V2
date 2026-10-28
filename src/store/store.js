@@ -24,6 +24,11 @@ import { floorPlansApi } from './Reducer/floor-plans-api';
 import { uploadApi } from './Reducer/upload-api';
 import { supervisionApi } from './Reducer/supervision-api';
 import { appraisalsApi } from './Reducer/appraisals-api';
+import { familyUploadsApi } from './Reducer/family-uploads-api';
+import { familyInvitationsApi } from './Reducer/family-invitations-api';
+import { familyGroupsApi } from './Reducer/family-groups-api';
+import { familyMembersApi } from './Reducer/family-members-api';
+import { familyPostsApi } from './Reducer/family-posts-api';
 import { documentsApi } from './Reducer/documents-api';
 import { documentCategoriesApi } from './Reducer/document-categories-api';
 import { kiosksApi } from './Reducer/kiosks-api';
@@ -88,6 +93,11 @@ const apiSlices = [
   uploadApi,
   supervisionApi,
   appraisalsApi,
+  familyUploadsApi,
+  familyInvitationsApi,
+  familyGroupsApi,
+  familyMembersApi,
+  familyPostsApi,
   documentsApi,
   documentCategoriesApi,
   kiosksApi,
@@ -131,6 +141,11 @@ export const store = configureStore({
     [uploadApi.reducerPath]: uploadApi.reducer,
     [supervisionApi.reducerPath]: supervisionApi.reducer,
     [appraisalsApi.reducerPath]: appraisalsApi.reducer,
+    [familyUploadsApi.reducerPath]: familyUploadsApi.reducer,
+    [familyInvitationsApi.reducerPath]: familyInvitationsApi.reducer,
+    [familyGroupsApi.reducerPath]: familyGroupsApi.reducer,
+    [familyMembersApi.reducerPath]: familyMembersApi.reducer,
+    [familyPostsApi.reducerPath]: familyPostsApi.reducer,
     [documentsApi.reducerPath]: documentsApi.reducer,
     [documentCategoriesApi.reducerPath]: documentCategoriesApi.reducer,
     [kiosksApi.reducerPath]: kiosksApi.reducer,
@@ -165,6 +180,11 @@ export const store = configureStore({
       uploadApi.middleware,
       supervisionApi.middleware,
       appraisalsApi.middleware,
+      familyUploadsApi.middleware,
+      familyInvitationsApi.middleware,
+      familyGroupsApi.middleware,
+      familyMembersApi.middleware,
+      familyPostsApi.middleware,
       documentsApi.middleware,
       documentCategoriesApi.middleware,
       kiosksApi.middleware,

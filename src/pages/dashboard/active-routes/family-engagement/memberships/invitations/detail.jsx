@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 
 import { CONFIG } from 'src/config-global';
-import { FamilyInvitationDetailView } from 'src/sections/family-membership/view';
+import { FamilyInvitationDetailView } from 'src/sections/family-invitation';
 
 // ----------------------------------------------------------------------
 

@@ -137,6 +137,40 @@ export const API_ROUTES = {
     ORGANIZATION_APPRAISAL_ACTION_POINT_SIGN_OFF: (organizationId, appraisalId, appraisalActionPointId) =>
         `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/${appraisalActionPointId}/sign-off`,
 
+    // Family engagement — upload moderation queue
+    ORGANIZATION_FAMILY_UPLOADS: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-uploads`,
+    FAMILY_UPLOAD_BY_ID: (uploadId) => `/admin/family/uploads/${uploadId}`,
+
+    FAMILY_RELATIONSHIPS: '/admin/family/relationships',
+    ORGANIZATION_FAMILY_INVITATIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-invitations`,
+    ORGANIZATION_FAMILY_INVITATION_BY_ID: (organizationId, familyInvitationId) =>
+        `/admin/organizations/${organizationId}/family-invitations/${familyInvitationId}`,
+    FAMILY_INVITATIONS: '/admin/family-invitations',
+    FAMILY_INVITATION_BY_ID: (familyInvitationId) => `/admin/family-invitations/${familyInvitationId}`,
+
+    ORGANIZATION_FAMILY_GROUPS: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-groups`,
+    ORGANIZATION_FAMILY_GROUP_BY_RESIDENT: (organizationId, residentId) =>
+        `/admin/organizations/${organizationId}/family-groups/${residentId}`,
+
+    ORGANIZATION_FAMILY_MEMBERS: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-members`,
+    ORGANIZATION_FAMILY_MEMBER_BY_ID: (organizationId, memberId) =>
+        `/admin/organizations/${organizationId}/family-members/${memberId}`,
+    FAMILY_MEMBER_BY_ID: (memberId) => `/admin/family/members/${memberId}`,
+    FAMILY_MEMBER_ACCESS: (memberId) => `/admin/family/members/${memberId}/access`,
+    FAMILY_RESIDENT_MEMBER_BY_ID: (residentId, memberId) =>
+        `/admin/family/residents/${residentId}/members/${memberId}`,
+
+    ORGANIZATION_FAMILY_POSTS: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-posts`,
+    FAMILY_POSTS: '/admin/family/posts',
+    FAMILY_POST_BY_ID: (postId) => `/admin/family/posts/${postId}`,
+    FAMILY_POST_MEDIA: '/admin/family/posts/media',
+    FAMILY_POST_MEDIA_BATCH: '/admin/family/posts/media/batch',
+    FAMILY_POST_TAGGABLE_RESIDENTS: '/admin/family/posts/taggable-residents',
     // Documents
     ORGANIZATION_DOCUMENTS: (organizationId) =>
         `/admin/organizations/${organizationId}/documents`,

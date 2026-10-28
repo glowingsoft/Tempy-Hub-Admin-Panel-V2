@@ -1,14 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
 import Dialog from '@mui/material/Dialog';
-import Avatar from '@mui/material/Avatar';
-import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -17,417 +14,268 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
-import { alpha, useTheme } from '@mui/material/styles';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { Label } from 'src/components/label';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetResidentsQuery } from 'src/store/Reducer/residents-api';
+import {
+  useGetFamilyRelationshipsQuery,
+  useInviteFamilyMemberMutation,
+  useDecideFamilyInvitationMutation,
+} from 'src/store/Reducer/family-invitations-api';
+
+import { getInvitationId } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
-const RELATIONSHIP_OPTIONS = [
-  'Daughter',
-  'Son',
-  'Spouse / Partner',
-  'Granddaughter',
-  'Grandson',
-  'Sister',
-  'Brother',
-  'Niece',
-  'Nephew',
-  'Legal Guardian',
-  'Family Friend',
-  'Other Relative',
-];
+const mapResidentOption = (resident) => ({
+  value: resident._id || resident.id,
+  label: resident.name
+    ? resident.roomNumber
+      ? `${resident.name} - Room ${resident.roomNumber}`
+      : resident.name
+    : resident._id,
+});
 
-const ROLE_OPTIONS = [
-  { value: 'Primary Admin', label: 'Primary Admin' },
-  { value: 'Member', label: 'Member' },
-  { value: 'Visitor', label: 'Visitor / Contact' },
-];
+export function FamilyGroupManageDialog({ open, onClose, invitation = null, defaultResident = null }) {
+  const invitationId = getInvitationId(invitation);
+  const isEdit = Boolean(invitationId);
+  const { organizationId } = useCurrentOrganization();
+  const residentQueryArgs = useMemo(() => ({ organizationId }), [organizationId]);
 
-// ----------------------------------------------------------------------
-
-export function FamilyGroupManageDialog({ open, onClose, group, onUpdateGroup }) {
-  const theme = useTheme();
-
-  // Form states for adding a member
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [relation, setRelation] = useState('Daughter');
-  const [role, setRole] = useState('Member');
+  const [relationship, setRelationship] = useState('');
   const [isNok, setIsNok] = useState(false);
+  const [resident, setResident] = useState(null);
   const [errors, setErrors] = useState({});
 
-  const residentName = group?.resident || group?.name || 'Resident';
-  const membersList = group?.membersList || [];
+  const { data: relationshipOptions = [] } = useGetFamilyRelationshipsQuery(undefined, {
+    skip: !open,
+  });
 
-  const handleResetForm = useCallback(() => {
-    setName('');
-    setEmail('');
-    setPhone('');
-    setRelation('Daughter');
-    setRole('Member');
-    setIsNok(false);
+  const [inviteFamilyMember, { isLoading: isInviting }] = useInviteFamilyMemberMutation();
+  const [decideFamilyInvitation, { isLoading: isSaving }] = useDecideFamilyInvitationMutation();
+  const saving = isInviting || isSaving;
+
+  useEffect(() => {
+    if (!open) return;
+
+    setName(invitation?.name || '');
+    setEmail(invitation?.email || '');
+    setRelationship(invitation?.relationship || '');
+    setIsNok(Boolean(invitation?.isNextOfKin));
+    setResident(
+      invitation?.residentId
+        ? {
+            value: invitation.residentId,
+            label: invitation.residentName
+              ? invitation.roomNumber
+                ? `${invitation.residentName} - Room ${invitation.roomNumber}`
+                : invitation.residentName
+              : 'Selected resident',
+          }
+        : defaultResident
+    );
     setErrors({});
-  }, []);
+  }, [open, invitation, defaultResident]);
 
-  const handleAddMember = useCallback(() => {
-    const newErrors = {};
-    if (!name.trim()) newErrors.name = 'Full name is required';
-    if (!email.trim()) {
-      newErrors.email = 'Email address is required';
-    } else if (!/\S+@\S+\.\S+/.test(email.trim())) {
-      newErrors.email = 'Enter a valid email address';
+  const handleClose = () => {
+    if (saving) return;
+    onClose?.();
+  };
+
+  const validate = useCallback(() => {
+    const nextErrors = {};
+    if (!name.trim()) nextErrors.name = 'Full name is required';
+    if (!isEdit) {
+      if (!email.trim()) nextErrors.email = 'Email address is required';
+      else if (!/\S+@\S+\.\S+/.test(email.trim())) nextErrors.email = 'Enter a valid email address';
+      if (!resident?.value) nextErrors.resident = 'Please select a resident';
     }
+    if (!relationship) nextErrors.relationship = 'Please select a relationship';
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  }, [email, isEdit, name, relationship, resident]);
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
+  const handleSubmit = useCallback(async () => {
+    if (!validate()) return;
+
+    try {
+      if (isEdit) {
+        await decideFamilyInvitation({
+          organizationId,
+          familyInvitationId: invitationId,
+          action: 'edit',
+          name: name.trim(),
+          relationship,
+        }).unwrap();
+        toast.success('Invitation updated');
+      } else {
+        await inviteFamilyMember({
+          organizationId,
+          email: email.trim(),
+          name: name.trim(),
+          residentId: resident.value,
+          relationship,
+          isNextOfKin: isNok,
+        }).unwrap();
+        toast.success('Family invitation sent');
+      }
+      onClose?.();
+    } catch (error) {
+      toast.error(error?.data?.message || error?.message || 'Unable to save invitation');
     }
-
-    const newMember = {
-      id: `mem-${Date.now()}`,
-      name: name.trim(),
-      email: email.trim(),
-      phone: phone.trim() || '—',
-      relation,
-      role,
-      isNok: Boolean(isNok),
-      status: 'Active',
-    };
-
-    const updatedList = [...membersList, newMember];
-
-    const updatedGroup = {
-      ...group,
-      membersList: updatedList,
-      members: updatedList.length,
-      status: group.status === 'no_family' ? 'active' : group.status,
-      statusLabel: group.status === 'no_family' ? 'Active' : group.statusLabel,
-    };
-
-    if (isNok) {
-      updatedGroup.nextOfKin = newMember.name;
-      updatedGroup.nextOfKinRelationship = newMember.relation;
-      updatedGroup.nextOfKinEmail = newMember.email;
-      updatedGroup.nextOfKinPhone = newMember.phone;
-    }
-
-    onUpdateGroup?.(updatedGroup);
-    toast.success(`Added ${newMember.name} to ${residentName}'s family group!`);
-    handleResetForm();
   }, [
-    name,
+    decideFamilyInvitation,
     email,
-    phone,
-    relation,
-    role,
+    invitationId,
+    inviteFamilyMember,
+    isEdit,
     isNok,
-    membersList,
-    group,
-    residentName,
-    onUpdateGroup,
-    handleResetForm,
+    name,
+    onClose,
+    organizationId,
+    relationship,
+    resident,
+    validate,
   ]);
 
-  const handleRemoveMember = useCallback(
-    (memberId) => {
-      const removed = membersList.find((m) => m.id === memberId);
-      const updatedList = membersList.filter((m) => m.id !== memberId);
-
-      const updatedGroup = {
-        ...group,
-        membersList: updatedList,
-        members: updatedList.length,
-        status: updatedList.length === 0 ? 'no_family' : group.status,
-        statusLabel: updatedList.length === 0 ? 'No family' : group.statusLabel,
-      };
-
-      if (removed?.isNok) {
-        const nextNok = updatedList.find((m) => m.isNok) || null;
-        updatedGroup.nextOfKin = nextNok ? nextNok.name : null;
-        updatedGroup.nextOfKinRelationship = nextNok ? nextNok.relation : '';
-        updatedGroup.nextOfKinEmail = nextNok ? nextNok.email : '';
-        updatedGroup.nextOfKinPhone = nextNok ? nextNok.phone : '';
-      }
-
-      onUpdateGroup?.(updatedGroup);
-      toast.info(`Removed ${removed?.name || 'member'} from family group`);
-    },
-    [membersList, group, onUpdateGroup]
-  );
-
-  if (!group) return null;
-
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ pb: 1.5 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Avatar
-              alt={residentName}
-              src={group.avatarUrl || group.image}
-              sx={{
-                width: 44,
-                height: 44,
-                bgcolor: alpha(theme.palette.primary.main, 0.12),
-                color: 'primary.main',
-                fontWeight: 700,
-              }}
-            >
-              {residentName.charAt(0)}
-            </Avatar>
-            <Stack spacing={0.25}>
-              <Typography variant="h6">Manage Family Group</Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {residentName} · Room {group.room || group.roomNumber || '—'}
-              </Typography>
-            </Stack>
-          </Stack>
-
-          <IconButton onClick={onClose} size="small">
+          <Typography variant="h6">{isEdit ? 'Edit invitation' : 'Invite family member'}</Typography>
+          <IconButton onClick={handleClose} size="small" disabled={saving}>
             <Iconify icon="mingcute:close-line" />
           </IconButton>
         </Stack>
       </DialogTitle>
 
       <DialogContent dividers sx={{ pt: 2.5, pb: 3 }}>
-        {/* Existing Members Section */}
-        <Box sx={{ mb: 4 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              Linked Family Members ({membersList.length})
-            </Typography>
-          </Stack>
+        <Stack spacing={2.5}>
+          <InfiniteAutocomplete
+            value={resident}
+            onChange={(option) => {
+              setResident(option);
+              if (errors.resident) setErrors((prev) => ({ ...prev, resident: '' }));
+            }}
+            useQuery={useGetResidentsQuery}
+            queryArgs={residentQueryArgs}
+            mapOption={mapResidentOption}
+            label="Resident"
+            placeholder="Search resident..."
+            error={Boolean(errors.resident)}
+            helperText={errors.resident}
+            disabled={!organizationId || isEdit || Boolean(defaultResident?.value)}
+            enabled={Boolean(open && organizationId)}
+            size="small"
+          />
 
-          {membersList.length === 0 ? (
-            <Card
-              sx={{
-                p: 3,
-                textAlign: 'center',
-                bgcolor: alpha(theme.palette.grey[500], 0.04),
-                border: `1px dashed ${theme.palette.divider}`,
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              gap: 2,
+            }}
+          >
+            <TextField
+              label="Full name"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
               }}
-            >
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                No family members linked to this resident yet. Use the form below to add members.
-              </Typography>
-            </Card>
-          ) : (
-            <Stack spacing={1.5}>
-              {membersList.map((member) => (
-                <Card
-                  key={member.id}
-                  sx={{
-                    p: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    bgcolor: alpha(theme.palette.background.paper, 0.8),
-                    border: `1px solid ${theme.palette.divider}`,
-                  }}
-                >
-                  <Stack direction="row" spacing={2} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
-                    <Avatar
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        bgcolor: member.isNok
-                          ? alpha(theme.palette.primary.main, 0.15)
-                          : alpha(theme.palette.grey[500], 0.15),
-                        color: member.isNok ? 'primary.main' : 'text.primary',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {member.name.charAt(0)}
-                    </Avatar>
+              error={Boolean(errors.name)}
+              helperText={errors.name}
+              fullWidth
+              size="small"
+              required
+            />
 
-                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                          {member.name}
-                        </Typography>
-                        {member.isNok && (
-                          <Chip
-                            size="small"
-                            label="Next of Kin"
-                            color="primary"
-                            variant="soft"
-                            sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
-                          />
-                        )}
-                        <Label
-                          variant="soft"
-                          color={member.status?.toLowerCase() === 'active' ? 'success' : 'warning'}
-                          sx={{ height: 20, fontSize: '0.7rem' }}
-                        >
-                          {member.status || 'Active'}
-                        </Label>
-                      </Stack>
+            <TextField
+              label="Email address"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+              }}
+              error={Boolean(errors.email)}
+              helperText={errors.email}
+              fullWidth
+              size="small"
+              required
+              disabled={isEdit}
+            />
+          </Box>
 
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {member.relation} · {member.role || 'Member'} · {member.email} · {member.phone}
-                      </Typography>
-                    </Stack>
-                  </Stack>
+          <TextField
+            select
+            label="Relationship"
+            value={relationship}
+            onChange={(event) => {
+              setRelationship(event.target.value);
+              if (errors.relationship) setErrors((prev) => ({ ...prev, relationship: '' }));
+            }}
+            error={Boolean(errors.relationship)}
+            helperText={errors.relationship}
+            fullWidth
+            size="small"
+            required
+            SelectProps={{
+              MenuProps: {
+                PaperProps: {
+                  sx: { maxHeight: 220 },
+                },
+              },
+            }}
+          >
+            {relationshipOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
 
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleRemoveMember(member.id)}
-                    sx={{ ml: 1 }}
-                    title="Remove member"
-                  >
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Card>
-              ))}
-            </Stack>
+          {!isEdit && (
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isNok}
+                  onChange={(event) => setIsNok(event.target.checked)}
+                  color="primary"
+                />
+              }
+              label={
+                <Stack spacing={0}>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Next of kin
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Primary contact for care and emergency notices
+                  </Typography>
+                </Stack>
+              }
+            />
           )}
-        </Box>
-
-        <Divider sx={{ my: 3 }} />
-
-        {/* Add Member Form Section */}
-        <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-            Add Family Member to Group
-          </Typography>
-
-          <Stack spacing={2.5}>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-                gap: 2,
-              }}
-            >
-              <TextField
-                label="Full Name"
-                placeholder="e.g. Sarah Hughes"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
-                }}
-                error={Boolean(errors.name)}
-                helperText={errors.name}
-                fullWidth
-                size="small"
-                required
-              />
-
-              <TextField
-                label="Email Address"
-                placeholder="e.g. sarah.h@example.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
-                }}
-                error={Boolean(errors.email)}
-                helperText={errors.email}
-                fullWidth
-                size="small"
-                required
-              />
-            </Box>
-
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-                gap: 2,
-              }}
-            >
-              <TextField
-                label="Phone Number"
-                placeholder="e.g. +44 7700 900123"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                fullWidth
-                size="small"
-              />
-
-              <TextField
-                select
-                label="Relationship to Resident"
-                value={relation}
-                onChange={(e) => setRelation(e.target.value)}
-                fullWidth
-                size="small"
-              >
-                {RELATIONSHIP_OPTIONS.map((opt) => (
-                  <MenuItem key={opt} value={opt}>
-                    {opt}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Box>
-
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-                gap: 2,
-                alignItems: 'center',
-              }}
-            >
-              <TextField
-                select
-                label="Portal Role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                fullWidth
-                size="small"
-              >
-                {ROLE_OPTIONS.map((opt) => (
-                  <MenuItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={isNok}
-                    onChange={(e) => setIsNok(e.target.checked)}
-                    color="primary"
-                  />
-                }
-                label={
-                  <Stack spacing={0}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      Designate as Next of Kin (NOK)
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Primary contact for care & emergency notices
-                    </Typography>
-                  </Stack>
-                }
-              />
-            </Box>
-
-            <Stack direction="row" justifyContent="flex-end" sx={{ pt: 1 }}>
-              <Button
-                variant="contained"
-                startIcon={<Iconify icon="solar:user-plus-bold" />}
-                onClick={handleAddMember}
-              >
-                Add Member to Group
-              </Button>
-            </Stack>
-          </Stack>
-        </Box>
+        </Stack>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button variant="outlined" color="inherit" onClick={onClose}>
-          Done
+        <Button variant="outlined" color="inherit" onClick={handleClose} disabled={saving}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSubmit}
+          disabled={saving}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
+        >
+          {isEdit ? 'Save changes' : 'Send invitation'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -437,6 +285,6 @@ export function FamilyGroupManageDialog({ open, onClose, group, onUpdateGroup })
 FamilyGroupManageDialog.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
-  group: PropTypes.object,
-  onUpdateGroup: PropTypes.func,
+  invitation: PropTypes.object,
+  defaultResident: PropTypes.object,
 };
