@@ -155,16 +155,8 @@ export default function SupervisionDetailView() {
                 Complete session
               </Button>
             )}
-            <Button
-              variant={isScheduled ? 'outlined' : 'contained'}
-              color="primary"
-              startIcon={<Iconify icon={isScheduled ? 'solar:calendar-mark-bold' : 'solar:calendar-add-bold'} />}
-              onClick={logModal.onTrue}
-            >
-              {isScheduled ? 'Reschedule supervision' : 'Book supervision'}
-            </Button>
 
-            {isCompleted && (
+            {isCompleted ? (
               <Button
                 variant={isSignedOff ? 'outlined' : 'contained'}
                 color="primary"
@@ -173,9 +165,7 @@ export default function SupervisionDetailView() {
               >
                 {isSignedOff ? 'View signed document' : 'Sign off session'}
               </Button>
-            )}
-
-            {!isCompleted && (
+            ) : (
               <Button
                 variant={isScheduled ? 'outlined' : 'contained'}
                 color="primary"

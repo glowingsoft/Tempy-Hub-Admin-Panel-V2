@@ -16,30 +16,34 @@ function isNestedPath(pathname, itemPath) {
 export function useActiveLink(itemPath, deep = true) {
   const pathname = removeLastSlash(usePathname());
 
-  const pathHasParams = hasParams(itemPath);
+  const itemPaths = Array.isArray(itemPath) ? itemPath : [itemPath];
 
-  const notValid = itemPath?.startsWith('#') || isExternalLink(itemPath);
+  return itemPaths.some((path) => {
+    const pathHasParams = hasParams(path);
 
-  if (notValid) {
-    return false;
-  }
+    const notValid = path?.startsWith('#') || isExternalLink(path);
 
-  const originItemPath = removeLastSlash(removeParams(itemPath));
+    if (notValid) {
+      return false;
+    }
 
-  /**
-   * Dashboard roots (`/owner-dashboard`, `/dashboard`, `/staff`, …) stay exact
-   * so they are not highlighted on every nested module page.
-   *
-   * Every other item stays active on its list, create, detail, and edit routes.
-   */
-  const isDeep = deep || pathHasParams || !isDashboardRootPath(originItemPath);
+    const originItemPath = removeLastSlash(removeParams(path));
 
-  if (isDeep) {
-    const defaultActive = isNestedPath(pathname, originItemPath);
-    const hasParamsActive = pathHasParams && originItemPath === pathname;
+    /**
+     * Dashboard roots (`/owner-dashboard`, `/dashboard`, `/staff`, …) stay exact
+     * so they are not highlighted on every nested module page.
+     *
+     * Every other item stays active on its list, create, detail, and edit routes.
+     */
+    const isDeep = deep || pathHasParams || !isDashboardRootPath(originItemPath);
 
-    return defaultActive || hasParamsActive;
-  }
+    if (isDeep) {
+      const defaultActive = isNestedPath(pathname, originItemPath);
+      const hasParamsActive = pathHasParams && originItemPath === pathname;
 
-  return pathname === originItemPath;
+      return defaultActive || hasParamsActive;
+    }
+
+    return pathname === originItemPath;
+  });
 }

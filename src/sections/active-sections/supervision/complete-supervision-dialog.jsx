@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
 import Box from '@mui/material/Box';
@@ -25,6 +25,7 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
   const [actionsNeeded, setActionsNeeded] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [touched, setTouched] = useState(false);
 
   const [updateSupervision, { isLoading: isSubmitting }] = useRescheduleSupervisionMutation();
 
@@ -66,11 +67,37 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
     (typeof row?.staffId === 'object' ? row?.staffId?.email : null) ||
     '';
 
+  useEffect(() => {
+    if (open) {
+      setTopics(
+        Array.isArray(row?.topics)
+          ? row.topics.filter(Boolean).join('\n')
+          : typeof row?.topics === 'string'
+          ? row.topics
+          : ''
+      );
+      setNotes(row?.notes || '');
+      setActionsNeeded(
+        Array.isArray(row?.actionPoints)
+          ? row.actionPoints
+              .map((ap) => (typeof ap === 'string' ? ap : ap?.text || ap?.description || ''))
+              .filter(Boolean)
+              .join('\n')
+          : typeof row?.actionPoints === 'string'
+          ? row.actionPoints
+          : ''
+      );
+      setError('');
+      setTouched(false);
+    }
+  }, [open, row]);
+
   const handleReset = () => {
     setTopics('');
     setActionsNeeded('');
     setNotes('');
     setError('');
+    setTouched(false);
   };
 
   const handleClose = () => {
@@ -78,7 +105,17 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
     onClose();
   };
 
+  const isTopicsInvalid = touched && !topics.trim();
+  const isNotesInvalid = touched && !notes.trim();
+  const isActionsInvalid = touched && !actionsNeeded.trim();
+
   const handleComplete = async () => {
+    setTouched(true);
+
+    if (!topics.trim() || !notes.trim() || !actionsNeeded.trim()) {
+      return;
+    }
+
     const supervisionId = row?.upcoming?._id || row?.supervisionId || row?._id || row?.id;
 
     if (!supervisionId) {
@@ -105,9 +142,9 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
         organizationId,
         supervisionId,
         status: 'completed',
-        topics: topicsArray.length > 0 ? topicsArray : ['Wellbeing', 'Training'],
-        notes: notes.trim() || 'Meeting held',
-        actionPoints: actionPointsArray.length > 0 ? actionPointsArray : ['Book the next review'],
+        topics: topicsArray,
+        notes: notes.trim(),
+        actionPoints: actionPointsArray,
       };
 
       const res = await updateSupervision(payload).unwrap();
@@ -164,12 +201,18 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
 
           {/* Discussion Topics */}
           <TextField
+            required
             fullWidth
             multiline
             rows={2}
             label="Topics"
             placeholder="e.g. Wellbeing, Training"
-            helperText="Enter one topic per line (defaults to Wellbeing, Training)"
+            helperText={
+              isTopicsInvalid
+                ? 'Topics are required'
+                : 'Enter one topic per line'
+            }
+            error={isTopicsInvalid}
             value={topics}
             disabled={isSubmitting}
             onChange={(e) => setTopics(e.target.value)}
@@ -177,11 +220,14 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
 
           {/* Notes */}
           <TextField
+            required
             fullWidth
             multiline
             rows={2}
             label="Notes"
             placeholder="e.g. Meeting held"
+            helperText={isNotesInvalid ? 'Notes are required' : ''}
+            error={isNotesInvalid}
             value={notes}
             disabled={isSubmitting}
             onChange={(e) => setNotes(e.target.value)}
@@ -189,12 +235,18 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
 
           {/* Agreed Action Points */}
           <TextField
+            required
             fullWidth
             multiline
             rows={2}
             label="Action Points"
             placeholder="e.g. Book the next review"
-            helperText="Enter one action point per line"
+            helperText={
+              isActionsInvalid
+                ? 'Action points are required'
+                : 'Enter one action point per line'
+            }
+            error={isActionsInvalid}
             value={actionsNeeded}
             disabled={isSubmitting}
             onChange={(e) => setActionsNeeded(e.target.value)}

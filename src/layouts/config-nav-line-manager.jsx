@@ -72,6 +72,12 @@ export const navDataLineManager = [
       {
         title: 'Supervision & Appraisal',
         path: paths.lineManager.supervision,
+        activePaths: [
+          paths.lineManager.supervision,
+          paths.lineManager.appraisal,
+          paths.lineManager.teamCompliance,
+          paths.lineManager.training,
+        ],
         icon: ICONS.directory,
         children: [
           { title: 'Supervision', path: paths.lineManager.supervision },

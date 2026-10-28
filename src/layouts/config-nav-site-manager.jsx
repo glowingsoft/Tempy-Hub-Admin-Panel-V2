@@ -77,6 +77,12 @@ export const navDataSiteManager = [
       {
         title: 'Supervision & Appraisal',
         path: paths.siteManager.supervision,
+        activePaths: [
+          paths.siteManager.supervision,
+          paths.siteManager.appraisal,
+          paths.siteManager.teamCompliance,
+          paths.siteManager.training,
+        ],
         icon: ICONS.supervision,
         children: [
           { title: 'Supervision', path: paths.siteManager.supervision },
