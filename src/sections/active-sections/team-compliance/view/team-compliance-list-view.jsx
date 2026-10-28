@@ -259,8 +259,6 @@ function TeamComplianceListView({ columns = _complianceColumns, rows = _teamComp
         sx={{ mb: 3 }}
       />
 
-      <TeamDevelopmentTabs />
-
       {/* Compliance Statistics Overview Section */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Course Compliance Rates */}

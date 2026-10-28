@@ -73,8 +73,18 @@ export const navDataSiteManager = [
       { title: 'Fire Drills', path: paths.siteManager.fireDrills, icon: ICONS.compliance },
       { title: 'PEEP & Floor Plan', path: paths.siteManager.PEEPandFloorPlan, icon: ICONS.plan },
       { title: 'Documents', path: paths.siteManager.documents.root, icon: ICONS.document },
-      { title: 'Supervision', path: paths.siteManager.supervision, icon: ICONS.supervision },
-      { title: 'Appraisals', path: paths.siteManager.appraisal, icon: ICONS.reports },
+
+      {
+        title: 'Supervision & Appraisal',
+        path: paths.siteManager.supervision,
+        icon: ICONS.supervision,
+        children: [
+          { title: 'Supervision', path: paths.siteManager.supervision },
+          { title: 'Appraisal', path: paths.siteManager.appraisal },
+          { title: 'Competencies', path: paths.siteManager.teamCompliance },
+          { title: 'Training Record', path: paths.siteManager.training },
+        ],
+      },
       { title: 'Configuration', path: paths.siteManager.configuration, icon: ICONS.settings },
       { title: "Approvals", path: paths.siteManager.pendingApproval, icon: ICONS.pendingApproval },
       { title: "Roles", path: paths.siteManager.roles, icon: ICONS.lock },

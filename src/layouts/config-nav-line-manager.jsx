@@ -69,14 +69,17 @@ export const navDataLineManager = [
 
       { title: 'Team Attendance', path: paths.lineManager.teamAttendance, icon: ICONS.invitations },
 
-      { title: 'Team Compliance', path: paths.lineManager.teamCompliance, icon: ICONS.compliance },
-
-      { title: 'Supervision', path: paths.lineManager.supervision, icon: ICONS.directory },
-
-      { title: 'Appraisals', path: paths.lineManager.appraisal, icon: ICONS.reports },
-      // { title: 'Appraisals', path: paths.lineManager.appraisal, icon: ICONS.reports },
-
-      { title: 'Training Records', path: paths.lineManager.training, icon: ICONS.course },
+      {
+        title: 'Supervision & Appraisal',
+        path: paths.lineManager.supervision,
+        icon: ICONS.directory,
+        children: [
+          { title: 'Supervision', path: paths.lineManager.supervision },
+          { title: 'Appraisal', path: paths.lineManager.appraisal },
+          { title: 'Competencies', path: paths.lineManager.teamCompliance },
+          { title: 'Training Record', path: paths.lineManager.training },
+        ],
+      },
 
       { title: "Uploaded Photos", path: paths.lineManager.photoApproval, icon: ICONS.pendingApproval },
 

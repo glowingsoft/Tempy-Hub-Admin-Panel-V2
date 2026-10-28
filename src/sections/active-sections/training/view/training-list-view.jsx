@@ -197,8 +197,6 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
         sx={{ mb: 3 }}
       />
 
-      <TeamDevelopmentTabs />
-
       <Card>
         <FlexibleTableToolbar
           filterFields={[

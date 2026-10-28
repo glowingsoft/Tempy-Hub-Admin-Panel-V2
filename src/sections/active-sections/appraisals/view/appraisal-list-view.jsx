@@ -321,8 +321,6 @@ export function AppraisalListView({
         sx={{ mb: 3 }}
       />
 
-      {showTabs && <TeamDevelopmentTabs />}
-
       <Card>
         <StatusTabsFilterWrapper
           filterField={statusFilterField}
