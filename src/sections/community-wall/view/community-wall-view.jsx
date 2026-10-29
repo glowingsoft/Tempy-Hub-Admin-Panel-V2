@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Dialog from '@mui/material/Dialog';
@@ -19,11 +21,10 @@ import Typography from '@mui/material/Typography';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { Label } from 'src/components/label';
 import { Lightbox } from 'src/components/lightbox';
-import { LoadingScreen } from 'src/components/loading-screen';
 import { toast } from 'src/components/snackbar';
-import { TablePaginationCustom, useTable } from 'src/components/table';
 import { CONFIG } from 'src/config-global';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
@@ -32,7 +33,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
-  useGetFamilyPostsQuery,
+  useGetFamilyPostAuthorsQuery,
   useGetTaggableResidentsQuery,
   useRemoveFamilyPostMutation,
   useUpdateFamilyPostMutation,
@@ -40,9 +41,11 @@ import {
 import { varAlpha } from 'src/theme/styles';
 
 import { CommunityWallPostCard } from '../community-wall-post-card';
+import { CommunityWallPostSkeleton } from '../community-wall-post-skeleton';
 import { CommunityWallSidebar } from '../community-wall-sidebar';
 import { EditWallPostDialog } from '../edit-wall-post-dialog';
 import { NewWallPostDialog } from '../new-wall-post-dialog';
+import { useFamilyPostsFeed } from '../use-family-posts-feed';
 import {
   FAMILY_POST_AUDIENCE_OPTIONS,
   FAMILY_POST_DATE_OPTIONS,
@@ -53,10 +56,14 @@ import {
 
 // ----------------------------------------------------------------------
 
+const mapAuthorOption = (author) => ({
+  value: author.authorId,
+  label: author.name,
+});
+
 export function CommunityWallView() {
   const familyPaths = useFamilyEngagementPaths();
   const { organizationId, isOwner, user } = useCurrentOrganization();
-  const table = useTable({ defaultDense: true, defaultRowsPerPage: 20 });
 
   const siteManagerBranchId = user?.branchId || user?.branch?._id || '';
   const [ownerBranchId, setOwnerBranchId] = useState('');
@@ -75,17 +82,25 @@ export function CommunityWallView() {
     }
   }, [branches, isOwner, ownerBranchId]);
 
+  const authorQueryArgs = useMemo(
+    () => ({ organizationId, branchId }),
+    [organizationId, branchId]
+  );
+
   const [currentTab, setCurrentTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const trimmedKeyword = useDebounce(searchQuery, 400).trim();
 
-  const [selectedAuthorId, setSelectedAuthorId] = useState('');
+  const [selectedAuthor, setSelectedAuthor] = useState(null);
+
+  useEffect(() => {
+    setSelectedAuthor(null);
+  }, [branchId]);
   const [selectedResidentId, setSelectedResidentId] = useState('');
   const [selectedAudience, setSelectedAudience] = useState('');
   const [selectedDays, setSelectedDays] = useState(30);
   const [selectedSort, setSelectedSort] = useState('newest');
 
-  const [authorAnchor, setAuthorAnchor] = useState(null);
   const [residentAnchor, setResidentAnchor] = useState(null);
   const [groupAnchor, setGroupAnchor] = useState(null);
   const [dateAnchor, setDateAnchor] = useState(null);
@@ -108,22 +123,44 @@ export function CommunityWallView() {
     return { status: 'published' };
   }, [currentTab]);
 
-  const { data, isLoading, isFetching, isError } = useGetFamilyPostsQuery(
-    {
-      organizationId,
-      page: table.page + 1,
-      limit: table.rowsPerPage,
-      branchId,
+  const listFilters = useMemo(
+    () => ({
       ...tabParams,
-      ...(selectedAuthorId ? { authorId: selectedAuthorId } : {}),
+      ...(selectedAuthor?.value ? { authorId: selectedAuthor.value } : {}),
       ...(selectedResidentId ? { residentId: selectedResidentId } : {}),
       ...(selectedAudience ? { audience: selectedAudience } : {}),
       ...(selectedDays ? { days: selectedDays } : {}),
       ...(selectedSort ? { sort: selectedSort } : {}),
       ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
-    },
-    { skip: !organizationId || !branchId }
+    }),
+    [
+      tabParams,
+      selectedAuthor,
+      selectedResidentId,
+      selectedAudience,
+      selectedDays,
+      selectedSort,
+      trimmedKeyword,
+    ]
   );
+
+  const {
+    posts,
+    meta,
+    sentinelRef,
+    isFilterLoading,
+    isLoadingMore,
+    loadError,
+    isInitialError,
+    isLoadMoreError,
+    hasNextPage,
+    resetFeed,
+    retry,
+  } = useFamilyPostsFeed({
+    organizationId,
+    branchId,
+    filters: listFilters,
+  });
 
   const { data: taggableResidents = [] } = useGetTaggableResidentsQuery(
     { organizationId, branchId },
@@ -133,12 +170,9 @@ export function CommunityWallView() {
   const [updateFamilyPost] = useUpdateFamilyPostMutation();
   const [removeFamilyPost] = useRemoveFamilyPostMutation();
 
-  const posts = data?.data ?? [];
-  const meta = data?.meta ?? {};
   const statusCounts = meta.counts ?? {};
-  const totalRecords = meta.totalRecords ?? posts.length;
-  const loading = isLoading || isFetching;
-  const authors = meta.activity?.authors ?? [];
+  const isSearchPending = searchQuery.trim() !== trimmedKeyword;
+  const showFeedLoading = isFilterLoading || isSearchPending;
 
   const getTabCount = useCallback(
     (tab) => statusCounts[tab.countKey] ?? 0,
@@ -147,20 +181,19 @@ export function CommunityWallView() {
 
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
-    Boolean(selectedAuthorId) ||
+    Boolean(selectedAuthor?.value) ||
     Boolean(selectedResidentId) ||
     Boolean(selectedAudience) ||
     selectedDays !== 30;
 
   const handleResetFilters = useCallback(() => {
     setSearchQuery('');
-    setSelectedAuthorId('');
+    setSelectedAuthor(null);
     setSelectedResidentId('');
     setSelectedAudience('');
     setSelectedDays(30);
     setSelectedSort('newest');
-    table.onResetPage();
-  }, [table]);
+  }, []);
 
   const handleTogglePin = async (post) => {
     try {
@@ -172,6 +205,7 @@ export function CommunityWallView() {
         isPinned: !post.isPinned,
       }).unwrap();
       toast.success(post.isPinned ? 'Post unpinned' : 'Post pinned to top of wall');
+      resetFeed();
     } catch (error) {
       toast.error(error?.data?.message || error?.message || 'Unable to update pin');
     }
@@ -185,6 +219,7 @@ export function CommunityWallView() {
       toast.success('Post removed from community wall');
       setDeleteTarget(null);
       deleteDialog.onFalse();
+      resetFeed();
     } catch (error) {
       toast.error(error?.data?.message || error?.message || 'Unable to remove post');
     }
@@ -200,7 +235,6 @@ export function CommunityWallView() {
     [previewModal]
   );
 
-  const selectedAuthor = authors.find((author) => author.authorId === selectedAuthorId);
   const selectedResident = taggableResidents.find((resident) => resident.residentId === selectedResidentId);
   const selectedAudienceOption = FAMILY_POST_AUDIENCE_OPTIONS.find((option) => option.value === selectedAudience);
   const selectedDateOption = FAMILY_POST_DATE_OPTIONS.find((option) => option.value === selectedDays);
@@ -230,7 +264,6 @@ export function CommunityWallView() {
                   value={ownerBranchId}
                   onChange={(event) => {
                     setOwnerBranchId(event.target.value);
-                    table.onResetPage();
                   }}
                   sx={{ minWidth: { xs: 1, sm: 240 } }}
                 >
@@ -260,7 +293,6 @@ export function CommunityWallView() {
             value={currentTab}
             onChange={(_, value) => {
               setCurrentTab(value);
-              table.onResetPage();
             }}
             sx={{
               px: 2.5,
@@ -292,7 +324,6 @@ export function CommunityWallView() {
               value={searchQuery}
               onChange={(event) => {
                 setSearchQuery(event.target.value);
-                table.onResetPage();
               }}
               placeholder="Search resident, post, or author..."
               InputProps={{
@@ -307,41 +338,50 @@ export function CommunityWallView() {
         </Card>
 
         <Stack direction="row" alignItems="center" spacing={1.25} flexWrap="wrap" sx={{ mb: 3 }}>
-          <Button
-            variant="outlined"
-            color="inherit"
+          <InfiniteAutocomplete
+            key={`${organizationId}-${branchId}`}
+            value={selectedAuthor}
+            onChange={setSelectedAuthor}
+            useQuery={useGetFamilyPostAuthorsQuery}
+            queryArgs={authorQueryArgs}
+            mapOption={mapAuthorOption}
+            enabled={Boolean(organizationId && branchId)}
+            placeholder="Author"
             size="small"
-            onClick={(event) => setAuthorAnchor(event.currentTarget)}
-            endIcon={<Iconify icon="solar:alt-arrow-down-linear" width={14} />}
-            sx={{ borderRadius: '20px', textTransform: 'none', fontWeight: 600 }}
-          >
-            Author{selectedAuthor ? `: ${selectedAuthor.authorName}` : ''}
-          </Button>
-          <Menu anchorEl={authorAnchor} open={Boolean(authorAnchor)} onClose={() => setAuthorAnchor(null)}>
-            <MenuItem
-              selected={!selectedAuthorId}
-              onClick={() => {
-                setSelectedAuthorId('');
-                setAuthorAnchor(null);
-                table.onResetPage();
-              }}
-            >
-              All authors
-            </MenuItem>
-            {authors.map((author) => (
-              <MenuItem
-                key={author.authorId}
-                selected={selectedAuthorId === author.authorId}
-                onClick={() => {
-                  setSelectedAuthorId(author.authorId);
-                  setAuthorAnchor(null);
-                  table.onResetPage();
-                }}
-              >
-                {author.authorName}
-              </MenuItem>
-            ))}
-          </Menu>
+            forcePopupIcon
+            popupIcon={<Iconify icon="solar:alt-arrow-down-linear" width={14} />}
+            sx={{
+              width: { xs: 1, sm: 148 },
+              '& .MuiOutlinedInput-root': {
+                height: 32,
+                borderRadius: '20px',
+                fontWeight: 600,
+                fontSize: '0.8125rem',
+                color: 'text.primary',
+                '& fieldset': {
+                  borderColor: 'inherit',
+                },
+                '& .MuiAutocomplete-input': {
+                  py: 0,
+                  pl: 0.5,
+                  height: 32,
+                  boxSizing: 'border-box',
+                  fontWeight: 600,
+                  fontSize: '0.8125rem',
+                },
+                '& .MuiAutocomplete-endAdornment': {
+                  right: 6,
+                },
+                '& .MuiAutocomplete-popupIndicator': {
+                  p: 0.25,
+                  color: 'text.primary',
+                },
+                '& .MuiAutocomplete-clearIndicator': {
+                  p: 0.25,
+                },
+              },
+            }}
+          />
 
           <Button
             variant="outlined"
@@ -359,7 +399,6 @@ export function CommunityWallView() {
               onClick={() => {
                 setSelectedResidentId('');
                 setResidentAnchor(null);
-                table.onResetPage();
               }}
             >
               All residents
@@ -371,7 +410,6 @@ export function CommunityWallView() {
                 onClick={() => {
                   setSelectedResidentId(resident.residentId);
                   setResidentAnchor(null);
-                  table.onResetPage();
                 }}
               >
                 {resident.roomNumber ? `${resident.name} (Room ${resident.roomNumber})` : resident.name}
@@ -395,7 +433,6 @@ export function CommunityWallView() {
               onClick={() => {
                 setSelectedAudience('');
                 setGroupAnchor(null);
-                table.onResetPage();
               }}
             >
               All groups
@@ -407,7 +444,6 @@ export function CommunityWallView() {
                 onClick={() => {
                   setSelectedAudience(option.value);
                   setGroupAnchor(null);
-                  table.onResetPage();
                 }}
               >
                 {option.label}
@@ -433,7 +469,6 @@ export function CommunityWallView() {
                 onClick={() => {
                   setSelectedDays(option.value);
                   setDateAnchor(null);
-                  table.onResetPage();
                 }}
               >
                 {option.label}
@@ -459,7 +494,6 @@ export function CommunityWallView() {
                 onClick={() => {
                   setSelectedSort(option.value);
                   setSortAnchor(null);
-                  table.onResetPage();
                 }}
               >
                 {option.label}
@@ -482,8 +516,21 @@ export function CommunityWallView() {
                   {isOwner ? 'Select a site to view posts' : 'No site assigned'}
                 </Typography>
               </Card>
-            ) : loading && !posts.length ? (
-              <LoadingScreen />
+            ) : showFeedLoading ? (
+              <CommunityWallPostSkeleton amount={3} />
+            ) : isInitialError ? (
+              <Card sx={{ p: 5, textAlign: 'center' }}>
+                <Iconify icon="solar:danger-triangle-bold" width={48} sx={{ color: 'error.main', mb: 1.5 }} />
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Unable to load posts
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5, mb: 2 }}>
+                  {loadError}
+                </Typography>
+                <Button variant="contained" color="primary" onClick={retry}>
+                  Try again
+                </Button>
+              </Card>
             ) : posts.length ? (
               <Stack spacing={2.5}>
                 {posts.map((post) => (
@@ -502,23 +549,34 @@ export function CommunityWallView() {
                     onPreviewPhoto={handlePreviewPhoto}
                   />
                 ))}
-                <Card>
-                  <TablePaginationCustom
-                    page={table.page}
-                    count={totalRecords}
-                    dense={table.dense}
-                    rowsPerPage={table.rowsPerPage}
-                    onPageChange={table.onChangePage}
-                    onRowsPerPageChange={table.onChangeRowsPerPage}
-                    onChangeDense={table.onChangeDense}
-                  />
-                </Card>
+
+                {isLoadMoreError && (
+                  <Alert
+                    severity="error"
+                    action={
+                      <Button color="inherit" size="small" onClick={retry}>
+                        Retry
+                      </Button>
+                    }
+                  >
+                    {loadError}
+                  </Alert>
+                )}
+
+                <Box ref={sentinelRef}>
+                  {isLoadingMore && <CommunityWallPostSkeleton amount={1} />}
+                  {!isLoadingMore && !hasNextPage && !isLoadMoreError && (
+                    <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', color: 'text.disabled', py: 1.5 }}>
+                      You have reached the end
+                    </Typography>
+                  )}
+                </Box>
               </Stack>
             ) : (
               <Card sx={{ p: 5, textAlign: 'center' }}>
                 <Iconify icon="solar:letter-unread-bold" width={48} sx={{ color: 'text.disabled', mb: 1.5 }} />
                 <Typography variant="subtitle1" fontWeight={700}>
-                  {isError ? 'Unable to load posts' : 'No posts found'}
+                  No posts found
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                   {searchQuery
@@ -537,6 +595,7 @@ export function CommunityWallView() {
         <NewWallPostDialog
           open={newPostDialog.value}
           onClose={newPostDialog.onFalse}
+          onSuccess={resetFeed}
           organizationId={organizationId}
           branchId={branchId}
         />
@@ -547,6 +606,7 @@ export function CommunityWallView() {
             editDialog.onFalse();
             setEditingPost(null);
           }}
+          onSuccess={resetFeed}
           post={editingPost}
           organizationId={organizationId}
         />

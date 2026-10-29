@@ -30,14 +30,24 @@ export function GazetteTableRow({
     switch (currentStatus) {
       case 'ready':
         return 'success';
+      case 'notReady':
       case 'no_content':
+      case 'noContent':
         return 'warning';
       case 'over_limit':
+      case 'overCap':
         return 'warning';
       case 'printed':
         return 'info';
       case 'no_family':
+      case 'noFamily':
         return 'error';
+      case 'failed':
+        return 'error';
+      case 'building':
+        return 'info';
+      case 'needReview':
+        return 'warning';
       default:
         return 'default';
     }

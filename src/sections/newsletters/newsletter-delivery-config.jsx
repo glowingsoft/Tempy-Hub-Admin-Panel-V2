@@ -1,358 +1,282 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
+import dayjs from 'dayjs';
 
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import MenuItem from '@mui/material/MenuItem';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
+import Chip from '@mui/material/Chip';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
-import Button from '@mui/material/Button';
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import { alpha, useTheme } from '@mui/material/styles';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
+import { MobileDateTimePicker } from '@mui/x-date-pickers/MobileDateTimePicker';
 
 import { Iconify } from 'src/components/iconify';
 import { toast } from 'src/components/snackbar';
-import { mockNewsletterData } from './mocks/data';
+import { formatStr } from 'src/utils/format-time';
+
+import { canCancelNewsletter, canDeleteNewsletter } from './utils';
 
 // ----------------------------------------------------------------------
 
-export function NewsletterDeliveryConfig({ onSend, onSaveDraft, onDownloadPdf }) {
-  const theme = useTheme();
-  const { delivery } = mockNewsletterData;
+const CHANNELS = [
+  { key: 'inApp', label: 'In-app', hint: 'Notify via Tempy Family App feed' },
+  { key: 'email', label: 'Email', hint: 'Send HTML edition to registered emails' },
+  { key: 'pdf', label: 'PDF', hint: 'Generate print-ready copy for care home' },
+];
 
-  const [recipient, setRecipient] = useState('all');
+function Panel({ selected, disabled, onClick, children }) {
+  return (
+    <Box
+      onClick={disabled ? undefined : onClick}
+      sx={{
+        p: 2,
+        height: 1,
+        minHeight: 96,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        borderRadius: 1.5,
+        cursor: disabled || !onClick ? 'default' : 'pointer',
+        border: (theme) => `1px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
+        bgcolor: (theme) => (selected ? alpha(theme.palette.primary.main, 0.08) : 'transparent'),
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
 
-  // None selected by default per user request
-  const [deliveryChannels, setDeliveryChannels] = useState({
-    inApp: false,
-    email: false,
-    pdf: false,
-  });
-
+export function NewsletterDeliveryConfig({
+  form,
+  onChange,
+  recipients,
+  status,
+  saving = false,
+  sending = false,
+  deleting = false,
+  previewing = false,
+  onSaveDraft,
+  onSend,
+  onSchedule,
+  onCancelSchedule,
+  onPreviewPdf,
+  onDelete,
+  disabled = false,
+}) {
+  const delivery = form?.delivery || { inApp: false, email: false, pdf: false };
   const [sendTiming, setSendTiming] = useState('now');
-  const [scheduleDateTime, setScheduleDateTime] = useState('2026-10-10T09:00');
+  const [scheduleAt, setScheduleAt] = useState(dayjs().add(1, 'hour'));
 
-  const selectedAudience = delivery.audiences.find((a) => a.id === recipient);
+  const isLocked = status === 'sent' || status === 'sending';
+  const channelsDisabled = disabled || isLocked;
 
-  const handleToggleChannel = (channel) => {
-    setDeliveryChannels((prev) => ({
-      ...prev,
-      [channel]: !prev[channel],
-    }));
+  const handleToggleChannel = (key) => {
+    if (channelsDisabled) return;
+    onChange({ ...form, delivery: { ...delivery, [key]: !delivery[key] } });
   };
 
   const handleSendAction = () => {
-    if (!deliveryChannels.inApp && !deliveryChannels.email && !deliveryChannels.pdf) {
-      toast.error('Please select at least one delivery channel (In-app, Email, or PDF).');
+    if (!delivery.inApp && !delivery.email && !delivery.pdf) {
+      toast.error('Please select at least one delivery channel');
       return;
     }
 
-    const channelList = [
-      deliveryChannels.inApp && 'In-app',
-      deliveryChannels.email && 'Email',
-      deliveryChannels.pdf && 'PDF',
-    ]
-      .filter(Boolean)
-      .join(' & ');
-
-    if (sendTiming === 'now') {
-      toast.success(
-        `October newsletter dispatched immediately to ${selectedAudience?.count || 42} families via ${channelList}!`
-      );
-    } else {
-      toast.success(
-        `October newsletter scheduled for dispatch on ${scheduleDateTime.replace('T', ' ')} to ${
-          selectedAudience?.count || 42
-        } families via ${channelList}.`
-      );
+    if (sendTiming !== 'schedule') {
+      onSend?.();
+      return;
     }
 
-    onSend?.({
-      recipient,
-      deliveryChannels,
-      sendTiming,
-      scheduleDateTime,
-    });
-  };
+    if (!scheduleAt?.isValid()) {
+      toast.error('Please choose a schedule time');
+      return;
+    }
 
-  const handleDraftAction = () => {
-    toast.success('October newsletter draft saved successfully.');
-    onSaveDraft?.();
-  };
-
-  const handlePdfAction = () => {
-    toast.info('Generating and downloading October newsletter PDF...');
-    onDownloadPdf?.();
+    onSchedule?.(scheduleAt.toISOString());
   };
 
   return (
-    <Card sx={{ p: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-          <Iconify icon="solar:plain-bold" width={22} sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" fontWeight={700}>
-            3. Send & Delivery
+    <Card sx={{ p: 3 }}>
+      <Typography variant="h6" fontWeight={700}>
+        Send & Delivery
+      </Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2.5 }}>
+        Choose channels and when families should receive this newsletter.
+      </Typography>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' },
+        }}
+      >
+        <Panel>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.8 }}>
+            TO
           </Typography>
-        </Stack>
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-          Configure recipients, channels, and dispatch timing.
-        </Typography>
-
-        <Stack spacing={2.5}>
-          {/* To: Recipients */}
-          <Box>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-              <Typography variant="subtitle2" fontWeight={700}>
-                To
-              </Typography>
-              <Chip
-                label={`${selectedAudience?.count || 42} families`}
-                size="small"
-                color="info"
-                variant="soft"
-                sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
-              />
-            </Stack>
-
-            <TextField
-              select
-              fullWidth
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mt: 0.75 }}>
+            <Typography variant="subtitle2" fontWeight={600}>
+              All families at this site
+            </Typography>
+            <Chip
+              label={`${recipients?.families ?? 0} families`}
               size="small"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-            >
-              {delivery.audiences.map((aud) => (
-                <MenuItem key={aud.id} value={aud.id}>
-                  {aud.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Box>
-
-          <Divider />
-
-          {/* Delivery Channels */}
-          <Box>
-            <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-              Delivery
-            </Typography>
-
-            <Stack spacing={0.75}>
-              {/* In-app */}
-              <Box
-                onClick={() => handleToggleChannel('inApp')}
-                sx={{
-                  p: 1.25,
-                  px: 1.5,
-                  borderRadius: 1,
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  border: (t) =>
-                    `1px solid ${deliveryChannels.inApp ? t.palette.primary.light : t.palette.divider}`,
-                  bgcolor: deliveryChannels.inApp
-                    ? alpha(theme.palette.primary.main, 0.04)
-                    : 'transparent',
-                  transition: theme.transitions.create(['background-color', 'border-color']),
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.02),
-                  },
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <Checkbox
-                    checked={Boolean(deliveryChannels.inApp)}
-                    tabIndex={-1}
-                    disableRipple
-                    size="small"
-                    sx={{ p: 0.25, pointerEvents: 'none' }}
-                  />
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      In-app
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Notify via Tempy Family App feed
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-
-              {/* Email */}
-              <Box
-                onClick={() => handleToggleChannel('email')}
-                sx={{
-                  p: 1.25,
-                  px: 1.5,
-                  borderRadius: 1,
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  border: (t) =>
-                    `1px solid ${deliveryChannels.email ? t.palette.primary.light : t.palette.divider}`,
-                  bgcolor: deliveryChannels.email
-                    ? alpha(theme.palette.primary.main, 0.04)
-                    : 'transparent',
-                  transition: theme.transitions.create(['background-color', 'border-color']),
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.02),
-                  },
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <Checkbox
-                    checked={Boolean(deliveryChannels.email)}
-                    tabIndex={-1}
-                    disableRipple
-                    size="small"
-                    sx={{ p: 0.25, pointerEvents: 'none' }}
-                  />
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      Email
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Send HTML edition to registered emails
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-
-              {/* PDF */}
-              <Box
-                onClick={() => handleToggleChannel('pdf')}
-                sx={{
-                  p: 1.25,
-                  px: 1.5,
-                  borderRadius: 1,
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  border: (t) =>
-                    `1px solid ${deliveryChannels.pdf ? t.palette.primary.light : t.palette.divider}`,
-                  bgcolor: deliveryChannels.pdf
-                    ? alpha(theme.palette.primary.main, 0.04)
-                    : 'transparent',
-                  transition: theme.transitions.create(['background-color', 'border-color']),
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.02),
-                  },
-                }}
-              >
-                <Stack direction="row" spacing={1} alignItems="flex-start">
-                  <Checkbox
-                    checked={Boolean(deliveryChannels.pdf)}
-                    tabIndex={-1}
-                    disableRipple
-                    size="small"
-                    sx={{ p: 0.25, pointerEvents: 'none' }}
-                  />
-                  <Box>
-                    <Typography variant="body2" fontWeight={600}>
-                      PDF
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Generate print-ready copy for care home
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          {/* When: Timing */}
-          <Box>
-            <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-              When
-            </Typography>
-
-            <RadioGroup value={sendTiming} onChange={(e) => setSendTiming(e.target.value)}>
-              <FormControlLabel
-                value="now"
-                control={<Radio size="small" />}
-                label={
-                  <Typography variant="body2" fontWeight={600}>
-                    Send now
-                  </Typography>
-                }
-              />
-              <FormControlLabel
-                value="schedule"
-                control={<Radio size="small" />}
-                label={
-                  <Typography variant="body2" fontWeight={600}>
-                    Schedule for later
-                  </Typography>
-                }
-              />
-            </RadioGroup>
-
-            {sendTiming === 'schedule' && (
-              <Box sx={{ mt: 1.5 }}>
-                <TextField
-                  fullWidth
-                  type="datetime-local"
-                  size="small"
-                  label="Dispatch Date & Time"
-                  value={scheduleDateTime}
-                  onChange={(e) => setScheduleDateTime(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Box>
-            )}
-          </Box>
-
-          <Divider />
-
-          {/* Action Buttons */}
-          <Stack spacing={1.5} sx={{ pt: 1 }}>
-            <Button
-              fullWidth
-              size="large"
-              variant="contained"
-              color="primary"
-              startIcon={<Iconify icon="solar:plain-bold" />}
-              onClick={handleSendAction}
-              sx={{ fontWeight: 700, py: 1.25 }}
-            >
-              Send newsletter
-            </Button>
-
-            <Button
-              fullWidth
-              size="medium"
-              variant="outlined"
-              color="inherit"
-              startIcon={<Iconify icon="solar:disk-bold" />}
-              onClick={handleDraftAction}
-            >
-              Save draft
-            </Button>
-
-            <Button
-              fullWidth
-              size="medium"
+              color="info"
               variant="soft"
-              color="primary"
-              startIcon={<Iconify icon="solar:file-download-bold" />}
-              onClick={handlePdfAction}
-            >
-              Download PDF
-            </Button>
+              sx={{ height: 22, fontWeight: 600 }}
+            />
           </Stack>
+        </Panel>
+
+        {CHANNELS.map((channel) => {
+          const checked = Boolean(delivery[channel.key]);
+          return (
+            <Panel
+              key={channel.key}
+              selected={checked}
+              disabled={channelsDisabled}
+              onClick={() => handleToggleChannel(channel.key)}
+            >
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <Checkbox
+                  checked={checked}
+                  tabIndex={-1}
+                  disableRipple
+                  size="small"
+                  sx={{ p: 0, mt: 0.25, pointerEvents: 'none' }}
+                />
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    {channel.label}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', lineHeight: 1.45 }}>
+                    {channel.hint}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Panel>
+          );
+        })}
+      </Box>
+
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={2}
+        alignItems={{ xs: 'stretch', md: 'center' }}
+        justifyContent="space-between"
+        sx={{ mt: 2.5 }}
+      >
+        {!isLocked ? (
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+            <RadioGroup row value={sendTiming} onChange={(event) => setSendTiming(event.target.value)}>
+              <FormControlLabel value="now" control={<Radio size="small" />} label="Send now" />
+              <FormControlLabel value="schedule" control={<Radio size="small" />} label="Schedule for later" />
+            </RadioGroup>
+            {sendTiming === 'schedule' && (
+              <MobileDateTimePicker
+                label="Dispatch date & time"
+                value={scheduleAt}
+                onChange={setScheduleAt}
+                format={formatStr.split.dateTime}
+                slotProps={{
+                  textField: { size: 'small', sx: { minWidth: 240 } },
+                }}
+              />
+            )}
+          </Stack>
+        ) : (
+          <Box />
+        )}
+
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+          {!isLocked && (
+            <>
+              <Button
+                variant="contained"
+                color="primary"
+                disabled={sending || disabled}
+                startIcon={<Iconify icon="solar:plain-bold" />}
+                onClick={handleSendAction}
+                sx={{ fontWeight: 700 }}
+              >
+                {sendTiming === 'schedule' ? 'Schedule newsletter' : 'Send newsletter'}
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                disabled={saving || disabled}
+                startIcon={<Iconify icon="solar:disk-bold" />}
+                onClick={onSaveDraft}
+              >
+                Save draft
+              </Button>
+            </>
+          )}
+          <Button
+            variant="outlined"
+            color="inherit"
+            disabled={previewing}
+            startIcon={<Iconify icon="solar:eye-bold" />}
+            onClick={onPreviewPdf}
+          >
+            Preview PDF
+          </Button>
+          {canCancelNewsletter(status) && (
+            <Button
+              variant="outlined"
+              color="warning"
+              disabled={sending}
+              startIcon={<Iconify icon="solar:close-circle-bold" />}
+              onClick={onCancelSchedule}
+            >
+              Cancel newsletter
+            </Button>
+          )}
+          {canDeleteNewsletter(status) && (
+            <Button
+              variant="outlined"
+              color="error"
+              disabled={deleting}
+              startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+              onClick={onDelete}
+            >
+              Delete newsletter
+            </Button>
+          )}
         </Stack>
+      </Stack>
     </Card>
   );
 }
 
+Panel.propTypes = {
+  selected: PropTypes.bool,
+  disabled: PropTypes.bool,
+  onClick: PropTypes.func,
+  children: PropTypes.node,
+};
+
 NewsletterDeliveryConfig.propTypes = {
-  onSend: PropTypes.func,
+  form: PropTypes.object.isRequired,
+  onChange: PropTypes.func.isRequired,
+  recipients: PropTypes.object,
+  status: PropTypes.string,
+  saving: PropTypes.bool,
+  sending: PropTypes.bool,
+  deleting: PropTypes.bool,
+  previewing: PropTypes.bool,
   onSaveDraft: PropTypes.func,
-  onDownloadPdf: PropTypes.func,
+  onSend: PropTypes.func,
+  onSchedule: PropTypes.func,
+  onCancelSchedule: PropTypes.func,
+  onPreviewPdf: PropTypes.func,
+  onDelete: PropTypes.func,
+  disabled: PropTypes.bool,
 };
 
 export default NewsletterDeliveryConfig;

@@ -135,6 +135,7 @@ const FamilyOverviewPage = lazy(() => import('src/pages/dashboard/active-routes/
 const FamilyModerationPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/moderation'));
 const CommunityWallPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/community-wall'));
 const NewslettersPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/newsletters'));
+const NewsletterEditPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/newsletters-edit'));
 const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
 const FamilyGroupsPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/family-groups'));
 const FamilyInvitationListPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/list'));
@@ -366,7 +367,13 @@ export const siteManagerDashboardRoutes = [
           { path: 'overview', element: <FamilyOverviewPage /> },
           { path: 'moderation', element: <FamilyModerationPage /> },
           { path: 'community-wall', element: <CommunityWallPage /> },
-          { path: 'newsletters', element: <NewslettersPage /> },
+          {
+            path: 'newsletters',
+            children: [
+              { index: true, element: <NewslettersPage /> },
+              { path: ':id/edit', element: <NewsletterEditPage /> },
+            ],
+          },
           { path: 'gazettes', element: <GazettesPage /> },
           { path: 'family-groups', element: <FamilyGroupsPage /> },
           {

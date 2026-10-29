@@ -242,6 +242,7 @@ export const paths = {
       moderation: `${ROOTS.DASHBOARD}/family-engagement/moderation`,
       communityWall: `${ROOTS.DASHBOARD}/family-engagement/community-wall`,
       newsletters: `${ROOTS.DASHBOARD}/family-engagement/newsletters`,
+      newsletterEdit: (id) => `${ROOTS.DASHBOARD}/family-engagement/newsletters/${id}/edit`,
       gazettes: `${ROOTS.DASHBOARD}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.DASHBOARD}/family-engagement/family-groups`,
       memberships: {
@@ -326,6 +327,7 @@ export const paths = {
       moderation: `${ROOTS.SITE_MANAGER}/family-engagement/moderation`,
       communityWall: `${ROOTS.SITE_MANAGER}/family-engagement/community-wall`,
       newsletters: `${ROOTS.SITE_MANAGER}/family-engagement/newsletters`,
+      newsletterEdit: (id) => `${ROOTS.SITE_MANAGER}/family-engagement/newsletters/${id}/edit`,
       gazettes: `${ROOTS.SITE_MANAGER}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.SITE_MANAGER}/family-engagement/family-groups`,
       memberships: {
@@ -466,6 +468,7 @@ export const paths = {
       moderation: `${ROOTS.LINE_MANAGER}/family-engagement/moderation`,
       communityWall: `${ROOTS.LINE_MANAGER}/family-engagement/community-wall`,
       newsletters: `${ROOTS.LINE_MANAGER}/family-engagement/newsletters`,
+      newsletterEdit: (id) => `${ROOTS.LINE_MANAGER}/family-engagement/newsletters/${id}/edit`,
       gazettes: `${ROOTS.LINE_MANAGER}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.LINE_MANAGER}/family-engagement/family-groups`,
       memberships: {
@@ -507,6 +510,7 @@ export const paths = {
       moderation: `${ROOTS.OWNER_DASHBOARD}/family-engagement/moderation`,
       communityWall: `${ROOTS.OWNER_DASHBOARD}/family-engagement/community-wall`,
       newsletters: `${ROOTS.OWNER_DASHBOARD}/family-engagement/newsletters`,
+      newsletterEdit: (id) => `${ROOTS.OWNER_DASHBOARD}/family-engagement/newsletters/${id}/edit`,
       gazettes: `${ROOTS.OWNER_DASHBOARD}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.OWNER_DASHBOARD}/family-engagement/family-groups`,
       memberships: {

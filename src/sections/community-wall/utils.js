@@ -34,8 +34,8 @@ export const FAMILY_POST_TAB_OPTIONS = [
 ];
 
 export const FAMILY_POST_DATE_OPTIONS = [
-  { value: 30, label: 'Last 30 days' },
   { value: 7, label: 'Last 7 days' },
+  { value: 30, label: 'Last 30 days' },
   { value: 90, label: 'Last 90 days' },
   { value: '', label: 'All time' },
 ];
@@ -46,6 +46,7 @@ export const FAMILY_POST_SORT_OPTIONS = [
 ];
 
 export const MAX_POST_PHOTOS = 10;
+export const FAMILY_POSTS_PAGE_SIZE = 50;
 
 export function getPostId(post) {
   return post?.postId || post?.id || '';

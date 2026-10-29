@@ -8,11 +8,43 @@ import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import Divider from '@mui/material/Divider';
 
+import { fDate } from 'src/utils/format-time';
+
 // ----------------------------------------------------------------------
 
-export function FamilyActivityCard({ activity, onOpenModeration, onOpenNewPost, sx, ...other }) {
-  const uploads = activity?.uploads || { total: 18, approved: 11, waiting: 5, notApproved: 2 };
-  const wallPosts = activity?.wallPosts || { count: 4, reactions: 112 };
+function getWallPostCount(activity) {
+  if (typeof activity?.wallPosts === 'number') return activity.wallPosts;
+  return activity?.wallPosts?.count ?? 0;
+}
+
+function getReactionCount(activity) {
+  if (typeof activity?.reactions === 'number') return activity.reactions;
+  return activity?.wallPosts?.reactions ?? 0;
+}
+
+function getNewsletterLabel(newsletter) {
+  if (!newsletter) return 'None scheduled';
+
+  const dueLabel = newsletter.dueAt ? fDate(newsletter.dueAt, 'D MMM') : '';
+  const title = newsletter.title || '';
+  const name = [title, dueLabel].filter(Boolean).join(' · ');
+
+  return name || 'Scheduled';
+}
+
+export function FamilyActivityCard({
+  activity,
+  periodLabel = 'LAST 7 DAYS',
+  onOpenModeration,
+  onOpenNewPost,
+  sx,
+  ...other
+}) {
+  const uploads = activity?.uploads || { total: 0, approved: 0, waiting: 0, notApproved: 0 };
+  const wallPostCount = getWallPostCount(activity);
+  const reactionCount = getReactionCount(activity);
+  const newsletter = activity?.nextNewsletter;
+  const newsletterStatus = newsletter?.status || '';
 
   return (
     <Card
@@ -36,7 +68,7 @@ export function FamilyActivityCard({ activity, onOpenModeration, onOpenNewPost, 
               fontSize: '0.8125rem',
             }}
           >
-            FAMILY ACTIVITY (LAST 7 DAYS)
+            FAMILY ACTIVITY ({periodLabel})
           </Typography>
         }
         sx={{ pb: 1 }}
@@ -75,11 +107,11 @@ export function FamilyActivityCard({ activity, onOpenModeration, onOpenNewPost, 
           {/* Line 2: 4 wall posts · 112 reactions */}
           <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }}>
             <Box component="span" sx={{ fontWeight: 700 }}>
-              {wallPosts.count} wall posts
+              {wallPostCount} wall posts
             </Box>
             {' · '}
             <Box component="span" sx={{ fontWeight: 600 }}>
-              {wallPosts.reactions} reactions
+              {reactionCount} reactions
             </Box>
           </Typography>
 
@@ -87,11 +119,14 @@ export function FamilyActivityCard({ activity, onOpenModeration, onOpenNewPost, 
           <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 500 }}>
             Next newsletter:{' '}
             <Box component="span" sx={{ fontWeight: 700 }}>
-              31 Oct
-            </Box>{' '}
-            <Box component="span" sx={{ color: 'text.secondary' }}>
-              (draft)
+              {getNewsletterLabel(newsletter)}
             </Box>
+            {newsletterStatus ? (
+              <Box component="span" sx={{ color: 'text.secondary' }}>
+                {' '}
+                ({newsletterStatus})
+              </Box>
+            ) : null}
           </Typography>
         </Stack>
 
@@ -126,6 +161,7 @@ export function FamilyActivityCard({ activity, onOpenModeration, onOpenNewPost, 
 
 FamilyActivityCard.propTypes = {
   activity: PropTypes.object,
+  periodLabel: PropTypes.string,
   onOpenModeration: PropTypes.func,
   onOpenNewPost: PropTypes.func,
   sx: PropTypes.object,

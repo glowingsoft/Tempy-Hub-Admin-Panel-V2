@@ -166,11 +166,37 @@ export const API_ROUTES = {
 
     ORGANIZATION_FAMILY_POSTS: (organizationId) =>
         `/admin/organizations/${organizationId}/family-posts`,
+    ORGANIZATION_FAMILY_POST_AUTHORS: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-post-authors`,
     FAMILY_POSTS: '/admin/family/posts',
     FAMILY_POST_BY_ID: (postId) => `/admin/family/posts/${postId}`,
     FAMILY_POST_MEDIA: '/admin/family/posts/media',
     FAMILY_POST_MEDIA_BATCH: '/admin/family/posts/media/batch',
     FAMILY_POST_TAGGABLE_RESIDENTS: '/admin/family/posts/taggable-residents',
+
+    ORGANIZATION_FAMILY_GAZETTES: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-gazettes`,
+    ORGANIZATION_FAMILY_GAZETTE_BY_ID: (organizationId, gazetteItemId) =>
+        `/admin/organizations/${organizationId}/family-gazettes/${gazetteItemId}`,
+    ORGANIZATION_FAMILY_GAZETTE_PDF: (organizationId, gazetteItemId) =>
+        `/admin/organizations/${organizationId}/family-gazettes/${gazetteItemId}/pdf`,
+    ORGANIZATION_FAMILY_GAZETTES_DOWNLOAD: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-gazettes/download`,
+    FAMILY_GAZETTE_BY_ID: (gazetteItemId) => `/admin/family/gazettes/${gazetteItemId}`,
+    FAMILY_GAZETTE_ISSUES: '/admin/family/gazette-issues',
+
+    FAMILY_NEWSLETTERS: '/admin/family/newsletters',
+    FAMILY_NEWSLETTER_BY_ID: (newsletterId) => `/admin/family/newsletters/${newsletterId}`,
+    FAMILY_NEWSLETTER_DELIVERY: (newsletterId) => `/admin/family/newsletters/${newsletterId}/delivery`,
+    ORGANIZATION_FAMILY_NEWSLETTERS: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-newsletters`,
+    ORGANIZATION_FAMILY_NEWSLETTER_BY_ID: (organizationId, newsletterId) =>
+        `/admin/organizations/${organizationId}/family-newsletters/${newsletterId}`,
+    ORGANIZATION_FAMILY_NEWSLETTER_PDF: (organizationId, newsletterId) =>
+        `/admin/organizations/${organizationId}/family-newsletters/${newsletterId}/pdf`,
+
+    ORGANIZATION_FAMILY_OVERVIEW: (organizationId) =>
+        `/admin/organizations/${organizationId}/family-overview`,
     // Documents
     ORGANIZATION_DOCUMENTS: (organizationId) =>
         `/admin/organizations/${organizationId}/documents`,

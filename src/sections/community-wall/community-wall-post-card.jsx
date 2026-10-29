@@ -19,6 +19,8 @@ import ListItemAvatar from '@mui/material/ListItemAvatar';
 import AvatarGroup from '@mui/material/AvatarGroup';
 import { useTheme } from '@mui/material/styles';
 
+import { fToNow } from 'src/utils/format-time';
+
 import { Iconify } from 'src/components/iconify';
 
 import { getPostId, getPostPhotoUrls } from './utils';
@@ -89,18 +91,14 @@ export function CommunityWallPostCard({
   const authorAvatarUrl = post.authorPhotoUrl || post.author?.avatarUrl;
   const avatarStyle = getAuthorAvatarProps(authorName);
 
-  const timeText = post.timeText || '';
+  const timeText = post.createdAt ? fToNow(post.createdAt) : post.timeText || '';
   const audienceText = post.audienceLabel || post.audience || '—';
   const postBody = post.message || post.content || '';
   const isPinned = !!post.isPinned;
 
-  // Viewers
-  const seenCount = post.seenCount ?? post.seenBy?.count ?? 0;
-  const totalAudience = post.audienceCount ?? post.totalAudience ?? 0;
-  const recentViewers = post.seenBy?.recentViewers || [
-    { name: 'Sarah Smith', relation: 'Daughter of John Smith', avatarUrl: 'https://i.pravatar.cc/150?img=48' },
-    { name: 'David Johnson', relation: 'Son of Mary Johnson', avatarUrl: 'https://i.pravatar.cc/150?img=53' },
-  ];
+  const seenCount = post.seenCount ?? 0;
+  const totalAudience = post.audienceCount ?? 0;
+  const recentReactors = post.recentReactors || [];
 
   const handleOpenMenu = (event) => {
     event.stopPropagation();
@@ -490,18 +488,7 @@ export function CommunityWallPostCard({
             </Stack>
 
             {/* Seen Count */}
-            <Stack
-              direction="row"
-              spacing={0.5}
-              alignItems="center"
-              onClick={handleOpenSeen}
-              sx={{
-                cursor: 'pointer',
-                userSelect: 'none',
-                color: 'text.secondary',
-                '&:hover': { color: 'primary.main' },
-              }}
-            >
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
               <Iconify icon="solar:eye-bold" width={17} sx={{ color: '#3B82F6' }} />
               <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.8125rem' }}>
                 Seen {seenCount}/{totalAudience}
@@ -510,8 +497,7 @@ export function CommunityWallPostCard({
           </Stack>
 
           <Stack direction="row" spacing={1} alignItems="center">
-            {/* Recent viewer avatars */}
-            {recentViewers && recentViewers.length > 0 && (
+            {recentReactors.length > 0 && (
               <AvatarGroup
                 max={3}
                 onClick={handleOpenSeen}
@@ -525,8 +511,14 @@ export function CommunityWallPostCard({
                   },
                 }}
               >
-                {recentViewers.map((viewer, idx) => (
-                  <Avatar key={idx} alt={viewer.name} src={viewer.avatarUrl} />
+                {recentReactors.map((reactor) => (
+                  <Avatar
+                    key={reactor.userId}
+                    alt={reactor.name}
+                    src={reactor.photoUrl || undefined}
+                  >
+                    {reactor.name?.charAt(0)}
+                  </Avatar>
                 ))}
               </AvatarGroup>
             )}
@@ -564,7 +556,6 @@ export function CommunityWallPostCard({
         </Stack>
       </Box>
 
-      {/* Seen By Popover */}
       <Popover
         open={Boolean(seenAnchorEl)}
         anchorEl={seenAnchorEl}
@@ -578,29 +569,24 @@ export function CommunityWallPostCard({
         }}
       >
         <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1, py: 0.5, mb: 1 }}>
-          <Iconify icon="solar:eye-bold" width={18} sx={{ color: 'primary.main' }} />
+          <Iconify icon="solar:heart-bold" width={18} sx={{ color: 'error.main' }} />
           <Typography variant="subtitle2" fontWeight={700}>
-            Viewed by {seenCount} of {totalAudience} people
+            Reacted ({recentReactors.length})
           </Typography>
         </Stack>
 
         <List disablePadding sx={{ overflowY: 'auto' }}>
-          {recentViewers.map((viewer, idx) => (
-            <ListItem key={idx} sx={{ px: 1, py: 0.75, borderRadius: 1 }}>
+          {recentReactors.map((reactor) => (
+            <ListItem key={reactor.userId} sx={{ px: 1, py: 0.75, borderRadius: 1 }}>
               <ListItemAvatar sx={{ minWidth: 36 }}>
-                <Avatar src={viewer.avatarUrl} sx={{ width: 28, height: 28 }}>
-                  {viewer.name?.charAt(0)}
+                <Avatar src={reactor.photoUrl || undefined} sx={{ width: 28, height: 28 }}>
+                  {reactor.name?.charAt(0)}
                 </Avatar>
               </ListItemAvatar>
               <ListItemText
                 primary={
-                  <Typography variant="subtitle2" sx={{ fontSize: '0.8125rem' }}>
-                    {viewer.name}
-                  </Typography>
-                }
-                secondary={
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {viewer.relation}
+                  <Typography variant="subtitle2" sx={{ fontSize: '0.8125rem', textTransform: 'capitalize' }}>
+                    {reactor.name}
                   </Typography>
                 }
               />
@@ -620,18 +606,6 @@ export function CommunityWallPostCard({
         <MenuItem
           onClick={() => {
             handleCloseMenu();
-            onPin?.(post);
-          }}
-        >
-          <ListItemIcon>
-            <Iconify icon={isPinned ? 'solar:pin-bold' : 'solar:pin-linear'} width={18} />
-          </ListItemIcon>
-          <ListItemText primary={isPinned ? 'Unpin Post' : 'Pin to Top'} />
-        </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            handleCloseMenu();
             onEdit?.(post);
           }}
         >
@@ -639,6 +613,18 @@ export function CommunityWallPostCard({
             <Iconify icon="solar:pen-bold" width={18} />
           </ListItemIcon>
           <ListItemText primary="Edit Post" />
+        </MenuItem>
+
+        <MenuItem
+          onClick={() => {
+            handleCloseMenu();
+            onPin?.(post);
+          }}
+        >
+          <ListItemIcon>
+            <Iconify icon={isPinned ? 'solar:pin-bold' : 'solar:pin-linear'} width={18} />
+          </ListItemIcon>
+          <ListItemText primary={isPinned ? 'Unpin Post' : 'Pin to Top'} />
         </MenuItem>
 
         <MenuItem

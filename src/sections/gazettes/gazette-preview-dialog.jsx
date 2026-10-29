@@ -39,9 +39,16 @@ export function GazettePreviewDialog({
   useEffect(() => {
     let isMounted = true;
 
-    if (!open || !pdfUrl) {
+    if (!open) {
       setLoading(false);
-      return;
+      return undefined;
+    }
+
+    if (!resident?.pdfUrl) {
+      setPages([]);
+      setLoading(true);
+      setError(false);
+      return undefined;
     }
 
     setLoading(true);
@@ -70,7 +77,7 @@ export function GazettePreviewDialog({
     return () => {
       isMounted = false;
     };
-  }, [open, pdfUrl]);
+  }, [open, pdfUrl, resident?.pdfUrl]);
 
   if (!resident) return null;
 

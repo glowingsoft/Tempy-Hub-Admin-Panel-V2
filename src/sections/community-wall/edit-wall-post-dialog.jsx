@@ -22,7 +22,7 @@ import { getPostId } from './utils';
 
 // ----------------------------------------------------------------------
 
-export function EditWallPostDialog({ open, onClose, post, organizationId }) {
+export function EditWallPostDialog({ open, onClose, onSuccess, post, organizationId }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPinned, setIsPinned] = useState(false);
@@ -46,6 +46,7 @@ export function EditWallPostDialog({ open, onClose, post, organizationId }) {
         isPinned,
       }).unwrap();
       toast.success('Post updated successfully');
+      onSuccess?.();
       onClose?.();
     } catch (error) {
       toast.error(error?.data?.message || error?.message || 'Unable to update post');
@@ -112,6 +113,7 @@ export function EditWallPostDialog({ open, onClose, post, organizationId }) {
 EditWallPostDialog.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
+  onSuccess: PropTypes.func,
   post: PropTypes.object,
   organizationId: PropTypes.string,
 };

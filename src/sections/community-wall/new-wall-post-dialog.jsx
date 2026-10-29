@@ -33,7 +33,7 @@ import { FAMILY_POST_AUDIENCE_OPTIONS, FamilyPostAudience, MAX_POST_PHOTOS } fro
 
 // ----------------------------------------------------------------------
 
-export function NewWallPostDialog({ open, onClose, organizationId, branchId }) {
+export function NewWallPostDialog({ open, onClose, onSuccess, organizationId, branchId }) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [audience, setAudience] = useState(FamilyPostAudience.ALL);
@@ -135,6 +135,7 @@ export function NewWallPostDialog({ open, onClose, organizationId, branchId }) {
       }).unwrap();
 
       toast.success('Post published to Community Wall');
+      onSuccess?.();
       onClose?.();
     } catch (error) {
       toast.error(error?.data?.message || error?.message || 'Unable to publish post');
@@ -289,6 +290,7 @@ export function NewWallPostDialog({ open, onClose, organizationId, branchId }) {
 NewWallPostDialog.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
+  onSuccess: PropTypes.func,
   organizationId: PropTypes.string,
   branchId: PropTypes.string,
 };

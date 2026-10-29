@@ -29,6 +29,9 @@ import { familyInvitationsApi } from './Reducer/family-invitations-api';
 import { familyGroupsApi } from './Reducer/family-groups-api';
 import { familyMembersApi } from './Reducer/family-members-api';
 import { familyPostsApi } from './Reducer/family-posts-api';
+import { familyGazettesApi } from './Reducer/family-gazettes-api';
+import { familyNewslettersApi } from './Reducer/family-newsletters-api';
+import { familyOverviewApi } from './Reducer/family-overview-api';
 import { documentsApi } from './Reducer/documents-api';
 import { documentCategoriesApi } from './Reducer/document-categories-api';
 import { kiosksApi } from './Reducer/kiosks-api';
@@ -98,6 +101,9 @@ const apiSlices = [
   familyGroupsApi,
   familyMembersApi,
   familyPostsApi,
+  familyGazettesApi,
+  familyNewslettersApi,
+  familyOverviewApi,
   documentsApi,
   documentCategoriesApi,
   kiosksApi,
@@ -146,6 +152,9 @@ export const store = configureStore({
     [familyGroupsApi.reducerPath]: familyGroupsApi.reducer,
     [familyMembersApi.reducerPath]: familyMembersApi.reducer,
     [familyPostsApi.reducerPath]: familyPostsApi.reducer,
+    [familyGazettesApi.reducerPath]: familyGazettesApi.reducer,
+    [familyNewslettersApi.reducerPath]: familyNewslettersApi.reducer,
+    [familyOverviewApi.reducerPath]: familyOverviewApi.reducer,
     [documentsApi.reducerPath]: documentsApi.reducer,
     [documentCategoriesApi.reducerPath]: documentCategoriesApi.reducer,
     [kiosksApi.reducerPath]: kiosksApi.reducer,
@@ -185,6 +194,9 @@ export const store = configureStore({
       familyGroupsApi.middleware,
       familyMembersApi.middleware,
       familyPostsApi.middleware,
+      familyGazettesApi.middleware,
+      familyNewslettersApi.middleware,
+      familyOverviewApi.middleware,
       documentsApi.middleware,
       documentCategoriesApi.middleware,
       kiosksApi.middleware,

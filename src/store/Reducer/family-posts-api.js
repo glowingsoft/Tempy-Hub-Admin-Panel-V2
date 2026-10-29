@@ -1,4 +1,5 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
+import { defaultSerializeQueryArgs } from '@reduxjs/toolkit/query';
 
 import { API_ROUTES } from '../apiRoutes';
 import { createCustomFetchBaseQuery } from '../baseQuery';
@@ -7,6 +8,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 // Community wall / family posts
 //
 // GET    /admin/organizations/:organizationId/family-posts
+// GET    /admin/organizations/:organizationId/family-post-authors
 // POST   /admin/family/posts
 // PUT    /admin/family/posts/:postId
 // DELETE /admin/family/posts/:postId
@@ -41,10 +43,11 @@ export const familyPostsApi = createApi({
   tagTypes: ['FamilyPost'],
   endpoints: (builder) => ({
     getFamilyPosts: builder.query({
+      extraOptions: { disableToast: true },
       query: ({
         organizationId,
         page = 1,
-        limit = 20,
+        limit = 50,
         status,
         branchId,
         residentId,
@@ -60,14 +63,16 @@ export const familyPostsApi = createApi({
         keyword,
       } = {}) => {
         const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+        const currentPage = Number(page) > 0 ? Number(page) : 1;
+        const pageSize = Number(limit) > 0 ? Number(limit) : 50;
 
         return {
           url: API_ROUTES.ORGANIZATION_FAMILY_POSTS(organizationId),
           method: 'GET',
           headers: organizationId ? { 'x-org-id': organizationId } : undefined,
           params: {
-            page,
-            limit,
+            page: currentPage,
+            limit: pageSize,
             ...(status ? { status } : {}),
             ...(branchId ? { branchId } : {}),
             ...(residentId ? { residentId } : {}),
@@ -84,6 +89,53 @@ export const familyPostsApi = createApi({
           },
         };
       },
+      serializeQueryArgs: ({ endpointName, queryArgs, endpointDefinition }) => {
+        const { page: _page, feedGeneration: _feedGeneration, ...filters } = queryArgs || {};
+        return defaultSerializeQueryArgs({
+          endpointName,
+          queryArgs: filters,
+          endpointDefinition,
+        });
+      },
+      merge: (currentCache, responseData, { arg }) => {
+        const incomingPage = Number(arg?.page) > 0 ? Number(arg.page) : 1;
+        const incomingGeneration = Number(arg?.feedGeneration) || 0;
+        const incomingPosts = Array.isArray(responseData?.data) ? responseData.data : [];
+        const cachedGeneration = Number(currentCache.feedGeneration) || 0;
+
+        if (incomingGeneration < cachedGeneration) {
+          return;
+        }
+
+        const shouldReplace =
+          incomingPage <= 1 || incomingGeneration !== cachedGeneration || !Array.isArray(currentCache.data);
+
+        if (shouldReplace) {
+          currentCache.data = incomingPosts;
+          currentCache.meta = responseData?.meta ?? {};
+          currentCache.feedGeneration = incomingGeneration;
+          return;
+        }
+
+        const cachedPage = Number(currentCache.meta?.currentPage) || 1;
+        if (incomingPage !== cachedPage + 1) {
+          return;
+        }
+
+        const seenIds = new Set(
+          currentCache.data.map((item) => item?.postId || item?._id).filter(Boolean)
+        );
+        incomingPosts.forEach((item) => {
+          const id = item?.postId || item?._id;
+          if (!id || seenIds.has(id)) return;
+          seenIds.add(id);
+          currentCache.data.push(item);
+        });
+        currentCache.meta = responseData?.meta ?? currentCache.meta;
+      },
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.page !== previousArg?.page ||
+        currentArg?.feedGeneration !== previousArg?.feedGeneration,
       transformResponse: (res) => ({
         data: Array.isArray(res?.data) ? res.data : [],
         meta: res?.meta ?? {},
@@ -97,6 +149,30 @@ export const familyPostsApi = createApi({
               listTag(organizationId),
             ]
           : [listTag(organizationId)],
+    }),
+
+    getFamilyPostAuthors: builder.query({
+      query: ({ organizationId, branchId, keyword, page = 1, limit = 100 } = {}) => {
+        const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+        const currentPage = Number(page) > 0 ? Number(page) : 1;
+        const pageSize = Number(limit) > 0 ? Number(limit) : 100;
+
+        return {
+          url: API_ROUTES.ORGANIZATION_FAMILY_POST_AUTHORS(organizationId),
+          method: 'GET',
+          headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+          params: {
+            page: currentPage,
+            limit: pageSize,
+            ...(branchId ? { branchId } : {}),
+            ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+          },
+        };
+      },
+      transformResponse: (res) => ({
+        data: Array.isArray(res?.data) ? res.data : [],
+        meta: res?.meta ?? {},
+      }),
     }),
 
     getTaggableResidents: builder.query({
@@ -199,6 +275,7 @@ export const familyPostsApi = createApi({
 
 export const {
   useGetFamilyPostsQuery,
+  useGetFamilyPostAuthorsQuery,
   useGetTaggableResidentsQuery,
   useUploadFamilyPostMediaMutation,
   useUploadFamilyPostMediaBatchMutation,

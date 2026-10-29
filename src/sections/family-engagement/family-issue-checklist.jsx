@@ -45,18 +45,20 @@ export function FamilyIssueChecklist({
             return (
               <Box
                 key={task.id}
-                onClick={() => onToggleTask?.(task.id)}
+                onClick={onToggleTask ? () => onToggleTask(task.id) : undefined}
                 sx={{
                   py: 0.75,
                   px: 1.25,
                   borderRadius: 1,
-                  cursor: 'pointer',
+                  cursor: onToggleTask ? 'pointer' : 'default',
                   userSelect: 'none',
                   width: 'fit-content',
                   transition: 'all 0.15s ease',
-                  '&:hover': {
-                    bgcolor: (theme) => alpha(theme.palette.text.primary, 0.05),
-                  },
+                  ...(onToggleTask && {
+                    '&:hover': {
+                      bgcolor: (theme) => alpha(theme.palette.text.primary, 0.05),
+                    },
+                  }),
                 }}
               >
                 <Typography
