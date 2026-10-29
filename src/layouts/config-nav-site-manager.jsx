@@ -82,6 +82,7 @@ export const navDataSiteManager = [
           paths.siteManager.appraisal,
           paths.siteManager.teamCompliance,
           paths.siteManager.training,
+          paths.siteManager.requirements,
         ],
         icon: ICONS.supervision,
         children: [
@@ -89,6 +90,7 @@ export const navDataSiteManager = [
           { title: 'Appraisal', path: paths.siteManager.appraisal },
           { title: 'Competencies', path: paths.siteManager.teamCompliance },
           { title: 'Training Record', path: paths.siteManager.training },
+          { title: 'Requirements', path: paths.siteManager.requirements },
         ],
       },
       { title: 'Configuration', path: paths.siteManager.configuration, icon: ICONS.settings },

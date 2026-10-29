@@ -77,6 +77,7 @@ export const navDataLineManager = [
           paths.lineManager.appraisal,
           paths.lineManager.teamCompliance,
           paths.lineManager.training,
+          paths.lineManager.requirements,
         ],
         icon: ICONS.directory,
         children: [
@@ -84,6 +85,7 @@ export const navDataLineManager = [
           { title: 'Appraisal', path: paths.lineManager.appraisal },
           { title: 'Competencies', path: paths.lineManager.teamCompliance },
           { title: 'Training Record', path: paths.lineManager.training },
+          { title: 'Requirements', path: paths.lineManager.requirements },
         ],
       },
 

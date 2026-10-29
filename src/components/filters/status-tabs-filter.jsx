@@ -29,12 +29,14 @@ function StatusTabsFilter({ value, options, onChange, getCount, sx }) {
                     value={tab.value}
                     label={tab.label}
                     icon={
-                        <Label
-                            variant={((tab.value === 'all' || tab.value === value) && 'filled') || 'soft'}
-                            color={tab.color || 'default'}
-                        >
-                            {getCount(tab.value)}
-                        </Label>
+                        typeof getCount === 'function' ? (
+                            <Label
+                                variant={((tab.value === 'all' || tab.value === value) && 'filled') || 'soft'}
+                                color={tab.color || 'default'}
+                            >
+                                {getCount(tab.value)}
+                            </Label>
+                        ) : undefined
                     }
                 />
             ))}
@@ -52,7 +54,7 @@ StatusTabsFilter.propTypes = {
         })
     ).isRequired,
     onChange: PropTypes.func.isRequired,
-    getCount: PropTypes.func.isRequired,
+    getCount: PropTypes.func,
     sx: PropTypes.object,
 };
 

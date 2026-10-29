@@ -80,7 +80,7 @@ const DEFAULT_FILTERS = {
 // ----------------------------------------------------------------------
 
 export function InvitationListView() {
-    const table = useTable();
+    const table = useTable({ defaultDense: true });
     const router = useRouter();
 
     const { organizationId, user } = useCurrentOrganization();

@@ -193,4 +193,22 @@ export const API_ROUTES = {
     KIOSKS: '/admin/kiosks',
     KIOSK_BY_ID: (kioskId) => `/admin/kiosks/${kioskId}`,
     KIOSK_TOGGLE_LOCK: (kioskId) => `/admin/kiosks/${kioskId}/toggle-lock`,
+
+    // Requirements & Competencies
+    ORGANIZATION_REQUIREMENTS: (organizationId) =>
+        `/admin/organizations/${organizationId}/requirements`,
+    ORGANIZATION_REQUIREMENT_BY_ID: (organizationId, requirementId) =>
+        `/admin/organizations/${organizationId}/requirements/${requirementId}`,
+
+    // Assignments & Competency Matrix
+    ORGANIZATION_ASSIGNMENTS: (organizationId) =>
+        `/admin/organizations/${organizationId}/assignments`,
+    ASSIGNMENT_BY_ID: (assignmentId) =>
+        `/admin/assignments/${assignmentId}`,
+    ASSIGNMENT_RECORDS: (assignmentId) =>
+        `/admin/assignments/${assignmentId}/records`,
+    ORGANIZATION_TRAINING_RECORDS: (organizationId) =>
+        `/admin/organizations/${organizationId}/training-records`,
+    COMPETENCY_MATRIX: (organizationId) =>
+        `/admin/organizations/${organizationId}/competency-matrix`,
 };

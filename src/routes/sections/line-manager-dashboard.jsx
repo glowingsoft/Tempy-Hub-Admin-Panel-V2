@@ -25,6 +25,7 @@ const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
 
 //team compliance
 const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance'));
+const TeamComplianceDetailPage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance/detail'));
 
 //team attendance
 const TeamAttendancePage = lazy(() => import('src/pages/dashboard/active-routes/team-attendance'));
@@ -41,6 +42,7 @@ const AppraisalSignOffPage = lazy(() => import('src/pages/dashboard/active-route
 
 //training
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
+const RequirementsPage = lazy(() => import('src/pages/dashboard/active-routes/requirements'));
 
 //client feedback
 const FeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/feedback'));
@@ -108,7 +110,13 @@ export const lineManagerDashboardRoutes = [
 
             { path: "team-attendance", element: <TeamAttendancePage /> },
 
-            { path: "team-compliance", element: <TeamCompliancePage /> },
+            {
+                path: 'team-compliance',
+                children: [
+                    { index: true, element: <TeamCompliancePage /> },
+                    { path: ':id', element: <TeamComplianceDetailPage /> },
+                ],
+            },
 
             { path: "supervision", element: <SupervisionPage /> },
 
@@ -123,6 +131,8 @@ export const lineManagerDashboardRoutes = [
             { path: "appraisals/:id/sign-off", element: <AppraisalSignOffPage /> },
 
             { path: "training", element: <TrainingPage /> },
+
+            { path: "requirements", element: <RequirementsPage /> },
 
             { path: "feedback", element: <FeedbackPage /> },
 
