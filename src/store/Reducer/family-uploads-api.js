@@ -8,7 +8,31 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //
 // GET  /admin/organizations/:organizationId/family-uploads?page=1&limit=10
 // PUT  /admin/family/uploads/:uploadId  { action: "approve" | "reject", rejectionReason? }
+// POST /admin/family/uploads/media
+// POST /admin/family/uploads/media/batch
+// POST /admin/family/uploads
 // ----------------------------------------------------------------------
+
+const orgHeaders = (organizationId) =>
+  organizationId ? { 'x-org-id': organizationId } : undefined;
+
+const extractMediaItems = (res) => {
+  const data = res?.data ?? res;
+  const list = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.photos)
+      ? data.photos
+      : data?.mediaId || data?._id
+        ? [data]
+        : [];
+
+  return list
+    .map((item) => ({
+      mediaId: item.mediaId || item._id,
+      url: item.url || item.location || '',
+    }))
+    .filter((item) => item.mediaId);
+};
 
 const listTag = (organizationId) => ({ type: 'FamilyUpload', id: `LIST-${organizationId}` });
 
@@ -24,7 +48,7 @@ export const familyUploadsApi = createApi({
         return {
           url: API_ROUTES.ORGANIZATION_FAMILY_UPLOADS(organizationId),
           method: 'GET',
-          headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+          headers: orgHeaders(organizationId),
           params: {
             page,
             limit,
@@ -52,7 +76,7 @@ export const familyUploadsApi = createApi({
       query: ({ uploadId, organizationId, action, rejectionReason } = {}) => ({
         url: API_ROUTES.FAMILY_UPLOAD_BY_ID(uploadId),
         method: 'PUT',
-        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        headers: orgHeaders(organizationId),
         body: {
           action,
           ...(action === 'reject' && rejectionReason ? { rejectionReason } : {}),
@@ -63,7 +87,64 @@ export const familyUploadsApi = createApi({
         listTag(organizationId),
       ],
     }),
+
+    uploadFamilyUploadMedia: builder.mutation({
+      query: ({ organizationId, file } = {}) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: API_ROUTES.FAMILY_UPLOAD_MEDIA,
+          method: 'POST',
+          headers: orgHeaders(organizationId),
+          body: formData,
+        };
+      },
+      transformResponse: (res) => extractMediaItems(res),
+    }),
+
+    uploadFamilyUploadMediaBatch: builder.mutation({
+      query: ({ organizationId, files = [] } = {}) => {
+        const formData = new FormData();
+        files.forEach((file) => formData.append('files', file));
+        return {
+          url: API_ROUTES.FAMILY_UPLOAD_MEDIA_BATCH,
+          method: 'POST',
+          headers: orgHeaders(organizationId),
+          body: formData,
+        };
+      },
+      transformResponse: (res) => extractMediaItems(res),
+    }),
+
+    createFamilyUpload: builder.mutation({
+      query: ({
+        organizationId,
+        residentId,
+        message,
+        mediaIds,
+        includeInGazette = true,
+        clientId,
+      } = {}) => ({
+        url: API_ROUTES.FAMILY_UPLOADS,
+        method: 'POST',
+        headers: orgHeaders(organizationId),
+        body: {
+          residentId,
+          message,
+          mediaIds: mediaIds || [],
+          includeInGazette: Boolean(includeInGazette),
+          ...(clientId ? { clientId } : {}),
+        },
+      }),
+      invalidatesTags: (result, error, { organizationId }) => [listTag(organizationId)],
+    }),
   }),
 });
 
-export const { useGetFamilyUploadsQuery, useDecideFamilyUploadMutation } = familyUploadsApi;
+export const {
+  useGetFamilyUploadsQuery,
+  useDecideFamilyUploadMutation,
+  useUploadFamilyUploadMediaMutation,
+  useUploadFamilyUploadMediaBatchMutation,
+  useCreateFamilyUploadMutation,
+} = familyUploadsApi;

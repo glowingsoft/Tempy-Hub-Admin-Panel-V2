@@ -1,69 +1,68 @@
 import PropTypes from 'prop-types';
 
 import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
 
+import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Label } from 'src/components/label';
-import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function StaffMyResidentsTableRow({
-  serialNumber,
-  row,
-  onViewResident,
-  onAddPost,
-  onPreviewGazette,
-  onDownloadGazette,
-}) {
-  const { resident, room, avatarUrl, familyCount, nextOfKin, photoSharing, gazetteStatus } = row;
+function getPhotoSharingMeta(row) {
+  if (row?.photographyConsent === false) {
+    return { label: 'Restricted', color: 'error' };
+  }
+  if (row?.photographyConsent === true) {
+    return { label: 'Allowed', color: 'success' };
+  }
+  return { label: 'Pending', color: 'warning' };
+}
 
-  const getPhotoSharingColor = (status) => {
-    switch (status) {
-      case 'allowed':
-        return 'success';
-      case 'restricted':
-        return 'error';
-      case 'pending':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
+export function StaffMyResidentsTableRow({ serialNumber, row, onViewResident }) {
+  const name = row.name || 'Unknown';
+  const room = row.roomNumber;
+  const photoSharing = getPhotoSharingMeta(row);
+  const familyName = row.nextOfKin?.name || row.familyMembers?.[0]?.name;
+
+  const actions = [
+    {
+      key: 'view',
+      icon: 'solar:eye-bold',
+      tooltip: 'View resident',
+      color: 'default',
+      onClick: () => onViewResident(row),
+    },
+  ];
 
   return (
     <TableRow hover sx={{ cursor: 'pointer' }} onClick={() => onViewResident(row)}>
-      {/* Sr# */}
       <TableCell sx={{ width: 48, pr: 0 }}>{serialNumber}</TableCell>
 
-      {/* Resident */}
       <TableCell sx={{ pl: 0 }}>
         <Stack direction="row" spacing={2} alignItems="center">
-          <Avatar alt={resident} src={avatarUrl}>
-            {resident?.charAt(0)}
+          <Avatar alt={name} src={row.photoUrl || undefined} sx={{ textTransform: 'capitalize' }}>
+            {name?.charAt(0)}
           </Avatar>
 
           <Stack>
-            <Typography variant="body2" fontWeight={600}>
-              {resident}
+            <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'capitalize' }}>
+              {name}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Room {room}
+              {room ? `Room ${room}` : '—'}
             </Typography>
           </Stack>
         </Stack>
       </TableCell>
 
-      {/* Family */}
       <TableCell>
-        {familyCount > 0 && nextOfKin ? (
+        {familyName ? (
           <Typography variant="body2" fontWeight={500}>
-            {nextOfKin.name}
+            {familyName}
           </Typography>
         ) : (
           <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
@@ -72,42 +71,16 @@ export function StaffMyResidentsTableRow({
         )}
       </TableCell>
 
-      {/* Photo sharing */}
       <TableCell>
-        <Label variant="soft" color={getPhotoSharingColor(photoSharing?.status)}>
-          {photoSharing?.label || 'Allowed'}
+        <Label variant="soft" color={photoSharing.color}>
+          {photoSharing.label}
         </Label>
       </TableCell>
 
-      {/* Actions */}
-      <TableCell align="center">
-        <Stack
-          direction="row"
-          spacing={0.5}
-          justifyContent="center"
-          alignItems="center"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Tooltip title="Preview Gazette" arrow>
-            <IconButton
-              color="default"
-              size="small"
-              onClick={() => onPreviewGazette(row)}
-            >
-              <Iconify icon="solar:eye-bold" />
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip title="Download Gazette PDF" arrow>
-            <IconButton
-              color="default"
-              size="small"
-              onClick={() => onDownloadGazette(row)}
-            >
-              <Iconify icon="solar:file-download-bold" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
+      <TableCell align="center" onClick={(event) => event.stopPropagation()}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <GenericTableRowActions actions={actions} />
+        </Box>
       </TableCell>
     </TableRow>
   );
@@ -117,9 +90,6 @@ StaffMyResidentsTableRow.propTypes = {
   serialNumber: PropTypes.number,
   row: PropTypes.object.isRequired,
   onViewResident: PropTypes.func.isRequired,
-  onAddPost: PropTypes.func,
-  onPreviewGazette: PropTypes.func.isRequired,
-  onDownloadGazette: PropTypes.func.isRequired,
 };
 
 export default StaffMyResidentsTableRow;

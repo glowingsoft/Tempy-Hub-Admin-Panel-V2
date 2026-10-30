@@ -42,3 +42,29 @@ export function getOwnerOrganizationId(user) {
 export function getOwnerOrganizationName(user) {
   return user?.organization?.name ?? '';
 }
+
+function getEntityId(value) {
+  if (!value) return '';
+  return typeof value === 'object' ? value._id || '' : value;
+}
+
+/**
+ * Resolves the assigned site (API branch) for a staff user.
+ * Site / line managers store it on access.memberships, not user.branchId.
+ */
+export function getUserBranchId(user, organizationId) {
+  const target = user?.user || user;
+  if (!target) return '';
+
+  const directBranchId = getEntityId(target.branchId) || getEntityId(target.branch);
+  if (directBranchId) return directBranchId;
+
+  const memberships = target.access?.memberships ?? [];
+  const membership = organizationId
+    ? memberships.find(
+        (item) => getEntityId(item.organizationId) === organizationId && (item.branchId || item.branch)
+      )
+    : memberships.find((item) => item.branchId || item.branch);
+
+  return getEntityId(membership?.branchId) || getEntityId(membership?.branch);
+}

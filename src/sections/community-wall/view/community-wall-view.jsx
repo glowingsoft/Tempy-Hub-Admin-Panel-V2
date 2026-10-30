@@ -31,6 +31,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
+import { getUserBranchId } from 'src/utils/organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useGetFamilyPostAuthorsQuery,
@@ -65,9 +66,9 @@ export function CommunityWallView() {
   const familyPaths = useFamilyEngagementPaths();
   const { organizationId, isOwner, user } = useCurrentOrganization();
 
-  const siteManagerBranchId = user?.branchId || user?.branch?._id || '';
+  const staffBranchId = getUserBranchId(user, organizationId);
   const [ownerBranchId, setOwnerBranchId] = useState('');
-  const branchId = isOwner ? ownerBranchId : siteManagerBranchId;
+  const branchId = isOwner ? ownerBranchId : staffBranchId;
 
   const { data: branchesData } = useGetBranchesQuery(
     { organizationId, page: 1, limit: 100 },

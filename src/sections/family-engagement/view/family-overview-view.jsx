@@ -16,6 +16,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useRouter } from 'src/routes/hooks';
 import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
+import { getUserBranchId } from 'src/utils/organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetFamilyOverviewQuery } from 'src/store/Reducer/family-overview-api';
 
@@ -87,11 +88,11 @@ export function FamilyOverviewView() {
   const familyPaths = useFamilyEngagementPaths();
   const { organizationId, isOwner, user } = useCurrentOrganization();
 
-  const siteManagerBranchId = user?.branchId || user?.branch?._id || '';
+  const staffBranchId = getUserBranchId(user, organizationId);
   const [ownerBranchId, setOwnerBranchId] = useState('');
   const [period, setPeriod] = useState('7');
 
-  const branchId = isOwner ? ownerBranchId : siteManagerBranchId;
+  const branchId = isOwner ? ownerBranchId : staffBranchId;
   const selectedPeriod = PERIOD_OPTIONS.find((option) => option.value === period) || PERIOD_OPTIONS[0];
 
   const { data: branchesData, isLoading: branchesLoading } = useGetBranchesQuery(

@@ -141,6 +141,9 @@ export const API_ROUTES = {
     ORGANIZATION_FAMILY_UPLOADS: (organizationId) =>
         `/admin/organizations/${organizationId}/family-uploads`,
     FAMILY_UPLOAD_BY_ID: (uploadId) => `/admin/family/uploads/${uploadId}`,
+    FAMILY_UPLOADS: '/admin/family/uploads',
+    FAMILY_UPLOAD_MEDIA: '/admin/family/uploads/media',
+    FAMILY_UPLOAD_MEDIA_BATCH: '/admin/family/uploads/media/batch',
 
     FAMILY_RELATIONSHIPS: '/admin/family/relationships',
     ORGANIZATION_FAMILY_INVITATIONS: (organizationId) =>

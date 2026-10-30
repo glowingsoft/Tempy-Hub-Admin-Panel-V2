@@ -5,7 +5,7 @@ import { StaffPhotoUploadsView } from 'src/sections/staff/photo-uploads/view/sta
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Photo Uploads | Staff Dashboard - ${CONFIG.site.name}` };
+const metadata = { title: `Photo Upload | Staff Dashboard - ${CONFIG.site.name}` };
 
 export default function Page() {
   return (

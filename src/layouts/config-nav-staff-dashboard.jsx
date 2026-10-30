@@ -21,7 +21,7 @@ const ICONS = {
 
 export const navDataStaff = [
   {
-    subheader: 'Employee',
+    subheader: '',
     items: [
       { title: 'Dashboard', path: paths.staff.dashboard, icon: ICONS.dashboard },
       { title: 'Rota', path: paths.staff.rota, icon: ICONS.rota },
@@ -52,7 +52,7 @@ export const navDataStaff = [
     subheader: 'FAMILY ENGAGEMENT',
     items: [
       { title: 'My Residents', path: paths.staff.familyEngagement.myResidents, icon: ICONS.user },
-      { title: 'Photo Uploads', path: paths.staff.familyEngagement.photoUploads, icon: ICONS.check },
+      { title: 'Photo Upload', path: paths.staff.familyEngagement.photoUploads, icon: ICONS.check },
       { title: 'Community Wall', path: paths.staff.familyEngagement.communityWall, icon: ICONS.blog },
       { title: 'Gazettes', path: paths.staff.familyEngagement.gazettes, icon: ICONS.document },
     ],

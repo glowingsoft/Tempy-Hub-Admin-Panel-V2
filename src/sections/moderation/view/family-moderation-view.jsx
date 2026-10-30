@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
 import { Helmet } from 'react-helmet-async';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -17,9 +19,11 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
+import { Iconify } from 'src/components/iconify';
 import { Lightbox } from 'src/components/lightbox';
 import { Scrollbar } from 'src/components/scrollbar';
 import { toast } from 'src/components/snackbar';
+import { getUserBranchId } from 'src/utils/organization';
 import {
   TableBodySkeleton,
   TableHeadCustom,
@@ -34,6 +38,7 @@ import {
 
 import DisapprovePhotoDialog from 'src/sections/active-sections/photo-approval/disapprove-photo-dialog';
 import { FamilyModerationTableRow } from '../family-moderation-table-row';
+import { PhotoUploadCreateDialog } from '../photo-upload-create-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -67,15 +72,21 @@ const FILTER_FIELDS = [
 
 // ----------------------------------------------------------------------
 
-export function FamilyModerationView() {
+export function FamilyModerationView({
+  heading = 'Moderation',
+  canCreate = false,
+  canModerate = true,
+}) {
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
   });
   const familyPaths = useFamilyEngagementPaths();
-  const { organizationId } = useCurrentOrganization();
+  const { organizationId, user } = useCurrentOrganization();
+  const branchId = getUserBranchId(user, organizationId);
 
   const previewModal = useBoolean();
+  const createDialog = useBoolean();
   const disapproveDialog = useBoolean();
 
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -108,7 +119,7 @@ export function FamilyModerationView() {
   const breadcrumbLinks = [
     { name: 'Dashboard', href: familyPaths.dashboardRoot },
     { name: 'Family Engagement', href: familyPaths.familyOverview },
-    { name: 'Moderation' },
+    { name: heading },
   ];
 
   const statusFilterField = useMemo(
@@ -222,13 +233,25 @@ export function FamilyModerationView() {
   return (
     <>
       <Helmet>
-        <title>{`Moderation | ${CONFIG.site.name}`}</title>
+        <title>{`${heading} | ${CONFIG.site.name}`}</title>
       </Helmet>
 
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Moderation"
+          heading={heading}
           links={breadcrumbLinks}
+          action={
+            canCreate ? (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={createDialog.onTrue}
+              >
+                Create
+              </Button>
+            ) : null
+          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
@@ -269,6 +292,7 @@ export function FamilyModerationView() {
                           onPreview={() => handleOpenPreview(row)}
                           onApprove={() => handleApprove(row)}
                           onDisapprove={() => handleDisapproveClick(row)}
+                          canModerate={canModerate}
                         />
                       ))}
 
@@ -312,9 +336,24 @@ export function FamilyModerationView() {
           photo={dialogPhoto}
           onConfirm={handleConfirmDisapprove}
         />
+
+        {canCreate && (
+          <PhotoUploadCreateDialog
+            open={createDialog.value}
+            onClose={createDialog.onFalse}
+            organizationId={organizationId}
+            branchId={branchId}
+          />
+        )}
       </DashboardContent>
     </>
   );
 }
+
+FamilyModerationView.propTypes = {
+  heading: PropTypes.string,
+  canCreate: PropTypes.bool,
+  canModerate: PropTypes.bool,
+};
 
 export default FamilyModerationView;

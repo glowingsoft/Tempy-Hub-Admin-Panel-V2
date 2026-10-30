@@ -59,7 +59,7 @@ export const navDataSiteManager = [
    * Overview
    */
   {
-    subheader: 'Overview',
+    subheader: '',
     items: [
       { title: 'Dashboard', path: paths.siteManager.root, icon: ICONS.dashboard },
       { title: 'Statistics', path: paths.siteManager.statistics, icon: ICONS.analytics },

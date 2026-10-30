@@ -32,6 +32,7 @@ export function FamilyModerationTableRow({
   onPreview,
   onApprove,
   onDisapprove,
+  canModerate = true,
 }) {
   const isWaiting = row.status === 'waiting';
   const photoUrls = getPhotoUrls(row);
@@ -49,7 +50,7 @@ export function FamilyModerationTableRow({
       color: 'default',
       onClick: onPreview,
     },
-    ...(isWaiting
+    ...(isWaiting && canModerate
       ? [
         {
           key: 'approve',
@@ -195,8 +196,9 @@ FamilyModerationTableRow.propTypes = {
   serialNumber: PropTypes.number,
   row: PropTypes.object.isRequired,
   onPreview: PropTypes.func.isRequired,
-  onApprove: PropTypes.func.isRequired,
-  onDisapprove: PropTypes.func.isRequired,
+  onApprove: PropTypes.func,
+  onDisapprove: PropTypes.func,
+  canModerate: PropTypes.bool,
 };
 
 export default FamilyModerationTableRow;

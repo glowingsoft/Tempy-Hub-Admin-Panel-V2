@@ -1,15 +1,15 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
 import TableBody from '@mui/material/TableBody';
-import TableContainer from '@mui/material/TableContainer';
 
 import { CONFIG } from 'src/config-global';
-import { useBoolean } from 'src/hooks/use-boolean';
+import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -17,23 +17,19 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { Scrollbar } from 'src/components/scrollbar';
-import { Iconify } from 'src/components/iconify';
-import { toast } from 'src/components/snackbar';
 import {
-  TableEmptyRows,
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
-  emptyRows,
   useTable,
 } from 'src/components/table';
-import { UserTableFiltersResult } from 'src/sections/user/user-table-filters-result';
-
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
-import { FamilyWallPostDialog } from 'src/sections/family-engagement/family-wall-post-dialog';
-import { GazettePreviewDialog } from 'src/sections/gazettes/gazette-preview-dialog';
-import { mockMyResidentsData } from '../mocks/data';
+import { getUserBranchId } from 'src/utils/organization';
+import { useGetResidentsQuery } from 'src/store/Reducer/residents-api';
+import { RESIDENT_ADMISSION_STATUS_OPTIONS } from 'src/sections/resident/mocks/data';
+
 import { StaffMyResidentsTableRow } from '../staff-my-residents-table-row';
 
 // ----------------------------------------------------------------------
@@ -48,8 +44,9 @@ const TABLE_HEAD = [
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
-  { value: 'with_family', label: 'With Family', color: 'success' },
-  { value: 'no_family', label: 'No Family Linked', color: 'warning' },
+  ...RESIDENT_ADMISSION_STATUS_OPTIONS.filter((option) =>
+    ['admitted', 'discharged'].includes(option.value)
+  ),
 ];
 
 const FILTER_FIELDS = [
@@ -58,47 +55,61 @@ const FILTER_FIELDS = [
     showCounts: true,
   }),
   createFilterField.search({
-    placeholder: 'Search resident, room, or family contact...',
+    placeholder: 'Search resident, room, or email...',
   }),
 ];
 
 // ----------------------------------------------------------------------
 
 export function StaffMyResidentsView() {
-  const table = useTable();
+  const table = useTable({
+    defaultDense: true,
+    defaultRowsPerPage: 10,
+  });
   const router = useRouter();
   const familyPaths = useFamilyEngagementPaths();
+  const { organizationId, user } = useCurrentOrganization();
+  const branchId = getUserBranchId(user, organizationId);
 
-  const [tableData, setTableData] = useState(mockMyResidentsData);
+  const filters = useSetState({ search: '', status: 'all' });
+  const trimmedKeyword = useDebounce(filters.state.search, 400).trim();
+  const { status } = filters.state;
 
-  // Dialog Controls
-  const wallPostDialog = useBoolean();
-  const previewGazetteDialog = useBoolean();
-  const [activeResidentForAction, setActiveResidentForAction] = useState(null);
+  const { data, isLoading, isFetching, isError } = useGetResidentsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      ...(branchId ? { branchId } : {}),
+      ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+      ...(status && status !== 'all' ? { status, admissionStatus: status } : {}),
+    },
+    { skip: !organizationId }
+  );
 
-  const filters = useSetState({ name: '', status: 'all' });
+  const residents = useMemo(() => data?.data ?? [], [data]);
+  const meta = data?.meta ?? {};
+  const admittedCount = Number(meta.admitted) || 0;
+  const dischargedCount = Number(meta.discharged) || 0;
+  const totalRecords = Number.isFinite(meta.totalRecords) ? meta.totalRecords : residents.length;
+  const loading = isLoading || isFetching;
 
-  // Breadcrumbs for staff
   const breadcrumbLinks = [
     { name: 'Dashboard', href: familyPaths.dashboardRoot },
     { name: 'Family Engagement', href: familyPaths.familyOverview || familyPaths.myResidents },
     { name: 'My Residents' },
   ];
 
-  const statusFilterField = useMemo(
-    () => FILTER_FIELDS.find((f) => f.type === 'status'),
-    []
-  );
-
+  const statusFilterField = useMemo(() => FILTER_FIELDS.find((field) => field.type === 'status'), []);
   const toolbarFilterFields = useMemo(
-    () => FILTER_FIELDS.filter((f) => f.type !== 'status'),
+    () => FILTER_FIELDS.filter((field) => field.type !== 'status'),
     []
   );
 
   const handleSearchChange = useCallback(
     (event) => {
       table.onResetPage();
-      filters.setState({ name: event.target.value });
+      filters.setState({ search: event.target.value });
     },
     [filters, table]
   );
@@ -111,80 +122,23 @@ export function StaffMyResidentsView() {
     [filters, table]
   );
 
-  const handleResetFilters = useCallback(() => {
-    table.onResetPage();
-    filters.setState({ name: '', status: 'all' });
-  }, [filters, table]);
-
   const getStatusCount = useCallback(
-    (status) => {
-      if (status === 'all') return tableData.length;
-      return tableData.filter((item) => item.status === status).length;
+    (tabStatus) => {
+      if (tabStatus === 'admitted') return admittedCount;
+      if (tabStatus === 'discharged') return dischargedCount;
+      return admittedCount + dischargedCount || totalRecords;
     },
-    [tableData]
+    [admittedCount, dischargedCount, totalRecords]
   );
 
-  const filteredRows = useMemo(() => {
-    const search = filters.state.name.trim().toLowerCase();
-    const status = filters.state.status;
-
-    return tableData.filter((row) => {
-      const matchesSearch =
-        !search ||
-        row.resident?.toLowerCase().includes(search) ||
-        row.room?.toLowerCase().includes(search) ||
-        row.nextOfKin?.name?.toLowerCase().includes(search) ||
-        row.familyMembers?.some((m) => m.name?.toLowerCase().includes(search));
-
-      const matchesStatus = status === 'all' || row.status === status;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [tableData, filters.state.name, filters.state.status]);
-
-  const canReset = !!filters.state.name || filters.state.status !== 'all';
-  const notFound = !filteredRows.length;
-
-  const dataInPage = useMemo(
-    () =>
-      filteredRows.slice(
-        table.page * table.rowsPerPage,
-        table.page * table.rowsPerPage + table.rowsPerPage
-      ),
-    [filteredRows, table.page, table.rowsPerPage]
-  );
+  const notFound = !loading && !residents.length;
 
   const handleViewResident = useCallback(
     (row) => {
-      router.push(paths.staff.familyEngagement.myResidentDetail(row.id));
+      router.push(paths.staff.familyEngagement.myResidentDetail(row._id));
     },
     [router]
   );
-
-  const handleAddPost = useCallback(
-    (row) => {
-      setActiveResidentForAction(row);
-      wallPostDialog.onTrue();
-    },
-    [wallPostDialog]
-  );
-
-  const handlePreviewGazette = useCallback(
-    (row) => {
-      setActiveResidentForAction(row);
-      previewGazetteDialog.onTrue();
-    },
-    [previewGazetteDialog]
-  );
-
-  const handleDownloadGazette = useCallback((row) => {
-    toast.success(`Downloading Gazette PDF for ${row.resident}...`);
-    window.open(row.pdfUrl, '_blank');
-  }, []);
-
-  const handlePostCreated = useCallback(() => {
-    toast.success(`Photo post created and queued for ${activeResidentForAction?.resident}'s gazette!`);
-  }, [activeResidentForAction]);
 
   return (
     <>
@@ -196,19 +150,6 @@ export function StaffMyResidentsView() {
         <CustomBreadcrumbs
           heading="My Residents"
           links={breadcrumbLinks}
-          action={
-            <Button
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              onClick={() => {
-                setActiveResidentForAction(null);
-                wallPostDialog.onTrue();
-              }}
-              sx={{ fontWeight: 600 }}
-            >
-              Add Post
-            </Button>
-          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
@@ -227,69 +168,51 @@ export function StaffMyResidentsView() {
             onSearchChange={handleSearchChange}
           />
 
-          {canReset && (
-            <UserTableFiltersResult
-              filters={filters}
-              totalResults={filteredRows.length}
-              onResetPage={handleResetFilters}
-              sx={{ p: 2.5, pt: 0 }}
-            />
-          )}
-
-          <TableContainer>
+          <Box sx={{ position: 'relative' }}>
             <Scrollbar>
-              <Table size={table.dense ? 'small' : 'medium'}>
+              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 720 }}>
                 <TableHeadCustom headLabel={TABLE_HEAD} />
 
                 <TableBody>
-                  {dataInPage.map((row, index) => (
-                    <StaffMyResidentsTableRow
-                      key={row.id}
-                      serialNumber={table.page * table.rowsPerPage + index + 1}
-                      row={row}
-                      onViewResident={handleViewResident}
-                      onAddPost={handleAddPost}
-                      onPreviewGazette={handlePreviewGazette}
-                      onDownloadGazette={handleDownloadGazette}
+                  {loading ? (
+                    <TableBodySkeleton
+                      rowCount={table.rowsPerPage}
+                      cellCount={TABLE_HEAD.length}
+                      dense={table.dense}
                     />
-                  ))}
+                  ) : (
+                    <>
+                      {residents.map((row, index) => (
+                        <StaffMyResidentsTableRow
+                          key={row._id || index}
+                          serialNumber={table.page * table.rowsPerPage + index + 1}
+                          row={row}
+                          onViewResident={handleViewResident}
+                        />
+                      ))}
 
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 76}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, filteredRows.length)}
-                  />
-
-                  <TableNoData notFound={notFound} />
+                      <TableNoData
+                        notFound={notFound}
+                        title={isError ? 'Unable to load residents' : 'No residents found'}
+                      />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>
-          </TableContainer>
+          </Box>
 
           <TablePaginationCustom
             page={table.page}
+            count={totalRecords}
             dense={table.dense}
-            count={filteredRows.length}
             rowsPerPage={table.rowsPerPage}
             onPageChange={table.onChangePage}
-            onChangeDense={table.onChangeDense}
             onRowsPerPageChange={table.onChangeRowsPerPage}
+            onChangeDense={table.onChangeDense}
           />
         </Card>
       </DashboardContent>
-
-      {/* Add Post Dialog reused from Gazette / Family Engagement */}
-      <FamilyWallPostDialog
-        open={wallPostDialog.value}
-        onClose={wallPostDialog.onFalse}
-        onCreated={handlePostCreated}
-      />
-
-      {/* Gazette Preview Dialog */}
-      <GazettePreviewDialog
-        open={previewGazetteDialog.value}
-        onClose={previewGazetteDialog.onFalse}
-        resident={activeResidentForAction}
-      />
     </>
   );
 }
