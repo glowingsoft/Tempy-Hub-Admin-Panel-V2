@@ -30,11 +30,26 @@ import { APPRAISAL_STATUS_COLOR, APPRAISAL_STATUS_LABEL } from '../appraisal-tab
 
 // ----------------------------------------------------------------------
 
+const getReferenceId = (reference) => {
+  if (typeof reference === 'string') return reference;
+  return (
+    reference?._id ||
+    reference?.id ||
+    reference?.staffId ||
+    reference?.userId?._id ||
+    reference?.userId ||
+    null
+  );
+};
+
 export default function AppraisalDetailView() {
   const { id } = useParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { organizationId } = useCurrentOrganization();
+  const { organizationId, user } = useCurrentOrganization();
+  const isStaffRoute = pathname.startsWith(`${paths.staff.root}/`);
+  const isStaffRole = user?.access?.memberships?.[0]?.role?.toLowerCase() === 'staff';
+  const currentStaffId = [user?.staffId, user?.basicInfo, user?.id].map(getReferenceId).find(Boolean);
 
   const bookModal = useBoolean();
   const completeModal = useBoolean();
@@ -51,8 +66,25 @@ export default function AppraisalDetailView() {
   );
 
   const appraisal = appraisalData?.data || appraisalData;
+  const recordStaffId = [
+    appraisal?.staffId,
+    appraisal?.staffProfile,
+    appraisal?.staff,
+    appraisal?.staffUser,
+    appraisal?.userId,
+  ]
+    .map(getReferenceId)
+    .find(Boolean);
 
   const dashboardRoutes = useMemo(() => {
+    if (isStaffRoute) {
+      return {
+        dashboardName: 'Dashboard',
+        dashboardHref: paths.staff.dashboard,
+        appraisalHref: paths.staff.appraisal,
+        signOffHref: null,
+      };
+    }
     if (pathname.startsWith('/site-manager')) {
       return {
         dashboardName: 'Dashboard',
@@ -75,7 +107,7 @@ export default function AppraisalDetailView() {
       appraisalHref: paths.lineManager.appraisal,
       signOffHref: paths.lineManager.appraisalSignOff(id),
     };
-  }, [pathname, id]);
+  }, [pathname, id, isStaffRoute]);
 
   if (isLoading) {
     return (
@@ -90,7 +122,11 @@ export default function AppraisalDetailView() {
     );
   }
 
-  if (isError || !appraisal) {
+  if (
+    isError ||
+    !appraisal ||
+    (isStaffRoute && (!isStaffRole || !currentStaffId || recordStaffId !== currentStaffId))
+  ) {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
@@ -150,40 +186,42 @@ export default function AppraisalDetailView() {
           { name: staffName },
         ]}
         action={
-          <Stack direction="row" spacing={1}>
-            {!isCompleted && isScheduled && (
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<Iconify icon="solar:check-circle-bold" />}
-                onClick={completeModal.onTrue}
-              >
-                Complete session
-              </Button>
-            )}
+          isStaffRoute ? null : (
+            <Stack direction="row" spacing={1}>
+              {!isCompleted && isScheduled && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<Iconify icon="solar:check-circle-bold" />}
+                  onClick={completeModal.onTrue}
+                >
+                  Complete session
+                </Button>
+              )}
 
-            {isCompleted && (
-              <Button
-                variant={isSignedOff ? 'outlined' : 'contained'}
-                color="primary"
-                startIcon={<Iconify icon={isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold'} />}
-                onClick={() => router.push(dashboardRoutes.signOffHref)}
-              >
-                {isSignedOff ? 'View signed document' : 'Sign off session'}
-              </Button>
-            )}
+              {isCompleted && (
+                <Button
+                  variant={isSignedOff ? 'outlined' : 'contained'}
+                  color="primary"
+                  startIcon={<Iconify icon={isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold'} />}
+                  onClick={() => router.push(dashboardRoutes.signOffHref)}
+                >
+                  {isSignedOff ? 'View signed document' : 'Sign off session'}
+                </Button>
+              )}
 
-            {!isCompleted && (
-              <Button
-                variant={isScheduled ? 'outlined' : 'contained'}
-                color="primary"
-                startIcon={<Iconify icon={isScheduled ? 'solar:calendar-mark-bold' : 'solar:calendar-add-bold'} />}
-                onClick={bookModal.onTrue}
-              >
-                {isScheduled ? 'Reschedule appraisal' : 'Book appraisal'}
-              </Button>
-            )}
-          </Stack>
+              {!isCompleted && (
+                <Button
+                  variant={isScheduled ? 'outlined' : 'contained'}
+                  color="primary"
+                  startIcon={<Iconify icon={isScheduled ? 'solar:calendar-mark-bold' : 'solar:calendar-add-bold'} />}
+                  onClick={bookModal.onTrue}
+                >
+                  {isScheduled ? 'Reschedule appraisal' : 'Book appraisal'}
+                </Button>
+              )}
+            </Stack>
+          )
         }
         sx={{ mb: 3 }}
       />
@@ -452,14 +490,16 @@ export default function AppraisalDetailView() {
                 Document recorded with valid electronic verification
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Iconify icon="solar:eye-bold" />}
-              onClick={() => router.push(dashboardRoutes.signOffHref)}
-            >
-              View Document
-            </Button>
+            {!isStaffRoute && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Iconify icon="solar:eye-bold" />}
+                onClick={() => router.push(dashboardRoutes.signOffHref)}
+              >
+                View Document
+              </Button>
+            )}
           </Stack>
 
           <Box
@@ -510,43 +550,44 @@ export default function AppraisalDetailView() {
         </Card>
       )}
 
-      {/* Book / Reschedule Dialog */}
-      <BookAppraisalDialog
-        open={bookModal.value}
-        row={appraisal}
-        organizationId={organizationId}
-        onClose={bookModal.onFalse}
-        onSave={() => {
-          bookModal.onFalse();
-          refetch();
-        }}
-      />
+      {!isStaffRoute && (
+        <>
+          <BookAppraisalDialog
+            open={bookModal.value}
+            row={appraisal}
+            organizationId={organizationId}
+            onClose={bookModal.onFalse}
+            onSave={() => {
+              bookModal.onFalse();
+              refetch();
+            }}
+          />
 
-      {/* Complete Appraisal Dialog */}
-      <CompleteAppraisalDialog
-        open={completeModal.value}
-        row={appraisal}
-        organizationId={organizationId}
-        onClose={completeModal.onFalse}
-        onSave={() => {
-          completeModal.onFalse();
-          refetch();
-        }}
-      />
+          <CompleteAppraisalDialog
+            open={completeModal.value}
+            row={appraisal}
+            organizationId={organizationId}
+            onClose={completeModal.onFalse}
+            onSave={() => {
+              completeModal.onFalse();
+              refetch();
+            }}
+          />
 
-      {/* Formal Sign-Off Dialog */}
-      <SessionSignOffDialog
-        open={signOffModal.value}
-        onClose={signOffModal.onFalse}
-        session={appraisal}
-        organizationId={organizationId}
-        type="appraisal"
-        onSave={() => {
-          refetch();
-          signOffModal.onFalse();
-        }}
-        readOnly={isSignedOff}
-      />
+          <SessionSignOffDialog
+            open={signOffModal.value}
+            onClose={signOffModal.onFalse}
+            session={appraisal}
+            organizationId={organizationId}
+            type="appraisal"
+            onSave={() => {
+              refetch();
+              signOffModal.onFalse();
+            }}
+            readOnly={isSignedOff}
+          />
+        </>
+      )}
     </DashboardContent>
   );
 }

@@ -120,7 +120,7 @@ function getAssignmentId(cell, requirementId) {
 
 // ----------------------------------------------------------------------
 
-function ComplianceMatrixCell({ cell, column, staff, onSelectCell }) {
+function ComplianceMatrixCell({ cell, column, staff, onSelectCell, readOnly = false }) {
   if (!cell) {
     return (
       <TableCell align="center" sx={{ color: 'text.disabled' }}>
@@ -133,34 +133,46 @@ function ComplianceMatrixCell({ cell, column, staff, onSelectCell }) {
   const assignmentId = getAssignmentId(cell, column?._id);
   const config = getStatusConfig(status);
 
+  const label = (
+    <Label
+      variant="soft"
+      color={config.color}
+      startIcon={config.icon ? <Iconify icon={config.icon} width={14} /> : undefined}
+      sx={{
+        ...(readOnly
+          ? {}
+          : {
+              cursor: 'pointer',
+              transition: (theme) => theme.transitions.create(['transform', 'box-shadow']),
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: (theme) => theme.customShadows?.z4 || 2,
+              },
+            }),
+        fontSize: 11,
+        fontWeight: 600,
+        px: 1,
+        py: 0.5,
+        textTransform: 'capitalize',
+      }}
+    >
+      {config.label}
+    </Label>
+  );
+
   return (
     <TableCell align="center" sx={{ whiteSpace: 'nowrap', px: 1.5, minWidth: 240 }}>
-      <ButtonBase
-        aria-label={`${config.label} status for ${column?.name || 'requirement'}`}
-        onClick={() => onSelectCell({ cell, assignmentId, column, staff })}
-        sx={{ display: 'inline-flex', borderRadius: 1 }}
-      >
-        <Label
-          variant="soft"
-          color={config.color}
-          startIcon={config.icon ? <Iconify icon={config.icon} width={14} /> : undefined}
-          sx={{
-            cursor: 'pointer',
-            fontSize: 11,
-            fontWeight: 600,
-            px: 1,
-            py: 0.5,
-            textTransform: 'capitalize',
-            transition: (theme) => theme.transitions.create(['transform', 'box-shadow']),
-            '&:hover': {
-              transform: 'scale(1.05)',
-              boxShadow: (theme) => theme.customShadows?.z4 || 2,
-            },
-          }}
+      {readOnly ? (
+        label
+      ) : (
+        <ButtonBase
+          aria-label={`${config.label} status for ${column?.name || 'requirement'}`}
+          onClick={() => onSelectCell({ cell, assignmentId, column, staff })}
+          sx={{ display: 'inline-flex', borderRadius: 1 }}
         >
-          {config.label}
-        </Label>
-      </ButtonBase>
+          {label}
+        </ButtonBase>
+      )}
     </TableCell>
   );
 }
@@ -170,6 +182,7 @@ ComplianceMatrixCell.propTypes = {
   column: PropTypes.object,
   staff: PropTypes.object,
   onSelectCell: PropTypes.func,
+  readOnly: PropTypes.bool,
 };
 
 // ----------------------------------------------------------------------
@@ -178,6 +191,9 @@ export function TeamComplianceTable({
   organizationId,
   isSiteManager = false,
   siteManagerBranchId = null,
+  isStaffView = false,
+  staffId,
+  skip = false,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -201,6 +217,7 @@ export function TeamComplianceTable({
   const queryParams = useMemo(
     () => ({
       organizationId,
+      ...(isStaffView && staffId ? { staffId } : {}),
       ...(debouncedKeyword ? { keyword: debouncedKeyword } : {}),
       ...(filters.state.departmentId !== 'all' ? { departmentId: filters.state.departmentId } : {}),
       ...(filters.state.jobTitleId !== 'all' ? { jobTitleId: filters.state.jobTitleId } : {}),
@@ -209,6 +226,8 @@ export function TeamComplianceTable({
     }),
     [
       organizationId,
+      isStaffView,
+      staffId,
       debouncedKeyword,
       filters.state.departmentId,
       filters.state.jobTitleId,
@@ -218,7 +237,7 @@ export function TeamComplianceTable({
   );
 
   const { data, isLoading, isFetching } = useGetCompetencyMatrixQuery(queryParams, {
-    skip: !organizationId,
+    skip: skip || !organizationId || (isStaffView && !staffId),
   });
 
   const [assignModal, setAssignModal] = useState({
@@ -229,6 +248,7 @@ export function TeamComplianceTable({
 
   const handleSelectCell = useCallback(
     ({ cell, assignmentId, column, staff }) => {
+      if (isStaffView) return;
       if (assignmentId) {
         const detailPath = pathname.startsWith(paths.siteManager.root)
           ? paths.siteManager.teamComplianceDetail(assignmentId)
@@ -252,12 +272,35 @@ export function TeamComplianceTable({
         staff,
       });
     },
-    [pathname, router]
+    [isStaffView, pathname, router]
   );
 
   const matrixData = data?.data;
   const columns = useMemo(() => matrixData?.columns ?? [], [matrixData?.columns]);
-  const rows = useMemo(() => matrixData?.rows ?? [], [matrixData?.rows]);
+  const rows = useMemo(() => {
+    const matrixRows = matrixData?.rows ?? [];
+    if (!isStaffView || !staffId) return isStaffView ? [] : matrixRows;
+
+    return matrixRows.filter((row) => {
+      const staff = row.staff || {};
+      const candidateIds = [
+        row.staffId,
+        row.staffProfileId,
+        row.userId,
+        row._id,
+        staff._id,
+        staff.id,
+        staff.staffId,
+        staff.staffProfileId,
+        staff.userId,
+        staff.user?._id,
+      ].map((candidate) =>
+        typeof candidate === 'string' ? candidate : candidate?._id || candidate?.id
+      );
+
+      return candidateIds.includes(staffId);
+    });
+  }, [isStaffView, matrixData?.rows, staffId]);
   const meta = data?.meta;
   const totalRecords = meta?.totalRecords ?? rows.length;
 
@@ -598,6 +641,7 @@ export function TeamComplianceTable({
                                 column={col}
                                 staff={staff}
                                 onSelectCell={handleSelectCell}
+                                readOnly={isStaffView}
                               />
                             );
                           })}
@@ -629,7 +673,7 @@ export function TeamComplianceTable({
       />
 
       {/* Assign Staff Modal for N/A Cells */}
-      {assignModal.open && (
+      {!isStaffView && assignModal.open && (
         <AssignStaffDialog
           open={assignModal.open}
           onClose={() => setAssignModal({ open: false, requirement: null, staff: null })}
@@ -649,6 +693,9 @@ TeamComplianceTable.propTypes = {
   organizationId: PropTypes.string,
   isSiteManager: PropTypes.bool,
   siteManagerBranchId: PropTypes.string,
+  isStaffView: PropTypes.bool,
+  staffId: PropTypes.string,
+  skip: PropTypes.bool,
 };
 
 export default TeamComplianceTable;

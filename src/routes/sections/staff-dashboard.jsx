@@ -11,9 +11,12 @@ const StaffAttendancePage = lazy(() => import('src/pages/staff/attendance'));
 const StaffLeaveRequestsPage = lazy(() => import('src/pages/staff/leave-requests'));
 const StaffShiftsPage = lazy(() => import('src/pages/staff/shifts'));
 const StaffCompetenciesPage = lazy(() => import('src/pages/staff/competencies'));
-const StaffSupervisionPage = lazy(() => import('src/pages/staff/supervision/index.jsx'));
 const StaffDocumentsPage = lazy(() => import('src/pages/staff/documents'));
 const StaffDocumentDetailPage = lazy(() => import('src/pages/staff/documents/detail'));
+const SupervisionPage = lazy(() => import('src/pages/dashboard/active-routes/supervision'));
+const SupervisionDetailPage = lazy(() => import('src/pages/dashboard/active-routes/supervision/detail'));
+const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals'));
+const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
 // rota — shared page, same as Site Manager / Line Manager.
 // TODO: scope RotaView to the signed-in staff member's own shifts.
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
@@ -60,8 +63,10 @@ export const staffDashboardRoutes = [
       { path: 'leave-requests', element: <StaffLeaveRequestsPage /> },
       { path: 'shifts', element: <StaffShiftsPage /> },
       { path: 'competencies', element: <StaffCompetenciesPage /> },
-      { path: 'supervision', element: <StaffSupervisionPage /> },
-      { path: 'appraisals', element: <StaffSupervisionPage /> },
+      { path: 'supervision', element: <SupervisionPage /> },
+      { path: 'supervision/:id', element: <SupervisionDetailPage /> },
+      { path: 'appraisals', element: <AppraisalPage /> },
+      { path: 'appraisals/:id', element: <AppraisalDetailPage /> },
       { path: 'training', element: <TrainingPage /> },
       { path: 'documents', element: <StaffDocumentsPage /> },
       { path: 'documents/:id', element: <StaffDocumentDetailPage /> },

@@ -30,11 +30,26 @@ import { STATUS_LABEL_COLOR, STATUS_LABEL_TEXT } from '../supervision-table-row'
 
 // ----------------------------------------------------------------------
 
+const getReferenceId = (reference) => {
+  if (typeof reference === 'string') return reference;
+  return (
+    reference?._id ||
+    reference?.id ||
+    reference?.staffId ||
+    reference?.userId?._id ||
+    reference?.userId ||
+    null
+  );
+};
+
 export default function SupervisionDetailView() {
   const { id } = useParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { organizationId } = useCurrentOrganization();
+  const { organizationId, user } = useCurrentOrganization();
+  const isStaffRoute = pathname.startsWith(`${paths.staff.root}/`);
+  const isStaffRole = user?.access?.memberships?.[0]?.role?.toLowerCase() === 'staff';
+  const currentStaffId = [user?.staffId, user?.basicInfo, user?.id].map(getReferenceId).find(Boolean);
 
   const logModal = useBoolean();
   const completeModal = useBoolean();
@@ -51,8 +66,25 @@ export default function SupervisionDetailView() {
   );
 
   const supervision = supervisionData?.data || supervisionData;
+  const recordStaffId = [
+    supervision?.staffId,
+    supervision?.staffProfile,
+    supervision?.staff,
+    supervision?.staffUser,
+    supervision?.userId,
+  ]
+    .map(getReferenceId)
+    .find(Boolean);
 
   const dashboardRoutes = useMemo(() => {
+    if (isStaffRoute) {
+      return {
+        dashboardName: 'Dashboard',
+        dashboardHref: paths.staff.dashboard,
+        supervisionHref: paths.staff.supervision,
+        signOffHref: null,
+      };
+    }
     if (pathname.startsWith('/site-manager')) {
       return {
         dashboardName: 'Dashboard',
@@ -75,7 +107,7 @@ export default function SupervisionDetailView() {
       supervisionHref: paths.lineManager.supervision,
       signOffHref: paths.lineManager.supervisionSignOff(id),
     };
-  }, [pathname, id]);
+  }, [pathname, id, isStaffRoute]);
 
   if (isLoading) {
     return (
@@ -90,7 +122,11 @@ export default function SupervisionDetailView() {
     );
   }
 
-  if (isError || !supervision) {
+  if (
+    isError ||
+    !supervision ||
+    (isStaffRoute && (!isStaffRole || !currentStaffId || recordStaffId !== currentStaffId))
+  ) {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
@@ -144,38 +180,40 @@ export default function SupervisionDetailView() {
           { name: staffName },
         ]}
         action={
-          <Stack direction="row" spacing={1}>
-            {isScheduled && !pathname.startsWith('/line-manager') && (
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<Iconify icon="solar:check-circle-bold" />}
-                onClick={completeModal.onTrue}
-              >
-                Complete session
-              </Button>
-            )}
+          isStaffRoute ? null : (
+            <Stack direction="row" spacing={1}>
+              {isScheduled && !pathname.startsWith('/line-manager') && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<Iconify icon="solar:check-circle-bold" />}
+                  onClick={completeModal.onTrue}
+                >
+                  Complete session
+                </Button>
+              )}
 
-            {isCompleted ? (
-              <Button
-                variant={isSignedOff ? 'outlined' : 'contained'}
-                color="primary"
-                startIcon={<Iconify icon={isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold'} />}
-                onClick={() => router.push(dashboardRoutes.signOffHref)}
-              >
-                {isSignedOff ? 'View signed document' : 'Sign off session'}
-              </Button>
-            ) : (
-              <Button
-                variant={isScheduled ? 'outlined' : 'contained'}
-                color="primary"
-                startIcon={<Iconify icon={isScheduled ? 'solar:calendar-mark-bold' : 'solar:calendar-add-bold'} />}
-                onClick={logModal.onTrue}
-              >
-                {isScheduled ? 'Reschedule supervision' : 'Book supervision'}
-              </Button>
-            )}
-          </Stack>
+              {isCompleted ? (
+                <Button
+                  variant={isSignedOff ? 'outlined' : 'contained'}
+                  color="primary"
+                  startIcon={<Iconify icon={isSignedOff ? 'solar:document-text-bold' : 'solar:pen-bold'} />}
+                  onClick={() => router.push(dashboardRoutes.signOffHref)}
+                >
+                  {isSignedOff ? 'View signed document' : 'Sign off session'}
+                </Button>
+              ) : (
+                <Button
+                  variant={isScheduled ? 'outlined' : 'contained'}
+                  color="primary"
+                  startIcon={<Iconify icon={isScheduled ? 'solar:calendar-mark-bold' : 'solar:calendar-add-bold'} />}
+                  onClick={logModal.onTrue}
+                >
+                  {isScheduled ? 'Reschedule supervision' : 'Book supervision'}
+                </Button>
+              )}
+            </Stack>
+          )
         }
         sx={{ mb: 3 }}
       />
@@ -408,14 +446,16 @@ export default function SupervisionDetailView() {
                 Document recorded with valid electronic verification
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Iconify icon="solar:eye-bold" />}
-              onClick={() => router.push(dashboardRoutes.signOffHref)}
-            >
-              View Document
-            </Button>
+            {!isStaffRoute && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Iconify icon="solar:eye-bold" />}
+                onClick={() => router.push(dashboardRoutes.signOffHref)}
+              >
+                View Document
+              </Button>
+            )}
           </Stack>
 
           <Box
@@ -466,43 +506,44 @@ export default function SupervisionDetailView() {
         </Card>
       )}
 
-      {/* Reschedule / Book Dialog */}
-      <LogSessionDialog
-        open={logModal.value}
-        row={supervision}
-        organizationId={organizationId}
-        onClose={logModal.onFalse}
-        onSave={() => {
-          logModal.onFalse();
-          refetch();
-        }}
-      />
+      {!isStaffRoute && (
+        <>
+          <LogSessionDialog
+            open={logModal.value}
+            row={supervision}
+            organizationId={organizationId}
+            onClose={logModal.onFalse}
+            onSave={() => {
+              logModal.onFalse();
+              refetch();
+            }}
+          />
 
-      {/* Complete Dialog */}
-      <CompleteSupervisionDialog
-        open={completeModal.value}
-        row={supervision}
-        organizationId={organizationId}
-        onClose={completeModal.onFalse}
-        onSave={() => {
-          completeModal.onFalse();
-          refetch();
-        }}
-      />
+          <CompleteSupervisionDialog
+            open={completeModal.value}
+            row={supervision}
+            organizationId={organizationId}
+            onClose={completeModal.onFalse}
+            onSave={() => {
+              completeModal.onFalse();
+              refetch();
+            }}
+          />
 
-      {/* Formal Sign-Off Dialog */}
-      <SessionSignOffDialog
-        open={signOffModal.value}
-        onClose={signOffModal.onFalse}
-        session={supervision}
-        organizationId={organizationId}
-        type="supervision"
-        onSave={() => {
-          refetch();
-          signOffModal.onFalse();
-        }}
-        readOnly={isSignedOff}
-      />
+          <SessionSignOffDialog
+            open={signOffModal.value}
+            onClose={signOffModal.onFalse}
+            session={supervision}
+            organizationId={organizationId}
+            type="supervision"
+            onSave={() => {
+              refetch();
+              signOffModal.onFalse();
+            }}
+            readOnly={isSignedOff}
+          />
+        </>
+      )}
     </DashboardContent>
   );
 }

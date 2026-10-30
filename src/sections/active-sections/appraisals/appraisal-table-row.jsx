@@ -51,14 +51,25 @@ export function appraisalStatusText(row) {
 
 // ----------------------------------------------------------------------
 
-export default function AppraisalTableRow({ row, serialNumber, onBook, onComplete, onSignOff, basePath }) {
+export default function AppraisalTableRow({
+  row,
+  serialNumber,
+  onBook,
+  onComplete,
+  onSignOff,
+  basePath,
+  readOnly = false,
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const rowId = row?._id || row?.id || row?.staffId;
+  const isStaffView = readOnly || pathname.startsWith(`${paths.staff.root}/`);
 
   let detailPath = paths.lineManager.appraisalDetail(rowId);
   let signOffPath = paths.lineManager.appraisalSignOff(rowId);
-  if (basePath) {
+  if (isStaffView) {
+    detailPath = paths.staff.appraisalDetail(rowId);
+  } else if (basePath) {
     detailPath = `${basePath}/${rowId}`;
     signOffPath = `${basePath}/${rowId}/sign-off`;
   } else if (pathname.startsWith('/site-manager')) {
@@ -108,7 +119,7 @@ export default function AppraisalTableRow({ row, serialNumber, onBook, onComplet
   const lastReviewDate = row?.lastReview || row?.lastCompletedAt || row?.completedAt;
   const period = row?.period || row?.periodLabel || 'Annual Review';
 
-  const actions = [
+  const managementActions = [
     ...(!isCompleted
       ? [
           {
@@ -163,6 +174,9 @@ export default function AppraisalTableRow({ row, serialNumber, onBook, onComplet
       onClick: () => router.push(detailPath),
     },
   ];
+  const actions = isStaffView
+    ? managementActions.filter((action) => action.key === 'view')
+    : managementActions;
 
   return (
     <TableRow
@@ -205,14 +219,16 @@ export default function AppraisalTableRow({ row, serialNumber, onBook, onComplet
         </Label>
       </TableCell>
 
-      <TableCell align="center">
-        <Box
-          onClick={(event) => event.stopPropagation()}
-          sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-        >
-          <GenericTableRowActions actions={actions} />
-        </Box>
-      </TableCell>
+      {!isStaffView && (
+        <TableCell align="center">
+          <Box
+            onClick={(event) => event.stopPropagation()}
+            sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+          >
+            <GenericTableRowActions actions={actions} />
+          </Box>
+        </TableCell>
+      )}
     </TableRow>
   );
 }
@@ -224,4 +240,5 @@ AppraisalTableRow.propTypes = {
   onComplete: PropTypes.func,
   onSignOff: PropTypes.func,
   basePath: PropTypes.string,
+  readOnly: PropTypes.bool,
 };

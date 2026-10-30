@@ -681,7 +681,9 @@ export const paths = {
     shifts: `${ROOTS.STAFF}/shifts`,
     competencies: `${ROOTS.STAFF}/competencies`,
     supervision: `${ROOTS.STAFF}/supervision`,
+    supervisionDetail: (id) => `${ROOTS.STAFF}/supervision/${id}`,
     appraisal: `${ROOTS.STAFF}/appraisals`,
+    appraisalDetail: (id) => `${ROOTS.STAFF}/appraisals/${id}`,
     training: `${ROOTS.STAFF}/training`,
     leaveRequests: `${ROOTS.STAFF}/leave-requests`,
     documents: {
