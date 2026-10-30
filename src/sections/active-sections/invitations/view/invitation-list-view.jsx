@@ -10,12 +10,13 @@ import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks';
+import { usePathname, useRouter } from 'src/routes/hooks';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -82,9 +83,18 @@ const DEFAULT_FILTERS = {
 export function InvitationListView() {
     const table = useTable({ defaultDense: true });
     const router = useRouter();
+    const pathname = usePathname();
+    const isSiteManager = pathname.startsWith(paths.siteManager.root);
 
     const { organizationId, user } = useCurrentOrganization();
-    const { branchesMap, branches } = useOrganizationLookups(organizationId);
+    const { branchesMap, branches } = useOrganizationLookups({
+        organizationId,
+        branches: !isSiteManager,
+        jobTitles: false,
+        departments: false,
+        members: false,
+    });
+    const assignedBranch = isSiteManager ? getAssignedBranch(user, organizationId) : null;
 
     const filters = useSetState(DEFAULT_FILTERS);
     const keyword = useDebounce(filters.state.name || filters.state.search || '', 500);
@@ -150,7 +160,11 @@ export function InvitationListView() {
                         invitation.siteId,
                         typeof invitation.branch === 'string' ? invitation.branch : invitation.branch?._id,
                         typeof invitation.site === 'string' ? invitation.site : invitation.site?._id,
-                    ].filter(Boolean);
+                    ]
+                        .map((value) =>
+                            typeof value === 'object' ? value?._id || value?.id : value
+                        )
+                        .filter(Boolean);
 
                     for (const id of possibleIds) {
                         if (branchesMap?.[id]?.name) {
@@ -176,7 +190,11 @@ export function InvitationListView() {
                         }
                     }
 
-                    if (
+                    if (resolvedSite === '—' && isSiteManager && assignedBranch?.name) {
+                        if (possibleIds.includes(assignedBranch.id)) {
+                            resolvedSite = assignedBranch.name;
+                        }
+                    } else if (
                         resolvedSite === '—' &&
                         (user?.branch?.name || (user?.branchId && branchesMap?.[user.branchId]?.name))
                     ) {
@@ -214,7 +232,7 @@ export function InvitationListView() {
                     raw: invitation,
                 };
             }),
-        [rawInvitations, branchesMap, branches, user]
+        [rawInvitations, branchesMap, branches, user, isSiteManager, assignedBranch]
     );
 
     const getStatusCount = useCallback(

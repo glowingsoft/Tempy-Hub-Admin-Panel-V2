@@ -168,6 +168,9 @@ export const siteManagerDashboardRoutes = [
         path: 'directory',
         children: [
           { index: true, element: <UserListPage /> },
+          { path: 'visitor-invitation', element: <UserListPage /> },
+          { path: 'visit-sessions', element: <UserListPage /> },
+          { path: 'app-accounts', element: <UserListPage /> },
           { path: ":id", element: <UserDetailPage /> }
         ]
       },

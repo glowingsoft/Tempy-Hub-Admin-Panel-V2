@@ -97,6 +97,28 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/external-people`,
     EXTERNAL_PERSON_BY_ID: (externalPersonId) => `/admin/external-people/${externalPersonId}`,
 
+    // Visitor Invitations
+    ORGANIZATION_VISITOR_INVITATIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/visitor-invitations`,
+    VISITOR_INVITATION_RESEND: (invitationId) =>
+        `/admin/visitor-invitations/${invitationId}/resend`,
+
+    // Visit Sessions
+    ORGANIZATION_VISIT_SESSIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/visit-sessions`,
+    VISIT_SESSION_APPROVE: (visitSessionId) =>
+        `/admin/visit-sessions/${visitSessionId}/approve`,
+    VISIT_SESSION_DENY: (visitSessionId) =>
+        `/admin/visit-sessions/${visitSessionId}/deny`,
+
+    // Visitor Account Invitations (App Accounts)
+    ORGANIZATION_VISITOR_ACCOUNT_INVITATIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/visitor-account-invitations`,
+    VISITOR_ACCOUNT_INVITATION_RESEND: (organizationId, invitationId) =>
+        `/admin/organizations/${organizationId}/visitor-account-invitations/${invitationId}/resend`,
+    VISITOR_ACCOUNT_INVITATION_REVOKE: (organizationId, invitationId) =>
+        `/admin/organizations/${organizationId}/visitor-account-invitations/${invitationId}/revoke`,
+
     // Evacuations & Fire Drills
     ORGANIZATION_EVACUATIONS: (organizationId) =>
         `/admin/organizations/${organizationId}/evacuations`,

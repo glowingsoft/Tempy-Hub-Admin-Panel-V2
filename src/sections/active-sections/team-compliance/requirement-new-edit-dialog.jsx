@@ -16,6 +16,9 @@ import MenuItem from '@mui/material/MenuItem';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
@@ -40,11 +43,24 @@ const RequirementSchema = zod.object({
   firstCompletionDays: zod.coerce
     .number({ invalid_type_error: 'First completion days must be a number' })
     .min(0, 'Must be 0 or greater'),
-  amberDaysOverride: zod.union([
-    zod.coerce.number().min(0, 'Must be 0 or greater'),
-    zod.literal('').transform(() => null),
-    zod.null(),
-  ]).optional(),
+  amberDaysOverride: zod
+    .union(
+      [
+        zod.number({ required_error: 'Amber days override is required' }),
+        zod.string().trim().min(1, 'Amber days override is required'),
+      ],
+      {
+        errorMap: () => ({ message: 'Amber days override is required' }),
+      }
+    )
+    .refine(
+      (val) => {
+        const num = Number(val);
+        return !Number.isNaN(num) && num >= 0;
+      },
+      { message: 'Amber days override must be a number 0 or greater' }
+    )
+    .transform((val) => Number(val)),
   evidenceRequired: zod.boolean(),
   staffEvidenceAllowed: zod.boolean(),
   branchId: zod
@@ -85,12 +101,54 @@ const normaliseItem = (item) => {
 export function RequirementNewEditDialog({
   open,
   onClose,
-  organizationId,
+  organizationId: propOrgId,
   currentRequirement,
-  isSiteManager = false,
-  siteManagerBranchId = null,
+  isBranchManager = false,
 }) {
   const isEdit = !!currentRequirement;
+
+  const { organizationId: contextOrgId, user } = useCurrentOrganization();
+  const organizationId = propOrgId || contextOrgId;
+
+  const { branchesMap, isBranchesFetching } = useOrganizationLookups({
+    organizationId,
+    branches: open && isBranchManager,
+    jobTitles: false,
+    departments: false,
+    members: false,
+  });
+  const assigned = getAssignedBranch(user, organizationId);
+  const resolvedBranchId = assigned?.id || '';
+  const resolvedBranchName = branchesMap[resolvedBranchId]?.name || '';
+
+  const managerSiteOption = useMemo(() => {
+    if (!isBranchManager || !resolvedBranchId) return null;
+    return {
+      value: resolvedBranchId,
+      label:
+        resolvedBranchName ||
+        (isBranchesFetching ? 'Loading site name...' : 'Site name unavailable'),
+    };
+  }, [isBranchManager, resolvedBranchId, resolvedBranchName, isBranchesFetching]);
+
+  const editBranchOption = useMemo(() => {
+    if (currentRequirement?.branch) {
+      return normaliseItem(currentRequirement.branch);
+    }
+    if (currentRequirement?.branchId) {
+      return normaliseItem(currentRequirement.branchId);
+    }
+    return null;
+  }, [currentRequirement]);
+
+  const extraBranchOptions = useMemo(() => {
+    const list = [];
+    if (managerSiteOption) list.push(managerSiteOption);
+    if (editBranchOption && !list.some((o) => o.value === editBranchOption.value)) {
+      list.push(editBranchOption);
+    }
+    return list;
+  }, [managerSiteOption, editBranchOption]);
 
   const lookupQueryArgs = useMemo(() => ({ organizationId, limit: 100 }), [organizationId]);
 
@@ -110,10 +168,12 @@ export function RequirementNewEditDialog({
         : [];
 
     // Branch / Site
-    const rawBranch = isSiteManager
-      ? siteManagerBranchId
-      : currentRequirement?.branch || currentRequirement?.branchId || null;
-    const branchId = normaliseItem(rawBranch);
+    const rawBranch = isBranchManager
+      ? (managerSiteOption || resolvedBranchId)
+      : (currentRequirement?.branch || currentRequirement?.branchId || null);
+    const branchId = isBranchManager
+      ? (managerSiteOption || normaliseItem(rawBranch))
+      : normaliseItem(rawBranch);
 
     return {
       name: currentRequirement?.name || '',
@@ -129,8 +189,9 @@ export function RequirementNewEditDialog({
     };
   }, [
     currentRequirement,
-    isSiteManager,
-    siteManagerBranchId,
+    isBranchManager,
+    resolvedBranchId,
+    managerSiteOption,
   ]);
 
   const methods = useForm({
@@ -138,7 +199,7 @@ export function RequirementNewEditDialog({
     defaultValues,
   });
 
-  const { reset, handleSubmit, formState: { isSubmitting } } = methods;
+  const { reset, setValue, handleSubmit, formState: { isSubmitting } } = methods;
 
   const [createRequirement] = useCreateRequirementMutation();
   const [updateRequirement] = useUpdateRequirementMutation();
@@ -146,8 +207,11 @@ export function RequirementNewEditDialog({
   useEffect(() => {
     if (open) {
       reset(defaultValues);
+      if (isBranchManager && managerSiteOption?.value) {
+        setValue('branchId', managerSiteOption, { shouldValidate: true });
+      }
     }
-  }, [open, defaultValues, reset]);
+  }, [open, defaultValues, reset, isBranchManager, managerSiteOption, setValue]);
 
   const handleClose = () => {
     onClose();
@@ -161,10 +225,7 @@ export function RequirementNewEditDialog({
         type: data.type,
         renewalMonths: Number(data.renewalMonths),
         firstCompletionDays: Number(data.firstCompletionDays),
-        amberDaysOverride:
-          data.amberDaysOverride === '' || data.amberDaysOverride == null
-            ? null
-            : Number(data.amberDaysOverride),
+        amberDaysOverride: Number(data.amberDaysOverride),
         evidenceRequired: Boolean(data.evidenceRequired),
         staffEvidenceAllowed: Boolean(data.staffEvidenceAllowed),
         appliesTo: {
@@ -173,10 +234,19 @@ export function RequirementNewEditDialog({
         },
       };
 
-      if (data.branchId?.value) {
+      if (isBranchManager && (!resolvedBranchId || !resolvedBranchName)) {
+        toast.error(
+          resolvedBranchId
+            ? 'Your assigned site could not be found in this organization.'
+            : 'Your account does not have an assigned site in this organization.'
+        );
+        return;
+      }
+
+      if (isBranchManager) {
+        payload.branchId = resolvedBranchId;
+      } else if (data.branchId?.value) {
         payload.branchId = data.branchId.value;
-      } else if (isSiteManager && siteManagerBranchId) {
-        payload.branchId = siteManagerBranchId;
       }
 
       if (isEdit) {
@@ -246,9 +316,9 @@ export function RequirementNewEditDialog({
 
               <Field.Text
                 name="amberDaysOverride"
-                label="Amber days override (optional)"
+                label="Amber days override *"
                 type="number"
-                placeholder="Optional"
+                placeholder="e.g. 14"
               />
             </Box>
 
@@ -287,12 +357,14 @@ export function RequirementNewEditDialog({
             <Field.InfiniteAutocomplete
               name="branchId"
               label="Site"
-              placeholder={isSiteManager ? 'Site locked' : 'Select site (optional)...'}
+              placeholder={isBranchManager ? 'Site locked' : 'Select site (optional)...'}
               useQuery={useGetBranchesQuery}
               queryArgs={lookupQueryArgs}
               mapOption={mapLookupOption}
-              enabled={open && !!organizationId && !isSiteManager}
-              disabled={isSiteManager}
+              extraOptions={extraBranchOptions}
+              enabled={open && !!organizationId && !isBranchManager}
+              disabled={isBranchManager}
+              helperText={isBranchManager ? 'Locked to your assigned site' : undefined}
             />
           </Box>
         </DialogContent>
@@ -315,6 +387,5 @@ RequirementNewEditDialog.propTypes = {
   onClose: PropTypes.func,
   organizationId: PropTypes.string,
   currentRequirement: PropTypes.object,
-  isSiteManager: PropTypes.bool,
-  siteManagerBranchId: PropTypes.string,
+  isBranchManager: PropTypes.bool,
 };

@@ -28,6 +28,7 @@ import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { useGetCompetenciesQuery } from 'src/store/Reducer/competencies-api';
 
 import ComplianTableRow from 'src/sections/active-sections/team-compliance/compliance-table-row';
@@ -78,6 +79,11 @@ export function RequirementsListView({ dashboardHref: dashboardHrefProp }) {
 
   const table = useTable({ defaultDense: true, defaultRowsPerPage: 10 });
   const { organizationId, user } = useCurrentOrganization();
+
+  const isBranchManager = user?.permission === 2 || user?.permission === 3;
+  const assignedBranch = getAssignedBranch(user, organizationId);
+  const assignedBranchId = assignedBranch?.id || '';
+
   const filters = useSetState({ search: '', type: 'all' });
   const keyword = useDebounce(filters.state.search, 500).trim();
 
@@ -253,8 +259,7 @@ export function RequirementsListView({ dashboardHref: dashboardHrefProp }) {
         onClose={reqDialog.onFalse}
         organizationId={organizationId}
         currentRequirement={selectedRequirement}
-        isSiteManager={isSiteManager}
-        siteManagerBranchId={user?.branchId || user?.branch?._id}
+        isBranchManager={isBranchManager}
       />
 
       {/* Assign Staff Modal */}
@@ -265,7 +270,7 @@ export function RequirementsListView({ dashboardHref: dashboardHrefProp }) {
           requirement={assignRequirement}
           organizationId={organizationId}
           isSiteManager={isSiteManager}
-          siteManagerBranchId={user?.branchId || user?.branch?._id}
+          siteManagerBranchId={assignedBranchId}
         />
       )}
     </DashboardContent>

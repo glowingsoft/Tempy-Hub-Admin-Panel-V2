@@ -17,6 +17,8 @@ import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { useGetDocumentCategoriesQuery } from 'src/store/Reducer/document-categories-api';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
@@ -81,8 +83,32 @@ export default function UploadDocumentModal({
   onClose,
   currentDocument,
 }) {
-  const { organizationId } = useCurrentOrganization();
+  const { organizationId, user } = useCurrentOrganization();
   const isEdit = Boolean(currentDocument);
+  const isBranchManager = user?.permission === 2 || user?.permission === 3;
+
+  const { branchesMap, isBranchesFetching } = useOrganizationLookups({
+    organizationId,
+    branches: open && isBranchManager && !isEdit,
+    jobTitles: false,
+    departments: false,
+    members: false,
+  });
+  const assignedBranch = getAssignedBranch(user, organizationId);
+  const managerBranchId = assignedBranch?.id || '';
+  const resolvedBranchName = branchesMap[managerBranchId]?.name || '';
+  const managerBranchOption = useMemo(
+    () =>
+      isBranchManager && managerBranchId
+        ? {
+            value: managerBranchId,
+            label:
+              resolvedBranchName ||
+              (isBranchesFetching ? 'Loading site name...' : 'Site name unavailable'),
+          }
+        : null,
+    [isBranchManager, managerBranchId, resolvedBranchName, isBranchesFetching]
+  );
 
   const [uploadFile, { isLoading: isUploadingFile }] = useUploadFileMutation();
   const [uploadDocumentApi, { isLoading: isPostingDocument }] = useUploadDocumentMutation();
@@ -174,6 +200,12 @@ export default function UploadDocumentModal({
     }
   }, [open, currentDocument, reset]);
 
+  useEffect(() => {
+    if (!open || currentDocument || !isBranchManager) return;
+    setSelectedBranch(managerBranchOption);
+    setValue('branchId', managerBranchOption, { shouldValidate: true });
+  }, [open, currentDocument, isBranchManager, managerBranchOption, setValue]);
+
   const handleCategoryChange = useCallback(
     (option) => {
       setSelectedCategory(option);
@@ -250,6 +282,15 @@ export default function UploadDocumentModal({
       // Create Flow
       const fileToUpload = data.file;
 
+      if (isBranchManager && (!managerBranchId || !resolvedBranchName)) {
+        toast.error(
+          managerBranchId
+            ? 'Unable to resolve your assigned site name. Please try again or contact an administrator.'
+            : 'Your account does not have a site assigned in this organization.'
+        );
+        return;
+      }
+
       if (!fileToUpload) {
         toast.error('Please select a file to upload!');
         return;
@@ -268,7 +309,7 @@ export default function UploadDocumentModal({
         title: data.title,
         category: data.category,
         audiences: data.audiences,
-        branchId: data.branchId?.value || null,
+        branchId: isBranchManager ? managerBranchId : data.branchId?.value || null,
         requiresSignature: data.requiresSignature,
         file: {
           key: s3Key,
@@ -371,13 +412,28 @@ export default function UploadDocumentModal({
                       useQuery={useGetBranchesQuery}
                       queryArgs={{ organizationId }}
                       mapOption={mapBranchOption}
-                      label="Site (Optional)"
-                      placeholder="Search and select site..."
-                      enabled={open && !!organizationId}
-                      disabled={!organizationId}
+                      label={isBranchManager ? 'Site' : 'Site (Optional)'}
+                      placeholder={
+                        isBranchManager
+                          ? managerBranchId
+                            ? 'Assigned site'
+                            : 'No assigned site'
+                          : 'Search and select site...'
+                      }
+                      enabled={open && !!organizationId && !isBranchManager}
+                      disabled={!organizationId || isBranchManager}
+                      extraOptions={managerBranchOption ? [managerBranchOption] : []}
                       textFieldProps={{
                         error: !!error,
-                        helperText: error?.message,
+                        helperText:
+                          error?.message ||
+                          (isBranchManager
+                            ? managerBranchId
+                              ? !resolvedBranchName && !isBranchesFetching
+                                ? 'Your assigned site could not be found in this organization.'
+                                : 'Locked to your assigned site'
+                              : 'Could not resolve your assigned site in this organization.'
+                            : undefined),
                       }}
                     />
                   )}

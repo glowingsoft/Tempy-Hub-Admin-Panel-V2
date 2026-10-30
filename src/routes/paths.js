@@ -266,6 +266,9 @@ export const paths = {
     statistics: `${ROOTS.SITE_MANAGER}/statistics`,
     directory: {
       root: `${ROOTS.SITE_MANAGER}/directory`,
+      visitorInvitation: `${ROOTS.SITE_MANAGER}/directory/visitor-invitation`,
+      visitSessions: `${ROOTS.SITE_MANAGER}/directory/visit-sessions`,
+      appAccounts: `${ROOTS.SITE_MANAGER}/directory/app-accounts`,
       detail: (id) => `${ROOTS.SITE_MANAGER}/directory/${id}`,
     },
     residents: {
@@ -561,6 +564,9 @@ export const paths = {
     },
     directory: {
       root: `${ROOTS.OWNER_DASHBOARD}/directory`,
+      visitorInvitation: `${ROOTS.OWNER_DASHBOARD}/directory/visitor-invitation`,
+      visitSessions: `${ROOTS.OWNER_DASHBOARD}/directory/visit-sessions`,
+      appAccounts: `${ROOTS.OWNER_DASHBOARD}/directory/app-accounts`,
       detail: (id) => `${ROOTS.OWNER_DASHBOARD}/directory/${id}`,
     },
     residents: {
