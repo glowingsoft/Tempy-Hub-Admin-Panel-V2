@@ -38,6 +38,15 @@ export function OrganizationTableRow({ row, serialNumber, canEdit, onEditRow }) 
 
   const actions = [
     {
+      key: 'view',
+      icon: 'solar:eye-bold',
+      tooltip: 'View',
+      onClick: (event) => {
+        event.stopPropagation();
+        router.push(detailPath);
+      },
+    },
+    {
       key: 'edit',
       icon: 'solar:pen-bold',
       tooltip: 'Edit',

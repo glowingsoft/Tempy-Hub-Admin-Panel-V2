@@ -45,6 +45,7 @@ import { CONFIG } from 'src/config-global';
 
 import { KioskTableRow } from '../kiosk-table-row';
 import QuickAddKioskModal from '../quick-add-kiosk-modal';
+import { isKioskLocked } from '../kiosk-lock-utils';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetKiosksQuery, useToggleKioskLockMutation } from 'src/store/Reducer/kiosks-api';
 
@@ -71,6 +72,11 @@ const STATUS_OPTIONS = [
   {
     value: 'offline',
     label: 'Offline',
+    color: 'error',
+  },
+  {
+    value: 'locked',
+    label: 'Locked',
     color: 'error',
   },
 ];
@@ -103,6 +109,12 @@ const TABLE_HEAD = [
     label: 'Setup',
     minWidth: 140,
     align: 'center'
+  },
+  {
+    id: 'kioskMode',
+    label: 'Kiosk Mode',
+    minWidth: 140,
+    align: 'center',
   },
 
   {
@@ -141,6 +153,7 @@ const FILTER_FIELDS = [
   createFilterField.search({
     placeholder: 'Search kiosk or device...',
   }),
+
 ];
 
 // ----------------------------------------------------------------------
@@ -178,6 +191,7 @@ export function KioskListView({ ownerDashboard = false }) {
       : filters.state.status === 'offline'
         ? 'offline'
         : undefined;
+  const queryKioskMode = filters.state.status === 'locked' ? 'locked' : undefined;
 
   const activeBranchId = isFullOwner
     ? selectedBranch?.value && selectedBranch.value !== ALL_BRANCHES_VALUE
@@ -205,6 +219,7 @@ export function KioskListView({ ownerDashboard = false }) {
       limit: table.rowsPerPage,
       keyword: keyword || undefined,
       presence: queryPresence,
+      kioskMode: queryKioskMode,
     },
     { skip: !organizationId }
   );
@@ -246,7 +261,7 @@ export function KioskListView({ ownerDashboard = false }) {
           type: kiosk.deviceType || kiosk.device?.type || '—',
         },
         kioskMode: kiosk.kioskMode,
-        isLocked: Boolean(kiosk.isLocked || kiosk.isLock || kiosk.locked),
+        isLocked: isKioskLocked(kiosk),
         status: kiosk.presence || kiosk.status || 'offline',
         presence: kiosk.presence || kiosk.status || 'offline',
         setupStatus: kiosk.setupStatus || 'registered',
@@ -268,7 +283,7 @@ export function KioskListView({ ownerDashboard = false }) {
   }), [meta]);
 
   // ----------------------------------------------------------------------
-  // Status counts for StatusTabsFilterWrapper (All, Online, Offline)
+  // Status counts for StatusTabsFilterWrapper (All, Online, Offline, Locked)
   // ----------------------------------------------------------------------
 
   const getStatusCount = useCallback(
@@ -276,6 +291,7 @@ export function KioskListView({ ownerDashboard = false }) {
       if (status === 'all') return meta.total ?? meta.totalRecords ?? 0;
       if (status === 'online') return meta.online ?? 0;
       if (status === 'offline') return meta.offline ?? 0;
+      if (status === 'locked') return meta.locked ?? 0;
       return 0;
     },
     [meta]
@@ -367,14 +383,7 @@ export function KioskListView({ ownerDashboard = false }) {
   const handleConfirmLockToggle = useCallback(async () => {
     if (!kioskToLock) return;
     const kioskId = kioskToLock.id || kioskToLock._id || kioskToLock.deviceId;
-    const isCurrentlyLocked = Boolean(
-      kioskToLock.isLocked ||
-      kioskToLock.isLock ||
-      kioskToLock.locked ||
-      kioskToLock.raw?.isLocked ||
-      kioskToLock.raw?.isLock ||
-      kioskToLock.raw?.locked
-    );
+    const isCurrentlyLocked = isKioskLocked(kioskToLock);
 
     if (!kioskId) return;
     try {
@@ -391,6 +400,8 @@ export function KioskListView({ ownerDashboard = false }) {
       toast.error(error?.data?.message || error?.message || 'Failed to toggle kiosk lock');
     }
   }, [kioskToLock, organizationId, toggleKioskLock, lockConfirm]);
+
+  const isKioskToLockLocked = kioskToLock ? isKioskLocked(kioskToLock) : false;
 
   // ----------------------------------------------------------------------
 
@@ -541,7 +552,7 @@ export function KioskListView({ ownerDashboard = false }) {
           <Scrollbar>
             <Table
               size={table.dense ? 'small' : 'medium'}
-              sx={{ minWidth: 960 }}
+              sx={{ minWidth: 1100 }}
             >
               <TableHeadCustom
                 order={table.order}
@@ -587,6 +598,13 @@ export function KioskListView({ ownerDashboard = false }) {
                       <TableCell align="center" sx={{ minWidth: 140, py: table.dense ? 0.8 : 1.5 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                           <Skeleton variant="rounded" width={80} height={24} sx={{ borderRadius: 1 }} />
+                        </Box>
+                      </TableCell>
+
+                      {/* Kiosk Mode */}
+                      <TableCell align="center" sx={{ minWidth: 140, py: table.dense ? 0.8 : 1.5 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                          <Skeleton variant="rounded" width={90} height={24} sx={{ borderRadius: 1 }} />
                         </Box>
                       </TableCell>
 
@@ -681,30 +699,12 @@ export function KioskListView({ ownerDashboard = false }) {
             setKioskToLock(null);
           }}
           title={
-            Boolean(
-              kioskToLock.isLocked ||
-              kioskToLock.isLock ||
-              kioskToLock.locked ||
-              kioskToLock.raw?.isLocked ||
-              kioskToLock.raw?.isLock ||
-              kioskToLock.raw?.locked
-            )
-              ? 'Unlock Kiosk Device'
-              : 'Lock Kiosk Device'
+            isKioskToLockLocked ? 'Unlock Kiosk Device' : 'Lock Kiosk Device'
           }
           content={
             <Typography variant="body2" color="text.secondary">
               Are you sure you want to{' '}
-              {Boolean(
-                kioskToLock.isLocked ||
-                kioskToLock.isLock ||
-                kioskToLock.locked ||
-                kioskToLock.raw?.isLocked ||
-                kioskToLock.raw?.isLock ||
-                kioskToLock.raw?.locked
-              )
-                ? 'unlock'
-                : 'lock'}{' '}
+              {isKioskToLockLocked ? 'unlock' : 'lock'}{' '}
               kiosk terminal (
               <strong>
                 {kioskToLock.locationLabel ||
@@ -718,31 +718,11 @@ export function KioskListView({ ownerDashboard = false }) {
           action={
             <LoadingButton
               variant="contained"
-              color={
-                Boolean(
-                  kioskToLock.isLocked ||
-                  kioskToLock.isLock ||
-                  kioskToLock.locked ||
-                  kioskToLock.raw?.isLocked ||
-                  kioskToLock.raw?.isLock ||
-                  kioskToLock.raw?.locked
-                )
-                  ? 'primary'
-                  : 'warning'
-              }
+              color={isKioskToLockLocked ? 'primary' : 'warning'}
               loading={isTogglingLock}
               onClick={handleConfirmLockToggle}
             >
-              {Boolean(
-                kioskToLock.isLocked ||
-                kioskToLock.isLock ||
-                kioskToLock.locked ||
-                kioskToLock.raw?.isLocked ||
-                kioskToLock.raw?.isLock ||
-                kioskToLock.raw?.locked
-              )
-                ? 'Unlock Device'
-                : 'Lock Device'}
+              {isKioskToLockLocked ? 'Unlock Device' : 'Lock Device'}
             </LoadingButton>
           }
         />

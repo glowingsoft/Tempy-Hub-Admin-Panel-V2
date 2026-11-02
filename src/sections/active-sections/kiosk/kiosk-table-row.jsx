@@ -11,11 +11,18 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 
+import { isKioskLocked } from './kiosk-lock-utils';
+
 // ----------------------------------------------------------------------
 
 export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow, onLockRow }) {
   const presence = row.presence || row.status || 'offline';
   const statusColor = presence === 'online' ? 'success' : 'error';
+  const kioskMode = String(row.kioskMode || '').trim().toLowerCase();
+  const kioskModeLabel =
+    kioskMode === 'locked' ? 'Locked' : kioskMode === 'setup' ? 'Setup' : 'Unknown';
+  const kioskModeColor =
+    kioskMode === 'locked' ? 'error' : kioskMode === 'setup' ? 'info' : 'default';
 
   const setupColor =
     row.setupStatus === 'registered'
@@ -24,14 +31,7 @@ export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow, onLockR
         ? 'warning'
         : 'default';
 
-  const isLocked = Boolean(
-    row.isLocked ||
-    row.isLock ||
-    row.locked ||
-    row.raw?.isLocked ||
-    row.raw?.isLock ||
-    row.raw?.locked
-  );
+  const isLocked = isKioskLocked(row);
 
   const actions = [
     {
@@ -141,6 +141,13 @@ export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow, onLockR
       <TableCell align="center" sx={{ minWidth: 140 }}>
         <Label variant="soft" color={setupColor} sx={{ textTransform: 'capitalize' }}>
           {row.setupStatus || 'Unknown'}
+        </Label>
+      </TableCell>
+
+      {/* Kiosk Mode */}
+      <TableCell align="center" sx={{ minWidth: 140 }}>
+        <Label variant="soft" color={kioskModeColor}>
+          {kioskModeLabel}
         </Label>
       </TableCell>
 

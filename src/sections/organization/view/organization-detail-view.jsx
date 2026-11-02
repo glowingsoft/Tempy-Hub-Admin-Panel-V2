@@ -127,6 +127,7 @@ export function OrganizationDetailView() {
           canEdit && (
             <Button
               variant="contained"
+              color="primary"
               onClick={editModal.onTrue}
               startIcon={<Iconify icon="solar:pen-bold" />}
             >

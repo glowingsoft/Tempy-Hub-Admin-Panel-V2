@@ -5,20 +5,26 @@ import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
-import { USER_STATUS_OPTIONS } from 'src/_mock';
 // import { useUserStatusChangeMutation } from 'src/store/Reducer/user-api';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useUpdateExternalPersonMutation } from 'src/store/Reducer/general-directory-api';
 import { z as zod } from 'zod';
+
+const QUICK_USER_STATUS_OPTIONS = [
+    { value: 'active', label: 'Active', color: 'success' },
+    { value: 'inactive', label: 'Inactive', color: 'error' },
+    // { value: 'onLeave', label: 'On Leave', color: 'warning' },
+    // { value: 'archived', label: 'Archived', color: 'default' },
+];
 
 const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
 
     const { organizationId } = useCurrentOrganization();
 
     const defaultValues = useMemo(() => ({
-        status: USER_STATUS_OPTIONS.some((option) => option.value === currentUser?.status)
-            ? currentUser.status
-            : 'active',
+        status: QUICK_USER_STATUS_OPTIONS.some((option) => option.value === currentUser?.userStatus)
+            ? currentUser.userStatus
+            : '',
         phone: currentUser?.phone || '',
         carRegistration: currentUser?.carRegistration || '',
     }), [currentUser]);
@@ -27,7 +33,10 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
     const [updateExternalPerson] = useUpdateExternalPersonMutation();
 
     const schema = zod.object({
-        status: zod.string().min(1, 'Status is required'),
+        status: zod.string().refine(
+            (status) => QUICK_USER_STATUS_OPTIONS.some((option) => option.value === status),
+            'Select a valid user status'
+        ),
         phone: zod.string().min(1, 'Phone is required'),
         carRegistration: zod.string().min(1, 'Car registration is required'),
     });
@@ -70,11 +79,11 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
                 <DialogTitle sx={{ pb: 0 }}>Quick Status Change </DialogTitle>
                 <DialogContent>
 
-                    <Field.Select name="status" label="Status" sx={{ mt: 2 }}>
+                    <Field.Select name="status" label="User Status" sx={{ mt: 2 }}>
 
                         <MenuItem value="">Select Status</MenuItem>
                         <Divider sx={{ borderStyle: "dashed" }} />
-                        {USER_STATUS_OPTIONS.map((option) => (
+                        {QUICK_USER_STATUS_OPTIONS.map((option) => (
                             <MenuItem key={option.value} value={option.value}>
                                 {option.label}
                             </MenuItem>
