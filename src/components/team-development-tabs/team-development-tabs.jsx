@@ -46,6 +46,12 @@ export function getTeamDevelopmentTabs(prefix = paths.lineManager.root) {
       href: isStaff ? paths.staff.training : `${prefix}/training`,
       prefetch: () => import('src/pages/dashboard/active-routes/training'),
     },
+    {
+      value: 'requirements',
+      label: 'Requirements',
+      href: `${prefix}/requirements`,
+      prefetch: () => import('src/pages/dashboard/active-routes/requirements'),
+    },
   ];
 }
 

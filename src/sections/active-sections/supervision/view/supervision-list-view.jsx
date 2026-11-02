@@ -70,7 +70,7 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 function SupervisionListView({
-  dashboardHref = paths.lineManager.root,
+  dashboardHref: dashboardHrefProp,
   heading = 'Supervision',
   showTabs = true,
   branchId: branchIdProp,
@@ -78,6 +78,19 @@ function SupervisionListView({
   const router = useRouter();
   const pathname = usePathname();
   const { organizationId, user } = useCurrentOrganization();
+  const isStaffRoute = pathname.startsWith(`${paths.staff.root}/`);
+  const isStaffRole = user?.access?.memberships?.[0]?.role?.toLowerCase() === 'staff';
+  const isStaffView = isStaffRoute;
+  const currentStaffId = [
+    typeof user?.staffId === 'object' ? user.staffId?._id || user.staffId?.id : user?.staffId,
+    user?.basicInfo?._id,
+    user?.id,
+  ].find(Boolean);
+  const dashboardHref =
+    dashboardHrefProp ||
+    (isStaffRoute
+      ? paths.staff.dashboard
+      : paths.lineManager.root);
   const userBranchId = branchIdProp || user?.branchId?._id || user?.branchId;
 
   const table = useTable({
@@ -106,11 +119,12 @@ function SupervisionListView({
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
+      ...(isStaffView && currentStaffId ? { staffId: currentStaffId } : {}),
       ...(userBranchId ? { branchId: userBranchId } : {}),
       ...(trimmedKeyword ? { search: trimmedKeyword, keyword: trimmedKeyword } : {}),
       ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
     },
-    { skip: !organizationId }
+    { skip: !organizationId || (isStaffView && (!isStaffRole || !currentStaffId)) }
   );
 
   const rawList = useMemo(() => {
@@ -255,14 +269,16 @@ function SupervisionListView({
         ]}
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<Iconify icon="solar:calendar-add-bold" />}
-              onClick={() => handleOpenLog(null)}
-            >
-              Book supervision
-            </Button>
+            {!isStaffView && (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Iconify icon="solar:calendar-add-bold" />}
+                onClick={() => handleOpenLog(null)}
+              >
+                Book supervision
+              </Button>
+            )}
             <Button
               variant="outlined"
               color="inherit"
@@ -285,6 +301,13 @@ function SupervisionListView({
       />
 
       <Card>
+        {isStaffView && (!isStaffRole || !currentStaffId) && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {!isStaffRole
+              ? 'Your account is not associated with a staff membership.'
+              : 'Could not determine your staff profile. Contact your administrator.'}
+          </Alert>
+        )}
         {isError && (
           <Alert severity="error" sx={{ m: 2 }}>
             {error?.data?.message || error?.error || 'Failed to load supervision sessions.'}
@@ -309,7 +332,9 @@ function SupervisionListView({
           <TableContainer>
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
-                <TableHeadCustom headLabel={TABLE_HEAD} />
+                <TableHeadCustom
+                  headLabel={isStaffView ? TABLE_HEAD.filter((column) => column.id !== 'actions') : TABLE_HEAD}
+                />
 
                 <TableBody>
                   {isLoading || isFetching ? (
@@ -347,13 +372,14 @@ function SupervisionListView({
                             sx={{ borderRadius: 1, mx: 'auto' }}
                           />
                         </TableCell>
-                        {/* Actions */}
-                        <TableCell align="center" sx={{ py: table.dense ? 0.8 : 1.5 }}>
-                          <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-                            <Skeleton variant="circular" width={28} height={28} />
-                            <Skeleton variant="circular" width={28} height={28} />
-                          </Stack>
-                        </TableCell>
+                        {!isStaffView && (
+                          <TableCell align="center" sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                            <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                              <Skeleton variant="circular" width={28} height={28} />
+                              <Skeleton variant="circular" width={28} height={28} />
+                            </Stack>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   ) : (
@@ -366,6 +392,7 @@ function SupervisionListView({
                           onLog={() => handleOpenLog(row)}
                           onComplete={() => handleOpenComplete(row)}
                           onSignOff={() => handleOpenSignOff(row)}
+                          readOnly={isStaffView}
                         />
                       ))}
 
@@ -389,44 +416,48 @@ function SupervisionListView({
         />
       </Card>
 
-      <LogSessionDialog
-        open={logModal.value}
-        row={selectedRow}
-        organizationId={organizationId}
-        onClose={() => {
-          logModal.onFalse();
-          setSelectedRow(null);
-        }}
-        onSave={handleSaveSession}
-      />
+      {!isStaffView && (
+        <>
+          <LogSessionDialog
+            open={logModal.value}
+            row={selectedRow}
+            organizationId={organizationId}
+            onClose={() => {
+              logModal.onFalse();
+              setSelectedRow(null);
+            }}
+            onSave={handleSaveSession}
+          />
 
-      <CompleteSupervisionDialog
-        open={completeModal.value}
-        row={selectedRow}
-        organizationId={organizationId}
-        onClose={() => {
-          completeModal.onFalse();
-          setSelectedRow(null);
-        }}
-        onSave={handleSaveComplete}
-      />
+          <CompleteSupervisionDialog
+            open={completeModal.value}
+            row={selectedRow}
+            organizationId={organizationId}
+            onClose={() => {
+              completeModal.onFalse();
+              setSelectedRow(null);
+            }}
+            onSave={handleSaveComplete}
+          />
 
-      <SessionSignOffDialog
-        open={signOffModal.value}
-        session={selectedRow}
-        organizationId={organizationId}
-        type="supervision"
-        onClose={() => {
-          signOffModal.onFalse();
-          setSelectedRow(null);
-        }}
-        onSave={() => {
-          refetch();
-          signOffModal.onFalse();
-          setSelectedRow(null);
-        }}
-        readOnly={Boolean(selectedRow?.signedOff || selectedRow?.signature)}
-      />
+          <SessionSignOffDialog
+            open={signOffModal.value}
+            session={selectedRow}
+            organizationId={organizationId}
+            type="supervision"
+            onClose={() => {
+              signOffModal.onFalse();
+              setSelectedRow(null);
+            }}
+            onSave={() => {
+              refetch();
+              signOffModal.onFalse();
+              setSelectedRow(null);
+            }}
+            readOnly={Boolean(selectedRow?.signedOff || selectedRow?.signature)}
+          />
+        </>
+      )}
     </DashboardContent>
   );
 }

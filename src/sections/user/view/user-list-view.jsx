@@ -4,11 +4,15 @@ import { useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import InputAdornment from '@mui/material/InputAdornment';
 import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
+import Tabs from '@mui/material/Tabs';
 
 import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
@@ -32,10 +36,22 @@ import {
   useTable,
 } from 'src/components/table';
 
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetExternalPeopleQuery } from 'src/store/Reducer/general-directory-api';
+import { VisitInvitationsView, VisitSessionsView, AppAccountsView } from 'src/sections/visitor';
 import QuickAddUserModal from '../quick-add-user-modal';
 import QuickStatusChangeModal from '../user-status-dialog';
 import { UserTableRow } from '../user-table-row';
+
+// ----------------------------------------------------------------------
+
+const EXTRA_BRANCH_OPTIONS = [{ value: 'all', label: 'All sites' }];
+
+const mapBranchOption = (item) => ({
+  value: item._id || item.id,
+  label: item.name || '',
+});
 
 // ----------------------------------------------------------------------
 
@@ -92,15 +108,44 @@ export function UserListView() {
     defaultRowsPerPage: 10,
   });
 
+  const router = useRouter();
   const location = useLocation();
   const { organizationId } = useCurrentOrganization();
+  const isOwnerDirectory = location.pathname.startsWith(paths.owner.root);
+  const basePath = isOwnerDirectory ? paths.owner.directory.root : paths.siteManager.directory.root;
+
+  const currentTab = useMemo(() => {
+    if (location.pathname.includes('/visitor-invitation')) return 'visits';
+    if (location.pathname.includes('/visit-sessions')) return 'sessions';
+    if (location.pathname.includes('/app-accounts')) return 'accounts';
+    return 'people';
+  }, [location.pathname]);
+
+  const isPeopleTab = currentTab === 'people';
+  const shouldLoadBranches = isPeopleTab;
+
   const { branchOptions: siteOptions, departmentOptions, getBranchName } = useOrganizationLookups({
     organizationId,
     jobTitles: false,
-    departments: true,
+    departments: isPeopleTab,
+    branches: shouldLoadBranches,
     limit: 100,
   });
-  const isOwnerDirectory = location.pathname.startsWith(paths.owner.root);
+
+  const handleTabChange = useCallback(
+    (event, newValue) => {
+      if (newValue === 'visits') {
+        router.push(`${basePath}/visitor-invitation`);
+      } else if (newValue === 'sessions') {
+        router.push(`${basePath}/visit-sessions`);
+      } else if (newValue === 'accounts') {
+        router.push(`${basePath}/app-accounts`);
+      } else {
+        router.push(basePath);
+      }
+    },
+    [basePath, router]
+  );
 
   const filters = useSetState({
     search: '',
@@ -110,9 +155,16 @@ export function UserListView() {
     userType: 'all',
   });
 
+  const [selectedSiteFilter, setSelectedSiteFilter] = useState({ value: 'all', label: 'All sites' });
+  const handleTopSiteChange = useCallback((nextVal) => {
+    setSelectedSiteFilter(nextVal || { value: 'all', label: 'All sites' });
+  }, []);
+
   const [currentUser, setCurrentUser] = useState(null);
   const openStatusChangeModal = useBoolean();
   const openModal = useBoolean();
+  const openNewInvitationModal = useBoolean();
+  const openInviteAppModal = useBoolean();
 
   const keyword = useDebounce(filters.state.search, 500);
   const trimmedKeyword = keyword.trim();
@@ -135,7 +187,7 @@ export function UserListView() {
       ...(userType && userType !== 'all' ? { type: userType } : {}),
       ...(siteStatus && siteStatus !== 'all' ? { siteStatus } : {}),
     },
-    { skip: !organizationId }
+    { skip: !organizationId || currentTab !== 'people' }
   );
 
   const apiUsers = data?.data || [];
@@ -241,98 +293,218 @@ export function UserListView() {
           { name: 'Dashboard', href: isOwnerDirectory ? paths.owner.root : paths.siteManager.root },
           {
             name: 'Directory',
-            href: isOwnerDirectory ? paths.owner.directory.root : paths.siteManager.directory.root,
+            href: basePath,
           },
-          { name: 'List' },
+          {
+            name:
+              currentTab === 'visits'
+                ? 'Visit invitations'
+                : currentTab === 'sessions'
+                ? 'Visit sessions'
+                : currentTab === 'accounts'
+                ? 'App accounts'
+                : 'List',
+          },
         ]}
         action={
-          <Stack direction={{ md: 'row', xs: 'column' }} spacing={1.5}>
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<Iconify icon="solar:export-bold" />}
-              onClick={() => { }}
+          currentTab === 'people' ? (
+            <Stack direction={{ md: 'row', xs: 'column' }} spacing={1.5}>
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<Iconify icon="solar:export-bold" />}
+                onClick={() => { }}
+              >
+                Export to CSV
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={openModal.onTrue}
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Add Employee
+              </Button>
+            </Stack>
+          ) : currentTab === 'sessions' ? null : (
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
             >
-              Export to CSV
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={openModal.onTrue}
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Add Employee
-            </Button>
-          </Stack>
+              {isOwnerDirectory && (
+                <InfiniteAutocomplete
+                  value={selectedSiteFilter}
+                  onChange={handleTopSiteChange}
+                  useQuery={useGetBranchesQuery}
+                  queryArgs={{ organizationId }}
+                  mapOption={mapBranchOption}
+                  extraOptions={EXTRA_BRANCH_OPTIONS}
+                  label="Site"
+                  placeholder="Search site..."
+                  disabled={!organizationId}
+                  size="small"
+                  sx={{ minWidth: { xs: 1, sm: 240 } }}
+                  textFieldProps={{
+                    InputProps: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Iconify
+                            icon="solar:buildings-2-bold-duotone"
+                            width={20}
+                            sx={{ color: 'text.disabled' }}
+                          />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              )}
+
+              {currentTab === 'visits' && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={openNewInvitationModal.onTrue}
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  New visit invitation
+                </Button>
+              )}
+
+              {currentTab === 'accounts' && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={openInviteAppModal.onTrue}
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  Invite to app
+                </Button>
+              )}
+            </Stack>
+          )
         }
-        sx={{ mb: { xs: 3, md: 5 } }}
+        sx={{ mb: { xs: 2, md: 3 } }}
       />
 
-      <Card>
-        <StatusTabsFilterWrapper
-          filterField={statusFilterField}
-          value={filters.state.siteStatus}
-          onChange={handleFilterChange}
-          getCount={getStatusCount}
-        />
+      <Tabs
+        value={currentTab}
+        onChange={handleTabChange}
+        sx={{
+          mb: { xs: 3, md: 3 },
+          borderBottom: 1,
+          borderColor: 'divider',
+          '& .MuiTab-root': {
+            typography: 'subtitle1',
+            fontWeight: 600,
+            textTransform: 'none',
+            fontSize: 16,
+            px: 2,
+            minHeight: 48,
+          },
+          '& .Mui-selected': {
+            color: 'primary.main',
+          },
+          '& .MuiTabs-indicator': {
+            backgroundColor: 'primary.main',
+            height: 3,
+          },
+        }}
+      >
+        <Tab value="people" label="People" />
+        <Tab value="visits" label="Visit invitations" />
+        <Tab value="sessions" label="Visit sessions" />
+        <Tab value="accounts" label="App accounts" />
+      </Tabs>
 
-        <FlexibleTableToolbar
-          filterFields={toolbarFilterFields}
-          filterValues={filters.state}
-          onFilterChange={handleFilterChange}
-          onSearchChange={handleSearchChange}
-        />
+      {currentTab === 'people' && (
+        <>
+          <Card>
+            <StatusTabsFilterWrapper
+              filterField={statusFilterField}
+              value={filters.state.siteStatus}
+              onChange={handleFilterChange}
+              getCount={getStatusCount}
+            />
 
-        <Box sx={{ position: 'relative' }}>
-          <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-              <TableHeadCustom headLabel={TABLE_HEAD} />
+            <FlexibleTableToolbar
+              filterFields={toolbarFilterFields}
+              filterValues={filters.state}
+              onFilterChange={handleFilterChange}
+              onSearchChange={handleSearchChange}
+            />
 
-              <TableBody>
-                {isLoading || isFetching ? (
-                  <TableBodySkeleton
-                    rowCount={table.rowsPerPage}
-                    cellCount={TABLE_HEAD.length}
-                    dense={table.dense}
-                  />
-                ) : (
-                  <>
-                    {tableData.map((row, index) => (
-                      <UserTableRow
-                        key={row.id}
-                        row={row}
-                        serialNumber={table.page * table.rowsPerPage + index + 1}
-                        selected={table.selected.includes(row.id)}
-                        onEditRow={() => handleEditRow(row)}
+            <Box sx={{ position: 'relative' }}>
+              <Scrollbar>
+                <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+                  <TableHeadCustom headLabel={TABLE_HEAD} />
+
+                  <TableBody>
+                    {isLoading || isFetching ? (
+                      <TableBodySkeleton
+                        rowCount={table.rowsPerPage}
+                        cellCount={TABLE_HEAD.length}
+                        dense={table.dense}
                       />
-                    ))}
+                    ) : (
+                      <>
+                        {tableData.map((row, index) => (
+                          <UserTableRow
+                            key={row.id}
+                            row={row}
+                            serialNumber={table.page * table.rowsPerPage + index + 1}
+                            selected={table.selected.includes(row.id)}
+                            onEditRow={() => handleEditRow(row)}
+                          />
+                        ))}
 
-                    <TableNoData notFound={notFound} />
-                  </>
-                )}
-              </TableBody>
-            </Table>
-          </Scrollbar>
-        </Box>
+                        <TableNoData notFound={notFound} />
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </Scrollbar>
+            </Box>
 
-        <QuickStatusChangeModal
-          open={openStatusChangeModal.value}
-          onClose={handleCloseStatusChangeModal}
-          currentUser={currentUser}
+            <QuickStatusChangeModal
+              open={openStatusChangeModal.value}
+              onClose={handleCloseStatusChangeModal}
+              currentUser={currentUser}
+            />
+
+            <TablePaginationCustom
+              page={table.page}
+              dense={table.dense}
+              count={totalRecords}
+              rowsPerPage={table.rowsPerPage}
+              onPageChange={table.onChangePage}
+              onChangeDense={table.onChangeDense}
+              onRowsPerPageChange={table.onChangeRowsPerPage}
+            />
+          </Card>
+
+          <QuickAddUserModal open={openModal.value} onClose={openModal.onFalse} currentUser={{}} />
+        </>
+      )}
+
+      {currentTab === 'visits' && (
+        <VisitInvitationsView
+          siteOptions={siteOptions}
+          openModal={openNewInvitationModal}
+          branchId={isOwnerDirectory ? selectedSiteFilter?.value : undefined}
         />
+      )}
 
-        <TablePaginationCustom
-          page={table.page}
-          dense={table.dense}
-          count={totalRecords}
-          rowsPerPage={table.rowsPerPage}
-          onPageChange={table.onChangePage}
-          onChangeDense={table.onChangeDense}
-          onRowsPerPageChange={table.onChangeRowsPerPage}
+      {currentTab === 'sessions' && <VisitSessionsView />}
+
+      {currentTab === 'accounts' && (
+        <AppAccountsView
+          siteOptions={siteOptions}
+          openModal={openInviteAppModal}
+          branchId={isOwnerDirectory ? selectedSiteFilter?.value : undefined}
         />
-      </Card>
-
-      <QuickAddUserModal open={openModal.value} onClose={openModal.onFalse} currentUser={{}} />
+      )}
     </DashboardContent>
   );
 }

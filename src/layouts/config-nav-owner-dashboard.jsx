@@ -78,6 +78,7 @@ export const navDataOwner = [
           paths.owner.appraisal,
           paths.owner.teamCompliance,
           paths.owner.training,
+          paths.owner.requirements,
         ],
         icon: ICONS.supervision,
         children: [
@@ -85,6 +86,7 @@ export const navDataOwner = [
           { title: 'Appraisal', path: paths.owner.appraisal },
           { title: 'Competencies', path: paths.owner.teamCompliance },
           { title: 'Training Record', path: paths.owner.training },
+          { title: 'Requirements', path: paths.owner.requirements },
         ],
       },
       {

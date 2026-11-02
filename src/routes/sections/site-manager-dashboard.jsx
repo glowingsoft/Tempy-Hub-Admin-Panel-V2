@@ -102,7 +102,9 @@ const AppraisalPage = lazy(() => import('src/pages/dashboard/active-routes/appra
 const AppraisalDetailPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/detail'));
 const AppraisalSignOffPage = lazy(() => import('src/pages/dashboard/active-routes/appraisals/sign-off'));
 const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance'));
+const TeamComplianceDetailPage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance/detail'));
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
+const RequirementsPage = lazy(() => import('src/pages/dashboard/active-routes/requirements'));
 
 //reports
 
@@ -167,6 +169,9 @@ export const siteManagerDashboardRoutes = [
         path: 'directory',
         children: [
           { index: true, element: <UserListPage /> },
+          { path: 'visitor-invitation', element: <UserListPage /> },
+          { path: 'visit-sessions', element: <UserListPage /> },
+          { path: 'app-accounts', element: <UserListPage /> },
           { path: ":id", element: <UserDetailPage /> }
         ]
       },
@@ -253,10 +258,17 @@ export const siteManagerDashboardRoutes = [
         ],
       },
       {
-        path: "team-compliance", element: <TeamCompliancePage />
+        path: 'team-compliance',
+        children: [
+          { index: true, element: <TeamCompliancePage /> },
+          { path: ':id', element: <TeamComplianceDetailPage /> },
+        ],
       },
       {
         path: "training", element: <TrainingPage />
+      },
+      {
+        path: "requirements", element: <RequirementsPage />
       },
       {
         path: "configuration", element: <ConfigurationPage />

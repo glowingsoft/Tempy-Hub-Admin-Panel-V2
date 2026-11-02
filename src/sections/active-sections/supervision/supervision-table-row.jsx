@@ -43,14 +43,24 @@ export function statusText(row) {
     return '—';
 }
 
-const SupervisionTableRow = ({ row, onLog, onComplete, onSignOff, serialNumber }) => {
+const SupervisionTableRow = ({
+    row,
+    onLog,
+    onComplete,
+    onSignOff,
+    serialNumber,
+    readOnly = false,
+}) => {
     const router = useRouter();
     const pathname = usePathname();
     const rowId = row._id || row.id || row.staffId;
+    const isStaffView = readOnly || pathname.startsWith(`${paths.staff.root}/`);
 
     let detailPath = paths.lineManager.supervisionDetail(rowId);
     let signOffPath = paths.lineManager.supervisionSignOff(rowId);
-    if (pathname.startsWith('/site-manager')) {
+    if (isStaffView) {
+        detailPath = paths.staff.supervisionDetail(rowId);
+    } else if (pathname.startsWith('/site-manager')) {
         detailPath = paths.siteManager.supervisionDetail(rowId);
         signOffPath = paths.siteManager.supervisionSignOff(rowId);
     } else if (pathname.startsWith('/owner-dashboard')) {
@@ -66,7 +76,7 @@ const SupervisionTableRow = ({ row, onLog, onComplete, onSignOff, serialNumber }
     const isLineManager = pathname.startsWith('/line-manager');
     const canComplete = !isLineManager && !isCompleted;
 
-    const actions = [
+    const managementActions = [
         ...(!isCompleted
             ? [
                   {
@@ -121,6 +131,9 @@ const SupervisionTableRow = ({ row, onLog, onComplete, onSignOff, serialNumber }
             onClick: () => router.push(detailPath),
         },
     ];
+    const actions = isStaffView
+        ? managementActions.filter((action) => action.key === 'view')
+        : managementActions;
 
     const staffObj =
         (typeof row.staff === 'object' ? row.staff : null) ||
@@ -208,15 +221,16 @@ const SupervisionTableRow = ({ row, onLog, onComplete, onSignOff, serialNumber }
                 </Label>
             </TableCell>
 
-            {/* Actions */}
-            <TableCell align="center">
-                <Box
-                    onClick={(event) => event.stopPropagation()}
-                    sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                >
-                    <GenericTableRowActions actions={actions} />
-                </Box>
-            </TableCell>
+            {!isStaffView && (
+                <TableCell align="center">
+                    <Box
+                        onClick={(event) => event.stopPropagation()}
+                        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                    >
+                        <GenericTableRowActions actions={actions} />
+                    </Box>
+                </TableCell>
+            )}
         </TableRow>
     );
 };
@@ -227,6 +241,7 @@ SupervisionTableRow.propTypes = {
     onComplete: PropTypes.func,
     onSignOff: PropTypes.func,
     serialNumber: PropTypes.number,
+    readOnly: PropTypes.bool,
 };
 
 export default SupervisionTableRow;

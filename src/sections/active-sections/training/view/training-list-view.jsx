@@ -1,102 +1,70 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import PropTypes from 'prop-types';
 
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
-import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
+import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { Iconify } from 'src/components/iconify';
-import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { TeamDevelopmentTabs } from 'src/components/team-development-tabs';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
+import {
+  TableBodySkeleton,
+  TableHeadCustom,
+  TableNoData,
+  TablePaginationCustom,
+  useTable,
+} from 'src/components/table';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
 import { fDate } from 'src/utils/format-time';
+import { useGetTrainingRecordsQuery } from 'src/store/Reducer/assignments-api';
 
-const _mockTrainingRecords = [
-  {
-    id: 'tr1',
-    name: 'Amara Nwosu',
-    role: 'Care Assistant',
-    course: 'Safeguarding Adults Level 2',
-    category: 'Mandatory',
-    provider: 'e-Learning Portal',
-    completionDate: '2026-03-01',
-    expiryDate: '2027-03-01',
-    progress: 100,
-    status: 'completed',
-  },
-  {
-    id: 'tr2',
-    name: 'Priya Nair',
-    role: 'Senior Carer',
-    course: 'Fire Safety Refresher',
-    category: 'Mandatory',
-    provider: 'On-site Practical',
-    completionDate: '2025-11-20',
-    expiryDate: '2026-11-20',
-    progress: 100,
-    status: 'completed',
-  },
-  {
-    id: 'tr3',
-    name: 'Sam Okafor',
-    role: 'Senior Carer',
-    course: 'Medication Administration',
-    category: 'Clinical',
-    provider: 'NHS Academy',
-    completionDate: '—',
-    expiryDate: '2026-10-15',
-    progress: 45,
-    status: 'in_progress',
-  },
-  {
-    id: 'tr4',
-    name: 'Grace Obi',
-    role: 'Care Assistant',
-    course: 'Manual Handling & Moving',
-    category: 'Mandatory',
-    provider: 'Internal Assessor',
-    completionDate: '2024-08-10',
-    expiryDate: '2025-08-10',
-    progress: 100,
-    status: 'expired',
-  },
-];
+import { TrainingRecordTableRow } from '../training-record-table-row';
+import { AddTrainingRecordDialog } from '../add-training-record-dialog';
+
+// ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
-  { id: 'sr#', label: 'Sr#', width: 50 },
+  { id: 'sr#', label: 'Sr#', width: 60 },
   { id: 'staff', label: 'Staff Member' },
-  { id: 'course', label: 'Course / Qualification' },
-  { id: 'category', label: 'Category' },
-  { id: 'progress', label: 'Progress', width: 160 },
-  { id: 'expiry', label: 'Expiry Date' },
+  { id: 'requirement', label: 'Requirement / Training' },
+  { id: 'dueDate', label: 'Due Date' },
+  { id: 'completedAt', label: 'Completed Date' },
+  { id: 'expiresAt', label: 'Expiry Date' },
   { id: 'status', label: 'Status', align: 'center' },
+  { id: 'actions', label: 'Actions', align: 'center' },
 ];
 
-const STATUS_COLOR = {
-  completed: 'success',
-  in_progress: 'warning',
-  expired: 'error',
-};
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'in_progress', label: 'In Progress', color: 'warning' },
+  { value: 'completed', label: 'Completed', color: 'success' },
+  { value: 'expired', label: 'Expired', color: 'error' },
+];
 
-const DEFAULT_FILTERS = { name: '', status: 'all' };
+const STATUS_FILTER_FIELD = createFilterField.status({
+  key: 'status',
+  options: STATUS_OPTIONS,
+  showCounts: true,
+});
+
+const DEFAULT_FILTERS = { keyword: '', status: 'all' };
+
+// ----------------------------------------------------------------------
 
 export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
   const pathname = usePathname();
@@ -108,8 +76,62 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
         ? paths.owner.root
         : paths.lineManager.root);
 
-  const table = useTable();
+  const { organizationId } = useCurrentOrganization();
+  const table = useTable({ defaultDense: true, defaultRowsPerPage: 10 });
   const filters = useSetState(DEFAULT_FILTERS);
+
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [openAddDialog, setOpenAddDialog] = useState(false);
+
+  const debouncedKeyword = useDebounce(filters.state.keyword, 500)?.trim();
+
+  // API Call to fetch training records
+  const { data, isLoading, isFetching } = useGetTrainingRecordsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      ...(debouncedKeyword ? { keyword: debouncedKeyword } : {}),
+      ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
+    },
+    { skip: !organizationId }
+  );
+
+  const records = useMemo(() => data?.data ?? [], [data]);
+  const totalRecords = data?.meta?.totalRecords ?? records.length;
+  const statusCounts = data?.meta?.statusCounts ?? data?.meta?.counts ?? {};
+
+  const getStatusCount = useCallback(
+    (statusValue) => {
+      // When backend returns statusCounts in meta
+      if (statusCounts && Object.keys(statusCounts).length > 0) {
+        if (statusValue === 'all') {
+          const sum = STATUS_OPTIONS.filter((o) => o.value !== 'all').reduce(
+            (acc, o) => acc + (Number(statusCounts[o.value]) || 0),
+            0
+          );
+          return sum || totalRecords || 0;
+        }
+        return statusCounts[statusValue] ?? 0;
+      }
+
+      // Temporary fallback until backend adds statusCounts
+      if (statusValue === 'all') {
+        return totalRecords || records.length;
+      }
+      return records.filter((r) => (r.status || r.cellStatus) === statusValue).length;
+    },
+    [statusCounts, totalRecords, records]
+  );
+
+  const toolbarFilterFields = useMemo(
+    () => [
+      createFilterField.search({
+        placeholder: 'Search staff, email, or requirement...',
+      }),
+    ],
+    []
+  );
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -122,49 +144,63 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
   const handleSearchChange = useCallback(
     (event) => {
       table.onResetPage();
-      filters.setState({ name: event.target.value });
+      filters.setState({ keyword: event.target.value });
     },
     [filters, table]
   );
 
-  const filteredRows = useMemo(() => {
-    const search = filters.state.name.trim().toLowerCase();
-    return _mockTrainingRecords.filter((row) => {
-      const matchesSearch = !search || row.name.toLowerCase().includes(search) || row.course.toLowerCase().includes(search);
-      const matchesStatus = filters.state.status === 'all' || row.status === filters.state.status;
-      return matchesSearch && matchesStatus;
-    });
-  }, [filters.state.name, filters.state.status]);
+  const handleOpenAddRecord = useCallback((row) => {
+    setSelectedAssignment(row);
+    setOpenAddDialog(true);
+  }, []);
 
-  const paginatedRows = filteredRows.slice(
-    table.page * table.rowsPerPage,
-    table.page * table.rowsPerPage + table.rowsPerPage
-  );
+  const handleCloseAddRecord = useCallback(() => {
+    setSelectedAssignment(null);
+    setOpenAddDialog(false);
+  }, []);
 
   const handleExportCSV = useCallback(() => {
-    const exportData = filteredRows.map((row) => ({
-      Name: row.name,
-      Role: row.role,
-      Course: row.course,
-      Category: row.category,
-      Provider: row.provider,
-      'Completion Date': row.completionDate,
-      'Expiry Date': row.expiryDate,
-      Status: row.status,
+    const exportData = records.map((row) => ({
+      'Staff Name': row.staff?.name || '',
+      'Staff Email': row.staff?.email || '',
+      'Job Title': row.staff?.jobTitle?.name || '',
+      'Requirement': row.requirement?.name || '',
+      'Type': row.requirement?.type || '',
+      'Due Date': row.dueDate ? fDate(row.dueDate) : '',
+      'Completed Date': row.completedAt
+        ? fDate(row.completedAt)
+        : row.record?.completedAt
+          ? fDate(row.record.completedAt)
+          : '',
+      'Expiry Date': row.expiresAt ? fDate(row.expiresAt) : '',
+      'Status': row.status || row.cellStatus || '',
     }));
     exportToCSV(exportData, 'training-records-report.csv');
-  }, [filteredRows]);
+  }, [records]);
 
   const handleExportPDF = useCallback(() => {
     const columns = [
-      { id: 'name', label: 'Staff Member' },
-      { id: 'course', label: 'Course' },
-      { id: 'category', label: 'Category' },
-      { id: 'expiryDate', label: 'Expiry Date' },
+      { id: 'staffName', label: 'Staff Member' },
+      { id: 'requirementName', label: 'Course / Requirement' },
+      { id: 'type', label: 'Type' },
+      { id: 'dueDate', label: 'Due Date' },
+      { id: 'completedDate', label: 'Completed' },
       { id: 'status', label: 'Status' },
     ];
-    exportToPDF('Training Records Report', columns, filteredRows);
-  }, [filteredRows]);
+    const pdfData = records.map((row) => ({
+      staffName: row.staff?.name || row.staff?.email || '—',
+      requirementName: row.requirement?.name || '—',
+      type: row.requirement?.type || '—',
+      dueDate: row.dueDate ? fDate(row.dueDate) : '—',
+      completedDate: row.completedAt
+        ? fDate(row.completedAt)
+        : row.record?.completedAt
+          ? fDate(row.record.completedAt)
+          : '—',
+      status: row.status || row.cellStatus || '—',
+    }));
+    exportToPDF('Training Records Report', columns, pdfData);
+  }, [records]);
 
   return (
     <DashboardContent>
@@ -181,6 +217,7 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
               color="inherit"
               startIcon={<Iconify icon="solar:export-bold" />}
               onClick={handleExportCSV}
+              disabled={!records.length}
             >
               Export CSV
             </Button>
@@ -189,6 +226,7 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
               color="primary"
               startIcon={<Iconify icon="solar:printer-bold" />}
               onClick={handleExportPDF}
+              disabled={!records.length}
             >
               Export PDF
             </Button>
@@ -197,71 +235,49 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
         sx={{ mb: 3 }}
       />
 
-      <Card>
+      <TeamDevelopmentTabs />
+
+      <Card sx={{ mt: 3 }}>
+        <StatusTabsFilterWrapper
+          filterField={STATUS_FILTER_FIELD}
+          value={filters.state.status}
+          onChange={handleFilterChange}
+          getCount={getStatusCount}
+        />
+
         <FlexibleTableToolbar
-          filterFields={[
-            createFilterField.search({ placeholder: 'Search staff or course...' }),
-          ]}
+          filterFields={toolbarFilterFields}
           filterValues={filters.state}
           onFilterChange={handleFilterChange}
           onSearchChange={handleSearchChange}
         />
 
-        <TableContainer sx={{ overflow: 'unset' }}>
+        <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
           <Scrollbar>
-            <Table sx={{ minWidth: 800 }}>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 900 }}>
               <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>
-                {paginatedRows.map((row, index) => (
-                  <TableRow key={row.id} hover>
-                    <TableCell>{table.page * table.rowsPerPage + index + 1}</TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar alt={row.name}>{row.name.charAt(0)}</Avatar>
-                        <Stack>
-                          <Typography variant="body2" fontWeight={600}>
-                            {row.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {row.role}
-                          </Typography>
-                        </Stack>
-                      </Stack>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={500}>
-                        {row.course}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {row.provider}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={row.category} size="small" variant="soft" />
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ width: '100%' }}>
-                        <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                          <Typography variant="caption">{row.progress}%</Typography>
-                        </Stack>
-                        <LinearProgress
-                          variant="determinate"
-                          value={row.progress}
-                          color={row.progress === 100 ? 'success' : 'warning'}
-                        />
-                      </Box>
-                    </TableCell>
-                    <TableCell>{fDate(row.expiryDate)}</TableCell>
-                    <TableCell align="center">
-                      <Label color={STATUS_COLOR[row.status] || 'default'}>
-                        {row.status.replace('_', ' ')}
-                      </Label>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {isLoading || isFetching ? (
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={TABLE_HEAD.length}
+                    dense={table.dense}
+                  />
+                ) : (
+                  <>
+                    {records.map((row, index) => (
+                      <TrainingRecordTableRow
+                        key={row._id || row.assignmentId || index}
+                        row={row}
+                        serialNumber={table.page * table.rowsPerPage + index + 1}
+                        onAddRecord={handleOpenAddRecord}
+                      />
+                    ))}
 
-                <TableNoData notFound={!filteredRows.length} />
+                    <TableNoData notFound={records.length === 0} />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>
@@ -269,7 +285,7 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
 
         <TablePaginationCustom
           page={table.page}
-          count={filteredRows.length}
+          count={totalRecords}
           dense={table.dense}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
@@ -277,6 +293,17 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
           onChangeDense={table.onChangeDense}
         />
       </Card>
+
+      {/* Add Training Record Dialog */}
+      <AddTrainingRecordDialog
+        open={openAddDialog}
+        onClose={handleCloseAddRecord}
+        assignment={selectedAssignment}
+      />
     </DashboardContent>
   );
 }
+
+TrainingListView.propTypes = {
+  dashboardHref: PropTypes.string,
+};

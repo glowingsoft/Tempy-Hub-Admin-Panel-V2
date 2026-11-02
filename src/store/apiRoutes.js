@@ -97,6 +97,28 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/external-people`,
     EXTERNAL_PERSON_BY_ID: (externalPersonId) => `/admin/external-people/${externalPersonId}`,
 
+    // Visitor Invitations
+    ORGANIZATION_VISITOR_INVITATIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/visitor-invitations`,
+    VISITOR_INVITATION_RESEND: (invitationId) =>
+        `/admin/visitor-invitations/${invitationId}/resend`,
+
+    // Visit Sessions
+    ORGANIZATION_VISIT_SESSIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/visit-sessions`,
+    VISIT_SESSION_APPROVE: (visitSessionId) =>
+        `/admin/visit-sessions/${visitSessionId}/approve`,
+    VISIT_SESSION_DENY: (visitSessionId) =>
+        `/admin/visit-sessions/${visitSessionId}/deny`,
+
+    // Visitor Account Invitations (App Accounts)
+    ORGANIZATION_VISITOR_ACCOUNT_INVITATIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/visitor-account-invitations`,
+    VISITOR_ACCOUNT_INVITATION_RESEND: (organizationId, invitationId) =>
+        `/admin/organizations/${organizationId}/visitor-account-invitations/${invitationId}/resend`,
+    VISITOR_ACCOUNT_INVITATION_REVOKE: (organizationId, invitationId) =>
+        `/admin/organizations/${organizationId}/visitor-account-invitations/${invitationId}/revoke`,
+
     // Evacuations & Fire Drills
     ORGANIZATION_EVACUATIONS: (organizationId) =>
         `/admin/organizations/${organizationId}/evacuations`,
@@ -222,4 +244,22 @@ export const API_ROUTES = {
     KIOSKS: '/admin/kiosks',
     KIOSK_BY_ID: (kioskId) => `/admin/kiosks/${kioskId}`,
     KIOSK_TOGGLE_LOCK: (kioskId) => `/admin/kiosks/${kioskId}/toggle-lock`,
+
+    // Requirements & Competencies
+    ORGANIZATION_REQUIREMENTS: (organizationId) =>
+        `/admin/organizations/${organizationId}/requirements`,
+    ORGANIZATION_REQUIREMENT_BY_ID: (organizationId, requirementId) =>
+        `/admin/organizations/${organizationId}/requirements/${requirementId}`,
+
+    // Assignments & Competency Matrix
+    ORGANIZATION_ASSIGNMENTS: (organizationId) =>
+        `/admin/organizations/${organizationId}/assignments`,
+    ASSIGNMENT_BY_ID: (assignmentId) =>
+        `/admin/assignments/${assignmentId}`,
+    ASSIGNMENT_RECORDS: (assignmentId) =>
+        `/admin/assignments/${assignmentId}/records`,
+    ORGANIZATION_TRAINING_RECORDS: (organizationId) =>
+        `/admin/organizations/${organizationId}/training-records`,
+    COMPETENCY_MATRIX: (organizationId) =>
+        `/admin/organizations/${organizationId}/competency-matrix`,
 };

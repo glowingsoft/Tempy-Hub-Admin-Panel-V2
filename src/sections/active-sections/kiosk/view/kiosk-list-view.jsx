@@ -147,7 +147,7 @@ const FILTER_FIELDS = [
 
 export function KioskListView({ ownerDashboard = false }) {
   const router = useRouter();
-  const table = useTable();
+  const table = useTable({ defaultDense: true });
   const { organizationId, isOwner, user } = useCurrentOrganization();
 
   const isFullOwner = ownerDashboard || isOwner;

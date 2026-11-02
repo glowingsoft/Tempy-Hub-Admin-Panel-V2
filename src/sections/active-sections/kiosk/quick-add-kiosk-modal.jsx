@@ -16,8 +16,9 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { getAssignedBranch } from 'src/sections/org-rollup/utils';
-import { useGetBranchesQuery, useGetBranchQuery } from 'src/store/Reducer/branches-api';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useCreateKioskMutation,
   useUpdateKioskMutation,
@@ -62,26 +63,28 @@ export default function QuickAddKioskModal({
 
   const isFullOwner = ownerDashboard || isOwner;
 
-  // Site manager's assigned branch
-  const assigned = getAssignedBranch(user);
-  const userBranchId =
-    assigned?.id ||
-    user?.branchId?._id ||
-    user?.branchId ||
-    (typeof user?.branch === 'object' ? user?.branch?._id : user?.branch) ||
-    '';
-
-  const { data: userBranchData } = useGetBranchQuery(
-    { branchId: userBranchId, organizationId },
-    { skip: !userBranchId || !organizationId || Boolean(assigned?.name) }
+  const { branchesMap, isBranchesFetching } = useOrganizationLookups({
+    organizationId,
+    branches: open && !isFullOwner,
+    jobTitles: false,
+    departments: false,
+    members: false,
+  });
+  const assignedBranch = getAssignedBranch(user, organizationId);
+  const assignedBranchId = assignedBranch?.id || '';
+  const userBranchName = branchesMap[assignedBranchId]?.name || '';
+  const userBranchOption = useMemo(
+    () =>
+      assignedBranchId
+        ? {
+            value: assignedBranchId,
+            label:
+              userBranchName ||
+              (isBranchesFetching ? 'Loading site name...' : 'Site name unavailable'),
+          }
+        : null,
+    [assignedBranchId, userBranchName, isBranchesFetching]
   );
-
-  const userBranchName =
-    assigned?.name ||
-    userBranchData?.data?.name ||
-    user?.branch?.name ||
-    user?.branchName ||
-    'Assigned Site';
 
   const defaultBranchOption = useMemo(() => {
     if (currentKiosk?.branch) {
@@ -96,14 +99,9 @@ export default function QuickAddKioskModal({
         label: currentKiosk.branchName || currentKiosk.site?.name || 'Site',
       };
     }
-    if (!isFullOwner && userBranchId) {
-      return {
-        value: userBranchId,
-        label: userBranchName,
-      };
-    }
+    if (!isFullOwner) return userBranchOption;
     return null;
-  }, [currentKiosk, isFullOwner, userBranchId, userBranchName]);
+  }, [currentKiosk, isFullOwner, userBranchOption]);
 
   const defaultValues = useMemo(
     () => ({
@@ -157,9 +155,15 @@ export default function QuickAddKioskModal({
         toast.success('Device updated successfully!');
       } else {
         // POST api/admin/kiosks
-        const branchId = data.branch?.value || userBranchId;
+        const branchId = isFullOwner ? data.branch?.value : assignedBranchId;
         if (!branchId) {
           toast.error('Please select a site');
+          return;
+        }
+        if (!isFullOwner && !userBranchName) {
+          toast.error(
+            'Your assigned site could not be found in this organization. Please contact an administrator.'
+          );
           return;
         }
 
@@ -216,7 +220,11 @@ export default function QuickAddKioskModal({
               disabled={!isFullOwner || isEdit}
               helperText={
                 !isFullOwner
-                  ? 'Locked to your assigned site'
+                  ? assignedBranchId
+                    ? userBranchName || isBranchesFetching
+                      ? 'Locked to your assigned site'
+                      : 'Your assigned site could not be found in this organization.'
+                    : 'Could not resolve your assigned site in this organization.'
                   : isEdit
                     ? 'Site cannot be changed after registration'
                     : undefined

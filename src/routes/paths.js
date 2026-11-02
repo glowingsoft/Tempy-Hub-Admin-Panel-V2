@@ -267,6 +267,9 @@ export const paths = {
     statistics: `${ROOTS.SITE_MANAGER}/statistics`,
     directory: {
       root: `${ROOTS.SITE_MANAGER}/directory`,
+      visitorInvitation: `${ROOTS.SITE_MANAGER}/directory/visitor-invitation`,
+      visitSessions: `${ROOTS.SITE_MANAGER}/directory/visit-sessions`,
+      appAccounts: `${ROOTS.SITE_MANAGER}/directory/app-accounts`,
       detail: (id) => `${ROOTS.SITE_MANAGER}/directory/${id}`,
     },
     residents: {
@@ -282,7 +285,9 @@ export const paths = {
     appraisalDetail: (id) => `${ROOTS.SITE_MANAGER}/appraisals/${id}`,
     appraisalSignOff: (id) => `${ROOTS.SITE_MANAGER}/appraisals/${id}/sign-off`,
     teamCompliance: `${ROOTS.SITE_MANAGER}/team-compliance`,
+    teamComplianceDetail: (id) => `${ROOTS.SITE_MANAGER}/team-compliance/${id}`,
     training: `${ROOTS.SITE_MANAGER}/training`,
+    requirements: `${ROOTS.SITE_MANAGER}/requirements`,
     invitaions: {
       root: `${ROOTS.SITE_MANAGER}/invitaions`,
       new: `${ROOTS.SITE_MANAGER}/invitaions/new`,
@@ -442,6 +447,7 @@ export const paths = {
     },
     teamAttendance: `${ROOTS.LINE_MANAGER}/team-attendance`,
     teamCompliance: `${ROOTS.LINE_MANAGER}/team-compliance`,
+    teamComplianceDetail: (id) => `${ROOTS.LINE_MANAGER}/team-compliance/${id}`,
     supervision: `${ROOTS.LINE_MANAGER}/supervision`,
     supervisionDetail: (id) => `${ROOTS.LINE_MANAGER}/supervision/${id}`,
     supervisionSignOff: (id) => `${ROOTS.LINE_MANAGER}/supervision/${id}/sign-off`,
@@ -449,6 +455,7 @@ export const paths = {
     appraisalDetail: (id) => `${ROOTS.LINE_MANAGER}/appraisals/${id}`,
     appraisalSignOff: (id) => `${ROOTS.LINE_MANAGER}/appraisals/${id}/sign-off`,
     training: `${ROOTS.LINE_MANAGER}/training`,
+    requirements: `${ROOTS.LINE_MANAGER}/requirements`,
     photoApproval: `${ROOTS.LINE_MANAGER}/photo-approval`,
     feedback: `${ROOTS.LINE_MANAGER}/feedback`,
     messages: `${ROOTS.LINE_MANAGER}/messages`,
@@ -561,6 +568,9 @@ export const paths = {
     },
     directory: {
       root: `${ROOTS.OWNER_DASHBOARD}/directory`,
+      visitorInvitation: `${ROOTS.OWNER_DASHBOARD}/directory/visitor-invitation`,
+      visitSessions: `${ROOTS.OWNER_DASHBOARD}/directory/visit-sessions`,
+      appAccounts: `${ROOTS.OWNER_DASHBOARD}/directory/app-accounts`,
       detail: (id) => `${ROOTS.OWNER_DASHBOARD}/directory/${id}`,
     },
     residents: {
@@ -607,7 +617,9 @@ export const paths = {
     appraisalDetail: (id) => `${ROOTS.OWNER_DASHBOARD}/appraisals/${id}`,
     appraisalSignOff: (id) => `${ROOTS.OWNER_DASHBOARD}/appraisals/${id}/sign-off`,
     teamCompliance: `${ROOTS.OWNER_DASHBOARD}/team-compliance`,
+    teamComplianceDetail: (id) => `${ROOTS.OWNER_DASHBOARD}/team-compliance/${id}`,
     training: `${ROOTS.OWNER_DASHBOARD}/training`,
+    requirements: `${ROOTS.OWNER_DASHBOARD}/requirements`,
     reports: `${ROOTS.OWNER_DASHBOARD}/reports`,
     messages: `${ROOTS.OWNER_DASHBOARD}/messages`,
     acknowledgements: (id) => `${ROOTS.OWNER_DASHBOARD}/documents/${id}/acknowledgements`,
@@ -673,7 +685,9 @@ export const paths = {
     shifts: `${ROOTS.STAFF}/shifts`,
     competencies: `${ROOTS.STAFF}/competencies`,
     supervision: `${ROOTS.STAFF}/supervision`,
+    supervisionDetail: (id) => `${ROOTS.STAFF}/supervision/${id}`,
     appraisal: `${ROOTS.STAFF}/appraisals`,
+    appraisalDetail: (id) => `${ROOTS.STAFF}/appraisals/${id}`,
     training: `${ROOTS.STAFF}/training`,
     leaveRequests: `${ROOTS.STAFF}/leave-requests`,
     documents: {

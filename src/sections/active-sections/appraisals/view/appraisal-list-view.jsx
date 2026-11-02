@@ -86,12 +86,22 @@ export function AppraisalListView({
   const router = useRouter();
   const dashboardHref =
     dashboardHrefProp ||
-    (pathname.startsWith(paths.siteManager.root)
-      ? paths.siteManager.root
-      : pathname.startsWith(paths.owner.root)
-        ? paths.owner.root
-        : paths.lineManager.root);
+    (pathname.startsWith(`${paths.staff.root}/`)
+      ? paths.staff.dashboard
+      : pathname.startsWith(paths.siteManager.root)
+        ? paths.siteManager.root
+        : pathname.startsWith(paths.owner.root)
+          ? paths.owner.root
+          : paths.lineManager.root);
   const { organizationId, user } = useCurrentOrganization();
+  const isStaffRoute = pathname.startsWith(`${paths.staff.root}/`);
+  const isStaffRole = user?.access?.memberships?.[0]?.role?.toLowerCase() === 'staff';
+  const isStaffView = isStaffRoute;
+  const currentStaffId = [
+    typeof user?.staffId === 'object' ? user.staffId?._id || user.staffId?.id : user?.staffId,
+    user?.basicInfo?._id,
+    user?.id,
+  ].find(Boolean);
   const userBranchId = branchIdProp || user?.branchId?._id || user?.branchId;
 
   const table = useTable({
@@ -122,18 +132,20 @@ export function AppraisalListView({
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
+      ...(isStaffView && currentStaffId ? { staffId: currentStaffId } : {}),
       ...(userBranchId ? { branchId: userBranchId } : {}),
       ...(trimmedKeyword ? { keyword: trimmedKeyword, search: trimmedKeyword } : {}),
       ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
     },
-    { skip: !organizationId }
+    { skip: !organizationId || (isStaffView && (!isStaffRole || !currentStaffId)) }
   );
 
   const rawList = useMemo(() => {
     if (Array.isArray(liveData)) return liveData;
     if (Array.isArray(liveData?.data)) return liveData.data;
+    if (isStaffView) return [];
     return _mockAppraisals;
-  }, [liveData]);
+  }, [liveData, isStaffView]);
 
   const counts = liveData?.meta?.counts ?? {};
   const totalRecords =
@@ -292,14 +304,16 @@ export function AppraisalListView({
         ]}
         action={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<Iconify icon="solar:calendar-add-bold" />}
-              onClick={() => handleOpenBook(null)}
-            >
-              Book Appraisal
-            </Button>
+            {!isStaffView && (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Iconify icon="solar:calendar-add-bold" />}
+                onClick={() => handleOpenBook(null)}
+              >
+                Book Appraisal
+              </Button>
+            )}
             <Button
               variant="outlined"
               color="inherit"
@@ -322,6 +336,13 @@ export function AppraisalListView({
       />
 
       <Card>
+        {isStaffView && (!isStaffRole || !currentStaffId) && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {!isStaffRole
+              ? 'Your account is not associated with a staff membership.'
+              : 'Could not determine your staff profile. Contact your administrator.'}
+          </Alert>
+        )}
         <StatusTabsFilterWrapper
           filterField={statusFilterField}
           value={filters.state.status}
@@ -340,7 +361,9 @@ export function AppraisalListView({
           <TableContainer>
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
-                <TableHeadCustom headLabel={TABLE_HEAD} />
+                <TableHeadCustom
+                  headLabel={isStaffView ? TABLE_HEAD.filter((column) => column.id !== 'actions') : TABLE_HEAD}
+                />
 
                 <TableBody>
                   {isLoading || isFetching ? (
@@ -378,13 +401,14 @@ export function AppraisalListView({
                             sx={{ borderRadius: 1, mx: 'auto' }}
                           />
                         </TableCell>
-                        {/* Actions */}
-                        <TableCell align="center" sx={{ py: table.dense ? 0.8 : 1.5 }}>
-                          <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-                            <Skeleton variant="circular" width={28} height={28} />
-                            <Skeleton variant="circular" width={28} height={28} />
-                          </Stack>
-                        </TableCell>
+                        {!isStaffView && (
+                          <TableCell align="center" sx={{ py: table.dense ? 0.8 : 1.5 }}>
+                            <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+                              <Skeleton variant="circular" width={28} height={28} />
+                              <Skeleton variant="circular" width={28} height={28} />
+                            </Stack>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   ) : (
@@ -398,6 +422,7 @@ export function AppraisalListView({
                           onComplete={() => handleOpenComplete(row)}
                           onSignOff={() => handleOpenSignOff(row)}
                           basePath={basePath}
+                          readOnly={isStaffView}
                         />
                       ))}
 
@@ -421,59 +446,63 @@ export function AppraisalListView({
         </Box>
       </Card>
 
-      <BookAppraisalDialog
-        open={bookModal.value}
-        row={selectedRow}
-        organizationId={organizationId}
-        branchId={userBranchId}
-        onClose={() => {
-          bookModal.onFalse();
-          setSelectedRow(null);
-        }}
-        onSave={handleSaveBook}
-      />
+      {!isStaffView && (
+        <>
+          <BookAppraisalDialog
+            open={bookModal.value}
+            row={selectedRow}
+            organizationId={organizationId}
+            branchId={userBranchId}
+            onClose={() => {
+              bookModal.onFalse();
+              setSelectedRow(null);
+            }}
+            onSave={handleSaveBook}
+          />
 
-      <LogAppraisalDialog
-        open={logModal.value}
-        row={selectedRow}
-        onClose={() => {
-          logModal.onFalse();
-          setSelectedRow(null);
-        }}
-        onSave={() => {
-          refetch();
-          logModal.onFalse();
-          setSelectedRow(null);
-        }}
-      />
+          <LogAppraisalDialog
+            open={logModal.value}
+            row={selectedRow}
+            onClose={() => {
+              logModal.onFalse();
+              setSelectedRow(null);
+            }}
+            onSave={() => {
+              refetch();
+              logModal.onFalse();
+              setSelectedRow(null);
+            }}
+          />
 
-      <CompleteAppraisalDialog
-        open={completeModal.value}
-        row={selectedRow}
-        organizationId={organizationId}
-        onClose={() => {
-          completeModal.onFalse();
-          setSelectedRow(null);
-        }}
-        onSave={handleSaveComplete}
-      />
+          <CompleteAppraisalDialog
+            open={completeModal.value}
+            row={selectedRow}
+            organizationId={organizationId}
+            onClose={() => {
+              completeModal.onFalse();
+              setSelectedRow(null);
+            }}
+            onSave={handleSaveComplete}
+          />
 
-      <SessionSignOffDialog
-        open={signOffModal.value}
-        session={selectedRow}
-        organizationId={organizationId}
-        type="appraisal"
-        onClose={() => {
-          signOffModal.onFalse();
-          setSelectedRow(null);
-        }}
-        onSave={() => {
-          refetch();
-          signOffModal.onFalse();
-          setSelectedRow(null);
-        }}
-        readOnly={Boolean(selectedRow?.signedOff || selectedRow?.signature)}
-      />
+          <SessionSignOffDialog
+            open={signOffModal.value}
+            session={selectedRow}
+            organizationId={organizationId}
+            type="appraisal"
+            onClose={() => {
+              signOffModal.onFalse();
+              setSelectedRow(null);
+            }}
+            onSave={() => {
+              refetch();
+              signOffModal.onFalse();
+              setSelectedRow(null);
+            }}
+            readOnly={Boolean(selectedRow?.signedOff || selectedRow?.signature)}
+          />
+        </>
+      )}
     </DashboardContent>
   );
 }
