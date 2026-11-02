@@ -39,7 +39,6 @@ import { competenciesApi } from './Reducer/competencies-api';
 import { assignmentsApi } from './Reducer/assignments-api';
 import { visitorApi } from './Reducer/visitor-api';
 
-// Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
 const persistStorage = {
   getItem: (key) => {
@@ -221,48 +220,3 @@ export const persistor = persistStore(store);
 
 // Setup listeners
 setupListeners(store.dispatch);
-
-// import { configureStore, createAction } from '@reduxjs/toolkit';
-// import { setupListeners } from '@reduxjs/toolkit/query';
-// import { persistReducer, persistStore } from 'redux-persist';
-// import storage from 'redux-persist/lib/storage';
-// import { authApi } from './Reducer/auth';
-// import userReducer from './slices/userSlice';
-// import { walletsApi } from './Reducer/wallets-api';
-// import { transactionsApi } from './Reducer/transactions-api';
-// import { categoriesApi } from './Reducer/categories-api';
-
-// const persistConfig = {
-//   key: 'root',
-//   storage,
-//   // whitelist: ['user'],
-// };
-
-// export const resetStore = createAction('RESET_STORE');
-
-// // Create a persisted reducer for the user slice
-// const persistedUserReducer = persistReducer(persistConfig, userReducer);
-
-// // Create the Redux store with the persisted reducer for the user slice
-// export const store = configureStore({
-//   reducer: {
-//     [categoriesApi.reducerPath]: categoriesApi.reducer,
-//     [transactionsApi.reducerPath]: transactionsApi.reducer,
-//     [walletsApi.reducerPath]: walletsApi.reducer,
-//     [authApi.reducerPath]: authApi.reducer,
-//     user: persistedUserReducer,
-//   },
-//   middleware: (getDefaultMiddleware) =>
-//     getDefaultMiddleware({
-//       serializableCheck: {
-//         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE', 'persist/REGISTER'],
-//       },
-//     }).concat(authApi.middleware,
-//       walletsApi.middleware, transactionsApi.middleware, categoriesApi.middleware),
-// });
-
-// // Initialize Redux Persist
-// export const persistor = persistStore(store);
-
-// // Setup listeners
-// setupListeners(store.dispatch);
