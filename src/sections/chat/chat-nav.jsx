@@ -1,65 +1,52 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Drawer from '@mui/material/Drawer';
-import { useTheme } from '@mui/material/styles';
+import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
-import ClickAwayListener from '@mui/material/ClickAwayListener';
+import { useTheme } from '@mui/material/styles';
 
 import { useRouter } from 'src/routes/hooks';
-
 import { useResponsive } from 'src/hooks/use-responsive';
-
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 
 import { ToggleButton } from './styles';
 import { ChatNavItem } from './chat-nav-item';
-import { ChatNavAccount } from './chat-nav-account';
 import { ChatNavItemSkeleton } from './chat-skeleton';
-import { ChatNavSearchResults } from './chat-nav-search-results';
+import { getConversationId } from './utils';
 
 // ----------------------------------------------------------------------
 
-const NAV_WIDTH = 320;
+const NAV_WIDTH = 300;
 
-const NAV_COLLAPSE_WIDTH = 96;
-
-// ----------------------------------------------------------------------
+const NAV_COLLAPSE_WIDTH = 64;
 
 export function ChatNav({
   loading,
   contacts,
-  conversations,
+  canLoadMore,
+  onLoadMore,
+  keyword,
+  onKeywordChange,
   collapseNav,
   selectedConversationId,
   basePath,
 }) {
   const theme = useTheme();
-
   const router = useRouter();
-
   const mdUp = useResponsive('up', 'md');
 
   const {
     openMobile,
     onOpenMobile,
     onCloseMobile,
-    onCloseDesktop,
     collapseDesktop,
     onCollapseDesktop,
   } = collapseNav;
-
-  const [searchContacts, setSearchContacts] = useState({ query: '', results: [] });
-
-  useEffect(() => {
-    if (!mdUp) {
-      onCloseDesktop();
-    }
-  }, [onCloseDesktop, mdUp]);
 
   const handleToggleNav = useCallback(() => {
     if (mdUp) {
@@ -76,110 +63,95 @@ export function ChatNav({
     router.push(basePath);
   }, [basePath, mdUp, onCloseMobile, router]);
 
-  const handleSearchContacts = useCallback(
-    (inputValue) => {
-      setSearchContacts((prevState) => ({ ...prevState, query: inputValue }));
-
-      if (inputValue) {
-        const results = contacts.filter((contact) =>
-          contact.name.toLowerCase().includes(inputValue)
-        );
-
-        setSearchContacts((prevState) => ({ ...prevState, results }));
+  const handleScroll = useCallback(
+    (event) => {
+      if (loading || !canLoadMore) return;
+      const listbox = event.currentTarget;
+      const distanceFromBottom = listbox.scrollHeight - listbox.scrollTop - listbox.clientHeight;
+      if (distanceFromBottom <= 48) {
+        onLoadMore?.();
       }
     },
-    [contacts]
-  );
-
-  const handleClickAwaySearch = useCallback(() => {
-    setSearchContacts({ query: '', results: [] });
-  }, []);
-
-  const handleClickResult = useCallback(
-    (result) => {
-      handleClickAwaySearch();
-
-      router.push(`${basePath}?id=${result.id}`);
-    },
-    [basePath, handleClickAwaySearch, router]
-  );
-
-  const renderLoading = <ChatNavItemSkeleton />;
-
-  const renderList = (
-    <nav>
-      <Box component="ul">
-        {conversations.allIds.map((conversationId) => (
-          <ChatNavItem
-            key={conversationId}
-            collapse={collapseDesktop}
-            conversation={conversations.byId[conversationId]}
-            selected={conversationId === selectedConversationId}
-            onCloseMobile={onCloseMobile}
-            basePath={basePath}
-          />
-        ))}
-      </Box>
-    </nav>
-  );
-
-  const renderListResults = (
-    <ChatNavSearchResults
-      query={searchContacts.query}
-      results={searchContacts.results}
-      onClickResult={handleClickResult}
-    />
-  );
-
-  const renderSearchInput = (
-    <ClickAwayListener onClickAway={handleClickAwaySearch}>
-      <TextField
-        fullWidth
-        value={searchContacts.query}
-        onChange={(event) => handleSearchContacts(event.target.value)}
-        placeholder="Search contacts..."
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-            </InputAdornment>
-          ),
-        }}
-        sx={{ mt: 2.5 }}
-      />
-    </ClickAwayListener>
+    [canLoadMore, loading, onLoadMore]
   );
 
   const renderContent = (
     <>
-      <Stack direction="row" alignItems="center" justifyContent="center" sx={{ p: 2.5, pb: 0 }}>
+      <Stack
+        direction={collapseDesktop ? 'column' : 'row'}
+        alignItems="center"
+        spacing={0.75}
+        sx={{ p: collapseDesktop ? 1 : 1.5, pb: collapseDesktop ? 1 : 1 }}
+      >
+        <Tooltip title="New message">
+          <IconButton color="primary" onClick={handleClickCompose} size="small">
+            <Iconify width={20} icon="solar:pen-new-square-bold" />
+          </IconButton>
+        </Tooltip>
+
         {!collapseDesktop && (
-          <>
-            <ChatNavAccount />
-            <Box sx={{ flexGrow: 1 }} />
-          </>
+          <TextField
+            fullWidth
+            size="small"
+            value={keyword}
+            onChange={(event) => onKeywordChange(event.target.value)}
+            placeholder="Search"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify width={18} icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
         )}
 
-        <IconButton onClick={handleToggleNav}>
+        <IconButton onClick={handleToggleNav} size="small">
           <Iconify
+            width={18}
             icon={collapseDesktop ? 'eva:arrow-ios-forward-fill' : 'eva:arrow-ios-back-fill'}
           />
         </IconButton>
-
-        {/* {!collapseDesktop && (
-          <IconButton onClick={handleClickCompose}>
-            <Iconify width={24} icon="solar:user-plus-bold" />
-          </IconButton>
-        )} */}
       </Stack>
 
-      <Box sx={{ p: 2.5, pt: 0 }}>{!collapseDesktop && renderSearchInput}</Box>
-
-      {loading ? (
-        renderLoading
+      {loading && !contacts.length ? (
+        <ChatNavItemSkeleton />
+      ) : collapseDesktop ? (
+        <Box sx={{ overflowY: 'auto', width: 1, px: 0.75, pb: 1 }} onScroll={handleScroll}>
+          <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
+            {contacts.map((contact) => {
+              const conversationId = getConversationId(contact);
+              return (
+                <ChatNavItem
+                  key={conversationId || contact.recipientId}
+                  collapse
+                  contact={contact}
+                  selected={conversationId === selectedConversationId}
+                  onCloseMobile={onCloseMobile}
+                  basePath={basePath}
+                />
+              );
+            })}
+          </Box>
+        </Box>
       ) : (
-        <Scrollbar sx={{ pb: 1 }}>
-          {searchContacts.query && !!conversations.allIds.length ? renderListResults : renderList}
+        <Scrollbar sx={{ pb: 1 }} slotProps={{ contentWrapper: { onScroll: handleScroll } }}>
+          <nav>
+            <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
+              {contacts.map((contact) => {
+                const conversationId = getConversationId(contact);
+                return (
+                  <ChatNavItem
+                    key={conversationId || contact.recipientId}
+                    contact={contact}
+                    selected={conversationId === selectedConversationId}
+                    onCloseMobile={onCloseMobile}
+                    basePath={basePath}
+                  />
+                );
+              })}
+            </Box>
+          </nav>
         </Scrollbar>
       )}
     </>
@@ -193,15 +165,23 @@ export function ChatNav({
 
       <Stack
         sx={{
+          height: 1,
           minHeight: 0,
           flex: '1 1 auto',
           width: NAV_WIDTH,
           display: { xs: 'none', md: 'flex' },
           borderRight: `solid 1px ${theme.vars.palette.divider}`,
+          bgcolor: 'background.neutral',
           transition: theme.transitions.create(['width'], {
             duration: theme.transitions.duration.shorter,
           }),
-          ...(collapseDesktop && { width: NAV_COLLAPSE_WIDTH }),
+          ...(collapseDesktop && {
+            width: NAV_COLLAPSE_WIDTH,
+            minWidth: NAV_COLLAPSE_WIDTH,
+            flex: '0 0 auto',
+            alignItems: 'center',
+            overflow: 'hidden',
+          }),
         }}
       >
         {renderContent}

@@ -34,7 +34,7 @@ export function FamilyModerationTableRow({
   onDisapprove,
   canModerate = true,
 }) {
-  const isWaiting = row.status === 'waiting';
+  const isPending = row.status === 'pending';
   const photoUrls = getPhotoUrls(row);
   const thumbnail = photoUrls[0];
   const photoCount = photoUrls.length;
@@ -50,7 +50,7 @@ export function FamilyModerationTableRow({
       color: 'default',
       onClick: onPreview,
     },
-    ...(isWaiting && canModerate
+    ...(isPending && canModerate
       ? [
         {
           key: 'approve',
@@ -171,7 +171,7 @@ export function FamilyModerationTableRow({
               ? `Reason: ${row.rejectionReason}`
               : row.status === 'approved' && row.decidedAt
                 ? `Approved${row.decidedByName ? ` by ${row.decidedByName}` : ''} on ${fDate(row.decidedAt)}`
-                : 'Waiting for approval'
+                : 'Pending approval'
           }
         >
           <Label variant="soft" color={statusMeta.color}>

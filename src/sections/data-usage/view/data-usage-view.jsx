@@ -1,55 +1,47 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
-import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
 
-import { paths } from 'src/routes/paths';
-import { useRouter, usePathname } from 'src/routes/hooks';
-import { CONFIG } from 'src/config-global';
-import { useDebounce } from 'src/hooks/use-debounce';
-import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Scrollbar } from 'src/components/scrollbar';
 import {
+  TableBodySkeleton,
   TableHeadCustom,
   TableNoData,
   TablePaginationCustom,
   useTable,
 } from 'src/components/table';
+import { CONFIG } from 'src/config-global';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useDebounce } from 'src/hooks/use-debounce';
+import { DashboardContent } from 'src/layouts/dashboard';
+import { usePathname, useRouter } from 'src/routes/hooks';
+import { paths } from 'src/routes/paths';
+import { useGetBillingUsageQuery } from 'src/store/Reducer/billing-api';
+import { useGetOrganizationsQuery } from 'src/store/Reducer/organizations-api';
 
-import {
-  getAllDataUsageRows,
-  getDataUsageStats,
-} from '../mocks/data-usage';
+import { OrganizationCreateEditModal } from 'src/sections/organization/organization-create-edit-modal';
 import { DataUsageSummaryCard } from '../data-usage-summary-card';
 import { DataUsageTableRow } from '../data-usage-table-row';
 import { DataUsageTableToolbar } from '../data-usage-table-toolbar';
-import { OrganizationCreateEditModal } from 'src/sections/organization/organization-create-edit-modal';
-
-// ----------------------------------------------------------------------
-
-const TABLE_HEAD = [
-  { id: 'name', label: 'Organization', minWidth: 240 },
-  { id: 'totalUsedGb', label: 'Total Used', minWidth: 140 },
-  { id: 'imageUsageGb', label: 'Image Usage', minWidth: 160 },
-  { id: 'otherFilesGb', label: 'Other Files', minWidth: 140 },
-  { id: 'usagePercentage', label: 'Usage %', minWidth: 180 },
-  { id: 'actions', label: 'Actions', width: 80, align: 'right' },
-];
+import {
+  formatGb,
+  getBillingSortParam,
+  mapUsageListRow,
+  mapUsageSummary,
+} from '../utils';
 
 // ----------------------------------------------------------------------
 
 export function DataUsageView({ rootPath = paths.dashboard.root }) {
-  const theme = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const table = useTable({ defaultOrderBy: 'totalUsedGb', defaultOrder: 'desc' });
+  const { organizationId: currentOrganizationId, isOwner } = useCurrentOrganization();
 
-  const isOwner = pathname.startsWith(paths.owner.root);
   const isAdminDashboard = pathname.startsWith(paths.adminDashboard.root);
 
   const currentRoot = isOwner
@@ -71,19 +63,73 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
     [isOwner, isAdminDashboard]
   );
 
-  // Filter and search states
   const [selectedOrgId, setSelectedOrgId] = useState('all');
   const [organizationToEdit, setOrganizationToEdit] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  // All raw data rows bound to current organizations
-  const allRows = useMemo(() => getAllDataUsageRows(), []);
+  const filterOrganizationId =
+    isOwner ? undefined : selectedOrgId !== 'all' ? selectedOrgId : undefined;
 
-  // Summary statistics calculated dynamically based on selected organization
-  const stats = useMemo(() => getDataUsageStats(selectedOrgId), [selectedOrgId]);
+  const { data, isLoading, isFetching, isError, refetch } = useGetBillingUsageQuery(
+    {
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      keyword: debouncedSearch,
+      sort: getBillingSortParam(table.orderBy, table.order),
+      organizationId: filterOrganizationId,
+      headerOrganizationId: isOwner ? currentOrganizationId : undefined,
+    },
+    { skip: isOwner && !currentOrganizationId }
+  );
 
-  // Handle organization filter change from dropdown
+  const { data: organizationsData } = useGetOrganizationsQuery(
+    { page: 1, limit: 100 },
+    { skip: isOwner }
+  );
+
+  const meta = data?.meta ?? {};
+  const rows = useMemo(() => {
+    const mapped = (data?.data ?? []).map(mapUsageListRow);
+    if (!meta.organization?.canEdit) return mapped;
+    return mapped.map((row) => ({ ...row, canEdit: true }));
+  }, [data, meta.organization?.canEdit]);
+  const stats = useMemo(
+    () =>
+      mapUsageSummary(meta.summary, {
+        isFiltered: Boolean(filterOrganizationId) || isOwner,
+        organization: meta.organization,
+      }),
+    [filterOrganizationId, isOwner, meta.organization, meta.summary]
+  );
+
+  const organizationOptions = useMemo(() => {
+    const fromApi = (organizationsData?.data ?? []).map((org) => ({
+      id: org._id || org.organizationId,
+      name: org.name,
+    }));
+    if (fromApi.length) return fromApi;
+    return rows
+      .filter((row) => row.organizationId)
+      .map((row) => ({ id: row.organizationId, name: row.name }));
+  }, [organizationsData, rows]);
+
+  const tableHead = useMemo(
+    () => [
+      {
+        id: 'name',
+        label: rows.some((row) => row.isSite) ? 'Site' : 'Organization',
+        minWidth: 240,
+      },
+      { id: 'totalUsedGb', label: 'Total Used', minWidth: 140 },
+      { id: 'imageUsageGb', label: 'Image Usage', minWidth: 160 },
+      { id: 'otherFilesGb', label: 'Other Files', minWidth: 140 },
+      { id: 'usagePercentage', label: 'Usage %', minWidth: 180 },
+      { id: 'actions', label: 'Actions', width: 80, align: 'right' },
+    ],
+    [rows]
+  );
+
   const handleOrgChange = useCallback(
     (orgId) => {
       setSelectedOrgId(orgId);
@@ -92,7 +138,6 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
     [table]
   );
 
-  // Handle search input change
   const handleSearchChange = useCallback(
     (value) => {
       setSearchQuery(value);
@@ -101,85 +146,49 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
     [table]
   );
 
-  // Reset all filters
   const handleResetFilters = useCallback(() => {
     setSelectedOrgId('all');
     setSearchQuery('');
     table.onResetPage();
   }, [table]);
 
-  const canReset = selectedOrgId !== 'all' || !!searchQuery;
+  const canReset = (!isOwner && selectedOrgId !== 'all') || !!searchQuery;
+  const loading = isLoading || isFetching;
+  const notFound = !loading && !rows.length;
+  const totalRecords = meta.totalRecords ?? rows.length;
 
-  // Navigate to organization detail page
   const handleViewDetail = useCallback(
     (id) => {
+      if (!id) return;
       router.push(currentDetailPath(id));
     },
     [router, currentDetailPath]
   );
 
-  const handleEditOrganization = useCallback((row) => {
-    setOrganizationToEdit({
-      _id: row.id,
-      name: row.name,
-      owner: {
-        name: row.ownerName,
-        email: row.ownerEmail,
-      },
-    });
-  }, []);
+  const handleEditOrganization = useCallback(
+    (row) => {
+      const organization = meta.organization;
+      const organizationId = row.organizationId || organization?.organizationId;
+      if (!organizationId) return;
 
-  // Filter and sort table data
-  const filteredData = useMemo(() => {
-    let list = [...allRows];
-
-    // Filter by organization dropdown if not 'all'
-    if (selectedOrgId && selectedOrgId !== 'all') {
-      list = list.filter((item) => item.id === selectedOrgId);
-    }
-
-    // Filter by debounced search keyword across org name, owner, and email
-    if (debouncedSearch) {
-      const query = debouncedSearch.toLowerCase().trim();
-      list = list.filter(
-        (item) =>
-          item.name.toLowerCase().includes(query) ||
-          item.ownerName.toLowerCase().includes(query) ||
-          item.ownerEmail.toLowerCase().includes(query)
-      );
-    }
-
-    // Sort according to table order and orderBy
-    if (table.orderBy) {
-      list.sort((a, b) => {
-        let aValue = a[table.orderBy];
-        let bValue = b[table.orderBy];
-
-        if (typeof aValue === 'string') {
-          aValue = aValue.toLowerCase();
-          bValue = (bValue || '').toLowerCase();
-        }
-
-        if (table.order === 'asc') {
-          return aValue > bValue ? 1 : -1;
-        }
-        return aValue < bValue ? 1 : -1;
+      setOrganizationToEdit({
+        _id: organizationId,
+        name: organization?.name || row.name,
+        owner: organization?.owner || {
+          name: row.ownerName,
+          email: row.ownerEmail,
+        },
+        settings: {
+          emergencyNotifyOffsite:
+            organization?.emergencyNotifyOffsite ?? row.emergencyNotifyOffsite ?? false,
+        },
       });
-    }
-
-    return list;
-  }, [allRows, selectedOrgId, debouncedSearch, table.order, table.orderBy]);
-
-  const paginatedData = useMemo(() => {
-    const start = table.page * table.rowsPerPage;
-    return filteredData.slice(start, start + table.rowsPerPage);
-  }, [filteredData, table.page, table.rowsPerPage]);
-
-  const notFound = !filteredData.length;
+    },
+    [meta.organization]
+  );
 
   return (
     <DashboardContent maxWidth="xl">
-      {/* Breadcrumbs & Title */}
       <CustomBreadcrumbs
         heading="Billing & Usage"
         links={[
@@ -189,7 +198,6 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
         sx={{ mb: { xs: 3, md: 4 } }}
       />
 
-      {/* 4 KPI Summary Cards: 2 cards in one row using flex */}
       <Box
         sx={{
           display: 'flex',
@@ -198,16 +206,15 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
           mb: { xs: 3, md: 4 },
         }}
       >
-        {/* Card 1: Total Data Used */}
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)' }, minWidth: 0 }}>
           <DataUsageSummaryCard
             title="Total Data Used"
-            total={`${stats.totalUsedGb} GB`}
+            total={`${formatGb(stats.totalUsedGb)} GB`}
             color="primary"
             icon={`${CONFIG.site.basePath}/assets/icons/navbar/ic-folder.svg`}
             subtitle={
               stats.isFiltered
-                ? `Limit: ${stats.quotaGb} GB plan`
+                ? `Limit: ${formatGb(stats.quotaGb)} GB plan`
                 : `${stats.organizationsCount} active organizations`
             }
             badge={{
@@ -222,37 +229,34 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
           />
         </Box>
 
-        {/* Card 2: Image Usage */}
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)' }, minWidth: 0 }}>
           <DataUsageSummaryCard
             title="Image Usage"
-            total={`${stats.imageUsageGb} GB`}
+            total={`${formatGb(stats.imageUsageGb)} GB`}
             color="info"
             icon="solar:gallery-wide-bold-duotone"
-            subtitle={`${stats.imageCount.toLocaleString()} images uploaded`}
+            subtitle={`${(stats.imageCount || 0).toLocaleString()} images uploaded`}
             badge={{
-              text: `${Math.round((stats.imageUsageGb / stats.totalUsedGb) * 100 || 0)}% of total`,
+              text: `${Math.round(stats.imagePercentOfTotal || 0)}% of total`,
               color: 'info',
             }}
           />
         </Box>
 
-        {/* Card 3: Other Files */}
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)' }, minWidth: 0 }}>
           <DataUsageSummaryCard
             title="Other Files"
-            total={`${stats.otherFilesGb} GB`}
+            total={`${formatGb(stats.otherFilesGb)} GB`}
             color="secondary"
             icon={`${CONFIG.site.basePath}/assets/icons/navbar/ic-document.svg`}
-            subtitle={`${stats.documentCount.toLocaleString()} files archived`}
+            subtitle={`${(stats.documentCount || 0).toLocaleString()} files archived`}
             badge={{
-              text: `${Math.round((stats.otherFilesGb / stats.totalUsedGb) * 100 || 0)}% of total`,
+              text: `${Math.round(stats.filesPercentOfTotal || 0)}% of total`,
               color: 'secondary',
             }}
           />
         </Box>
 
-        {/* Card 4: Billing Readiness */}
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)' }, minWidth: 0 }}>
           <DataUsageSummaryCard
             title="Billing Readiness"
@@ -261,66 +265,75 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
             icon={`${CONFIG.site.basePath}/assets/icons/navbar/ic-banking.svg`}
             subtitle={`Base Tier: £${stats.tierMonthlyCost}/mo`}
             badge={{
-              text: '£0.15/GB overage tier',
+              text: `£${stats.overageGbpPerGb}/GB overage tier`,
               color: 'warning',
             }}
           />
         </Box>
       </Box>
 
-      {/* Main Table Card */}
       <Card>
-        {/* Toolbar with Org Dropdown & Search (full-width search, no counts) */}
         <DataUsageTableToolbar
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
           selectedOrg={selectedOrgId}
           onOrgChange={handleOrgChange}
-          organizations={allRows}
+          organizations={organizationOptions}
+          showOrgFilter={!isOwner}
           onResetFilters={handleResetFilters}
           canReset={canReset}
         />
 
-        {/* Data Usage Table */}
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
               <TableHeadCustom
                 order={table.order}
                 orderBy={table.orderBy}
-                headLabel={TABLE_HEAD}
-                rowCount={filteredData.length}
+                headLabel={tableHead}
+                rowCount={rows.length}
                 numSelected={table.selected.length}
                 onSort={table.onSort}
               />
 
               <TableBody>
-                {paginatedData.map((row) => (
-                  <DataUsageTableRow
-                    key={row.id}
-                    row={row}
-                    onViewDetail={handleViewDetail}
-                    onEdit={handleEditOrganization}
+                {loading ? (
+                  <TableBodySkeleton
+                    rowCount={table.rowsPerPage}
+                    cellCount={tableHead.length}
+                    dense={table.dense}
                   />
-                ))}
+                ) : (
+                  <>
+                    {rows.map((row) => (
+                      <DataUsageTableRow
+                        key={row.id}
+                        row={row}
+                        onViewDetail={handleViewDetail}
+                        onEdit={handleEditOrganization}
+                      />
+                    ))}
 
-                <TableNoData
-                  notFound={notFound}
-                  title="No Organizations Found"
-                  subTitle={
-                    debouncedSearch
-                      ? `No organizations match the search term "${debouncedSearch}".`
-                      : 'No data usage records currently available.'
-                  }
-                />
+                    <TableNoData
+                      notFound={notFound}
+                      title={isError ? 'Unable to load usage' : 'No Organizations Found'}
+                      subTitle={
+                        isError
+                          ? 'Billing & usage could not be loaded. Try again shortly.'
+                          : debouncedSearch
+                            ? `No records match the search term "${debouncedSearch}".`
+                            : 'No data usage records currently available.'
+                      }
+                    />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>
         </Box>
 
-        {/* Pagination */}
         <TablePaginationCustom
-          count={filteredData.length}
+          count={totalRecords}
           page={table.page}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
@@ -334,7 +347,10 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
         open={!!organizationToEdit}
         onClose={() => setOrganizationToEdit(null)}
         currentOrganization={organizationToEdit}
-        onSuccess={() => setOrganizationToEdit(null)}
+        onSuccess={() => {
+          setOrganizationToEdit(null);
+          refetch();
+        }}
       />
     </DashboardContent>
   );

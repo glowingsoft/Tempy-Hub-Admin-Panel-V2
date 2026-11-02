@@ -262,4 +262,14 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/training-records`,
     COMPETENCY_MATRIX: (organizationId) =>
         `/admin/organizations/${organizationId}/competency-matrix`,
+
+    BILLING_USAGE: '/admin/billing/usage',
+    BILLING_USAGE_BY_ORG: (organizationId) => `/admin/billing/usage/${organizationId}`,
+
+    CHATS_CONTACTS: '/chats/contacts',
+    CHATS_CONTACT_MESSAGES: (conversationId) => `/chats/contacts/${conversationId}`,
+    CHATS_RECIPIENTS: '/chats/recipients',
+    CHATS_MESSAGE: '/chats/message',
+    CHATS_SENT: '/chats/sent',
+    CHATS_SENT_BY_ID: (broadcastId) => `/chats/sent/${broadcastId}`,
 };

@@ -19,6 +19,7 @@ export function DataUsageTableToolbar({
   selectedOrg,
   onOrgChange,
   organizations = [],
+  showOrgFilter = true,
   onResetFilters,
   canReset,
 }) {
@@ -29,7 +30,7 @@ export function DataUsageTableToolbar({
       direction={{ xs: 'column', sm: 'row' }}
       sx={{ p: 2.5 }}
     >
-      {/* Organization Filter Dropdown */}
+      {showOrgFilter && (
       <FormControl sx={{ flexShrink: 0, width: { xs: 1, sm: 260 } }}>
         <InputLabel id="org-filter-select-label">Filter by Organization</InputLabel>
         <Select
@@ -42,6 +43,11 @@ export function DataUsageTableToolbar({
             if (selected === 'all') return 'All Organizations';
             const found = organizations.find((o) => o.id === selected);
             return found ? found.name : selected;
+          }}
+          MenuProps={{
+            PaperProps: {
+              sx: { height: 280, maxHeight: 280, overflowY: 'auto' },
+            },
           }}
         >
           <MenuItem value="all">
@@ -56,12 +62,15 @@ export function DataUsageTableToolbar({
             <MenuItem key={org.id} value={org.id}>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Iconify icon="solar:buildings-bold-duotone" width={20} sx={{ color: 'text.secondary' }} />
-                <Typography variant="body2">{org.name}</Typography>
+                <Typography variant="body2" noWrap>
+                  {org.name}
+                </Typography>
               </Stack>
             </MenuItem>
           ))}
         </Select>
       </FormControl>
+      )}
 
       {/* Expanded Search Input Bar */}
       <TextField

@@ -1,105 +1,33 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
+import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import InputBase from '@mui/material/InputBase';
 import IconButton from '@mui/material/IconButton';
 
-import { useRouter } from 'src/routes/hooks';
-
-import { uuidv4 } from 'src/utils/uuidv4';
-import { fSub, today } from 'src/utils/format-time';
-
-import { sendMessage, createConversation } from 'src/actions/chat';
-
 import { Iconify } from 'src/components/iconify';
-
-import { useMockedUser } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
-export function ChatMessageInput({
-  disabled,
-  recipients,
-  onAddRecipients,
-  selectedConversationId,
-  basePath,
-}) {
-  const router = useRouter();
-
-  const { user } = useMockedUser();
-
+export function ChatMessageInput({ disabled, sending, onSend }) {
   const [message, setMessage] = useState('');
 
-  const myContact = useMemo(
-    () => ({
-      id: `${user?.id}`,
-      role: `${user?.role}`,
-      email: `${user?.email}`,
-      address: `${user?.address}`,
-      name: `${user?.displayName}`,
-      lastActivity: today(),
-      avatarUrl: `${user?.photoURL}`,
-      phoneNumber: `${user?.phoneNumber}`,
-      status: 'online',
-    }),
-    [user]
-  );
+  const handleSendMessage = useCallback(async () => {
+    const next = message.trim();
+    if (!next || sending) return;
 
-  const messageData = useMemo(
-    () => ({
-      id: uuidv4(),
-      attachments: [],
-      body: message,
-      contentType: 'text',
-      createdAt: fSub({ minutes: 1 }),
-      senderId: myContact.id,
-    }),
-    [message, myContact.id]
-  );
-
-  const conversationData = useMemo(
-    () => ({
-      id: uuidv4(),
-      messages: [messageData],
-      participants: [...recipients, myContact],
-      type: recipients.length > 1 ? 'GROUP' : 'ONE_TO_ONE',
-      unreadCount: 0,
-    }),
-    [messageData, myContact, recipients]
-  );
-
-  const handleChangeMessage = useCallback((event) => {
-    setMessage(event.target.value);
-  }, []);
-
-  const handleSendMessage = useCallback(
-    async () => {
-      try {
-        if (!message.trim()) {
-          return;
-        }
-
-        if (selectedConversationId) {
-          await sendMessage(selectedConversationId, messageData);
-        } else {
-          const res = await createConversation(conversationData);
-
-          router.push(`${basePath}?id=${res.conversation.id}`);
-
-          onAddRecipients([]);
-        }
-
-        setMessage('');
-      } catch (error) {
-        console.error(error);
-      }
-    },
-    [basePath, conversationData, message, messageData, onAddRecipients, router, selectedConversationId]
-  );
+    try {
+      await onSend?.(next);
+      setMessage('');
+    } catch {
+      // parent surfaces the error
+    }
+  }, [message, onSend, sending]);
 
   const handleKeyUp = useCallback(
     (event) => {
       if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
         handleSendMessage();
       }
     },
@@ -107,39 +35,43 @@ export function ChatMessageInput({
   );
 
   return (
-    <>
+    <Box
+      sx={{
+        px: 1.5,
+        py: 1.25,
+        flexShrink: 0,
+        borderTop: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+      }}
+    >
       <InputBase
         name="chat-message"
         id="chat-message-input"
         value={message}
         onKeyUp={handleKeyUp}
-        onChange={handleChangeMessage}
+        onChange={(event) => setMessage(event.target.value)}
         placeholder="Type a message"
-        disabled={disabled}
-        startAdornment={
-          <IconButton>
-            <Iconify icon="eva:smiling-face-fill" />
-          </IconButton>
-        }
+        disabled={disabled || sending}
         endAdornment={
           <Stack direction="row" sx={{ flexShrink: 0 }}>
             <IconButton
+              color="primary"
               aria-label="Send message"
               onClick={handleSendMessage}
-              disabled={disabled || !message.trim()}
+              disabled={disabled || sending || !message.trim()}
             >
               <Iconify icon="iconamoon:send-fill" />
             </IconButton>
           </Stack>
         }
         sx={{
-          px: 1,
-          height: 56,
-          flexShrink: 0,
-          borderTop: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+          px: 1.5,
+          width: 1,
+          display: 'flex',
+          height: 44,
+          borderRadius: 1,
+          bgcolor: 'background.neutral',
         }}
       />
-
-    </>
+    </Box>
   );
 }

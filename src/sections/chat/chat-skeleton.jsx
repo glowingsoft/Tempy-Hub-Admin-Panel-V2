@@ -11,10 +11,10 @@ export function ChatNavItemSkeleton({ sx, amount = 6, ...other }) {
       spacing={2}
       direction="row"
       alignItems="center"
-      sx={{ px: 2.5, py: 1.5, ...sx }}
+      sx={{ px: 1.5, py: 1.25, ...sx }}
       {...other}
     >
-      <Skeleton variant="circular" sx={{ width: 48, height: 48 }} />
+      <Skeleton variant="circular" sx={{ width: 40, height: 40 }} />
 
       <Stack spacing={1} flexGrow={1}>
         <Skeleton sx={{ width: 0.75, height: 10 }} />
