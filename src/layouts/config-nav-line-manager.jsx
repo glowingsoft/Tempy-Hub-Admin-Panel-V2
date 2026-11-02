@@ -9,9 +9,6 @@ import { SvgColor } from 'src/components/svg-color';
 
 export const icon = (name) => <SvgColor src={`${CONFIG.site.basePath}/assets/icons/navbar/${name}.svg`} />;
 
-// const icon = (name) => (
-//   <Iconify icon={name} />
-// );
 
 const ICONS = {
   job: icon('ic-job'),
