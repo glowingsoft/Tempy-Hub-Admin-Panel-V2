@@ -162,7 +162,6 @@ export function OrganizationModuleAccess({ organizationId }) {
             <LoadingButton
               color="primary"
               variant="contained"
-              color="primary"
               disabled={!isDirty}
               loading={isUpdating}
               onClick={handleSave}
