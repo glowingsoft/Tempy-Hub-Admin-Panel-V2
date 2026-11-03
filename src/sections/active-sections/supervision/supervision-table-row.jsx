@@ -59,7 +59,8 @@ const SupervisionTableRow = ({
     let detailPath = paths.lineManager.supervisionDetail(rowId);
     let signOffPath = paths.lineManager.supervisionSignOff(rowId);
     if (isStaffView) {
-        detailPath = paths.staff.supervisionDetail(rowId);
+        const supervisionId = row._id || row.id;
+        detailPath = supervisionId ? paths.staff.supervisionDetail(supervisionId) : null;
     } else if (pathname.startsWith('/site-manager')) {
         detailPath = paths.siteManager.supervisionDetail(rowId);
         signOffPath = paths.siteManager.supervisionSignOff(rowId);
@@ -128,11 +129,13 @@ const SupervisionTableRow = ({
             icon: 'solar:eye-bold',
             tooltip: 'View history',
             color: 'default',
-            onClick: () => router.push(detailPath),
+            onClick: () => {
+                if (detailPath) router.push(detailPath);
+            },
         },
     ];
     const actions = isStaffView
-        ? managementActions.filter((action) => action.key === 'view')
+        ? managementActions.filter((action) => action.key === 'view' && detailPath)
         : managementActions;
 
     const staffObj =
@@ -179,7 +182,14 @@ const SupervisionTableRow = ({
     const lastSessionDate = row.completedAt || row.lastCompletedAt || row.lastSession;
 
     return (
-        <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
+        <TableRow
+            hover
+            tabIndex={-1}
+            sx={{ cursor: detailPath ? 'pointer' : 'default' }}
+            onClick={() => {
+                if (detailPath) router.push(detailPath);
+            }}
+        >
             {/* Sr# */}
             <TableCell>{serialNumber}</TableCell>
 

@@ -141,6 +141,7 @@ export const navDataOwner = [
         ],
       },
       { title: 'Messages', path: paths.owner.messages, icon: ICONS.chat },
+      { title: 'Settings', path: paths.owner.familyEngagement.settings, icon: ICONS.settings },
     ],
   },
 ];

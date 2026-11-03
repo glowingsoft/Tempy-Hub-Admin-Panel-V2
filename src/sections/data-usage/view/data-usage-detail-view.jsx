@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { useParams, useRouter, usePathname } from 'src/routes/hooks';
+import { useParams, usePathname, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { fDateTime } from 'src/utils/format-time';
@@ -15,17 +15,21 @@ import { fDateTime } from 'src/utils/format-time';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useGetBillingUsageByOrgQuery } from 'src/store/Reducer/billing-api';
 
-import { getAllDataUsageRows } from '../mocks/data-usage';
+import { DataUsageRecordsTable } from '../data-usage-records-table';
+import { formatGb } from '../utils';
 
 // ----------------------------------------------------------------------
 
 export function DataUsageDetailView({ pathsConfig } = {}) {
-  const { id } = useParams();
+  const { id, branchId } = useParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { organizationId: currentOrganizationId, isOwner } = useCurrentOrganization();
+  const isSiteDetail = Boolean(branchId);
 
-  const isOwner = pathname.startsWith(paths.owner.root);
   const isAdminDashboard = pathname.startsWith(paths.adminDashboard.root);
 
   const resolvedPaths = useMemo(
@@ -33,26 +37,55 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
       dashboardRoot: isOwner
         ? paths.owner.root
         : isAdminDashboard
-        ? paths.adminDashboard.root
-        : paths.dashboard.root,
+          ? paths.adminDashboard.root
+          : paths.dashboard.root,
       root: isOwner
         ? paths.owner.dataUsage.root
         : isAdminDashboard
-        ? paths.adminDashboard.dataUsage.root
-        : paths.dashboard.dataUsage.root,
+          ? paths.adminDashboard.dataUsage.root
+          : paths.dashboard.dataUsage.root,
+      orgDetail: isOwner
+        ? paths.owner.dataUsage.detail
+        : isAdminDashboard
+          ? paths.adminDashboard.dataUsage.detail
+          : paths.dashboard.dataUsage.detail,
+      site: isOwner
+        ? paths.owner.dataUsage.site
+        : isAdminDashboard
+          ? paths.adminDashboard.dataUsage.site
+          : paths.dashboard.dataUsage.site,
       ...pathsConfig,
     }),
     [isOwner, isAdminDashboard, pathsConfig]
   );
 
-  const allRows = useMemo(() => getAllDataUsageRows(), []);
-
-  const organization = useMemo(
-    () => allRows.find((item) => item.id === id) || allRows[0],
-    [allRows, id]
+  const { data, isLoading, isFetching, isError } = useGetBillingUsageByOrgQuery(
+    {
+      organizationId: id,
+      headerOrganizationId: isOwner ? currentOrganizationId || id : undefined,
+    },
+    { skip: !id }
   );
 
-  if (!organization) {
+  const organization = data?.organization;
+  const storage = data?.storage || {};
+  const categories = data?.categories || [];
+  const branches = data?.branches || [];
+  const billing = data?.billing || {};
+  const record = data?.record || {};
+  const site = isSiteDetail
+    ? branches.find((item) => String(item.branchId) === String(branchId)) || null
+    : null;
+
+  if (isLoading || isFetching) {
+    return (
+      <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
+        <EmptyContent title="Loading usage details..." sx={{ py: 10 }} />
+      </Box>
+    );
+  }
+
+  if (isError || !organization || (isSiteDetail && !site)) {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <Button
@@ -69,26 +102,33 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
 
   const {
     name,
-    ownerName,
-    ownerEmail,
+    owner,
     status,
-    createdAt,
-    totalUsedGb,
-    imageUsageGb,
-    otherFilesGb,
-    quotaGb,
-    usagePercentage,
-    imageCount,
-    documentCount,
-    billingTier,
-    billingStatus,
-    tierMonthlyCost,
-    sites = [],
-    categories = [],
   } = organization;
 
-  const imageRatio = totalUsedGb > 0 ? Math.round((imageUsageGb / totalUsedGb) * 100) : 0;
-  const otherRatio = totalUsedGb > 0 ? Math.round((otherFilesGb / totalUsedGb) * 100) : 0;
+  const quotaGb = storage.planQuotaGb ?? billing.planLimitGb ?? 0;
+  const totalUsedGb = isSiteDetail ? site?.usedGb ?? 0 : storage.totalUsedGb ?? 0;
+  const imageUsageGb = isSiteDetail ? site?.images?.gb ?? 0 : storage.images?.gb ?? 0;
+  const otherFilesGb = isSiteDetail ? site?.files?.gb ?? 0 : storage.files?.gb ?? 0;
+  const imageCount = isSiteDetail ? site?.images?.count ?? 0 : storage.images?.count ?? 0;
+  const documentCount = isSiteDetail ? site?.files?.count ?? 0 : storage.files?.count ?? 0;
+  const usagePercentage = isSiteDetail
+    ? quotaGb > 0
+      ? Math.round((Number(totalUsedGb) / Number(quotaGb)) * 100)
+      : 0
+    : storage.quotaPercent ?? 0;
+  const imageRatio = isSiteDetail
+    ? totalUsedGb > 0
+      ? Math.round((Number(imageUsageGb) / Number(totalUsedGb)) * 100)
+      : 0
+    : storage.images?.percentOfUsed ?? storage.images?.percentOfTotal ?? 0;
+  const otherRatio = isSiteDetail
+    ? totalUsedGb > 0
+      ? Math.round((Number(otherFilesGb) / Number(totalUsedGb)) * 100)
+      : 0
+    : storage.files?.percentOfUsed ?? storage.files?.percentOfTotal ?? 0;
+
+  const heading = isSiteDetail ? site?.name || 'Site usage' : name || 'Billing & Usage';
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
@@ -99,90 +139,122 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
       </Box>
 
       <CustomBreadcrumbs
-        heading={name || 'Billing & Usage'}
+        heading={heading}
         links={[
           { name: 'Dashboard', href: resolvedPaths.dashboardRoot },
           { name: 'Billing & Usage', href: resolvedPaths.root },
-          { name: name || 'Details' },
+          ...(isSiteDetail
+            ? [
+                { name: name || 'Organization', href: resolvedPaths.orgDetail(id) },
+                { name: site?.name || 'Site' },
+              ]
+            : [{ name: name || 'Details' }]),
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
       <Stack spacing={3}>
-        {/* Organization Card */}
-        <DetailCard title="Organization">
-          <DetailItem label="Name" value={name || '—'} />
-          <DetailItem label="Account owner" value={ownerName || '—'} />
-          <DetailItem label="Owner email" value={ownerEmail || '—'} />
-          <DetailItem label="Status" value={status ? status.toUpperCase() : '—'} />
-        </DetailCard>
+        {isSiteDetail ? (
+          <DetailCard title="Site">
+            <DetailItem label="Name" value={site?.name || '—'} />
+            <DetailItem label="Organization" value={name || '—'} />
+            <DetailItem label="Account owner" value={owner?.name || '—'} />
+            <DetailItem label="Owner email" value={owner?.email || '—'} />
+          </DetailCard>
+        ) : (
+          <DetailCard title="Organization">
+            <DetailItem label="Name" value={name || '—'} />
+            <DetailItem label="Account owner" value={owner?.name || '—'} />
+            <DetailItem label="Owner email" value={owner?.email || '—'} />
+            <DetailItem label="Status" value={status ? String(status).toUpperCase() : '—'} />
+          </DetailCard>
+        )}
 
-        {/* Storage Usage Card */}
         <DetailCard title="Storage Usage">
-          <DetailItem label="Total data used" value={`${totalUsedGb} GB`} />
-          <DetailItem label="Plan quota limit" value={`${quotaGb} GB`} />
-          <DetailItem label="Quota utilization" value={`${usagePercentage}%`} />
+          <DetailItem label="Total data used" value={`${formatGb(totalUsedGb)} GB`} />
+          <DetailItem label="Plan quota limit" value={`${formatGb(quotaGb)} GB`} />
+          <DetailItem
+            label="Quota utilization"
+            value={`${usagePercentage}%${storage.statusLabel ? ` · ${storage.statusLabel}` : ''}`}
+          />
           <DetailItem
             label="Image storage"
-            value={`${imageUsageGb} GB (${imageRatio}% of total)`}
+            value={`${formatGb(imageUsageGb)} GB`}
           />
           <DetailItem
             label="Images uploaded"
-            value={`${imageCount?.toLocaleString() || 0} images`}
+            value={`${imageCount.toLocaleString()} images`}
           />
           <DetailItem
             label="Other files storage"
-            value={`${otherFilesGb} GB (${otherRatio}% of total)`}
+            value={`${formatGb(otherFilesGb)} GB`}
           />
           <DetailItem
             label="Other files archived"
-            value={`${documentCount?.toLocaleString() || 0} files & documents`}
+            value={`${documentCount.toLocaleString()} files & documents`}
           />
         </DetailCard>
 
-        {/* Category Breakdown Card */}
-        {categories.length > 0 && (
+        {!isSiteDetail && categories.length > 0 && (
           <DetailCard title="Category Breakdown">
-            {categories.map((cat, index) => (
+            {categories.map((cat) => (
               <DetailItem
-                key={index}
-                label={cat.name}
-                value={`${cat.sizeGb} GB (${cat.count?.toLocaleString() || 0} ${cat.type === 'image' ? 'images' : 'files'})`}
+                key={cat.key || cat.label}
+                label={cat.label}
+                value={`${formatGb(cat.gb)} GB (${(
+                  (cat.images?.count || 0) + (cat.files?.count || 0)
+                ).toLocaleString()} items)`}
               />
             ))}
           </DetailCard>
         )}
 
-        {/* Sites & Operating Branches Card */}
-        {sites.length > 0 && (
-          <DetailCard title="Sites & Operating Branches">
-            {sites.map((site, index) => (
+        {!isSiteDetail && branches.length > 0 && (
+          <DetailCard title="Sites">
+            {branches.map((item) => (
               <DetailItem
-                key={index}
-                label={site.name}
-                value={`${site.totalGb} GB (${site.imageGb} GB images)`}
+                key={item.branchId || item.name}
+                label={item.name}
+                value={`${formatGb(item.usedGb)} GB (${formatGb(item.images?.gb)} GB images)`}
               />
             ))}
           </DetailCard>
         )}
 
-        {/* Billing Card */}
         <DetailCard title="Billing & Pricing">
-          <DetailItem label="Active plan tier" value={billingTier || '—'} />
+          <DetailItem label="Active plan tier" value={`${formatGb(billing.planLimitGb ?? quotaGb)} GB`} />
           <DetailItem
             label="Monthly base rate"
-            value={tierMonthlyCost != null ? `£${tierMonthlyCost}/month` : '—'}
+            value={billing.monthlyBaseGbp != null ? `£${billing.monthlyBaseGbp}/month` : '—'}
           />
-          <DetailItem label="Overage pricing rate" value={`£0.15 per additional GB above ${quotaGb} GB`} />
-          <DetailItem label="Billing health" value={billingStatus || 'Within Plan'} />
-          <DetailItem label="Projected monthly overage" value="£0.00 (within plan)" />
+          <DetailItem
+            label="Overage pricing rate"
+            value={`£${billing.overageGbpPerGb ?? 0.15} per additional GB above ${formatGb(billing.planLimitGb ?? quotaGb)} GB`}
+          />
+          <DetailItem label="Billing health" value={billing.label || 'Within Plan'} />
+          <DetailItem
+            label="Projected monthly overage"
+            value={`£${Number(billing.projectedOverageGbp ?? 0).toFixed(2)}`}
+          />
         </DetailCard>
 
-        {/* Record Card */}
         <DetailCard title="Record">
-          <DetailItem label="Created at" value={fDateTime(createdAt)} />
-          <DetailItem label="Updated at" value={fDateTime(createdAt)} />
+          <DetailItem label="Created at" value={fDateTime(record.createdAt)} />
+          <DetailItem label="Updated at" value={fDateTime(record.updatedAt)} />
         </DetailCard>
+
+        {!isOwner && !isSiteDetail && id ? (
+          <DataUsageRecordsTable
+            organizationId={id}
+            showOrgFilter={false}
+            nameColumnLabel="Site"
+            onViewDetail={(row) => {
+              if (row?.branchId && resolvedPaths.site) {
+                router.push(resolvedPaths.site(id, row.branchId));
+              }
+            }}
+          />
+        ) : null}
       </Stack>
     </Box>
   );

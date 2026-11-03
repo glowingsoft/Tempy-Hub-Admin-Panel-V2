@@ -5,6 +5,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -35,7 +36,11 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { usePathname, useRouter } from 'src/routes/hooks';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
-import { useGetAppraisalsQuery } from 'src/store/Reducer/appraisals-api';
+import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
+import {
+  useGetAppStaffAppraisalsQuery,
+  useGetAppraisalsQuery,
+} from 'src/store/Reducer/appraisals-api';
 
 import AppraisalTableRow, { getAppraisalRowStatus } from '../appraisal-table-row';
 import BookAppraisalDialog from '../book-appraisal-dialog';
@@ -59,6 +64,11 @@ const TABLE_HEAD = [
 const APPRAISAL_STATUS_OPTIONS = [
   { value: 'scheduled', label: 'Scheduled', color: 'info' },
   { value: 'completed', label: 'Completed', color: 'success' },
+];
+
+const STAFF_APPRAISAL_STATUS_OPTIONS = [
+  ...APPRAISAL_STATUS_OPTIONS,
+  { value: 'cancelled', label: 'Cancelled', color: 'default' },
 ];
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...APPRAISAL_STATUS_OPTIONS];
@@ -95,7 +105,11 @@ export function AppraisalListView({
           : paths.lineManager.root);
   const { organizationId, user } = useCurrentOrganization();
   const isStaffRoute = pathname.startsWith(`${paths.staff.root}/`);
-  const isStaffRole = user?.access?.memberships?.[0]?.role?.toLowerCase() === 'staff';
+  const isStaffRole =
+    Array.isArray(user?.access?.memberships) &&
+    user.access.memberships.some(
+      (membership) => typeof membership?.role === 'string' && membership.role.toLowerCase() === 'staff'
+    );
   const isStaffView = isStaffRoute;
   const currentStaffId = [
     typeof user?.staffId === 'object' ? user.staffId?._id || user.staffId?.id : user?.staffId,
@@ -120,25 +134,42 @@ export function AppraisalListView({
   const trimmedKeyword = keyword.trim();
 
   // Query live appraisals from API
-  const {
-    data: liveData,
-    isLoading,
-    isFetching,
-    isError,
-    error,
-    refetch,
-  } = useGetAppraisalsQuery(
+  const staffAppraisalsQuery = useGetAppStaffAppraisalsQuery(
     {
       organizationId,
       page: table.page + 1,
       limit: table.rowsPerPage,
-      ...(isStaffView && currentStaffId ? { staffId: currentStaffId } : {}),
+      search: trimmedKeyword || undefined,
+      status: filters.state.status !== 'all' ? filters.state.status : undefined,
+      cacheUserId: currentStaffId,
+    },
+    { skip: !isStaffView || !isStaffRole || !organizationId }
+  );
+
+  const organizationAppraisalsQuery = useGetAppraisalsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
       ...(userBranchId ? { branchId: userBranchId } : {}),
       ...(trimmedKeyword ? { keyword: trimmedKeyword, search: trimmedKeyword } : {}),
       ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
     },
-    { skip: !organizationId || (isStaffView && (!isStaffRole || !currentStaffId)) }
+    { skip: isStaffView || !organizationId }
   );
+
+  const liveData = isStaffView
+    ? staffAppraisalsQuery.currentData
+    : organizationAppraisalsQuery.data;
+  const isLoading = isStaffView
+    ? staffAppraisalsQuery.isLoading
+    : organizationAppraisalsQuery.isLoading;
+  const isFetching = isStaffView
+    ? staffAppraisalsQuery.isFetching
+    : organizationAppraisalsQuery.isFetching;
+  const isError = isStaffView ? staffAppraisalsQuery.isError : organizationAppraisalsQuery.isError;
+  const error = isStaffView ? staffAppraisalsQuery.error : organizationAppraisalsQuery.error;
+  const refetch = isStaffView ? staffAppraisalsQuery.refetch : organizationAppraisalsQuery.refetch;
 
   const rawList = useMemo(() => {
     if (Array.isArray(liveData)) return liveData;
@@ -148,11 +179,28 @@ export function AppraisalListView({
   }, [liveData, isStaffView]);
 
   const counts = liveData?.meta?.counts ?? {};
+  const compliance = liveData?.meta?.compliance;
   const totalRecords =
     liveData?.meta?.totalRecords ?? liveData?.total ?? rawList.length;
 
-  const statusFilterField = useMemo(() => FILTER_FIELDS.find((f) => f.type === 'status'), []);
-  const toolbarFilterFields = useMemo(() => FILTER_FIELDS.filter((f) => f.type !== 'status'), []);
+  const statusFilterField = useMemo(
+    () =>
+      createFilterField.status({
+        options: isStaffView
+          ? [{ value: 'all', label: 'All' }, ...STAFF_APPRAISAL_STATUS_OPTIONS]
+          : STATUS_OPTIONS,
+        showCounts: true,
+      }),
+    [isStaffView]
+  );
+  const toolbarFilterFields = useMemo(() => {
+    const fields = FILTER_FIELDS.filter((field) => field.type !== 'status');
+    return isStaffView
+      ? fields.map((field) =>
+          field.type === 'search' ? { ...field, placeholder: 'Search appraisals...' } : field
+        )
+      : fields;
+  }, [isStaffView]);
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -171,6 +219,8 @@ export function AppraisalListView({
   );
 
   const filteredRows = useMemo(() => {
+    if (isStaffView) return rawList;
+
     let rows = rawList;
     if (filters.state.status !== 'all') {
       rows = rows.filter((row) => getAppraisalRowStatus(row) === filters.state.status);
@@ -182,7 +232,7 @@ export function AppraisalListView({
       });
     }
     return rows;
-  }, [rawList, filters.state.status, trimmedKeyword]);
+  }, [rawList, filters.state.status, trimmedKeyword, isStaffView]);
 
   const paginatedRows = useMemo(() => {
     // If backend did not paginate (e.g. mock fallback)
@@ -196,6 +246,8 @@ export function AppraisalListView({
   }, [filteredRows, rawList, table.page, table.rowsPerPage]);
 
   const effectiveTotal = useMemo(() => {
+    if (isStaffView) return Number(totalRecords) || filteredRows.length;
+
     if (filters.state.status === 'all') {
       const sumFromCounts = APPRAISAL_STATUS_OPTIONS.reduce(
         (sum, opt) => sum + (Number(counts[opt.value]) || 0),
@@ -206,12 +258,12 @@ export function AppraisalListView({
     return typeof counts[filters.state.status] === 'number'
       ? counts[filters.state.status]
       : filteredRows.length;
-  }, [filters.state.status, counts, totalRecords, filteredRows.length]);
+  }, [isStaffView, filters.state.status, counts, totalRecords, filteredRows.length]);
 
   const getStatusCount = useCallback(
     (statusValue) => {
       if (statusValue === 'all') {
-        const sumFromCounts = APPRAISAL_STATUS_OPTIONS.reduce(
+        const sumFromCounts = (isStaffView ? STAFF_APPRAISAL_STATUS_OPTIONS : APPRAISAL_STATUS_OPTIONS).reduce(
           (sum, opt) => sum + (Number(counts[opt.value]) || 0),
           0
         );
@@ -219,7 +271,7 @@ export function AppraisalListView({
       }
       return counts[statusValue] ?? 0;
     },
-    [counts, totalRecords]
+    [counts, totalRecords, isStaffView]
   );
 
   const canReset = !!filters.state.name || filters.state.status !== 'all';
@@ -335,12 +387,60 @@ export function AppraisalListView({
         sx={{ mb: 3 }}
       />
 
+      {isStaffView && (
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Score"
+              total={`${compliance?.score ?? 0}%`}
+              color="success"
+              icon="solar:shield-check-bold-duotone"
+              loading={isStaffView && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Completed"
+              total={compliance?.completed ?? '—'}
+              color="info"
+              icon="solar:check-circle-bold-duotone"
+              loading={isStaffView && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Expected"
+              total={compliance?.expected ?? '—'}
+              color="warning"
+              icon="solar:target-bold-duotone"
+              loading={isStaffView && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Review interval"
+              total={compliance?.intervalMonths != null ? `${compliance.intervalMonths} Months` : '—'}
+              color="primary"
+              icon="solar:calendar-bold-duotone"
+              loading={isStaffView && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+        </Grid>
+      )}
+
       <Card>
-        {isStaffView && (!isStaffRole || !currentStaffId) && (
+        {isStaffView && !isStaffRole && (
           <Alert severity="error" sx={{ m: 2 }}>
-            {!isStaffRole
-              ? 'Your account is not associated with a staff membership.'
-              : 'Could not determine your staff profile. Contact your administrator.'}
+            Your account is not associated with a staff membership.
+          </Alert>
+        )}
+        {isError && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            {error?.data?.message || error?.error || 'Failed to load appraisals.'}
           </Alert>
         )}
         <StatusTabsFilterWrapper

@@ -1,104 +1,87 @@
-import { useState, useCallback } from 'react';
-
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
-import TextField from '@mui/material/TextField';
+import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
-import Autocomplete from '@mui/material/Autocomplete';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
-import { varAlpha } from 'src/theme/styles';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useGetChatRecipientsQuery } from 'src/store/Reducer/chats-api';
 
-import { Iconify } from 'src/components/iconify';
-import { SearchNotFound } from 'src/components/search-not-found';
+import { mapRecipientOption } from './utils';
 
 // ----------------------------------------------------------------------
 
-export function ChatHeaderCompose({ contacts, onAddRecipients }) {
-  const [searchRecipients, setSearchRecipients] = useState('');
-
-  const handleAddRecipients = useCallback(
-    (selected) => {
-      setSearchRecipients('');
-      onAddRecipients(selected);
-    },
-    [onAddRecipients]
-  );
-
+export function ChatHeaderCompose({
+  organizationId,
+  branchId,
+  recipients,
+  onAddRecipients,
+  sendToAll,
+  onSendToAllChange,
+  disabled,
+}) {
   return (
-    <>
-      <Typography variant="subtitle2" sx={{ color: 'text.primary', mr: 2 }}>
-        To:
+    <Stack
+      direction={{ xs: 'column', md: 'row' }}
+      alignItems={{ xs: 'stretch', md: 'center' }}
+      spacing={1}
+      sx={{ width: 1, minWidth: 0 }}
+    >
+      <Typography variant="subtitle2" sx={{ color: 'text.secondary', flexShrink: 0 }}>
+        To
       </Typography>
 
-      <Autocomplete
-        sx={{ minWidth: { md: 320 }, flexGrow: { xs: 1, md: 'unset' } }}
-        multiple
-        limitTags={3}
-        popupIcon={null}
-        defaultValue={[]}
-        disableCloseOnSelect
-        noOptionsText={<SearchNotFound query={searchRecipients} />}
-        onChange={(event, newValue) => handleAddRecipients(newValue)}
-        onInputChange={(event, newValue) => setSearchRecipients(newValue)}
-        options={contacts}
-        getOptionLabel={(recipient) => recipient.name}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-        renderInput={(params) => <TextField {...params} placeholder="+ Recipients" />}
-        renderOption={(props, recipient, { selected }) => (
-          <li {...props} key={recipient.id}>
-            <Box
-              key={recipient.id}
-              sx={{
-                mr: 1,
-                width: 32,
-                height: 32,
-                overflow: 'hidden',
-                borderRadius: '50%',
-                position: 'relative',
-              }}
-            >
-              <Avatar alt={recipient.name} src={recipient.avatarUrl} sx={{ width: 1, height: 1 }} />
-              <Stack
-                alignItems="center"
-                justifyContent="center"
-                sx={{
-                  top: 0,
-                  left: 0,
-                  width: 1,
-                  height: 1,
-                  opacity: 0,
-                  position: 'absolute',
-                  bgcolor: (theme) => varAlpha(theme.vars.palette.grey['900Channel'], 0.8),
-                  transition: (theme) =>
-                    theme.transitions.create(['opacity'], {
-                      easing: theme.transitions.easing.easeInOut,
-                      duration: theme.transitions.duration.shorter,
-                    }),
-                  ...(selected && { opacity: 1, color: 'primary.main' }),
-                }}
-              >
-                <Iconify icon="eva:checkmark-fill" />
-              </Stack>
-            </Box>
+      <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+        <InfiniteAutocomplete
+          key={branchId || 'all'}
+          multiple
+          value={recipients}
+          onChange={onAddRecipients}
+          useQuery={useGetChatRecipientsQuery}
+          queryArgs={{ organizationId, ...(branchId ? { branchId } : {}) }}
+          mapOption={mapRecipientOption}
+          enabled={Boolean(organizationId) && !sendToAll}
+          disabled={disabled || sendToAll}
+          placeholder="+ Next of kin"
+          limitTags={3}
+          size="small"
+          renderTags={(selected, getTagProps) =>
+            selected.map((recipient, index) => (
+              <Chip
+                {...getTagProps({ index })}
+                key={recipient.value}
+                label={recipient.name || recipient.label}
+                avatar={
+                  <Avatar alt={recipient.name} src={recipient.photoUrl || undefined}>
+                    {recipient.name?.charAt(0)}
+                  </Avatar>
+                }
+                size="small"
+                variant="soft"
+              />
+            ))
+          }
+        />
+      </Box>
 
-            {recipient.name}
-          </li>
-        )}
-        renderTags={(selected, getTagProps) =>
-          selected.map((recipient, index) => (
-            <Chip
-              {...getTagProps({ index })}
-              key={recipient.id}
-              label={recipient.name}
-              avatar={<Avatar alt={recipient.name} src={recipient.avatarUrl} />}
-              size="small"
-              variant="soft"
-            />
-          ))
+      <FormControlLabel
+        sx={{ flexShrink: 0, mr: 0, ml: 0 }}
+        control={
+          <Switch
+            size="small"
+            checked={sendToAll}
+            onChange={(event) => onSendToAllChange(event.target.checked)}
+            disabled={disabled}
+          />
+        }
+        label={
+          <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>
+            All next of kin at this site
+          </Typography>
         }
       />
-    </>
+    </Stack>
   );
 }

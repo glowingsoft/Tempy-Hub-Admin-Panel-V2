@@ -229,7 +229,8 @@ function LogSessionDialog({ open, row, organizationId, onClose, onSave }) {
             queryArgs={queryArgs}
             mapOption={mapStaffOption}
             enabled={open}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isReschedule}
+            helperText={isReschedule ? 'Staff member cannot be changed when rescheduling.' : undefined}
             renderOption={(props, option) => (
               <li {...props} key={option.value}>
                 {option.email ? (

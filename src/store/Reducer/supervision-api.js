@@ -3,6 +3,8 @@ import { API_ROUTES } from '../apiRoutes';
 import { createCustomFetchBaseQuery } from '../baseQuery';
 
 // ----------------------------------------------------------------------
+// GET /app/supervision?page&limit&search&status -> { data: Supervision[], meta: { counts, compliance } }
+// GET /app/supervision/:supervisionId -> { data: Supervision }
 
 export const supervisionApi = createApi({
   reducerPath: 'supervisionApi',
@@ -10,6 +12,29 @@ export const supervisionApi = createApi({
   tagTypes: ['Supervision'],
 
   endpoints: (builder) => ({
+    getAppSupervisions: builder.query({
+      query: ({ organizationId, page = 1, limit = 10, search, status } = {}) => ({
+        url: API_ROUTES.APP_SUPERVISION,
+        params: {
+          page,
+          limit,
+          ...(search ? { search } : {}),
+          ...(status && status !== 'all' ? { status } : {}),
+        },
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      providesTags: ['Supervision'],
+    }),
+
+    getAppSupervisionById: builder.query({
+      query: ({ organizationId, supervisionId }) => ({
+        url: API_ROUTES.APP_SUPERVISION_BY_ID(supervisionId),
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: ['Supervision'],
+    }),
+
     getSupervisions: builder.query({
       query: ({ organizationId, branchId, staffId, ...params }) => ({
         url: API_ROUTES.ORGANIZATION_SUPERVISION(organizationId),
@@ -68,6 +93,8 @@ export const supervisionApi = createApi({
 });
 
 export const {
+  useGetAppSupervisionsQuery,
+  useGetAppSupervisionByIdQuery,
   useGetSupervisionsQuery,
   useGetSupervisionByIdQuery,
   useBookSupervisionMutation,

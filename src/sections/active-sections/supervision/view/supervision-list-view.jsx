@@ -6,6 +6,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -13,6 +14,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
 import Skeleton from '@mui/material/Skeleton';
+import Typography from '@mui/material/Typography';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -31,7 +33,11 @@ import { paths } from 'src/routes/paths';
 import { useRouter, usePathname } from 'src/routes/hooks';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
 import { fDateTime } from 'src/utils/format-time';
-import { useGetSupervisionsQuery } from 'src/store/Reducer/supervision-api';
+import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
+import {
+  useGetAppSupervisionsQuery,
+  useGetSupervisionsQuery,
+} from 'src/store/Reducer/supervision-api';
 
 import LogSessionDialog from '../log-session-dialog';
 import { CompleteSupervisionDialog } from '../complete-supervision-dialog';
@@ -53,6 +59,11 @@ const TABLE_HEAD = [
 const SUPERVISION_STATUS_OPTIONS = [
   { value: 'scheduled', label: 'Scheduled', color: 'info' },
   { value: 'completed', label: 'Completed', color: 'success' },
+];
+
+const STAFF_SUPERVISION_STATUS_OPTIONS = [
+  ...SUPERVISION_STATUS_OPTIONS,
+  { value: 'cancelled', label: 'Cancelled', color: 'default' },
 ];
 
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...SUPERVISION_STATUS_OPTIONS];
@@ -107,14 +118,19 @@ function SupervisionListView({
   const keyword = useDebounce(filters.state.name, 500);
   const trimmedKeyword = keyword.trim();
 
-  const {
-    data: liveData,
-    isLoading,
-    isFetching,
-    isError,
-    error,
-    refetch,
-  } = useGetSupervisionsQuery(
+  const staffSupervisionsQuery = useGetAppSupervisionsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      search: trimmedKeyword || undefined,
+      status: filters.state.status !== 'all' ? filters.state.status : undefined,
+      cacheUserId: currentStaffId,
+    },
+    { skip: !isStaffView || !isStaffRole || !currentStaffId || !organizationId }
+  );
+
+  const organizationSupervisionsQuery = useGetSupervisionsQuery(
     {
       organizationId,
       page: table.page + 1,
@@ -124,8 +140,21 @@ function SupervisionListView({
       ...(trimmedKeyword ? { search: trimmedKeyword, keyword: trimmedKeyword } : {}),
       ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
     },
-    { skip: !organizationId || (isStaffView && (!isStaffRole || !currentStaffId)) }
+    { skip: isStaffView || !organizationId }
   );
+
+  const liveData = isStaffView
+    ? staffSupervisionsQuery.currentData
+    : organizationSupervisionsQuery.data;
+  const isLoading = isStaffView
+    ? staffSupervisionsQuery.isLoading
+    : organizationSupervisionsQuery.isLoading;
+  const isFetching = isStaffView
+    ? staffSupervisionsQuery.isFetching
+    : organizationSupervisionsQuery.isFetching;
+  const isError = isStaffView ? staffSupervisionsQuery.isError : organizationSupervisionsQuery.isError;
+  const error = isStaffView ? staffSupervisionsQuery.error : organizationSupervisionsQuery.error;
+  const refetch = isStaffView ? staffSupervisionsQuery.refetch : organizationSupervisionsQuery.refetch;
 
   const rawList = useMemo(() => {
     if (Array.isArray(liveData)) return liveData;
@@ -134,6 +163,7 @@ function SupervisionListView({
   }, [liveData]);
 
   const counts = liveData?.meta?.counts ?? {};
+  const compliance = liveData?.meta?.compliance;
   const totalRecords = liveData?.meta?.totalRecords ?? liveData?.total ?? rawList.length;
 
   const handleOpenLog = (row) => {
@@ -169,8 +199,24 @@ function SupervisionListView({
     setSelectedRow(null);
   };
 
-  const statusFilterField = useMemo(() => FILTER_FIELDS.find((f) => f.type === 'status'), []);
-  const toolbarFilterFields = useMemo(() => FILTER_FIELDS.filter((f) => f.type !== 'status'), []);
+  const statusFilterField = useMemo(
+    () =>
+      createFilterField.status({
+        options: isStaffView
+          ? [{ value: 'all', label: 'All' }, ...STAFF_SUPERVISION_STATUS_OPTIONS]
+          : STATUS_OPTIONS,
+        showCounts: true,
+      }),
+    [isStaffView]
+  );
+  const toolbarFilterFields = useMemo(() => {
+    const fields = FILTER_FIELDS.filter((field) => field.type !== 'status');
+    return isStaffView
+      ? fields.map((field) =>
+          field.type === 'search' ? { ...field, placeholder: 'Search supervisions...' } : field
+        )
+      : fields;
+  }, [isStaffView]);
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -188,19 +234,38 @@ function SupervisionListView({
     [filters, table]
   );
 
-  // Server already filters by status when status !== 'all', but fallback client-side if status is missing in server response
+  const countableStatusOptions = isStaffView
+    ? STAFF_SUPERVISION_STATUS_OPTIONS
+    : SUPERVISION_STATUS_OPTIONS;
+
   const filteredRows = useMemo(() => {
-    if (filters.state.status === 'all') return rawList;
+    if (isStaffView) return rawList;
+
     return rawList.filter((row) => {
-      const rowStatus = getRowStatus(row);
-      // If server already filtered it, or status matches
-      return rowStatus === filters.state.status;
+      const matchesStatus =
+        filters.state.status === 'all' || getRowStatus(row) === filters.state.status;
+      const searchText = [
+        row.name,
+        row.staff?.name,
+        row.staff?.email,
+        row.staff?.employeeCode,
+        row.conductedBy,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      const matchesSearch =
+        !trimmedKeyword || searchText.includes(trimmedKeyword.toLowerCase());
+
+      return matchesStatus && matchesSearch;
     });
-  }, [rawList, filters.state.status]);
+  }, [rawList, filters.state.status, trimmedKeyword, isStaffView]);
 
   const effectiveTotal = useMemo(() => {
+    if (isStaffView) return Number(totalRecords) || filteredRows.length;
+
     if (filters.state.status === 'all') {
-      const sumFromCounts = SUPERVISION_STATUS_OPTIONS.reduce(
+      const sumFromCounts = countableStatusOptions.reduce(
         (sum, opt) => sum + (Number(counts[opt.value]) || 0),
         0
       );
@@ -209,12 +274,19 @@ function SupervisionListView({
     return typeof counts[filters.state.status] === 'number'
       ? counts[filters.state.status]
       : filteredRows.length;
-  }, [filters.state.status, counts, totalRecords, filteredRows.length]);
+  }, [
+    isStaffView,
+    filters.state.status,
+    counts,
+    totalRecords,
+    filteredRows.length,
+    countableStatusOptions,
+  ]);
 
   const getStatusCount = useCallback(
     (statusValue) => {
       if (statusValue === 'all') {
-        const sumFromCounts = SUPERVISION_STATUS_OPTIONS.reduce(
+        const sumFromCounts = countableStatusOptions.reduce(
           (sum, opt) => sum + (Number(counts[opt.value]) || 0),
           0
         );
@@ -222,7 +294,7 @@ function SupervisionListView({
       }
       return counts[statusValue] ?? 0;
     },
-    [counts, totalRecords]
+    [counts, totalRecords, countableStatusOptions]
   );
 
   const canReset = !!filters.state.name || filters.state.status !== 'all';
@@ -299,6 +371,54 @@ function SupervisionListView({
         }
         sx={{ mb: 3 }}
       />
+
+      {isStaffView && (
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Score"
+              total={compliance?.score != null ? `${compliance.score}%` : '—'}
+              color="success"
+              icon="solar:shield-check-bold-duotone"
+              loading={isStaffView && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Completed"
+              total={compliance?.completed ?? '—'}
+              color="info"
+              icon="solar:check-circle-bold-duotone"
+              loading={isStaffView && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Expected"
+              total={compliance?.expected ?? '—'}
+              color="warning"
+              icon="solar:target-bold-duotone"
+              loading={isStaffView && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Months employed"
+              total={compliance?.monthsEmployed ?? '—'}
+              color="primary"
+              icon="solar:calendar-bold-duotone"
+              loading={isStaffView && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+        </Grid>
+      )}
 
       <Card>
         {isStaffView && (!isStaffRole || !currentStaffId) && (

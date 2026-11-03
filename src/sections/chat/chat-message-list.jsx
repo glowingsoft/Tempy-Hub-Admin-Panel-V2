@@ -1,24 +1,30 @@
+import { useCallback } from 'react';
+
 import Stack from '@mui/material/Stack';
 import LinearProgress from '@mui/material/LinearProgress';
 
 import { Scrollbar } from 'src/components/scrollbar';
-import { Lightbox, useLightBox } from 'src/components/lightbox';
 
 import { ChatMessageItem } from './chat-message-item';
 import { useMessagesScroll } from './hooks/use-messages-scroll';
+import { getMessageId, hasMorePages, reverseMessages } from './utils';
 
 // ----------------------------------------------------------------------
 
-export function ChatMessageList({ messages = [], participants, loading }) {
-  const { messagesEndRef } = useMessagesScroll(messages);
+export function ChatMessageList({ messages = [], loading, meta, page, onLoadOlder }) {
+  const chronological = reverseMessages(messages);
+  const { messagesEndRef } = useMessagesScroll(page === 1 ? chronological : null);
 
-  const slides = messages
-    .filter((message) => message.contentType === 'image')
-    .map((message) => ({ src: message.body }));
+  const handleScroll = useCallback(
+    (event) => {
+      if (loading || !hasMorePages(meta, page)) return;
+      if (event.currentTarget.scrollTop > 24) return;
+      onLoadOlder?.();
+    },
+    [loading, meta, onLoadOlder, page]
+  );
 
-  const lightbox = useLightBox(slides);
-
-  if (loading) {
+  if (loading && !messages.length) {
     return (
       <Stack sx={{ flex: '1 1 auto', position: 'relative' }}>
         <LinearProgress
@@ -37,24 +43,14 @@ export function ChatMessageList({ messages = [], participants, loading }) {
   }
 
   return (
-    <>
-      <Scrollbar ref={messagesEndRef} sx={{ px: 3, pt: 5, pb: 3, flex: '1 1 auto' }}>
-        {messages.map((message) => (
-          <ChatMessageItem
-            key={message.id}
-            message={message}
-            participants={participants}
-            onOpenLightbox={() => lightbox.onOpen(message.body)}
-          />
-        ))}
-      </Scrollbar>
-
-      <Lightbox
-        slides={slides}
-        open={lightbox.open}
-        close={lightbox.onClose}
-        index={lightbox.selected}
-      />
-    </>
+    <Scrollbar
+      ref={messagesEndRef}
+      slotProps={{ contentWrapper: { onScroll: handleScroll } }}
+      sx={{ px: 2.5, pt: 2, pb: 2, flex: '1 1 auto', minHeight: 0 }}
+    >
+      {chronological.map((message) => (
+        <ChatMessageItem key={getMessageId(message)} message={message} />
+      ))}
+    </Scrollbar>
   );
 }

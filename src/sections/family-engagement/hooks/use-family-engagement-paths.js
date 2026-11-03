@@ -19,6 +19,7 @@ export function useFamilyEngagementPaths() {
         newsletterEdit: paths.owner.familyEngagement.newsletterEdit,
         gazettes: paths.owner.familyEngagement.gazettes,
         familyGroups: paths.owner.familyEngagement.familyGroups,
+        settings: paths.owner.familyEngagement.settings,
         familyMemberships: paths.owner.familyEngagement.memberships,
         directory: paths.owner.directory.root,
         residents: paths.owner.residents.root,

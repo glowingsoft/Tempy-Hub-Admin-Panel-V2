@@ -55,7 +55,7 @@ const TABLE_HEAD = [
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
-  { value: 'waiting', label: 'Pending', color: 'warning' },
+  { value: 'pending', label: 'Pending', color: 'warning' },
   { value: 'approved', label: 'Approved', color: 'success' },
   { value: 'rejected', label: 'Rejected', color: 'error' },
 ];
@@ -176,7 +176,7 @@ export function FamilyModerationView({
 
   const handleApprove = useCallback(
     async (row) => {
-      if (!row?.uploadId || row.status !== 'waiting') return;
+      if (!row?.uploadId || row.status !== 'pending') return;
       try {
         await decideFamilyUpload({
           uploadId: row.uploadId,
@@ -193,7 +193,7 @@ export function FamilyModerationView({
 
   const handleDisapproveClick = useCallback(
     (row) => {
-      if (row.status !== 'waiting') return;
+      if (row.status !== 'pending') return;
       setDisapproveTarget(row);
       disapproveDialog.onTrue();
     },

@@ -1,25 +1,28 @@
-import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
-import TableRow from '@mui/material/TableRow';
-import TableCell from '@mui/material/TableCell';
-import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
+import TableCell from '@mui/material/TableCell';
+import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 
-import { varAlpha } from 'src/theme/styles';
-import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+import { Label } from 'src/components/label';
+import { varAlpha } from 'src/theme/styles';
+
+import { formatGb, usageProgressColor } from './utils';
 
 // ----------------------------------------------------------------------
 
-export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
+export function DataUsageTableRow({ row, onViewDetail, onEdit, clickable = true }) {
   const theme = useTheme();
 
   const {
     id,
+    organizationId,
     name,
     ownerName,
     ownerEmail,
@@ -29,28 +32,38 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
     quotaGb,
     usagePercentage,
     imageCount,
+    imagePercent,
+    status,
+    statusLabel,
+    canEdit,
   } = row;
 
-  // Percentage of total used that is images
-  const imageRatio = totalUsedGb > 0 ? Math.round((imageUsageGb / totalUsedGb) * 100) : 0;
+  const imageRatio =
+    imagePercent != null
+      ? Math.round(imagePercent)
+      : totalUsedGb > 0
+        ? Math.round((imageUsageGb / totalUsedGb) * 100)
+        : 0;
 
-  // Usage % color: Green < 60%, Amber 60-85%, Red > 85%
-  const progressColor =
-    usagePercentage >= 85 ? 'error' : usagePercentage >= 60 ? 'warning' : 'success';
+  const progressColor = usageProgressColor(status, usagePercentage);
+  const usageCaption = statusLabel || (usagePercentage >= 85 ? 'High Usage' : usagePercentage >= 60 ? 'Moderate' : 'Normal');
 
   return (
     <TableRow
-      hover
+      hover={clickable}
       sx={{
-        cursor: 'pointer',
+        cursor: clickable ? 'pointer' : 'default',
         transition: theme.transitions.create('background-color', {
           duration: theme.transitions.duration.shortest,
         }),
       }}
-      onClick={() => onViewDetail(id)}
+      onClick={() => {
+        if (!clickable) return;
+        onViewDetail?.(row);
+      }}
     >
       {/* 1. Organization Column */}
-      <TableCell sx={{ minWidth: 240 }}>
+      <TableCell sx={{ minWidth: 240, maxWidth: 320 }}>
         <Stack direction="row" alignItems="center" spacing={2}>
           <Avatar
             alt={name}
@@ -61,18 +74,37 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
               fontSize: '1rem',
               color: 'primary.dark',
               bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.16),
+              flexShrink: 0,
             }}
           >
             {name.charAt(0).toUpperCase()}
           </Avatar>
 
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, color: 'text.primary' }}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, color: 'text.primary', textTransform: 'capitalize' }}>
               {name}
             </Typography>
-            <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
-              {ownerName} &bull; {ownerEmail}
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={0.5} sx={{ minWidth: 0 }}>
+              <Typography variant="caption" noWrap sx={{ color: 'text.secondary', flexShrink: 0 }}>
+                {ownerName}
+              </Typography>
+              {ownerEmail ? (
+                <>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>
+                    •
+                  </Typography>
+                  <Tooltip title={ownerEmail} arrow>
+                    <Typography
+                      variant="caption"
+                      noWrap
+                      sx={{ color: 'text.secondary', minWidth: 0, flex: 1, display: 'block' }}
+                    >
+                      {ownerEmail}
+                    </Typography>
+                  </Tooltip>
+                </>
+              ) : null}
+            </Stack>
           </Box>
         </Stack>
       </TableCell>
@@ -80,10 +112,10 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
       {/* 2. Total Used Column */}
       <TableCell sx={{ minWidth: 140 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-          {totalUsedGb} GB
+          {formatGb(totalUsedGb)} GB
         </Typography>
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          of {quotaGb} GB plan limit
+          of {formatGb(quotaGb)} GB plan limit
         </Typography>
       </TableCell>
 
@@ -91,7 +123,7 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
       <TableCell sx={{ minWidth: 160 }}>
         <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main' }}>
-            {imageUsageGb} GB
+            {formatGb(imageUsageGb)} GB
           </Typography>
           <Label color="primary" variant="soft" sx={{ height: 20, fontSize: '0.75rem' }}>
             {imageRatio}%
@@ -105,7 +137,7 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
       {/* 4. Other Files Column */}
       <TableCell sx={{ minWidth: 140 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-          {otherFilesGb} GB
+          {formatGb(otherFilesGb)} GB
         </Typography>
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
           PDFs, docs & records
@@ -120,7 +152,7 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
               {usagePercentage}%
             </Label>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {usagePercentage >= 85 ? 'High Usage' : usagePercentage >= 60 ? 'Moderate' : 'Normal'}
+              {usageCaption}
             </Typography>
           </Stack>
 
@@ -139,23 +171,25 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
 
       {/* Actions: Edit Icon */}
       <TableCell align="right" sx={{ width: 80, pr: 2 }}>
-        <Tooltip title="Edit Organization">
-          <IconButton
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(row);
-            }}
-            sx={{
-              color: 'text.secondary',
-              '&:hover': {
-                color: 'primary.main',
-                bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.08),
-              },
-            }}
-          >
-            <Iconify icon="solar:pen-bold" width={22} />
-          </IconButton>
-        </Tooltip>
+        {canEdit ? (
+          <Tooltip title="Edit Organization">
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(row);
+              }}
+              sx={{
+                color: 'text.secondary',
+                '&:hover': {
+                  color: 'primary.main',
+                  bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.08),
+                },
+              }}
+            >
+              <Iconify icon="solar:pen-bold" width={22} />
+            </IconButton>
+          </Tooltip>
+        ) : null}
       </TableCell>
     </TableRow>
   );

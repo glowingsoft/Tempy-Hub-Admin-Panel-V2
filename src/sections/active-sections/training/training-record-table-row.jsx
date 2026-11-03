@@ -23,7 +23,13 @@ const STATUS_COLOR_MAP = {
 
 // ----------------------------------------------------------------------
 
-export function TrainingRecordTableRow({ row, serialNumber, onAddRecord }) {
+export function TrainingRecordTableRow({
+  row,
+  serialNumber,
+  onAddRecord,
+  readOnly = false,
+  showDocuments = true,
+}) {
   const staff = row?.staff || {};
   const requirement = row?.requirement || {};
   const status = row?.status || row?.cellStatus || 'in_progress';
@@ -90,28 +96,32 @@ export function TrainingRecordTableRow({ row, serialNumber, onAddRecord }) {
       </TableCell>
 
       {/* Actions */}
-      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
-        <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
-          {attachedDocs.length > 0 && (
-            <Tooltip title={`${attachedDocs.length} PDF document(s) attached`}>
-              <Chip
-                icon={<Iconify icon="solar:file-text-bold" width={14} />}
-                label={attachedDocs.length}
-                size="small"
-                variant="outlined"
-                color="info"
-                sx={{ height: 24, fontSize: 11 }}
-              />
-            </Tooltip>
-          )}
+      {showDocuments && (
+        <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+          <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
+            {attachedDocs.length > 0 && (
+              <Tooltip title={`${attachedDocs.length} PDF document(s) attached`}>
+                <Chip
+                  icon={<Iconify icon="solar:file-text-bold" width={14} />}
+                  label={attachedDocs.length}
+                  size="small"
+                  variant="outlined"
+                  color="info"
+                  sx={{ height: 24, fontSize: 11 }}
+                />
+              </Tooltip>
+            )}
 
-          <Tooltip title="Add Record" placement="top" arrow>
-            <IconButton color="primary" onClick={() => onAddRecord(row)}>
-              <Iconify icon="mingcute:add-line" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      </TableCell>
+            {!readOnly && (
+              <Tooltip title="Add Record" placement="top" arrow>
+                <IconButton color="primary" onClick={() => onAddRecord?.(row)}>
+                  <Iconify icon="mingcute:add-line" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
+        </TableCell>
+      )}
     </TableRow>
   );
 }
@@ -119,5 +129,7 @@ export function TrainingRecordTableRow({ row, serialNumber, onAddRecord }) {
 TrainingRecordTableRow.propTypes = {
   row: PropTypes.object.isRequired,
   serialNumber: PropTypes.number.isRequired,
-  onAddRecord: PropTypes.func.isRequired,
+  onAddRecord: PropTypes.func,
+  readOnly: PropTypes.bool,
+  showDocuments: PropTypes.bool,
 };

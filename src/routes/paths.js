@@ -134,11 +134,16 @@ export const paths = {
     dataUsage: {
       root: `${ROOTS.DASHBOARD}/data-usage`,
       detail: (id) => `${ROOTS.DASHBOARD}/data-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.DASHBOARD}/data-usage/${organizationId}/sites/${branchId}`,
     },
     billingAndUsage: {
       root: `${ROOTS.DASHBOARD}/data-usage`,
       detail: (id) => `${ROOTS.DASHBOARD}/data-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.DASHBOARD}/data-usage/${organizationId}/sites/${branchId}`,
     },
+    settings: `${ROOTS.DASHBOARD}/settings`,
     mail: `${ROOTS.DASHBOARD}/mail`,
     chat: `${ROOTS.DASHBOARD}/chat`,
     blank: `${ROOTS.DASHBOARD}/blank`,
@@ -288,6 +293,7 @@ export const paths = {
     teamComplianceDetail: (id) => `${ROOTS.SITE_MANAGER}/team-compliance/${id}`,
     training: `${ROOTS.SITE_MANAGER}/training`,
     requirements: `${ROOTS.SITE_MANAGER}/requirements`,
+    requirementDetail: (id) => `${ROOTS.SITE_MANAGER}/requirements/${id}`,
     invitaions: {
       root: `${ROOTS.SITE_MANAGER}/invitaions`,
       new: `${ROOTS.SITE_MANAGER}/invitaions/new`,
@@ -456,6 +462,7 @@ export const paths = {
     appraisalSignOff: (id) => `${ROOTS.LINE_MANAGER}/appraisals/${id}/sign-off`,
     training: `${ROOTS.LINE_MANAGER}/training`,
     requirements: `${ROOTS.LINE_MANAGER}/requirements`,
+    requirementDetail: (id) => `${ROOTS.LINE_MANAGER}/requirements/${id}`,
     photoApproval: `${ROOTS.LINE_MANAGER}/photo-approval`,
     feedback: `${ROOTS.LINE_MANAGER}/feedback`,
     messages: `${ROOTS.LINE_MANAGER}/messages`,
@@ -503,6 +510,8 @@ export const paths = {
     dataUsage: {
       root: `${ROOTS.ADMIN_DASHBOARD}/data-usage`,
       detail: (id) => `${ROOTS.ADMIN_DASHBOARD}/data-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.ADMIN_DASHBOARD}/data-usage/${organizationId}/sites/${branchId}`,
     },
     documents: {
       root: `${ROOTS.ADMIN_DASHBOARD}/documents`,
@@ -520,6 +529,7 @@ export const paths = {
       newsletterEdit: (id) => `${ROOTS.OWNER_DASHBOARD}/family-engagement/newsletters/${id}/edit`,
       gazettes: `${ROOTS.OWNER_DASHBOARD}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.OWNER_DASHBOARD}/family-engagement/family-groups`,
+      settings: `${ROOTS.OWNER_DASHBOARD}/family-engagement/settings`,
       memberships: {
         root: `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships`,
         invitations: {
@@ -561,10 +571,14 @@ export const paths = {
     dataUsage: {
       root: `${ROOTS.OWNER_DASHBOARD}/billing-and-usage`,
       detail: (id) => `${ROOTS.OWNER_DASHBOARD}/billing-and-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.OWNER_DASHBOARD}/billing-and-usage/${organizationId}/sites/${branchId}`,
     },
     billingAndUsage: {
       root: `${ROOTS.OWNER_DASHBOARD}/billing-and-usage`,
       detail: (id) => `${ROOTS.OWNER_DASHBOARD}/billing-and-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.OWNER_DASHBOARD}/billing-and-usage/${organizationId}/sites/${branchId}`,
     },
     directory: {
       root: `${ROOTS.OWNER_DASHBOARD}/directory`,
@@ -620,6 +634,7 @@ export const paths = {
     teamComplianceDetail: (id) => `${ROOTS.OWNER_DASHBOARD}/team-compliance/${id}`,
     training: `${ROOTS.OWNER_DASHBOARD}/training`,
     requirements: `${ROOTS.OWNER_DASHBOARD}/requirements`,
+    requirementDetail: (id) => `${ROOTS.OWNER_DASHBOARD}/requirements/${id}`,
     reports: `${ROOTS.OWNER_DASHBOARD}/reports`,
     messages: `${ROOTS.OWNER_DASHBOARD}/messages`,
     acknowledgements: (id) => `${ROOTS.OWNER_DASHBOARD}/documents/${id}/acknowledgements`,

@@ -74,7 +74,7 @@ const TABLE_HEAD = [
   { id: 'branch', label: 'Site', minWidth: 180 },
   { id: 'role', label: 'Role', minWidth: 180 },
   { id: 'department', label: 'Department', minWidth: 160 },
-  { id: 'status', label: 'Status', width: 120, align: 'center' },
+  { id: 'status', label: 'Site Status', width: 120, align: 'center' },
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
 ];
 
@@ -212,6 +212,7 @@ export function UserListView() {
     email: user.email,
     phone: user.phone,
     carRegistration: user.carRegistration || '',
+    userStatus: user.status,
     role: user.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : '—',
     department: user.department?.name || '—',
     branchId: user.branchId,

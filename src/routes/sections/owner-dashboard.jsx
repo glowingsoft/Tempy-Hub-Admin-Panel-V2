@@ -48,6 +48,7 @@ const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/
 const TeamComplianceDetailPage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance/detail'));
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 const RequirementsPage = lazy(() => import('src/pages/dashboard/active-routes/requirements'));
+const RequirementDetailPage = lazy(() => import('src/pages/dashboard/active-routes/requirements/detail'));
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
 const KioskListPage = lazy(() => import('src/pages/dashboard/active-routes/kiosk'));
 const KioskDetailPage = lazy(() => import('src/pages/dashboard/active-routes/kiosk/detail'));
@@ -90,6 +91,7 @@ const NewslettersPage = lazy(() => import('src/pages/dashboard/active-routes/fam
 const NewsletterEditPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/newsletters-edit'));
 const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
 const FamilyGroupsPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/family-groups'));
+const FamilySettingsPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/settings'));
 const FamilyInvitationListPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/list'));
 const FamilyInvitationDetailPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/detail'));
 const FamilyInvitationCreatePage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/memberships/invitations/new'));
@@ -310,12 +312,14 @@ export const ownerDashboardRoutes = [
       },
       { path: 'training', element: <TrainingPage /> },
       { path: 'requirements', element: <RequirementsPage /> },
+      { path: 'requirements/:id', element: <RequirementDetailPage /> },
       { path: 'tempy-connection', element: <TempyConnectionPage ownerDashboard /> },
       {
         path: 'billing-and-usage',
         children: [
           { index: true, element: <DataUsagePage /> },
           { path: ':id', element: <DataUsageDetailPage /> },
+          { path: ':id/sites/:branchId', element: <DataUsageDetailPage /> },
         ],
       },
       {
@@ -323,6 +327,7 @@ export const ownerDashboardRoutes = [
         children: [
           { index: true, element: <DataUsagePage /> },
           { path: ':id', element: <DataUsageDetailPage /> },
+          { path: ':id/sites/:branchId', element: <DataUsageDetailPage /> },
         ],
       },
       {
@@ -341,6 +346,7 @@ export const ownerDashboardRoutes = [
           },
           { path: 'gazettes', element: <GazettesPage /> },
           { path: 'family-groups', element: <FamilyGroupsPage /> },
+          { path: 'settings', element: <FamilySettingsPage /> },
           {
             path: 'memberships',
             children: [

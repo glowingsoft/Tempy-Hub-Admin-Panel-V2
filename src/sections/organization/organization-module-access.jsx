@@ -35,7 +35,7 @@ const TABLE_HEAD = [
   { id: 'module', label: 'Module', minWidth: 280 },
   { id: 'enabled', label: 'Access', width: 120, align: 'center' },
   { id: 'purchasedAt', label: 'Activation At', width: 240 },
-  { id: 'expiresAt', label: 'Expiry date', width: 220 },
+  { id: 'expiresAt', label: 'Expiry date', width: 240 },
 ];
 
 const FALLBACK_MODULES = mockModuleAccessResponse.data.moduleAccess;
@@ -88,9 +88,18 @@ export function OrganizationModuleAccess({ organizationId }) {
 
   const handleToggle = (moduleSlug) => {
     setModules((prev) =>
-      prev.map((mod) =>
-        mod.moduleSlug === moduleSlug ? { ...mod, enabled: !mod.enabled } : mod
-      )
+      prev.map((mod) => {
+        if (mod.moduleSlug !== moduleSlug) return mod;
+
+        const enabled = !mod.enabled;
+        return {
+          ...mod,
+          enabled,
+          purchasedAt: enabled
+            ? dayjs().startOf('day').toISOString()
+            : mod.purchasedAt,
+        };
+      })
     );
   };
 
@@ -137,14 +146,21 @@ export function OrganizationModuleAccess({ organizationId }) {
   return (
     <Card>
       <CardHeader
+        sx={{ pb: 1.5 }}
         title="Module Access"
-        subheader="Enable modules for this organization. Leave Activation At empty to activate immediately; set an optional expiry date."
+        subheader="Enable modules for this organization. Activation At is set to today when access is turned on; expiry date is optional."
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button color="inherit" disabled={!isDirty || isUpdating} onClick={handleReset}>
+            <Button
+              variant="outlined"
+              color="inherit"
+              disabled={!isDirty || isUpdating}
+              onClick={handleReset}
+            >
               Reset
             </Button>
             <LoadingButton
+              color="primary"
               variant="contained"
               disabled={!isDirty}
               loading={isUpdating}
@@ -168,7 +184,7 @@ export function OrganizationModuleAccess({ organizationId }) {
         )}
 
         <Scrollbar>
-          <Table sx={{ minWidth: 640 }}>
+          <Table sx={{ minWidth: 880 }}>
             <TableHeadCustom headLabel={TABLE_HEAD} />
 
             <TableBody>
@@ -192,27 +208,25 @@ export function OrganizationModuleAccess({ organizationId }) {
                       />
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell sx={{ verticalAlign: 'middle' }}>
                       <DatePicker
-                        value={mod.purchasedAt ? dayjs(mod.purchasedAt) : null}
+                        disabled={!mod.enabled}
+                        value={mod.enabled && mod.purchasedAt ? dayjs(mod.purchasedAt) : null}
                         onChange={(newValue) =>
                           handleDateChange(mod.moduleSlug, 'purchasedAt', newValue)
                         }
-                        format={formatStr.split.date}
+                        format="DD/MM/YYYY"
                         slotProps={{
-                          textField: {
-                            fullWidth: true,
-                            size: 'small',
-                            helperText: mod.purchasedAt ? undefined : 'Activates immediately',
-                          },
+                          textField: { fullWidth: true, size: 'small' },
                           field: { clearable: true },
                         }}
                       />
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell sx={{ verticalAlign: 'middle' }}>
                       <DatePicker
-                        value={mod.expiresAt ? dayjs(mod.expiresAt) : null}
+                        disabled={!mod.enabled}
+                        value={mod.enabled && mod.expiresAt ? dayjs(mod.expiresAt) : null}
                         onChange={(newValue) =>
                           handleDateChange(mod.moduleSlug, 'expiresAt', newValue)
                         }

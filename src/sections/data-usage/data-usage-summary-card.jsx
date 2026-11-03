@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
@@ -18,10 +19,15 @@ export function DataUsageSummaryCard({
   icon,
   color = 'primary',
   badge,
+  loading = false,
   sx,
   ...other
 }) {
   const theme = useTheme();
+
+  if (loading) {
+    return <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2, ...sx }} />;
+  }
 
   return (
     <Card

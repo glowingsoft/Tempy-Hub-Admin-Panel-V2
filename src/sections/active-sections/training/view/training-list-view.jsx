@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -31,7 +33,11 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
 import { fDate } from 'src/utils/format-time';
-import { useGetTrainingRecordsQuery } from 'src/store/Reducer/assignments-api';
+import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
+import {
+  useGetAppStaffTrainingRecordsQuery,
+  useGetTrainingRecordsQuery,
+} from 'src/store/Reducer/assignments-api';
 
 import { TrainingRecordTableRow } from '../training-record-table-row';
 import { AddTrainingRecordDialog } from '../add-training-record-dialog';
@@ -68,15 +74,31 @@ const DEFAULT_FILTERS = { keyword: '', status: 'all' };
 
 export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
   const pathname = usePathname();
+  const isStaffRoute = pathname.startsWith(`${paths.staff.root}/`);
   const dashboardHref =
     dashboardHrefProp ||
-    (pathname.startsWith(paths.siteManager.root)
-      ? paths.siteManager.root
-      : pathname.startsWith(paths.owner.root)
-        ? paths.owner.root
-        : paths.lineManager.root);
+    (isStaffRoute
+      ? paths.staff.dashboard
+      : pathname.startsWith(paths.siteManager.root)
+        ? paths.siteManager.root
+        : pathname.startsWith(paths.owner.root)
+          ? paths.owner.root
+          : paths.lineManager.root);
 
-  const { organizationId } = useCurrentOrganization();
+  const { organizationId, user } = useCurrentOrganization();
+  const isStaffRole =
+    Array.isArray(user?.access?.memberships) &&
+    user.access.memberships.some(
+      (membership) => typeof membership?.role === 'string' && membership.role.toLowerCase() === 'staff'
+    );
+  const currentStaffId = [
+    typeof user?.staffId === 'object' ? user.staffId?._id || user.staffId?.id : user?.staffId,
+    user?.basicInfo?._id,
+    user?.id,
+  ].find(Boolean);
+  const visibleTableHead = isStaffRoute
+    ? TABLE_HEAD.filter((column) => column.id !== 'actions')
+    : TABLE_HEAD;
   const table = useTable({ defaultDense: true, defaultRowsPerPage: 10 });
   const filters = useSetState(DEFAULT_FILTERS);
 
@@ -86,7 +108,18 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
   const debouncedKeyword = useDebounce(filters.state.keyword, 500)?.trim();
 
   // API Call to fetch training records
-  const { data, isLoading, isFetching } = useGetTrainingRecordsQuery(
+  const staffTrainingQuery = useGetAppStaffTrainingRecordsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      search: debouncedKeyword || undefined,
+      status: filters.state.status !== 'all' ? filters.state.status : undefined,
+      cacheUserId: currentStaffId,
+    },
+    { skip: !isStaffRoute || !isStaffRole || !organizationId }
+  );
+  const organizationTrainingQuery = useGetTrainingRecordsQuery(
     {
       organizationId,
       page: table.page + 1,
@@ -94,12 +127,15 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
       ...(debouncedKeyword ? { keyword: debouncedKeyword } : {}),
       ...(filters.state.status !== 'all' ? { status: filters.state.status } : {}),
     },
-    { skip: !organizationId }
+    { skip: isStaffRoute || !organizationId }
   );
+  const trainingQuery = isStaffRoute ? staffTrainingQuery : organizationTrainingQuery;
+  const { data, isLoading, isFetching, isError, error } = trainingQuery;
 
   const records = useMemo(() => data?.data ?? [], [data]);
   const totalRecords = data?.meta?.totalRecords ?? records.length;
   const statusCounts = data?.meta?.statusCounts ?? data?.meta?.counts ?? {};
+  const compliance = data?.meta?.compliance;
 
   const getStatusCount = useCallback(
     (statusValue) => {
@@ -237,6 +273,66 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
 
       <TeamDevelopmentTabs />
 
+      {isStaffRoute && (
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Score"
+              total={compliance?.score != null ? `${compliance.score}%` : '—'}
+              color="success"
+              icon="solar:shield-check-bold-duotone"
+              loading={isStaffRoute && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Done"
+              total={compliance?.done ?? '—'}
+              color="info"
+              icon="solar:check-circle-bold-duotone"
+              loading={isStaffRoute && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Expected"
+              total={compliance?.expected ?? '—'}
+              color="warning"
+              icon="solar:target-bold-duotone"
+              loading={isStaffRoute && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <DataUsageSummaryCard
+              title="Remaining"
+              total={
+                compliance?.expected != null && compliance?.done != null
+                  ? Math.max(Number(compliance.expected) - Number(compliance.done), 0)
+                  : '—'
+              }
+              color="primary"
+              icon="solar:hourglass-bold-duotone"
+              loading={isStaffRoute && (isLoading || isFetching)}
+              sx={{ minHeight: 124 }}
+            />
+          </Grid>
+        </Grid>
+      )}
+
+      {isStaffRoute && !isStaffRole && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Your account is not associated with a staff membership.
+        </Alert>
+      )}
+      {isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error?.data?.message || error?.error || 'Failed to load training records.'}
+        </Alert>
+      )}
+
       <Card sx={{ mt: 3 }}>
         <StatusTabsFilterWrapper
           filterField={STATUS_FILTER_FIELD}
@@ -255,13 +351,13 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
         <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 900 }}>
-              <TableHeadCustom headLabel={TABLE_HEAD} />
+              <TableHeadCustom headLabel={visibleTableHead} />
 
               <TableBody>
                 {isLoading || isFetching ? (
                   <TableBodySkeleton
                     rowCount={table.rowsPerPage}
-                    cellCount={TABLE_HEAD.length}
+                    cellCount={visibleTableHead.length}
                     dense={table.dense}
                   />
                 ) : (
@@ -272,6 +368,8 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         onAddRecord={handleOpenAddRecord}
+                        readOnly={isStaffRoute}
+                        showDocuments={!isStaffRoute}
                       />
                     ))}
 
@@ -295,11 +393,13 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
       </Card>
 
       {/* Add Training Record Dialog */}
-      <AddTrainingRecordDialog
-        open={openAddDialog}
-        onClose={handleCloseAddRecord}
-        assignment={selectedAssignment}
-      />
+      {!isStaffRoute && (
+        <AddTrainingRecordDialog
+          open={openAddDialog}
+          onClose={handleCloseAddRecord}
+          assignment={selectedAssignment}
+        />
+      )}
     </DashboardContent>
   );
 }

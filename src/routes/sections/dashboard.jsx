@@ -43,6 +43,7 @@ const FireDrillsPage = lazy(() => import('src/pages/dashboard/active-routes/fire
 // Data Usage
 const DataUsagePage = lazy(() => import('src/pages/dashboard/active-routes/data-usage'));
 const DataUsageDetailPage = lazy(() => import('src/pages/dashboard/active-routes/data-usage/detail'));
+const AdminSettingsPage = lazy(() => import('src/pages/dashboard/settings'));
 // Product
 const ProductDetailsPage = lazy(() => import('src/pages/dashboard/product/details'));
 const ProductListPage = lazy(() => import('src/pages/dashboard/product/list'));
@@ -140,8 +141,10 @@ export const dashboardRoutes = [
         children: [
           { index: true, element: <DataUsagePage /> },
           { path: ':id', element: <DataUsageDetailPage /> },
+          { path: ':id/sites/:branchId', element: <DataUsageDetailPage /> },
         ],
       },
+      { path: 'settings', element: <AdminSettingsPage /> },
 
       {
         path: 'user',

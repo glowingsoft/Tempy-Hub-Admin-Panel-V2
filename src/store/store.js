@@ -35,9 +35,13 @@ import { familyOverviewApi } from './Reducer/family-overview-api';
 import { documentsApi } from './Reducer/documents-api';
 import { documentCategoriesApi } from './Reducer/document-categories-api';
 import { kiosksApi } from './Reducer/kiosks-api';
+import { kioskBrandingApi } from './Reducer/kiosk-branding-api';
 import { competenciesApi } from './Reducer/competencies-api';
 import { assignmentsApi } from './Reducer/assignments-api';
 import { visitorApi } from './Reducer/visitor-api';
+import { chatsApi } from './Reducer/chats-api';
+import { billingApi } from './Reducer/billing-api';
+import { settingsApi } from './Reducer/settings-api';
 
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
 const persistStorage = {
@@ -109,9 +113,13 @@ const apiSlices = [
   documentsApi,
   documentCategoriesApi,
   kiosksApi,
+  kioskBrandingApi,
   competenciesApi,
   assignmentsApi,
   visitorApi,
+  chatsApi,
+  billingApi,
+  settingsApi,
 ];
 
 const clearApiCachesOnLogout = ({ dispatch }) => (next) => (action) => {
@@ -163,9 +171,13 @@ export const store = configureStore({
     [documentsApi.reducerPath]: documentsApi.reducer,
     [documentCategoriesApi.reducerPath]: documentCategoriesApi.reducer,
     [kiosksApi.reducerPath]: kiosksApi.reducer,
+    [kioskBrandingApi.reducerPath]: kioskBrandingApi.reducer,
     [competenciesApi.reducerPath]: competenciesApi.reducer,
     [assignmentsApi.reducerPath]: assignmentsApi.reducer,
     [visitorApi.reducerPath]: visitorApi.reducer,
+    [chatsApi.reducerPath]: chatsApi.reducer,
+    [billingApi.reducerPath]: billingApi.reducer,
+    [settingsApi.reducerPath]: settingsApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -208,9 +220,13 @@ export const store = configureStore({
       documentsApi.middleware,
       documentCategoriesApi.middleware,
       kiosksApi.middleware,
+      kioskBrandingApi.middleware,
       competenciesApi.middleware,
       assignmentsApi.middleware,
       visitorApi.middleware,
+      chatsApi.middleware,
+      billingApi.middleware,
+      settingsApi.middleware,
       clearApiCachesOnLogout,
     ),
 });

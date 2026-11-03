@@ -105,6 +105,7 @@ const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/
 const TeamComplianceDetailPage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance/detail'));
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 const RequirementsPage = lazy(() => import('src/pages/dashboard/active-routes/requirements'));
+const RequirementDetailPage = lazy(() => import('src/pages/dashboard/active-routes/requirements/detail'));
 
 //reports
 
@@ -270,6 +271,7 @@ export const siteManagerDashboardRoutes = [
       {
         path: "requirements", element: <RequirementsPage />
       },
+      { path: "requirements/:id", element: <RequirementDetailPage /> },
       {
         path: "configuration", element: <ConfigurationPage />
       },

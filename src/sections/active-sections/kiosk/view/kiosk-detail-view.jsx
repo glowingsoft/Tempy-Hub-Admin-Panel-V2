@@ -34,6 +34,7 @@ import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary
 import { useGetKioskByIdQuery, useToggleKioskLockMutation } from 'src/store/Reducer/kiosks-api';
 import { fDateTime } from 'src/utils/format-time';
 
+import { isKioskLocked } from '../kiosk-lock-utils';
 import QuickAddKioskModal from '../quick-add-kiosk-modal';
 
 // ----------------------------------------------------------------------
@@ -94,7 +95,7 @@ export function KioskDetailView({ ownerDashboard = false }) {
   );
 
   const kiosk = kioskResponse?.data || null;
-  const isLocked = Boolean(kiosk?.isLocked || kiosk?.isLock || kiosk?.locked);
+  const isLocked = isKioskLocked(kiosk);
 
   const [toggleKioskLock, { isLoading: isTogglingLock }] = useToggleKioskLockMutation();
 

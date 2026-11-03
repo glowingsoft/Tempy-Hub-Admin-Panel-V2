@@ -276,6 +276,7 @@ export function VisitInvitationsView({
                       const windowText = formatWindow(row.arrivalAt, row.visitingUntil, row.window);
                       const codeText = row.inviteCode || row.code || row.passcode || '—';
                       const statusKey = row.status || 'pending';
+                      const isPending = String(statusKey).trim().toLowerCase() === 'pending';
                       const statusInfo = STATUS_CONFIG[statusKey] || {
                         label: statusKey,
                         color: 'default',
@@ -339,18 +340,20 @@ export function VisitInvitationsView({
                           </TableCell>
 
                           <TableCell align="center">
-                            <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
-                              <Tooltip title="Resend code" placement="top" arrow>
-                                <IconButton
-                                  color="primary"
-                                  onClick={() => handleResend(row)}
-                                  disabled={isResending}
-                                  sx={{ width: 32, height: 32 }}
-                                >
-                                  <Iconify icon="solar:restart-bold" />
-                                </IconButton>
-                              </Tooltip>
-                            </Stack>
+                            {isPending && (
+                              <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+                                <Tooltip title="Resend code" placement="top" arrow>
+                                  <IconButton
+                                    color="primary"
+                                    onClick={() => handleResend(row)}
+                                    disabled={isResending}
+                                    sx={{ width: 32, height: 32 }}
+                                  >
+                                    <Iconify icon="solar:restart-bold" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
