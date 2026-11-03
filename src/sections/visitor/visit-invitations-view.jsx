@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import dayjs from 'dayjs';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -400,15 +400,22 @@ function NewVisitInvitationDialog({ open, onClose, organizationId }) {
 
   const [createVisitorInvitation, { isLoading: isCreating }] = useCreateVisitorInvitationMutation();
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
+    const now = dayjs();
     setVisitorName('');
     setVisitorEmail('');
     setSelectedBranch(null);
     setBadgeType('visitor');
-    setArrivalAt(dayjs());
-    setVisitingUntil(dayjs().add(9, 'hour'));
+    setArrivalAt(now);
+    setVisitingUntil(now.add(9, 'hour'));
     setHostName('Reception');
-  };
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      resetForm();
+    }
+  }, [open, resetForm]);
 
   const handleArrivalChange = (newVal) => {
     setArrivalAt(newVal);
@@ -436,8 +443,8 @@ function NewVisitInvitationDialog({ open, onClose, organizationId }) {
       toast.error('Visitor email is required');
       return;
     }
-    if (arrivalAt && dayjs(arrivalAt).isBefore(dayjs().subtract(5, 'minute'))) {
-      toast.error('Arrival date cannot be in the past');
+    if (arrivalAt && dayjs(arrivalAt).isBefore(dayjs().startOf('day'))) {
+      toast.error('Arrival date cannot be before today');
       return;
     }
     if (arrivalAt && visitingUntil && dayjs(visitingUntil).isBefore(dayjs(arrivalAt))) {
@@ -522,13 +529,11 @@ function NewVisitInvitationDialog({ open, onClose, organizationId }) {
             <MobileDateTimePicker
               label="Arrival"
               value={arrivalAt}
-              disablePast
-              minDateTime={dayjs()}
+              minDate={dayjs().startOf('day')}
               onChange={handleArrivalChange}
               slotProps={{
                 textField: {
                   fullWidth: true,
-                  helperText: 'Cannot select previous dates',
                 },
               }}
             />
@@ -536,13 +541,11 @@ function NewVisitInvitationDialog({ open, onClose, organizationId }) {
             <MobileDateTimePicker
               label="Visiting until"
               value={visitingUntil}
-              disablePast
-              minDateTime={arrivalAt || dayjs()}
+              minDateTime={arrivalAt || dayjs().startOf('day')}
               onChange={(newVal) => setVisitingUntil(newVal)}
               slotProps={{
                 textField: {
                   fullWidth: true,
-                  helperText: 'Cannot select previous dates or times before arrival',
                 },
               }}
             />

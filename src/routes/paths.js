@@ -698,6 +698,7 @@ export const paths = {
     rota: `${ROOTS.STAFF}/rota`,
     attendance: `${ROOTS.STAFF}/attendance`,
     shifts: `${ROOTS.STAFF}/shifts`,
+    shiftClaims: `${ROOTS.STAFF}/shift-claims`,
     competencies: `${ROOTS.STAFF}/competencies`,
     supervision: `${ROOTS.STAFF}/supervision`,
     supervisionDetail: (id) => `${ROOTS.STAFF}/supervision/${id}`,
