@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { useParams, useRouter, usePathname } from 'src/routes/hooks';
+import { useParams, usePathname, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { fDateTime } from 'src/utils/format-time';
@@ -18,15 +18,17 @@ import { Iconify } from 'src/components/iconify';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBillingUsageByOrgQuery } from 'src/store/Reducer/billing-api';
 
+import { DataUsageRecordsTable } from '../data-usage-records-table';
 import { formatGb } from '../utils';
 
 // ----------------------------------------------------------------------
 
 export function DataUsageDetailView({ pathsConfig } = {}) {
-  const { id } = useParams();
+  const { id, branchId } = useParams();
   const router = useRouter();
   const pathname = usePathname();
   const { organizationId: currentOrganizationId, isOwner } = useCurrentOrganization();
+  const isSiteDetail = Boolean(branchId);
 
   const isAdminDashboard = pathname.startsWith(paths.adminDashboard.root);
 
@@ -42,6 +44,16 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
         : isAdminDashboard
           ? paths.adminDashboard.dataUsage.root
           : paths.dashboard.dataUsage.root,
+      orgDetail: isOwner
+        ? paths.owner.dataUsage.detail
+        : isAdminDashboard
+          ? paths.adminDashboard.dataUsage.detail
+          : paths.dashboard.dataUsage.detail,
+      site: isOwner
+        ? paths.owner.dataUsage.site
+        : isAdminDashboard
+          ? paths.adminDashboard.dataUsage.site
+          : paths.dashboard.dataUsage.site,
       ...pathsConfig,
     }),
     [isOwner, isAdminDashboard, pathsConfig]
@@ -61,6 +73,9 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
   const branches = data?.branches || [];
   const billing = data?.billing || {};
   const record = data?.record || {};
+  const site = isSiteDetail
+    ? branches.find((item) => String(item.branchId) === String(branchId)) || null
+    : null;
 
   if (isLoading || isFetching) {
     return (
@@ -70,7 +85,7 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
     );
   }
 
-  if (isError || !organization) {
+  if (isError || !organization || (isSiteDetail && !site)) {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <Button
@@ -91,15 +106,29 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
     status,
   } = organization;
 
-  const totalUsedGb = storage.totalUsedGb ?? 0;
   const quotaGb = storage.planQuotaGb ?? billing.planLimitGb ?? 0;
-  const usagePercentage = storage.quotaPercent ?? 0;
-  const imageUsageGb = storage.images?.gb ?? 0;
-  const otherFilesGb = storage.files?.gb ?? 0;
-  const imageCount = storage.images?.count ?? 0;
-  const documentCount = storage.files?.count ?? 0;
-  const imageRatio = storage.images?.percentOfUsed ?? storage.images?.percentOfTotal ?? 0;
-  const otherRatio = storage.files?.percentOfUsed ?? storage.files?.percentOfTotal ?? 0;
+  const totalUsedGb = isSiteDetail ? site?.usedGb ?? 0 : storage.totalUsedGb ?? 0;
+  const imageUsageGb = isSiteDetail ? site?.images?.gb ?? 0 : storage.images?.gb ?? 0;
+  const otherFilesGb = isSiteDetail ? site?.files?.gb ?? 0 : storage.files?.gb ?? 0;
+  const imageCount = isSiteDetail ? site?.images?.count ?? 0 : storage.images?.count ?? 0;
+  const documentCount = isSiteDetail ? site?.files?.count ?? 0 : storage.files?.count ?? 0;
+  const usagePercentage = isSiteDetail
+    ? quotaGb > 0
+      ? Math.round((Number(totalUsedGb) / Number(quotaGb)) * 100)
+      : 0
+    : storage.quotaPercent ?? 0;
+  const imageRatio = isSiteDetail
+    ? totalUsedGb > 0
+      ? Math.round((Number(imageUsageGb) / Number(totalUsedGb)) * 100)
+      : 0
+    : storage.images?.percentOfUsed ?? storage.images?.percentOfTotal ?? 0;
+  const otherRatio = isSiteDetail
+    ? totalUsedGb > 0
+      ? Math.round((Number(otherFilesGb) / Number(totalUsedGb)) * 100)
+      : 0
+    : storage.files?.percentOfUsed ?? storage.files?.percentOfTotal ?? 0;
+
+  const heading = isSiteDetail ? site?.name || 'Site usage' : name || 'Billing & Usage';
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
@@ -110,22 +139,36 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
       </Box>
 
       <CustomBreadcrumbs
-        heading={name || 'Billing & Usage'}
+        heading={heading}
         links={[
           { name: 'Dashboard', href: resolvedPaths.dashboardRoot },
           { name: 'Billing & Usage', href: resolvedPaths.root },
-          { name: name || 'Details' },
+          ...(isSiteDetail
+            ? [
+                { name: name || 'Organization', href: resolvedPaths.orgDetail(id) },
+                { name: site?.name || 'Site' },
+              ]
+            : [{ name: name || 'Details' }]),
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
       <Stack spacing={3}>
-        <DetailCard title="Organization">
-          <DetailItem label="Name" value={name || '—'} />
-          <DetailItem label="Account owner" value={owner?.name || '—'} />
-          <DetailItem label="Owner email" value={owner?.email || '—'} />
-          <DetailItem label="Status" value={status ? String(status).toUpperCase() : '—'} />
-        </DetailCard>
+        {isSiteDetail ? (
+          <DetailCard title="Site">
+            <DetailItem label="Name" value={site?.name || '—'} />
+            <DetailItem label="Organization" value={name || '—'} />
+            <DetailItem label="Account owner" value={owner?.name || '—'} />
+            <DetailItem label="Owner email" value={owner?.email || '—'} />
+          </DetailCard>
+        ) : (
+          <DetailCard title="Organization">
+            <DetailItem label="Name" value={name || '—'} />
+            <DetailItem label="Account owner" value={owner?.name || '—'} />
+            <DetailItem label="Owner email" value={owner?.email || '—'} />
+            <DetailItem label="Status" value={status ? String(status).toUpperCase() : '—'} />
+          </DetailCard>
+        )}
 
         <DetailCard title="Storage Usage">
           <DetailItem label="Total data used" value={`${formatGb(totalUsedGb)} GB`} />
@@ -136,7 +179,7 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
           />
           <DetailItem
             label="Image storage"
-            value={`${formatGb(imageUsageGb)} GB (${Math.round(imageRatio)}% of total)`}
+            value={`${formatGb(imageUsageGb)} GB`}
           />
           <DetailItem
             label="Images uploaded"
@@ -144,7 +187,7 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
           />
           <DetailItem
             label="Other files storage"
-            value={`${formatGb(otherFilesGb)} GB (${Math.round(otherRatio)}% of total)`}
+            value={`${formatGb(otherFilesGb)} GB`}
           />
           <DetailItem
             label="Other files archived"
@@ -152,7 +195,7 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
           />
         </DetailCard>
 
-        {categories.length > 0 && (
+        {!isSiteDetail && categories.length > 0 && (
           <DetailCard title="Category Breakdown">
             {categories.map((cat) => (
               <DetailItem
@@ -166,13 +209,13 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
           </DetailCard>
         )}
 
-        {branches.length > 0 && (
+        {!isSiteDetail && branches.length > 0 && (
           <DetailCard title="Sites">
-            {branches.map((site) => (
+            {branches.map((item) => (
               <DetailItem
-                key={site.branchId || site.name}
-                label={site.name}
-                value={`${formatGb(site.usedGb)} GB (${formatGb(site.images?.gb)} GB images)`}
+                key={item.branchId || item.name}
+                label={item.name}
+                value={`${formatGb(item.usedGb)} GB (${formatGb(item.images?.gb)} GB images)`}
               />
             ))}
           </DetailCard>
@@ -199,6 +242,19 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
           <DetailItem label="Created at" value={fDateTime(record.createdAt)} />
           <DetailItem label="Updated at" value={fDateTime(record.updatedAt)} />
         </DetailCard>
+
+        {!isOwner && !isSiteDetail && id ? (
+          <DataUsageRecordsTable
+            organizationId={id}
+            showOrgFilter={false}
+            nameColumnLabel="Site"
+            onViewDetail={(row) => {
+              if (row?.branchId && resolvedPaths.site) {
+                router.push(resolvedPaths.site(id, row.branchId));
+              }
+            }}
+          />
+        ) : null}
       </Stack>
     </Box>
   );

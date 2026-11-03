@@ -1,23 +1,23 @@
-import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
-import TableRow from '@mui/material/TableRow';
-import TableCell from '@mui/material/TableCell';
-import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
+import TableCell from '@mui/material/TableCell';
+import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 
-import { varAlpha } from 'src/theme/styles';
-import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+import { Label } from 'src/components/label';
+import { varAlpha } from 'src/theme/styles';
 
 import { formatGb, usageProgressColor } from './utils';
 
 // ----------------------------------------------------------------------
 
-export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
+export function DataUsageTableRow({ row, onViewDetail, onEdit, clickable = true }) {
   const theme = useTheme();
 
   const {
@@ -50,14 +50,17 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit }) {
 
   return (
     <TableRow
-      hover
+      hover={clickable}
       sx={{
-        cursor: 'pointer',
+        cursor: clickable ? 'pointer' : 'default',
         transition: theme.transitions.create('background-color', {
           duration: theme.transitions.duration.shortest,
         }),
       }}
-      onClick={() => onViewDetail(organizationId || id)}
+      onClick={() => {
+        if (!clickable) return;
+        onViewDetail?.(row);
+      }}
     >
       {/* 1. Organization Column */}
       <TableCell sx={{ minWidth: 240, maxWidth: 320 }}>

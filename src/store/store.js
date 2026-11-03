@@ -40,6 +40,7 @@ import { assignmentsApi } from './Reducer/assignments-api';
 import { visitorApi } from './Reducer/visitor-api';
 import { chatsApi } from './Reducer/chats-api';
 import { billingApi } from './Reducer/billing-api';
+import { settingsApi } from './Reducer/settings-api';
 
 // Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
@@ -117,6 +118,7 @@ const apiSlices = [
   visitorApi,
   chatsApi,
   billingApi,
+  settingsApi,
 ];
 
 const clearApiCachesOnLogout = ({ dispatch }) => (next) => (action) => {
@@ -173,6 +175,7 @@ export const store = configureStore({
     [visitorApi.reducerPath]: visitorApi.reducer,
     [chatsApi.reducerPath]: chatsApi.reducer,
     [billingApi.reducerPath]: billingApi.reducer,
+    [settingsApi.reducerPath]: settingsApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -220,6 +223,7 @@ export const store = configureStore({
       visitorApi.middleware,
       chatsApi.middleware,
       billingApi.middleware,
+      settingsApi.middleware,
       clearApiCachesOnLogout,
     ),
 });

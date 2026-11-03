@@ -81,7 +81,7 @@ export function OrganizationDetailView() {
         if (organization.name) {
           localStorage.setItem('activeOrganizationName', organization.name);
         }
-      } catch (_) {}
+      } catch (_) { }
     }
   }, [organization]);
 
@@ -126,6 +126,7 @@ export function OrganizationDetailView() {
         action={
           canEdit && (
             <Button
+              color="primary"
               variant="contained"
               onClick={editModal.onTrue}
               startIcon={<Iconify icon="solar:pen-bold" />}

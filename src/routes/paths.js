@@ -134,11 +134,16 @@ export const paths = {
     dataUsage: {
       root: `${ROOTS.DASHBOARD}/data-usage`,
       detail: (id) => `${ROOTS.DASHBOARD}/data-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.DASHBOARD}/data-usage/${organizationId}/sites/${branchId}`,
     },
     billingAndUsage: {
       root: `${ROOTS.DASHBOARD}/data-usage`,
       detail: (id) => `${ROOTS.DASHBOARD}/data-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.DASHBOARD}/data-usage/${organizationId}/sites/${branchId}`,
     },
+    settings: `${ROOTS.DASHBOARD}/settings`,
     mail: `${ROOTS.DASHBOARD}/mail`,
     chat: `${ROOTS.DASHBOARD}/chat`,
     blank: `${ROOTS.DASHBOARD}/blank`,
@@ -503,6 +508,8 @@ export const paths = {
     dataUsage: {
       root: `${ROOTS.ADMIN_DASHBOARD}/data-usage`,
       detail: (id) => `${ROOTS.ADMIN_DASHBOARD}/data-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.ADMIN_DASHBOARD}/data-usage/${organizationId}/sites/${branchId}`,
     },
     documents: {
       root: `${ROOTS.ADMIN_DASHBOARD}/documents`,
@@ -520,6 +527,7 @@ export const paths = {
       newsletterEdit: (id) => `${ROOTS.OWNER_DASHBOARD}/family-engagement/newsletters/${id}/edit`,
       gazettes: `${ROOTS.OWNER_DASHBOARD}/family-engagement/gazettes`,
       familyGroups: `${ROOTS.OWNER_DASHBOARD}/family-engagement/family-groups`,
+      settings: `${ROOTS.OWNER_DASHBOARD}/family-engagement/settings`,
       memberships: {
         root: `${ROOTS.OWNER_DASHBOARD}/family-engagement/memberships`,
         invitations: {
@@ -561,10 +569,14 @@ export const paths = {
     dataUsage: {
       root: `${ROOTS.OWNER_DASHBOARD}/billing-and-usage`,
       detail: (id) => `${ROOTS.OWNER_DASHBOARD}/billing-and-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.OWNER_DASHBOARD}/billing-and-usage/${organizationId}/sites/${branchId}`,
     },
     billingAndUsage: {
       root: `${ROOTS.OWNER_DASHBOARD}/billing-and-usage`,
       detail: (id) => `${ROOTS.OWNER_DASHBOARD}/billing-and-usage/${id}`,
+      site: (organizationId, branchId) =>
+        `${ROOTS.OWNER_DASHBOARD}/billing-and-usage/${organizationId}/sites/${branchId}`,
     },
     directory: {
       root: `${ROOTS.OWNER_DASHBOARD}/directory`,

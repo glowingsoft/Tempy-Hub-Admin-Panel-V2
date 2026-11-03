@@ -263,6 +263,8 @@ export const API_ROUTES = {
     COMPETENCY_MATRIX: (organizationId) =>
         `/admin/organizations/${organizationId}/competency-matrix`,
 
+    SETTINGS_ALL: '/admin/settings/all',
+
     BILLING_USAGE: '/admin/billing/usage',
     BILLING_USAGE_BY_ORG: (organizationId) => `/admin/billing/usage/${organizationId}`,
 

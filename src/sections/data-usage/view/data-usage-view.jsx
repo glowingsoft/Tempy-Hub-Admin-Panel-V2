@@ -1,22 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { Scrollbar } from 'src/components/scrollbar';
-import {
-  TableBodySkeleton,
-  TableHeadCustom,
-  TableNoData,
-  TablePaginationCustom,
-  useTable,
-} from 'src/components/table';
 import { CONFIG } from 'src/config-global';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useDebounce } from 'src/hooks/use-debounce';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { usePathname, useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
@@ -24,22 +12,15 @@ import { useGetBillingUsageQuery } from 'src/store/Reducer/billing-api';
 import { useGetOrganizationsQuery } from 'src/store/Reducer/organizations-api';
 
 import { OrganizationCreateEditModal } from 'src/sections/organization/organization-create-edit-modal';
+import { DataUsageRecordsTable } from '../data-usage-records-table';
 import { DataUsageSummaryCard } from '../data-usage-summary-card';
-import { DataUsageTableRow } from '../data-usage-table-row';
-import { DataUsageTableToolbar } from '../data-usage-table-toolbar';
-import {
-  formatGb,
-  getBillingSortParam,
-  mapUsageListRow,
-  mapUsageSummary,
-} from '../utils';
+import { formatGb, mapUsageSummary } from '../utils';
 
 // ----------------------------------------------------------------------
 
 export function DataUsageView({ rootPath = paths.dashboard.root }) {
   const router = useRouter();
   const pathname = usePathname();
-  const table = useTable({ defaultOrderBy: 'totalUsedGb', defaultOrder: 'desc' });
   const { organizationId: currentOrganizationId, isOwner } = useCurrentOrganization();
 
   const isAdminDashboard = pathname.startsWith(paths.adminDashboard.root);
@@ -50,33 +31,22 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
       ? paths.adminDashboard.root
       : rootPath;
 
-  const currentDetailPath = useCallback(
-    (id) => {
-      if (isOwner) {
-        return paths.owner.dataUsage.detail(id);
-      }
-      if (isAdminDashboard) {
-        return paths.adminDashboard.dataUsage.detail(id);
-      }
-      return paths.dashboard.dataUsage.detail(id);
-    },
-    [isOwner, isAdminDashboard]
-  );
+  const usagePaths = isOwner
+    ? paths.owner.dataUsage
+    : isAdminDashboard
+      ? paths.adminDashboard.dataUsage
+      : paths.dashboard.dataUsage;
 
   const [selectedOrgId, setSelectedOrgId] = useState('all');
   const [organizationToEdit, setOrganizationToEdit] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const filterOrganizationId =
     isOwner ? undefined : selectedOrgId !== 'all' ? selectedOrgId : undefined;
 
-  const { data, isLoading, isFetching, isError, refetch } = useGetBillingUsageQuery(
+  const { data, refetch } = useGetBillingUsageQuery(
     {
-      page: table.page + 1,
-      limit: table.rowsPerPage,
-      keyword: debouncedSearch,
-      sort: getBillingSortParam(table.orderBy, table.order),
+      page: 1,
+      limit: 10,
       organizationId: filterOrganizationId,
       headerOrganizationId: isOwner ? currentOrganizationId : undefined,
     },
@@ -89,11 +59,6 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
   );
 
   const meta = data?.meta ?? {};
-  const rows = useMemo(() => {
-    const mapped = (data?.data ?? []).map(mapUsageListRow);
-    if (!meta.organization?.canEdit) return mapped;
-    return mapped.map((row) => ({ ...row, canEdit: true }));
-  }, [data, meta.organization?.canEdit]);
   const stats = useMemo(
     () =>
       mapUsageSummary(meta.summary, {
@@ -103,66 +68,27 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
     [filterOrganizationId, isOwner, meta.organization, meta.summary]
   );
 
-  const organizationOptions = useMemo(() => {
-    const fromApi = (organizationsData?.data ?? []).map((org) => ({
-      id: org._id || org.organizationId,
-      name: org.name,
-    }));
-    if (fromApi.length) return fromApi;
-    return rows
-      .filter((row) => row.organizationId)
-      .map((row) => ({ id: row.organizationId, name: row.name }));
-  }, [organizationsData, rows]);
-
-  const tableHead = useMemo(
-    () => [
-      {
-        id: 'name',
-        label: rows.some((row) => row.isSite) ? 'Site' : 'Organization',
-        minWidth: 240,
-      },
-      { id: 'totalUsedGb', label: 'Total Used', minWidth: 140 },
-      { id: 'imageUsageGb', label: 'Image Usage', minWidth: 160 },
-      { id: 'otherFilesGb', label: 'Other Files', minWidth: 140 },
-      { id: 'usagePercentage', label: 'Usage %', minWidth: 180 },
-      { id: 'actions', label: 'Actions', width: 80, align: 'right' },
-    ],
-    [rows]
+  const organizationOptions = useMemo(
+    () =>
+      (organizationsData?.data ?? []).map((org) => ({
+        id: org._id || org.organizationId,
+        name: org.name,
+      })),
+    [organizationsData]
   );
-
-  const handleOrgChange = useCallback(
-    (orgId) => {
-      setSelectedOrgId(orgId);
-      table.onResetPage();
-    },
-    [table]
-  );
-
-  const handleSearchChange = useCallback(
-    (value) => {
-      setSearchQuery(value);
-      table.onResetPage();
-    },
-    [table]
-  );
-
-  const handleResetFilters = useCallback(() => {
-    setSelectedOrgId('all');
-    setSearchQuery('');
-    table.onResetPage();
-  }, [table]);
-
-  const canReset = (!isOwner && selectedOrgId !== 'all') || !!searchQuery;
-  const loading = isLoading || isFetching;
-  const notFound = !loading && !rows.length;
-  const totalRecords = meta.totalRecords ?? rows.length;
 
   const handleViewDetail = useCallback(
-    (id) => {
-      if (!id) return;
-      router.push(currentDetailPath(id));
+    (row) => {
+      const organizationId = row?.organizationId || currentOrganizationId;
+      if (row?.branchId && organizationId && usagePaths.site) {
+        router.push(usagePaths.site(organizationId, row.branchId));
+        return;
+      }
+      if (organizationId) {
+        router.push(usagePaths.detail(organizationId));
+      }
     },
-    [router, currentDetailPath]
+    [router, usagePaths, currentOrganizationId]
   );
 
   const handleEditOrganization = useCallback(
@@ -272,76 +198,16 @@ export function DataUsageView({ rootPath = paths.dashboard.root }) {
         </Box>
       </Box>
 
-      <Card>
-        <DataUsageTableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          selectedOrg={selectedOrgId}
-          onOrgChange={handleOrgChange}
-          organizations={organizationOptions}
-          showOrgFilter={!isOwner}
-          onResetFilters={handleResetFilters}
-          canReset={canReset}
-        />
-
-        <Box sx={{ position: 'relative' }}>
-          <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
-              <TableHeadCustom
-                order={table.order}
-                orderBy={table.orderBy}
-                headLabel={tableHead}
-                rowCount={rows.length}
-                numSelected={table.selected.length}
-                onSort={table.onSort}
-              />
-
-              <TableBody>
-                {loading ? (
-                  <TableBodySkeleton
-                    rowCount={table.rowsPerPage}
-                    cellCount={tableHead.length}
-                    dense={table.dense}
-                  />
-                ) : (
-                  <>
-                    {rows.map((row) => (
-                      <DataUsageTableRow
-                        key={row.id}
-                        row={row}
-                        onViewDetail={handleViewDetail}
-                        onEdit={handleEditOrganization}
-                      />
-                    ))}
-
-                    <TableNoData
-                      notFound={notFound}
-                      title={isError ? 'Unable to load usage' : 'No Organizations Found'}
-                      subTitle={
-                        isError
-                          ? 'Billing & usage could not be loaded. Try again shortly.'
-                          : debouncedSearch
-                            ? `No records match the search term "${debouncedSearch}".`
-                            : 'No data usage records currently available.'
-                      }
-                    />
-                  </>
-                )}
-              </TableBody>
-            </Table>
-          </Scrollbar>
-        </Box>
-
-        <TablePaginationCustom
-          count={totalRecords}
-          page={table.page}
-          rowsPerPage={table.rowsPerPage}
-          onPageChange={table.onChangePage}
-          onRowsPerPageChange={table.onChangeRowsPerPage}
-          dense={table.dense}
-          onChangeDense={table.onChangeDense}
-        />
-      </Card>
+      <DataUsageRecordsTable
+        organizationId={filterOrganizationId}
+        headerOrganizationId={isOwner ? currentOrganizationId : undefined}
+        showOrgFilter={!isOwner}
+        organizations={organizationOptions}
+        selectedOrg={selectedOrgId}
+        onOrgChange={setSelectedOrgId}
+        onViewDetail={handleViewDetail}
+        onEdit={handleEditOrganization}
+      />
 
       <OrganizationCreateEditModal
         open={!!organizationToEdit}
