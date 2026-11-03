@@ -54,7 +54,15 @@ function mapStaffOption(item) {
 
 // ----------------------------------------------------------------------
 
-export function BookAppraisalDialog({ open, row, organizationId, branchId, onClose, onSave }) {
+export function BookAppraisalDialog({
+  open,
+  row,
+  organizationId,
+  branchId,
+  onClose,
+  onSave,
+  reschedule = false,
+}) {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [scheduledDateTime, setScheduledDateTime] = useState(dayjs());
   const [kind, setKind] = useState('annual');
@@ -64,6 +72,9 @@ export function BookAppraisalDialog({ open, row, organizationId, branchId, onClo
   const [bookAppraisal, { isLoading: isBooking }] = useBookAppraisalMutation();
 
   const today = dayjs().startOf('day');
+  const rowStatus = row?.badge || row?.upcoming?.status || row?.status;
+  const isReschedule =
+    reschedule || rowStatus === 'scheduled' || rowStatus === 'booked' || Boolean(row?.upcoming);
 
   const queryArgs = useMemo(
     () => ({ organizationId, role: 'staff' }),
@@ -226,7 +237,8 @@ export function BookAppraisalDialog({ open, row, organizationId, branchId, onClo
             queryArgs={queryArgs}
             mapOption={mapStaffOption}
             enabled={open}
-            disabled={isBooking}
+            disabled={isBooking || isReschedule}
+            helperText={isReschedule ? 'Staff member cannot be changed when rescheduling.' : undefined}
             renderOption={(props, option) => (
               <li {...props} key={option.value}>
                 {option.email ? (
@@ -316,6 +328,7 @@ BookAppraisalDialog.propTypes = {
   branchId: PropTypes.string,
   onClose: PropTypes.func,
   onSave: PropTypes.func,
+  reschedule: PropTypes.bool,
 };
 
 export default BookAppraisalDialog;

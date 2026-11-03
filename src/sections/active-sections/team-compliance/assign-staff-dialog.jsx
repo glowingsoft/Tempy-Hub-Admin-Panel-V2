@@ -40,6 +40,8 @@ const mapStaffOption = (item) => {
   };
 };
 
+const EMPTY_STAFF = [];
+
 // ----------------------------------------------------------------------
 
 export function AssignStaffDialog({
@@ -49,7 +51,7 @@ export function AssignStaffDialog({
   organizationId,
   isSiteManager,
   siteManagerBranchId,
-  initialStaff = [],
+  initialStaff = EMPTY_STAFF,
 }) {
   const [selectedStaff, setSelectedStaff] = useState([]);
   const [error, setError] = useState('');

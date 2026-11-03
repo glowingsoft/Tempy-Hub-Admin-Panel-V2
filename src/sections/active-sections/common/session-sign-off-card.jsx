@@ -11,6 +11,7 @@ import Divider from '@mui/material/Divider';
 import Checkbox from '@mui/material/Checkbox';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 import LoadingButton from '@mui/lab/LoadingButton';
 
 import { toast } from 'src/components/snackbar';
@@ -18,8 +19,14 @@ import { Iconify } from 'src/components/iconify';
 import { fDateTime, fDate } from 'src/utils/format-time';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { usePathname } from 'src/routes/hooks';
+import { SignaturePad } from 'src/sections/staff/documents/signature-pad';
+import { useUploadFileMutation } from 'src/store/Reducer/upload-api';
 import { useSignOffSupervisionActionPointsMutation } from 'src/store/Reducer/supervision-api';
-import { useSignOffAppraisalActionPointMutation } from 'src/store/Reducer/appraisals-api';
+import {
+  useSignOffAppraisalActionPointMutation,
+  useManagerSignAppraisalMutation,
+} from 'src/store/Reducer/appraisals-api';
+import { base64ToFile } from 'src/utils/signature';
 
 // ----------------------------------------------------------------------
 
@@ -39,7 +46,12 @@ export function SessionSignOffCard({
     useSignOffSupervisionActionPointsMutation();
   const [signOffAppraisalActionPoint, { isLoading: isSigningOffAppraisal }] =
     useSignOffAppraisalActionPointMutation();
+  const [uploadFile, { isLoading: isUploadingSignature }] = useUploadFileMutation();
+  const [managerSignAppraisal, { isLoading: isSigningAppraisalManager }] =
+    useManagerSignAppraisalMutation();
+
   const isSubmitting = isSigningOffSupervision || isSigningOffAppraisal;
+  const isSigning = isUploadingSignature || isSigningAppraisalManager;
 
   const [error, setError] = useState('');
 
@@ -58,10 +70,11 @@ export function SessionSignOffCard({
 
   // Signer name strictly derived from the currently logged-in user
   const signerName = useMemo(() => {
+    if (session?.siteManagerSignedBy) return session.siteManagerSignedBy;
+    if (session?.signedOffBy) return session.signedOffBy;
     if (user?.name) return user.name;
     const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
     if (fullName) return fullName;
-    if (session?.signedOffBy) return session.signedOffBy;
     return 'Manager';
   }, [user, session]);
 
@@ -124,7 +137,19 @@ export function SessionSignOffCard({
     [session]
   );
 
-  const isExistingSigned = Boolean(session?.signedOff);
+  const existingSignature =
+    session?.siteManagerSignatureUrl ||
+    session?.signature ||
+    session?.signatureUrl ||
+    session?.managerSignature ||
+    session?.managerSignatureUrl;
+
+  const isExistingSigned = Boolean(
+    session?.signedOff ||
+    session?.siteManagerSignedAt ||
+    session?.siteManagerSignatureUrl ||
+    existingSignature
+  );
 
   const signedOffCount = useMemo(
     () =>
@@ -256,6 +281,92 @@ export function SessionSignOffCard({
     }
   };
 
+  // Manager Appraisal Signature Upload & Sign-Off Flow
+  const handleManagerSign = async (dataUrl) => {
+    if (!dataUrl) {
+      setError('Please draw your signature before submitting.');
+      return;
+    }
+
+    const sessionId =
+      session?._id ||
+      session?.id ||
+      session?.upcoming?._id ||
+      session?.supervisionId ||
+      session?.appraisalId;
+
+    if (!sessionId) {
+      setError('Appraisal record ID not found.');
+      return;
+    }
+
+    try {
+      setError('');
+
+      // Step 1: Convert Base64 data to PNG File object
+      const file = base64ToFile(dataUrl, `manager-signature-${sessionId}.png`);
+
+      // Step 2: Upload PNG using existing AWS S3 upload API
+      const uploadRes = await uploadFile(file).unwrap();
+      const signatureUrl =
+        uploadRes?.url ||
+        uploadRes?.location ||
+        uploadRes?.key ||
+        uploadRes?.fileKey ||
+        uploadRes?.path;
+
+      if (!signatureUrl) {
+        throw new Error('Upload succeeded but no S3 URL or object key was returned.');
+      }
+
+      // Step 3: Call Manager Sign API
+      const signRes = await managerSignAppraisal({
+        organizationId,
+        appraisalId: sessionId,
+        signatureUrl,
+      }).unwrap();
+
+      // Step 4: If any action points were selected, sign them off concurrently
+      const selectedActionPointIds = selectedPoints
+        .map((idx) => {
+          const pt = actionPointsList[idx];
+          if (!pt) return null;
+          return typeof pt === 'object' ? pt._id || pt.id || pt.actionPointId : pt;
+        })
+        .filter(Boolean);
+
+      if (selectedActionPointIds.length > 0) {
+        try {
+          await Promise.all(
+            selectedActionPointIds.map((actionPointId) =>
+              signOffAppraisalActionPoint({
+                organizationId,
+                appraisalId: sessionId,
+                appraisalActionPointId: actionPointId,
+              }).unwrap()
+            )
+          );
+        } catch (apErr) {
+          console.warn('Action point sign-off partial issue:', apErr);
+        }
+      }
+
+      const msg = signRes?.message || signRes?.msg || 'Appraisal signed off successfully!';
+      toast.success(msg);
+      await onSave?.(signRes);
+    } catch (err) {
+      console.error('Failed to sign off appraisal:', err);
+      const errMsg =
+        err?.data?.message ||
+        err?.data?.msg ||
+        err?.error ||
+        err?.message ||
+        'Failed to sign off appraisal';
+      setError(errMsg);
+      toast.error(errMsg);
+    }
+  };
+
   const headerTitle =
     type === 'supervision' ? 'STAFF SUPERVISION SIGN-OFF' : 'STAFF APPRAISAL SIGN-OFF';
 
@@ -284,34 +395,6 @@ export function SessionSignOffCard({
         </Box>
 
         {error && <Alert severity="error">{error}</Alert>}
-
-        {/* Existing Signed-Off Confirmation Banner */}
-        {isExistingSigned && (
-          <Card
-            variant="outlined"
-            sx={{
-              p: 2,
-              borderRadius: 1.5,
-              bgcolor: (theme) => (theme.palette.mode === 'light' ? '#f0fdf4' : 'background.neutral'),
-              borderColor: 'success.light',
-            }}
-          >
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Iconify icon="solar:check-circle-bold" width={24} sx={{ color: 'success.main' }} />
-              <Box>
-                <Typography variant="subtitle2" sx={{ color: 'success.dark', fontWeight: 700 }}>
-                  Document Formally Signed Off
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Signed on {session?.signedOffAt ? fDateTime(session.signedOffAt) : 'Recorded'} by{' '}
-                  <Box component="span" fontWeight={600}>
-                    {session?.signedOffBy || signerName}
-                  </Box>
-                </Typography>
-              </Box>
-            </Stack>
-          </Card>
-        )}
 
         {/* Staff & Session Details (scheduledAt/completedAt, locationLabel, conductedBy) */}
         <Box
@@ -683,14 +766,143 @@ export function SessionSignOffCard({
           </Typography>
         </Card>
 
+        {/* Existing Signed-Off Confirmation Banner (at the end of sign-off page) */}
+        {isExistingSigned && (
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2.5,
+              borderRadius: 1.5,
+              bgcolor: (theme) => (theme.palette.mode === 'light' ? '#f0fdf4' : 'background.neutral'),
+              borderColor: 'success.light',
+            }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+              <Iconify icon="solar:check-circle-bold" width={24} sx={{ color: 'success.main', mt: 0.25 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle2" sx={{ color: 'success.dark', fontWeight: 700 }}>
+                  Document Formally Signed Off
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  Signed on{' '}
+                  {session?.siteManagerSignedAt || session?.signedOffAt
+                    ? fDateTime(session?.siteManagerSignedAt || session?.signedOffAt)
+                    : 'Recorded'}{' '}
+                  by{' '}
+                  <Box component="span" fontWeight={600}>
+                    {session?.siteManagerSignedBy || session?.signedOffBy || signerName}
+                  </Box>
+                </Typography>
+
+                {existingSignature && (
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                      Manager Signature ({session?.siteManagerSignedBy || session?.signedOffBy || 'Manager'}):
+                    </Typography>
+                    <Box
+                      component="img"
+                      src={existingSignature}
+                      alt="Manager Signature"
+                      sx={{
+                        maxHeight: 70,
+                        maxWidth: 220,
+                        objectFit: 'contain',
+                        bgcolor: '#ffffff',
+                        p: 0.75,
+                        borderRadius: 1,
+                        border: (theme) => `1px solid ${theme.palette.divider}`,
+                      }}
+                    />
+                  </Box>
+                )}
+
+                {session?.staffSignatureUrl && (
+                  <Box sx={{ mt: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                      Staff Signature ({session?.staffSignedBy || 'Staff'}):
+                    </Typography>
+                    <Box
+                      component="img"
+                      src={session.staffSignatureUrl}
+                      alt="Staff Signature"
+                      sx={{
+                        maxHeight: 70,
+                        maxWidth: 220,
+                        objectFit: 'contain',
+                        bgcolor: '#ffffff',
+                        p: 0.75,
+                        borderRadius: 1,
+                        border: (theme) => `1px solid ${theme.palette.divider}`,
+                      }}
+                    />
+                  </Box>
+                )}
+              </Box>
+            </Stack>
+          </Card>
+        )}
+
+        {/* Section: Manager Signature (for Appraisals) */}
+        {type === 'appraisal' && !isExistingSigned && !readOnly && (
+          <Box>
+            <Stack spacing={1} sx={{ mb: 2 }}>
+              <Typography
+                variant="subtitle2"
+                fontWeight={700}
+                sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
+              >
+                Manager Signature
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Please draw your signature below using the signature pad to confirm and formally sign off this appraisal.
+              </Typography>
+            </Stack>
+
+            <Box sx={{ position: 'relative' }}>
+              <SignaturePad onSign={handleManagerSign} />
+
+              {isSigning && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    bgcolor: (theme) =>
+                      theme.palette.mode === 'light' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.75)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10,
+                    borderRadius: 1.5,
+                    backdropFilter: 'blur(2px)',
+                  }}
+                >
+                  <CircularProgress size={36} sx={{ mb: 1.5 }} />
+                  <Typography variant="body2" fontWeight={600} color="text.primary">
+                    {isUploadingSignature
+                      ? 'Uploading signature to secure storage...'
+                      : 'Submitting appraisal sign-off...'}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        )}
+
         {/* Action Buttons */}
         <Stack direction="row" spacing={2} justifyContent="flex-end" sx={{ pt: 1 }}>
           {onCancel && (
-            <Button color="inherit" onClick={onCancel} disabled={isSubmitting}>
-              {readOnly ? 'Back' : 'Cancel'}
+            <Button
+              color="inherit"
+              onClick={onCancel}
+              disabled={isSubmitting || isSigning}
+            >
+              {readOnly || isExistingSigned ? 'Back' : 'Cancel'}
             </Button>
           )}
-          {!readOnly && !isExistingSigned && !allAlreadySigned && (
+
+          {/* Supervision sign-off button remains unchanged */}
+          {type === 'supervision' && !readOnly && !isExistingSigned && !allAlreadySigned && (
             <LoadingButton
               variant="contained"
               color="success"

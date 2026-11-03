@@ -43,6 +43,7 @@ const AppraisalSignOffPage = lazy(() => import('src/pages/dashboard/active-route
 //training
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 const RequirementsPage = lazy(() => import('src/pages/dashboard/active-routes/requirements'));
+const RequirementDetailPage = lazy(() => import('src/pages/dashboard/active-routes/requirements/detail'));
 
 //client feedback
 const FeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/feedback'));
@@ -134,6 +135,8 @@ export const lineManagerDashboardRoutes = [
             { path: "training", element: <TrainingPage /> },
 
             { path: "requirements", element: <RequirementsPage /> },
+
+            { path: "requirements/:id", element: <RequirementDetailPage /> },
 
             { path: "feedback", element: <FeedbackPage /> },
 

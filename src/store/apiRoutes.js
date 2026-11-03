@@ -28,6 +28,8 @@ export const API_ROUTES = {
     ORGANIZATIONS: '/admin/organizations',
     ORGANIZATION_BY_ID: (id) => `/admin/organizations/${id}`,
     ORGANIZATION_MODULE_ACCESS: (id) => `/admin/organizations/${id}/module-access`,
+    ORGANIZATION_STAFF_DASHBOARD_SETTINGS: (organizationId) =>
+        `/admin/organizations/${organizationId}/staff-dashboard-settings`,
     MODULE_DEFINITIONS: '/admin/module-definitions',
     ORGANIZATION_DEPARTMENTS: (organizationId) => `/admin/organizations/${organizationId}/departments`,
     ORGANIZATION_DEPARTMENT_BY_ID: (organizationId, departmentId) =>
@@ -150,14 +152,21 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/supervision/${supervisionId}`,
     ORGANIZATION_SUPERVISION_ACTION_POINTS_SIGN_OFF: (organizationId, supervisionId) =>
         `/admin/organizations/${organizationId}/supervision/${supervisionId}/action-points/sign-off`,
+    APP_SUPERVISION: '/app/supervision',
+    APP_SUPERVISION_BY_ID: (supervisionId) => `/app/supervision/${supervisionId}`,
     ORGANIZATION_APPRAISALS: (organizationId) =>
         `/admin/organizations/${organizationId}/appraisals`,
     ORGANIZATION_APPRAISAL_BY_ID: (organizationId, appraisalId) =>
         `/admin/organizations/${organizationId}/appraisals/${appraisalId}`,
+    APP_APPRAISALS: '/app/appraisal',
+    APP_APPRAISAL_BY_ID: (appraisalId) => `/app/appraisal/${appraisalId}`,
+    APP_APPRAISAL_ACKNOWLEDGE: (appraisalId) => `/app/appraisal/${appraisalId}/acknowledge`,
     ORGANIZATION_APPRAISAL_ACTION_POINTS_SIGN_OFF: (organizationId, appraisalId) =>
         `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/sign-off`,
     ORGANIZATION_APPRAISAL_ACTION_POINT_SIGN_OFF: (organizationId, appraisalId, appraisalActionPointId) =>
         `/admin/organizations/${organizationId}/appraisals/${appraisalId}/action-points/${appraisalActionPointId}/sign-off`,
+    ORGANIZATION_APPRAISAL_MANAGER_SIGN: (organizationId, appraisalId) =>
+        `/admin/organizations/${organizationId}/appraisals/${appraisalId}/manager-sign`,
 
     // Family engagement — upload moderation queue
     ORGANIZATION_FAMILY_UPLOADS: (organizationId) =>
@@ -262,4 +271,10 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/training-records`,
     COMPETENCY_MATRIX: (organizationId) =>
         `/admin/organizations/${organizationId}/competency-matrix`,
+    APP_TRAINING: '/app/training',
+    APP_COMPETENCIES: '/app/competencies',
+
+    // Kiosk Branding & Widgets
+    ORGANIZATION_KIOSK_WIDGETS: (organizationId) =>
+        `/admin/organizations/${organizationId}/kiosk-widgets`,
 };

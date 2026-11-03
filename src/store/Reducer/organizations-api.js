@@ -5,7 +5,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 export const organizationsApi = createApi({
   reducerPath: 'organizationsApi',
   baseQuery: createCustomFetchBaseQuery(),
-  tagTypes: ['Organization', 'OrganizationModuleAccess', 'ModuleDefinition'],
+  tagTypes: ['Organization', 'OrganizationModuleAccess', 'StaffDashboardSettings', 'ModuleDefinition'],
 
   endpoints: (builder) => ({
     // Fetch paginated list of organizations with optional filters (page, limit, keyword, status)
@@ -95,6 +95,30 @@ export const organizationsApi = createApi({
       providesTags: ['ModuleDefinition'],
     }),
 
+    // Fetch staff dashboard settings for a specific organization
+    getStaffDashboardSettings: builder.query({
+      query: (organizationId) => ({
+        url: API_ROUTES.ORGANIZATION_STAFF_DASHBOARD_SETTINGS(organizationId),
+        method: 'GET',
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: (result, error, organizationId) => [
+        { type: 'StaffDashboardSettings', id: organizationId },
+      ],
+    }),
+
+    // Update staff dashboard settings for a specific organization
+    updateStaffDashboardSettings: builder.mutation({
+      query: ({ organizationId, ...body }) => ({
+        url: API_ROUTES.ORGANIZATION_STAFF_DASHBOARD_SETTINGS(organizationId),
+        method: 'PUT',
+        body,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { organizationId }) => [
+        { type: 'StaffDashboardSettings', id: organizationId },
+      ],
+    }),
   }),
 });
 
@@ -106,4 +130,6 @@ export const {
   useGetOrganizationModuleAccessQuery,
   useUpdateOrganizationModuleAccessMutation,
   useGetModuleDefinitionsQuery,
+  useGetStaffDashboardSettingsQuery,
+  useUpdateStaffDashboardSettingsMutation,
 } = organizationsApi;

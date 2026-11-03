@@ -157,13 +157,21 @@ AppliesToCell.propTypes = {
 
 // ----------------------------------------------------------------------
 
-function ComplianTableRow({ row, serialNumber, jobTitlesMap, departmentsMap, onEditRow, onAssignRow }) {
+function ComplianTableRow({
+  row,
+  serialNumber,
+  jobTitlesMap,
+  departmentsMap,
+  onViewRow,
+  onEditRow,
+  onAssignRow,
+}) {
   const appliesToItems = getRequirementAppliesToItems(row, jobTitlesMap, departmentsMap);
   const hasAppliesTo = hasRequirementDepartmentOrJobTitles(row, jobTitlesMap, departmentsMap);
   const canAssignStaff = Boolean(onAssignRow && !hasAppliesTo);
 
   return (
-    <TableRow hover>
+    <TableRow hover onClick={onViewRow} sx={{ cursor: onViewRow ? 'pointer' : undefined }}>
       <TableCell sx={{ color: 'text.secondary', typography: 'body2' }}>
         {serialNumber}
       </TableCell>
@@ -203,11 +211,33 @@ function ComplianTableRow({ row, serialNumber, jobTitlesMap, departmentsMap, onE
         <AppliesToCell items={appliesToItems} />
       </TableCell>
 
-      {(onEditRow || onAssignRow) && (
+      {(onViewRow || onEditRow || onAssignRow) && (
         <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
+          {onViewRow && (
+            <Tooltip title="View requirement" placement="top" arrow>
+              <IconButton
+                color="default"
+                aria-label={`View ${row.name || 'requirement'}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onViewRow();
+                }}
+              >
+                <Iconify icon="solar:eye-bold" />
+              </IconButton>
+            </Tooltip>
+          )}
+
           {canAssignStaff && (
             <Tooltip title="Assign staff" placement="top" arrow>
-              <IconButton color="primary" onClick={onAssignRow} sx={{ mr: 0.5 }}>
+              <IconButton
+                color="primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onAssignRow();
+                }}
+                sx={{ mr: 0.5 }}
+              >
                 <Iconify icon="solar:user-plus-bold" />
               </IconButton>
             </Tooltip>
@@ -215,7 +245,13 @@ function ComplianTableRow({ row, serialNumber, jobTitlesMap, departmentsMap, onE
 
           {onEditRow && (
             <Tooltip title="Edit requirement" placement="top" arrow>
-              <IconButton color="default" onClick={onEditRow}>
+              <IconButton
+                color="default"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEditRow();
+                }}
+              >
                 <Iconify icon="solar:pen-bold" />
               </IconButton>
             </Tooltip>
@@ -233,6 +269,7 @@ ComplianTableRow.propTypes = {
   serialNumber: PropTypes.number,
   jobTitlesMap: PropTypes.object,
   departmentsMap: PropTypes.object,
+  onViewRow: PropTypes.func,
   onEditRow: PropTypes.func,
   onAssignRow: PropTypes.func,
 };

@@ -68,7 +68,8 @@ export default function AppraisalTableRow({
   let detailPath = paths.lineManager.appraisalDetail(rowId);
   let signOffPath = paths.lineManager.appraisalSignOff(rowId);
   if (isStaffView) {
-    detailPath = paths.staff.appraisalDetail(rowId);
+    const appraisalId = row?._id || row?.id;
+    detailPath = appraisalId ? paths.staff.appraisalDetail(appraisalId) : null;
   } else if (basePath) {
     detailPath = `${basePath}/${rowId}`;
     signOffPath = `${basePath}/${rowId}/sign-off`;
@@ -82,7 +83,13 @@ export default function AppraisalTableRow({
 
   const currentStatus = getAppraisalRowStatus(row);
   const isCompleted = currentStatus === 'completed';
-  const isSignedOff = Boolean(row?.signedOff || row?.signature);
+  const isSignedOff = Boolean(
+    row?.signedOff ||
+    row?.siteManagerSignedAt ||
+    row?.siteManagerSignatureUrl ||
+    row?.signature ||
+    row?.signatureUrl
+  );
   const isScheduled = currentStatus === 'booked' || currentStatus === 'scheduled' || !!row?.upcoming;
   const canComplete = isScheduled && !isCompleted;
 
@@ -171,19 +178,23 @@ export default function AppraisalTableRow({
       icon: 'solar:eye-bold',
       tooltip: 'View Details',
       color: 'default',
-      onClick: () => router.push(detailPath),
+      onClick: () => {
+        if (detailPath) router.push(detailPath);
+      },
     },
   ];
   const actions = isStaffView
-    ? managementActions.filter((action) => action.key === 'view')
+    ? managementActions.filter((action) => action.key === 'view' && detailPath)
     : managementActions;
 
   return (
     <TableRow
       hover
       tabIndex={-1}
-      sx={{ cursor: 'pointer' }}
-      onClick={() => router.push(detailPath)}
+      sx={{ cursor: detailPath ? 'pointer' : 'default' }}
+      onClick={() => {
+        if (detailPath) router.push(detailPath);
+      }}
     >
       <TableCell>{serialNumber}</TableCell>
 
