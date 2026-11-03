@@ -27,7 +27,8 @@ export const navDataStaff = [
       { title: 'Rota', path: paths.staff.rota, icon: ICONS.rota },
       { title: 'Attendance', path: paths.staff.attendance, icon: ICONS.clock },
       { title: 'Leave Requests', path: paths.staff.leaveRequests, icon: ICONS.calendar },
-      { title: 'Shifts', path: paths.staff.shifts, icon: ICONS.shifts },
+      { title: 'My Shifts', path: paths.staff.shifts, icon: ICONS.shifts },
+      { title: 'Shift Claim', path: paths.staff.shiftClaims, icon: ICONS.check },
       {
         title: 'Supervision & Appraisal',
         path: paths.staff.supervision,

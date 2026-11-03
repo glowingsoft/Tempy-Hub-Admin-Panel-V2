@@ -7,7 +7,7 @@ export default function Page() {
     return (
         <>
             <Helmet>
-                <title>Shifts | Staff Dashboard - {CONFIG.site.name}</title>
+                <title>My Shifts | Staff Dashboard - {CONFIG.site.name}</title>
             </Helmet>
             <StaffShiftListView />
         </>
