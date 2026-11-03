@@ -274,6 +274,9 @@ export const API_ROUTES = {
 
     SETTINGS_ALL: '/admin/settings/all',
 
+    STATISTICS: '/admin/statistics',
+    PLATFORM_DASHBOARD: '/admin/platform/dashboard',
+
     BILLING_USAGE: '/admin/billing/usage',
     BILLING_USAGE_BY_ORG: (organizationId) => `/admin/billing/usage/${organizationId}`,
 

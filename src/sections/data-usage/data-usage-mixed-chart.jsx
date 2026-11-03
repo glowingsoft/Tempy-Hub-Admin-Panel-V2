@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
@@ -9,6 +11,9 @@ import { useTheme } from '@mui/material/styles';
 
 import { Label } from 'src/components/label';
 import { Chart, useChart, ChartSelect } from 'src/components/chart';
+import { Iconify } from 'src/components/iconify';
+
+import { formatGb } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -95,25 +100,62 @@ const YEAR_DATA = {
 
 // ----------------------------------------------------------------------
 
+function mapUsageToChart(usage) {
+  const months = usage?.months || [];
+
+  return {
+    totalUsed: usage?.usedGb ?? 0,
+    quota: usage?.planQuotaGb ?? 0,
+    usagePct: usage?.quotaPercent ?? 0,
+    imagesGb: usage?.images?.gb ?? 0,
+    imagePct: usage?.images?.percentOfUsed ?? 0,
+    otherFilesGb: usage?.files?.gb ?? 0,
+    otherFilesPct: usage?.files?.percentOfUsed ?? 0,
+    categories: months.map((item) => item.month),
+    series: [
+      { name: 'Images', type: 'column', data: months.map((item) => item.imagesGb) },
+      { name: 'Other Files', type: 'column', data: months.map((item) => item.filesGb) },
+      { name: 'Total Storage', type: 'line', data: months.map((item) => item.totalGb) },
+    ],
+  };
+}
+
 export function DataUsageMixedChart({
   title = 'Data Usage & Images Shared',
   subheader,
+  usage,
+  year,
+  yearOptions = YEAR_OPTIONS,
+  onYearChange,
+  onViewAll,
   sx,
   ...other
 }) {
   const theme = useTheme();
 
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const [internalYear, setInternalYear] = useState('2026');
+  const selectedYear = year ?? internalYear;
 
-  const currentYearData = YEAR_DATA[selectedYear] || YEAR_DATA['2026'];
+  const currentYearData = usage
+    ? mapUsageToChart(usage)
+    : YEAR_DATA[selectedYear] || YEAR_DATA['2026'];
 
   const handleChangeYear = useCallback((newValue) => {
-    setSelectedYear(newValue);
-  }, []);
+    if (onYearChange) {
+      onYearChange(newValue);
+      return;
+    }
+    setInternalYear(newValue);
+  }, [onYearChange]);
+
+  const usedLabel = usage ? formatGb(currentYearData.totalUsed) : currentYearData.totalUsed.toLocaleString();
+  const quotaLabel = usage ? formatGb(currentYearData.quota) : currentYearData.quota.toLocaleString();
+  const imagesLabel = usage ? formatGb(currentYearData.imagesGb) : currentYearData.imagesGb;
+  const otherLabel = usage ? formatGb(currentYearData.otherFilesGb) : currentYearData.otherFilesGb;
 
   const dynamicSubheader =
     subheader ||
-    `${currentYearData.totalUsed.toLocaleString()} GB used of ${currentYearData.quota.toLocaleString()} GB plan quota (${currentYearData.usagePct}%)`;
+    `${usedLabel} GB used of ${quotaLabel} GB plan quota (${currentYearData.usagePct}%)`;
 
   const chartColors = [
     theme.palette.info.main, // Images: Cyan / Info
@@ -141,7 +183,7 @@ export function DataUsageMixedChart({
     yaxis: {
       min: 0,
       labels: {
-        formatter: (val) => `${val} GB`,
+        formatter: (val) => `${val == null ? '—' : val} GB`,
       },
     },
     plotOptions: {
@@ -154,7 +196,7 @@ export function DataUsageMixedChart({
       shared: true,
       intersect: false,
       y: {
-        formatter: (value) => (typeof value !== 'undefined' ? `${value.toLocaleString()} GB` : value),
+        formatter: (value) => (value == null ? '—' : `${Number(value).toLocaleString()} GB`),
       },
     },
   });
@@ -166,7 +208,7 @@ export function DataUsageMixedChart({
         subheader={dynamicSubheader}
         action={
           <ChartSelect
-            options={YEAR_OPTIONS}
+            options={yearOptions}
             value={selectedYear}
             onChange={handleChangeYear}
           />
@@ -196,19 +238,19 @@ export function DataUsageMixedChart({
               Total Storage:
             </Typography>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main' }}>
-              {currentYearData.totalUsed.toLocaleString()} GB
+              {usedLabel} GB
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-              / {currentYearData.quota.toLocaleString()} GB
+              / {quotaLabel} GB
             </Typography>
           </Stack>
 
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Label variant="soft" color="info" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-              Images: {currentYearData.imagesGb} GB ({currentYearData.imagePct}%)
+              Images: {imagesLabel} GB ({currentYearData.imagePct}%)
             </Label>
             <Label variant="soft" color="warning" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-              Other: {currentYearData.otherFilesGb} GB ({currentYearData.otherFilesPct}%)
+              Other: {otherLabel} GB ({currentYearData.otherFilesPct}%)
             </Label>
             <Label variant="soft" color="primary" sx={{ fontSize: '0.75rem', fontWeight: 700 }}>
               {currentYearData.usagePct}% Quota
@@ -227,6 +269,22 @@ export function DataUsageMixedChart({
           />
         </Box>
       </Box>
+
+      {onViewAll ? (
+        <>
+          <Divider sx={{ borderStyle: 'dashed' }} />
+          <Box sx={{ p: 2, textAlign: 'right' }}>
+            <Button
+              size="small"
+              color="inherit"
+              onClick={onViewAll}
+              endIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={18} sx={{ ml: -0.5 }} />}
+            >
+              View all
+            </Button>
+          </Box>
+        </>
+      ) : null}
     </Card>
   );
 }

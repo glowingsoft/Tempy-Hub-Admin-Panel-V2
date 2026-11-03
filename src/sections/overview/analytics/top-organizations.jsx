@@ -7,8 +7,8 @@ import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
-
 import { Avatar, Link, Stack, Tooltip } from '@mui/material';
+
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
@@ -20,91 +20,119 @@ import { paths } from 'src/routes/paths';
 // ----------------------------------------------------------------------
 
 const STATUS_COLOR = {
-    active: 'success',
-    inactive: 'default',
-    suspended: 'error',
-    pending: 'warning',
+  active: 'success',
+  inactive: 'default',
+  suspended: 'error',
+  pending: 'warning',
+  pendingActivation: 'warning',
 };
 
-export function TopOrganizations({ title, subheader, tableData = [], headLabel, onClick, ...other }) {
-    return (
-        <Card sx={{ height: 1, display: 'flex', flexDirection: 'column', ...other?.sx }} {...other}>
-            <CardHeader title={title} subheader={subheader} sx={{ mb: 3 }} />
+function formatStatus(status) {
+  if (!status) return '—';
+  return status
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (char) => char.toUpperCase())
+    .trim();
+}
 
-            <Scrollbar sx={{ minHeight: 402, flexGrow: 1 }}>
-                <Table sx={{ minWidth: 460 }}>
-                    <TableHeadCustom headLabel={headLabel} />
+export function TopOrganizations({
+  title,
+  subheader,
+  tableData = [],
+  headLabel,
+  onClick,
+  showViewAll = true,
+  ...other
+}) {
+  return (
+    <Card sx={{ height: 1, display: 'flex', flexDirection: 'column', ...other?.sx }} {...other}>
+      <CardHeader title={title} subheader={subheader} sx={{ mb: 3 }} />
 
-                    <TableBody>
-                        {tableData.map((row) => (
-                            <RowItem key={row._id} row={row} />
-                        ))}
-                    </TableBody>
-                </Table>
-            </Scrollbar>
+      <Scrollbar sx={{ minHeight: 402, flexGrow: 1 }}>
+        <Table sx={{ minWidth: 460 }}>
+          <TableHeadCustom headLabel={headLabel} />
 
-            <Divider sx={{ borderStyle: 'dashed' }} />
+          <TableBody>
+            {tableData.map((row) => (
+              <RowItem key={row.organizationId || row._id} row={row} />
+            ))}
+          </TableBody>
+        </Table>
+      </Scrollbar>
 
-            <Box sx={{ p: 2, textAlign: 'right' }}>
-                <Button
-                    size="small"
-                    color="inherit"
-                    onClick={onClick}
-                    endIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={18} sx={{ ml: -0.5 }} />}
-                >
-                    View all
-                </Button>
-            </Box>
-        </Card>
-    );
+      {showViewAll ? (
+        <>
+          <Divider sx={{ borderStyle: 'dashed' }} />
+
+          <Box sx={{ p: 2, textAlign: 'right' }}>
+            <Button
+              size="small"
+              color="inherit"
+              onClick={onClick}
+              endIcon={<Iconify icon="eva:arrow-ios-forward-fill" width={18} sx={{ ml: -0.5 }} />}
+            >
+              View all
+            </Button>
+          </Box>
+        </>
+      ) : null}
+    </Card>
+  );
 }
 
 function RowItem({ row }) {
-    const router = useRouter();
+  const router = useRouter();
+  const organizationId = row.organizationId || row._id;
+  const modules =
+    typeof row.modules === 'number'
+      ? row.modules
+      : (row.moduleAccess || []).filter((item) => item.enabled).length;
 
-    const activeModules = (row.moduleAccess || []).filter((m) => m.enabled).length;
+  const actions = [
+    {
+      key: 'details',
+      icon: 'solar:eye-bold',
+      tooltip: 'Details',
+      color: 'default',
+      onClick: () => {
+        if (organizationId) {
+          router.push(paths.dashboard.organizations.detail(organizationId));
+        }
+      },
+    },
+  ];
 
-    const actions = [
-        {
-            key: 'details',
-            icon: 'solar:eye-bold',
-            tooltip: 'Details',
-            color: 'default',
-            onClick: () => router.push(paths.dashboard.organizations.detail(row._id)),
-        },
-    ];
+  return (
+    <TableRow hover>
+      <TableCell>
+        <Stack spacing={2} direction="row" alignItems="center">
+          <Avatar alt={row.name}>{row.name?.charAt(0)?.toUpperCase()}</Avatar>
 
-    return (
-        <TableRow hover>
-            <TableCell>
-                <Stack spacing={2} direction="row" alignItems="center">
-                    <Avatar alt={row.name}>{row.name?.charAt(0)?.toUpperCase()}</Avatar>
+          <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+            <Link color="inherit">
+              {row?.name?.length > 30 ? (
+                <Tooltip title={row.name} arrow placement="bottom">
+                  <span>{row.name.slice(0, 30)}...</span>
+                </Tooltip>
+              ) : (
+                row.name || '--'
+              )}
+            </Link>
+          </Stack>
+        </Stack>
+      </TableCell>
 
-                    <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                        <Link color="inherit">
-                            {row?.name?.length > 30 ? (
-                                <Tooltip title={row.name} arrow placement="bottom">
-                                    <span>{row.name.slice(0, 30)}...</span>
-                                </Tooltip>
-                            ) : (
-                                row.name || '--'
-                            )}
-                        </Link>
-                    </Stack>
-                </Stack>
-            </TableCell>
+      <TableCell align="center">{modules}</TableCell>
 
-            <TableCell align="center">{activeModules}</TableCell>
+      <TableCell align="center">
+        <Label color={STATUS_COLOR[row.status] || 'default'}>{formatStatus(row.status)}</Label>
+      </TableCell>
 
-            <TableCell align="center">
-                <Label color={STATUS_COLOR[row.status] || 'default'}>{row.status || '--'}</Label>
-            </TableCell>
-
-            <TableCell>
-                <Box sx={{ alignItems: 'center', display: 'flex', justifyContent: 'center' }}>
-                    <GenericTableRowActions actions={actions} />
-                </Box>
-            </TableCell>
-        </TableRow>
-    );
+      <TableCell>
+        <Box sx={{ alignItems: 'center', display: 'flex', justifyContent: 'center' }}>
+          <GenericTableRowActions actions={actions} />
+        </Box>
+      </TableCell>
+    </TableRow>
+  );
 }

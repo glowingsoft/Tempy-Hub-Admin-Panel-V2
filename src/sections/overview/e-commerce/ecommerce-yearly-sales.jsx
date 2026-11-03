@@ -10,10 +10,22 @@ import { Chart, useChart, ChartSelect, ChartLegends } from 'src/components/chart
 
 // ----------------------------------------------------------------------
 
-export function EcommerceYearlySales({ title, subheader, chart, height, ...other }) {
+export function EcommerceYearlySales({
+  title,
+  subheader,
+  chart,
+  height,
+  selectedSeries: selectedSeriesProp,
+  onSeriesChange,
+  seriesOptions,
+  hideSeriesSelect = false,
+  sx,
+  ...other
+}) {
   const theme = useTheme();
 
-  const [selectedSeries, setSelectedSeries] = useState('2026');
+  const [internalSeries, setInternalSeries] = useState(chart.series[0]?.name ?? '2026');
+  const selectedSeries = selectedSeriesProp ?? internalSeries;
 
   const chartColors = chart.colors ?? [theme.palette.primary.main, theme.palette.warning.main];
 
@@ -24,22 +36,37 @@ export function EcommerceYearlySales({ title, subheader, chart, height, ...other
   });
 
   const handleChangeSeries = useCallback((newValue) => {
-    setSelectedSeries(newValue);
-  }, []);
+    if (onSeriesChange) {
+      onSeriesChange(newValue);
+      return;
+    }
+    setInternalSeries(newValue);
+  }, [onSeriesChange]);
 
-  const currentSeries = chart.series.find((i) => i.name === selectedSeries);
+  const currentSeries = chart.series.find((i) => i.name === selectedSeries) ?? chart.series[0];
 
   return (
-    <Card {...other}>
+    <Card
+      {...other}
+      sx={{
+        width: 1,
+        height: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        ...sx,
+      }}
+    >
       <CardHeader
         title={title}
         subheader={subheader}
         action={
-          <ChartSelect
-            options={chart.series.map((item) => item.name)}
-            value={selectedSeries}
-            onChange={handleChangeSeries}
-          />
+          hideSeriesSelect ? null : (
+            <ChartSelect
+              options={seriesOptions ?? chart.series.map((item) => item.name)}
+              value={selectedSeries}
+              onChange={handleChangeSeries}
+            />
+          )
         }
         sx={{ mb: 3 }}
       />
@@ -56,7 +83,7 @@ export function EcommerceYearlySales({ title, subheader, chart, height, ...other
         series={currentSeries?.data}
         options={chartOptions}
         height={height ?? 320}
-        sx={{ py: 2.5, pl: 1, pr: 2.5 }}
+        sx={{ py: 2.5, pl: 1, pr: 2.5, flex: 1, minHeight: height ?? 320, width: 1 }}
       />
     </Card>
   );
