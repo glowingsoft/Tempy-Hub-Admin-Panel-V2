@@ -128,6 +128,7 @@ export function OrganizationDetailView() {
             <Button
               color="primary"
               variant="contained"
+              color="primary"
               onClick={editModal.onTrue}
               startIcon={<Iconify icon="solar:pen-bold" />}
             >

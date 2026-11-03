@@ -35,6 +35,7 @@ import { familyOverviewApi } from './Reducer/family-overview-api';
 import { documentsApi } from './Reducer/documents-api';
 import { documentCategoriesApi } from './Reducer/document-categories-api';
 import { kiosksApi } from './Reducer/kiosks-api';
+import { kioskBrandingApi } from './Reducer/kiosk-branding-api';
 import { competenciesApi } from './Reducer/competencies-api';
 import { assignmentsApi } from './Reducer/assignments-api';
 import { visitorApi } from './Reducer/visitor-api';
@@ -113,6 +114,7 @@ const apiSlices = [
   documentsApi,
   documentCategoriesApi,
   kiosksApi,
+  kioskBrandingApi,
   competenciesApi,
   assignmentsApi,
   visitorApi,
@@ -170,6 +172,7 @@ export const store = configureStore({
     [documentsApi.reducerPath]: documentsApi.reducer,
     [documentCategoriesApi.reducerPath]: documentCategoriesApi.reducer,
     [kiosksApi.reducerPath]: kiosksApi.reducer,
+    [kioskBrandingApi.reducerPath]: kioskBrandingApi.reducer,
     [competenciesApi.reducerPath]: competenciesApi.reducer,
     [assignmentsApi.reducerPath]: assignmentsApi.reducer,
     [visitorApi.reducerPath]: visitorApi.reducer,
@@ -218,6 +221,7 @@ export const store = configureStore({
       documentsApi.middleware,
       documentCategoriesApi.middleware,
       kiosksApi.middleware,
+      kioskBrandingApi.middleware,
       competenciesApi.middleware,
       assignmentsApi.middleware,
       visitorApi.middleware,

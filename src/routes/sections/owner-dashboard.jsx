@@ -48,6 +48,7 @@ const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/
 const TeamComplianceDetailPage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance/detail'));
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 const RequirementsPage = lazy(() => import('src/pages/dashboard/active-routes/requirements'));
+const RequirementDetailPage = lazy(() => import('src/pages/dashboard/active-routes/requirements/detail'));
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
 const KioskListPage = lazy(() => import('src/pages/dashboard/active-routes/kiosk'));
 const KioskDetailPage = lazy(() => import('src/pages/dashboard/active-routes/kiosk/detail'));
@@ -311,6 +312,7 @@ export const ownerDashboardRoutes = [
       },
       { path: 'training', element: <TrainingPage /> },
       { path: 'requirements', element: <RequirementsPage /> },
+      { path: 'requirements/:id', element: <RequirementDetailPage /> },
       { path: 'tempy-connection', element: <TempyConnectionPage ownerDashboard /> },
       {
         path: 'billing-and-usage',

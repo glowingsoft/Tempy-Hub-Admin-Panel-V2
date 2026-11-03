@@ -17,6 +17,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
@@ -191,9 +192,9 @@ export function OrganizationListView() {
             variant="contained"
             color="primary"
             onClick={createModal.onTrue}
-          // startIcon={<Iconify icon="mingcute:add-line" />}
+            startIcon={<Iconify icon="mingcute:add-line" />}
           >
-            New Organization
+            Add Organization
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}

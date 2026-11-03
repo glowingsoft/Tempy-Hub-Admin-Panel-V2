@@ -126,7 +126,13 @@ export default function AppraisalSignOffView() {
           router.push(dashboardRoutes.detailHref);
         }}
         onCancel={router.back}
-        readOnly={Boolean(appraisal?.signedOff || appraisal?.signature)}
+        readOnly={Boolean(
+          appraisal?.signedOff ||
+          appraisal?.siteManagerSignedAt ||
+          appraisal?.siteManagerSignatureUrl ||
+          appraisal?.signature ||
+          appraisal?.signatureUrl
+        )}
       />
     </DashboardContent>
   );

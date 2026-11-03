@@ -77,6 +77,7 @@ export const visitorApi = createApi({
         params: organizationId ? { organizationId } : undefined,
       }),
       transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { organizationId }) => [listTag(organizationId)],
     }),
 
     getVisitSessions: builder.query({

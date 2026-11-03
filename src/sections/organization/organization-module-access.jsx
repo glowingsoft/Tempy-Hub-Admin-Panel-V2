@@ -35,7 +35,7 @@ const TABLE_HEAD = [
   { id: 'module', label: 'Module', minWidth: 280 },
   { id: 'enabled', label: 'Access', width: 120, align: 'center' },
   { id: 'purchasedAt', label: 'Activation At', width: 240 },
-  { id: 'expiresAt', label: 'Expiry date', width: 220 },
+  { id: 'expiresAt', label: 'Expiry date', width: 240 },
 ];
 
 const FALLBACK_MODULES = mockModuleAccessResponse.data.moduleAccess;
@@ -151,12 +151,18 @@ export function OrganizationModuleAccess({ organizationId }) {
         subheader="Enable modules for this organization. Activation At is set to today when access is turned on; expiry date is optional."
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button color="inherit" disabled={!isDirty || isUpdating} onClick={handleReset}>
+            <Button
+              variant="outlined"
+              color="inherit"
+              disabled={!isDirty || isUpdating}
+              onClick={handleReset}
+            >
               Reset
             </Button>
             <LoadingButton
               color="primary"
               variant="contained"
+              color="primary"
               disabled={!isDirty}
               loading={isUpdating}
               onClick={handleSave}
@@ -179,7 +185,7 @@ export function OrganizationModuleAccess({ organizationId }) {
         )}
 
         <Scrollbar>
-          <Table sx={{ minWidth: 640 }}>
+          <Table sx={{ minWidth: 880 }}>
             <TableHeadCustom headLabel={TABLE_HEAD} />
 
             <TableBody>
@@ -210,7 +216,7 @@ export function OrganizationModuleAccess({ organizationId }) {
                         onChange={(newValue) =>
                           handleDateChange(mod.moduleSlug, 'purchasedAt', newValue)
                         }
-                        format={formatStr.split.date}
+                        format="DD/MM/YYYY"
                         slotProps={{
                           textField: { fullWidth: true, size: 'small' },
                           field: { clearable: true },

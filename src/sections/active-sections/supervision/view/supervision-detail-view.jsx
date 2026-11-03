@@ -21,7 +21,10 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { useParams, useRouter, usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { fDateTime } from 'src/utils/format-time';
-import { useGetSupervisionByIdQuery } from 'src/store/Reducer/supervision-api';
+import {
+  useGetAppSupervisionByIdQuery,
+  useGetSupervisionByIdQuery,
+} from 'src/store/Reducer/supervision-api';
 
 import LogSessionDialog from '../log-session-dialog';
 import { CompleteSupervisionDialog } from '../complete-supervision-dialog';
@@ -48,33 +51,43 @@ export default function SupervisionDetailView() {
   const pathname = usePathname();
   const { organizationId, user } = useCurrentOrganization();
   const isStaffRoute = pathname.startsWith(`${paths.staff.root}/`);
-  const isStaffRole = user?.access?.memberships?.[0]?.role?.toLowerCase() === 'staff';
+  const isStaffRole =
+    Array.isArray(user?.access?.memberships) &&
+    user.access.memberships.some(
+      (membership) => typeof membership?.role === 'string' && membership.role.toLowerCase() === 'staff'
+    );
   const currentStaffId = [user?.staffId, user?.basicInfo, user?.id].map(getReferenceId).find(Boolean);
 
   const logModal = useBoolean();
   const completeModal = useBoolean();
   const signOffModal = useBoolean();
 
-  const {
-    data: supervisionData,
-    isLoading,
-    isError,
-    refetch,
-  } = useGetSupervisionByIdQuery(
+  const staffSupervisionQuery = useGetAppSupervisionByIdQuery(
+    { organizationId, supervisionId: id, cacheUserId: currentStaffId },
+    { skip: !isStaffRoute || !isStaffRole || !organizationId || !id }
+  );
+  const organizationSupervisionQuery = useGetSupervisionByIdQuery(
     { organizationId, supervisionId: id },
-    { skip: !organizationId || !id }
+    { skip: isStaffRoute || !organizationId || !id }
   );
 
+  const supervisionData = isStaffRoute
+    ? staffSupervisionQuery.currentData
+    : organizationSupervisionQuery.data;
+  const isLoading = isStaffRoute
+    ? staffSupervisionQuery.isLoading
+    : organizationSupervisionQuery.isLoading;
+  const isError = isStaffRoute
+    ? staffSupervisionQuery.isError
+    : organizationSupervisionQuery.isError;
+  const error = isStaffRoute
+    ? staffSupervisionQuery.error
+    : organizationSupervisionQuery.error;
+  const refetch = isStaffRoute
+    ? staffSupervisionQuery.refetch
+    : organizationSupervisionQuery.refetch;
+
   const supervision = supervisionData?.data || supervisionData;
-  const recordStaffId = [
-    supervision?.staffId,
-    supervision?.staffProfile,
-    supervision?.staff,
-    supervision?.staffUser,
-    supervision?.userId,
-  ]
-    .map(getReferenceId)
-    .find(Boolean);
 
   const dashboardRoutes = useMemo(() => {
     if (isStaffRoute) {
@@ -122,11 +135,7 @@ export default function SupervisionDetailView() {
     );
   }
 
-  if (
-    isError ||
-    !supervision ||
-    (isStaffRoute && (!isStaffRole || !currentStaffId || recordStaffId !== currentStaffId))
-  ) {
+  if (isStaffRoute && !isStaffRole) {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
@@ -136,8 +145,35 @@ export default function SupervisionDetailView() {
         </Box>
         <EmptyContent
           filled
-          title="Supervision session not found"
-          description="Could not load the requested supervision session details."
+          title="Staff access required"
+          description="Your account is not associated with a staff membership."
+          action={
+            <Button variant="contained" onClick={() => router.push(dashboardRoutes.supervisionHref)}>
+              Return to Supervisions
+            </Button>
+          }
+          sx={{ py: 10 }}
+        />
+      </DashboardContent>
+    );
+  }
+
+  if (isError || !supervision) {
+    return (
+      <DashboardContent>
+        <Box sx={{ mb: 2 }}>
+          <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+            Back
+          </Button>
+        </Box>
+        <EmptyContent
+          filled
+          title={isError ? 'Unable to load supervision session' : 'Supervision session not found'}
+          description={
+            isError
+              ? error?.data?.message || error?.error || 'Failed to load supervision session details.'
+              : 'Could not load the requested supervision session details.'
+          }
           action={
             <Button variant="contained" onClick={() => router.push(dashboardRoutes.supervisionHref)}>
               Return to Supervisions

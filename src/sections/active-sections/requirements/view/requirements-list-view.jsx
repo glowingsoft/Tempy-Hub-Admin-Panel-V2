@@ -27,7 +27,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
-import { usePathname } from 'src/routes/hooks';
+import { usePathname, useRouter } from 'src/routes/hooks';
 import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { useGetCompetenciesQuery } from 'src/store/Reducer/competencies-api';
 
@@ -67,7 +67,10 @@ const TYPE_FILTER_FIELD = createFilterField.status({
 
 export function RequirementsListView({ dashboardHref: dashboardHrefProp }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
   const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const isOwner = pathname.startsWith(paths.owner.root);
 
   const dashboardHref =
     dashboardHrefProp ||
@@ -163,6 +166,20 @@ export function RequirementsListView({ dashboardHref: dashboardHrefProp }) {
     [reqDialog]
   );
 
+  const handleViewRequirement = useCallback(
+    (requirement) => {
+      if (!requirement?._id) return;
+
+      const detailPath = isSiteManager
+        ? paths.siteManager.requirementDetail(requirement._id)
+        : isOwner
+          ? paths.owner.requirementDetail(requirement._id)
+          : paths.lineManager.requirementDetail(requirement._id);
+      router.push(detailPath);
+    },
+    [isOwner, isSiteManager, router]
+  );
+
   // Table head labels
   const tableHeadLabels = useMemo(
     () => [...BASE_HEAD_LABELS, ACTIONS_HEAD_LABEL],
@@ -179,14 +196,16 @@ export function RequirementsListView({ dashboardHref: dashboardHrefProp }) {
           { name: 'Requirements' },
         ]}
         action={
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            onClick={handleOpenCreate}
-          >
-            Add requirement
-          </Button>
+          !isLineManager && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+              onClick={handleOpenCreate}
+            >
+              Add requirement
+            </Button>
+          )
         }
         sx={{ mb: 3 }}
       />
@@ -228,8 +247,9 @@ export function RequirementsListView({ dashboardHref: dashboardHrefProp }) {
                           key={row._id}
                           row={row}
                           serialNumber={table.page * table.rowsPerPage + index + 1}
+                          onViewRow={() => handleViewRequirement(row)}
                           onEditRow={() => handleOpenEdit(row)}
-                          onAssignRow={() => handleOpenAssign(row)}
+                          onAssignRow={isLineManager ? undefined : () => handleOpenAssign(row)}
                         />
                       ))}
 

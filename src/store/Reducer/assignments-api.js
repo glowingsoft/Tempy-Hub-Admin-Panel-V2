@@ -10,6 +10,36 @@ export const assignmentsApi = createApi({
   tagTypes: ['Assignments', 'Assignment', 'CompetencyMatrix', 'TrainingRecords'],
 
   endpoints: (builder) => ({
+    // GET /app/training?page&limit&search&status -> { data: TrainingAssignment[], meta: { statusCounts, compliance } }
+    getAppStaffTrainingRecords: builder.query({
+      query: ({ organizationId, page = 1, limit = 10, search, status } = {}) => ({
+        url: API_ROUTES.APP_TRAINING,
+        params: {
+          page,
+          limit,
+          ...(search ? { search } : {}),
+          ...(status && status !== 'all' ? { status } : {}),
+        },
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      providesTags: ['TrainingRecords'],
+    }),
+
+    // GET /app/competencies?page&limit&search&status -> { data: { items, compliance } }
+    getAppStaffCompetencies: builder.query({
+      query: ({ organizationId, page = 1, limit = 10, search, status } = {}) => ({
+        url: API_ROUTES.APP_COMPETENCIES,
+        params: {
+          page,
+          limit,
+          ...(search ? { search } : {}),
+          ...(status && status !== 'all' ? { status } : {}),
+        },
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      providesTags: ['CompetencyMatrix'],
+    }),
+
     // POST /admin/organizations/:organizationId/assignments
     createAssignment: builder.mutation({
       query: ({ organizationId, data }) => ({
@@ -102,6 +132,8 @@ export const assignmentsApi = createApi({
 });
 
 export const {
+  useGetAppStaffTrainingRecordsQuery,
+  useGetAppStaffCompetenciesQuery,
   useCreateAssignmentMutation,
   useGetAssignmentQuery,
   useLazyGetAssignmentQuery,
