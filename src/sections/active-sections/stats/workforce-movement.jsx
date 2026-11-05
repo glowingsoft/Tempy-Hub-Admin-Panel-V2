@@ -1,56 +1,27 @@
-import { useState, useCallback, useMemo } from 'react';
-
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
-import Divider from '@mui/material/Divider';
-import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
+import Divider from '@mui/material/Divider';
+import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
-import { varAlpha, stylesMode } from 'src/theme/styles';
 import { Iconify } from 'src/components/iconify';
-import { ChartSelect } from 'src/components/chart';
+import { stylesMode, varAlpha } from 'src/theme/styles';
 
 // ----------------------------------------------------------------------
 
-const PERIOD_OPTIONS = ['This month', 'This quarter', 'This year'];
-
-/**
- * Mock data per period.
- * Replace with real API data (e.g. useGetWorkforceMovementQuery) when ready.
- * `trend` is the change vs the previous period (positive = up, negative = down).
- */
-const MOCK_DATA = {
-  'This month': {
-    retention: { value: 91, trend: +2.1 },
-    newStarters: { value: 7, trend: +3 },
-    leavers: { value: 4, trend: -1 },
-  },
-  'This quarter': {
-    retention: { value: 88, trend: -1.3 },
-    newStarters: { value: 18, trend: +5 },
-    leavers: { value: 11, trend: +2 },
-  },
-  'This year': {
-    retention: { value: 85, trend: -3.5 },
-    newStarters: { value: 42, trend: +12 },
-    leavers: { value: 30, trend: +8 },
-  },
-};
-
 const TILES = [
   {
-    key: 'retention',
+    key: 'retentionRate',
     label: 'Retention rate',
     description: 'Staff retained this period',
     icon: 'solar:shield-check-bold-duotone',
     filter: 'active',
     formatValue: (v) => `${v}%`,
-    // Higher is better for retention
     positiveIsBetter: true,
   },
   {
@@ -69,17 +40,17 @@ const TILES = [
     icon: 'solar:user-minus-bold-duotone',
     filter: 'former',
     formatValue: (v) => v,
-    // Fewer leavers is better
     positiveIsBetter: false,
   },
 ];
+
+const EMPTY_METRIC = { value: 0, change: 0 };
 
 // ----------------------------------------------------------------------
 
 function TrendBadge({ trend, positiveIsBetter }) {
   const theme = useTheme();
   const isPositive = trend >= 0;
-  // "good" when positive=better & trend up, OR negative=better & trend down
   const isGood = positiveIsBetter ? isPositive : !isPositive;
 
   const color = isGood ? 'success' : 'error';
@@ -122,7 +93,7 @@ function TrendBadge({ trend, positiveIsBetter }) {
 function MetricTile({ config, data, onClick }) {
   const theme = useTheme();
   const { label, description, icon, formatValue, positiveIsBetter } = config;
-  const { value, trend } = data;
+  const { value, change } = data;
 
   return (
     <Box
@@ -146,7 +117,6 @@ function MetricTile({ config, data, onClick }) {
         },
       }}
     >
-      {/* Icon + label row */}
       <Stack direction="row" alignItems="center" spacing={1.5}>
         <Box
           sx={{
@@ -173,7 +143,6 @@ function MetricTile({ config, data, onClick }) {
         </Box>
       </Stack>
 
-      {/* Value */}
       <Typography
         variant="h3"
         sx={{ fontWeight: 700, lineHeight: 1, color: 'text.primary' }}
@@ -181,37 +150,24 @@ function MetricTile({ config, data, onClick }) {
         {formatValue(value)}
       </Typography>
 
-      {/* Trend */}
-      <TrendBadge trend={trend} positiveIsBetter={positiveIsBetter} />
+      <TrendBadge trend={change} positiveIsBetter={positiveIsBetter} />
     </Box>
   );
 }
 
 // ----------------------------------------------------------------------
 
-export function WorkforceMovement({ ownerDashboard = false, branchId, departmentId, ...other }) {
+export function WorkforceMovement({
+  ownerDashboard = false,
+  period,
+  data,
+  ...other
+}) {
   const router = useRouter();
-  const [period, setPeriod] = useState('This quarter');
-
-  const handlePeriodChange = useCallback((newPeriod) => {
-    setPeriod(newPeriod);
-  }, []);
-
-  const periodData = useMemo(
-    () => MOCK_DATA[period] ?? MOCK_DATA['This quarter'],
-    [period]
-  );
 
   const directoryRoot = ownerDashboard
     ? paths.owner.directory.root
     : paths.siteManager.directory.root;
-
-  const handleTileClick = useCallback(
-    (filter) => {
-      router.push(`${directoryRoot}?filter=${filter}`);
-    },
-    [directoryRoot, router]
-  );
 
   return (
     <Card
@@ -223,14 +179,7 @@ export function WorkforceMovement({ ownerDashboard = false, branchId, department
     >
       <CardHeader
         title="Workforce movement"
-        subheader={`Summary for: ${period}`}
-        action={
-          <ChartSelect
-            options={PERIOD_OPTIONS}
-            value={period}
-            onChange={handlePeriodChange}
-          />
-        }
+        subheader={period ? `Summary for: ${period}` : undefined}
       />
 
       <Stack
@@ -248,8 +197,8 @@ export function WorkforceMovement({ ownerDashboard = false, branchId, department
           <MetricTile
             key={tile.key}
             config={tile}
-            data={periodData[tile.key]}
-            onClick={() => handleTileClick(tile.filter)}
+            data={data?.[tile.key] || EMPTY_METRIC}
+            onClick={() => router.push(`${directoryRoot}?filter=${tile.filter}`)}
           />
         ))}
       </Stack>

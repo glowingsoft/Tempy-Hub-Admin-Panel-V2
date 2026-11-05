@@ -11,7 +11,7 @@ export function SignInButton({ sx, ...other }) {
     <Button
       component={RouterLink}
       // href={CONFIG.auth.redirectPath}
-      href='/auth/jwt/sign-in'
+      href="/"
       variant="outlined"
       sx={sx}
       {...other}

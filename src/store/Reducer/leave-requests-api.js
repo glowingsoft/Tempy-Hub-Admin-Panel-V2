@@ -45,12 +45,58 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 // ----------------------------------------------------------------------
 
 const listTag = (organizationId) => ({ type: 'LeaveRequest', id: `LIST-${organizationId}` });
+const staffListTag = (organizationId) => ({
+  type: 'LeaveRequest',
+  id: `STAFF-LIST-${organizationId || 'UNSCOPED'}`,
+});
 
 export const leaveRequestsApi = createApi({
   reducerPath: 'leaveRequestsApi',
   baseQuery: createCustomFetchBaseQuery(),
   tagTypes: ['LeaveRequest', 'LeaveEntitlement'],
   endpoints: (builder) => ({
+    createStaffLeaveRequest: builder.mutation({
+      query: ({ organizationId, ...body }) => ({
+        url: API_ROUTES.STAFF_LEAVE_REQUESTS,
+        method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { organizationId }) =>
+        result && organizationId ? [staffListTag(organizationId)] : [],
+    }),
+
+    getStaffLeaveRequests: builder.query({
+      query: ({ organizationId, page = 1, limit = 10, status, keyword } = {}) => ({
+        url: API_ROUTES.STAFF_LEAVE_REQUESTS,
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        params: {
+          page,
+          limit,
+          ...(status && status !== 'all' ? { status } : {}),
+          ...(typeof keyword === 'string' && keyword.trim()
+            ? { keyword: keyword.trim() }
+            : {}),
+        },
+      }),
+      transformResponse: (res) => ({
+        requests: Array.isArray(res?.data?.requests) ? res.data.requests : [],
+        summary: res?.data?.summary ?? {},
+        meta: res?.meta ?? {},
+      }),
+      providesTags: (result, error, { organizationId } = {}) =>
+        result?.requests
+          ? [
+              ...result.requests
+                .filter((request) => request?._id)
+                .map(({ _id }) => ({ type: 'LeaveRequest', id: _id })),
+              staffListTag(organizationId),
+            ]
+          : [staffListTag(organizationId)],
+    }),
+
     getLeaveRequests: builder.query({
       query: ({ organizationId, page = 1, limit = 10, status, keyword, branchId }) => {
         const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
@@ -129,6 +175,8 @@ export const leaveRequestsApi = createApi({
 });
 
 export const {
+  useCreateStaffLeaveRequestMutation,
+  useGetStaffLeaveRequestsQuery,
   useGetLeaveRequestsQuery,
   useGetLeaveRequestQuery,
   useSetLeaveEntitlementMutation,

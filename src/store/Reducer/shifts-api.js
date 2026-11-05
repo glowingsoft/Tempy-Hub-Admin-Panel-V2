@@ -40,11 +40,20 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //   request:  Partial<create payload> (branchId, staffId, startsAt, endsAt)
 //   response: { "message": "string", "data": Shift }
 //
+// GET  /app/shifts/my?keyword=... -> {
+//   "message": "string", "data": Shift[],
+//   "meta": { "totalRecords": 2, "counts": { "scheduled": 2, "cancelled": 0, "completed": 0 } }
+// }
+// GET  /app/shifts/open?keyword=... -> { "message": "string", "data": Shift[] }
 // POST /app/shifts/:shiftId/claims
-//   request: { "note": "Available for cover" }
+//   request: { "note": "string" }
 // ----------------------------------------------------------------------
 
 const listTag = (organizationId) => ({ type: 'Shift', id: `LIST-${organizationId}` });
+const staffListTag = (listType, organizationId) => ({
+    type: 'Shift',
+    id: `STAFF-${listType}-${organizationId || 'UNSCOPED'}`,
+});
 
 export const shiftsApi = createApi({
     reducerPath: 'shiftsApi',
@@ -115,13 +124,67 @@ export const shiftsApi = createApi({
                 ...(organizationId ? [listTag(organizationId)] : []),
             ],
         }),
+        getMyShifts: builder.query({
+            query: ({ organizationId, keyword, status } = {}) => {
+                const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+                const trimmedStatus = typeof status === 'string' ? status.trim() : '';
+
+                return {
+                    url: API_ROUTES.STAFF_MY_SHIFTS,
+                    method: 'GET',
+                    headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+                    params: {
+                        ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+                        ...(trimmedStatus && trimmedStatus !== 'all' ? { status: trimmedStatus } : {}),
+                    },
+                };
+            },
+            transformResponse: (res) => ({
+                data: Array.isArray(res?.data) ? res.data : [],
+                meta: res?.meta ?? {},
+            }),
+            providesTags: (result, error, { organizationId } = {}) =>
+                result?.data
+                    ? [
+                        ...result.data.map(({ _id }) => ({ type: 'Shift', id: _id })),
+                        staffListTag('MY', organizationId),
+                    ]
+                    : [staffListTag('MY', organizationId)],
+        }),
+        getOpenShifts: builder.query({
+            query: ({ organizationId, keyword } = {}) => {
+                const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+                return {
+                    url: API_ROUTES.STAFF_OPEN_SHIFTS,
+                    method: 'GET',
+                    headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+                    params: trimmedKeyword ? { keyword: trimmedKeyword } : undefined,
+                };
+            },
+            transformResponse: (res) => ({
+                data: Array.isArray(res?.data) ? res.data : [],
+                meta: res?.meta ?? {},
+            }),
+            providesTags: (result, error, { organizationId } = {}) =>
+                result?.data
+                    ? [
+                        ...result.data.map(({ _id }) => ({ type: 'Shift', id: _id })),
+                        staffListTag('OPEN', organizationId),
+                    ]
+                    : [staffListTag('OPEN', organizationId)],
+        }),
         claimStaffShift: builder.mutation({
-            query: ({ shiftId, note }) => ({
+            query: ({ shiftId, note, organizationId }) => ({
                 url: API_ROUTES.STAFF_SHIFT_CLAIMS(shiftId),
                 method: 'POST',
+                headers: organizationId ? { 'x-org-id': organizationId } : undefined,
                 body: { note },
             }),
-            invalidatesTags: (result, error, { shiftId }) => [{ type: 'Shift', id: shiftId }],
+            invalidatesTags: (result, error, { shiftId, organizationId }) => [
+                { type: 'Shift', id: shiftId },
+                staffListTag('OPEN', organizationId),
+            ],
         }),
     }),
 });
@@ -131,5 +194,7 @@ export const {
     useGetShiftQuery,
     useCreateShiftMutation,
     useUpdateShiftMutation,
+    useGetMyShiftsQuery,
+    useGetOpenShiftsQuery,
     useClaimStaffShiftMutation,
 } = shiftsApi;

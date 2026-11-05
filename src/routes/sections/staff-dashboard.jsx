@@ -10,6 +10,7 @@ const StaffDashboardPage = lazy(() => import('src/pages/staff/dashboard'));
 const StaffAttendancePage = lazy(() => import('src/pages/staff/attendance'));
 const StaffLeaveRequestsPage = lazy(() => import('src/pages/staff/leave-requests'));
 const StaffShiftsPage = lazy(() => import('src/pages/staff/shifts'));
+const StaffShiftClaimsPage = lazy(() => import('src/pages/staff/shift-claims'));
 const StaffCompetenciesPage = lazy(() => import('src/pages/staff/competencies'));
 const StaffDocumentsPage = lazy(() => import('src/pages/staff/documents'));
 const StaffDocumentDetailPage = lazy(() => import('src/pages/staff/documents/detail'));
@@ -62,6 +63,7 @@ export const staffDashboardRoutes = [
       { path: 'attendance', element: <StaffAttendancePage /> },
       { path: 'leave-requests', element: <StaffLeaveRequestsPage /> },
       { path: 'shifts', element: <StaffShiftsPage /> },
+      { path: 'shift-claims', element: <StaffShiftClaimsPage /> },
       { path: 'competencies', element: <StaffCompetenciesPage /> },
       { path: 'supervision', element: <SupervisionPage /> },
       { path: 'supervision/:id', element: <SupervisionDetailPage /> },

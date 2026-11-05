@@ -5,7 +5,16 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 export const organizationsApi = createApi({
   reducerPath: 'organizationsApi',
   baseQuery: createCustomFetchBaseQuery(),
-  tagTypes: ['Organization', 'OrganizationModuleAccess', 'StaffDashboardSettings', 'ModuleDefinition'],
+  tagTypes: [
+    'Organization',
+    'OrganizationModuleAccess',
+    'StaffDashboardSettings',
+    'ModuleDefinition',
+    'OrganizationDashboard',
+    'OrganizationSiteDashboard',
+    'OrganizationLineDashboard',
+    'OrganizationStaffHomeDashboard',
+  ],
 
   endpoints: (builder) => ({
     // Fetch paginated list of organizations with optional filters (page, limit, keyword, status)
@@ -95,6 +104,61 @@ export const organizationsApi = createApi({
       providesTags: ['ModuleDefinition'],
     }),
 
+    getOrganizationDashboard: builder.query({
+      extraOptions: { disableToast: true },
+      query: (organizationId) => ({
+        url: API_ROUTES.ORGANIZATION_DASHBOARD(organizationId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? {},
+      providesTags: (result, error, organizationId) => [
+        { type: 'OrganizationDashboard', id: organizationId },
+      ],
+    }),
+
+    getOrganizationSiteDashboard: builder.query({
+      extraOptions: { disableToast: true },
+      query: ({ organizationId, period } = {}) => ({
+        url: API_ROUTES.ORGANIZATION_SITE_DASHBOARD(organizationId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        params: {
+          ...(period ? { period } : {}),
+        },
+      }),
+      transformResponse: (res) => res?.data ?? {},
+      providesTags: (result, error, { organizationId, period } = {}) => [
+        { type: 'OrganizationSiteDashboard', id: `${organizationId || 'NA'}-${period || 'NA'}` },
+      ],
+    }),
+
+    getOrganizationLineDashboard: builder.query({
+      extraOptions: { disableToast: true },
+      query: (organizationId) => ({
+        url: API_ROUTES.ORGANIZATION_LINE_DASHBOARD(organizationId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? {},
+      providesTags: (result, error, organizationId) => [
+        { type: 'OrganizationLineDashboard', id: organizationId },
+      ],
+    }),
+
+    getOrganizationStaffHomeDashboard: builder.query({
+      extraOptions: { disableToast: true },
+      query: (organizationId) => ({
+        url: API_ROUTES.ORGANIZATION_STAFF_HOME_DASHBOARD(organizationId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? {},
+      providesTags: (result, error, organizationId) => [
+        { type: 'OrganizationStaffHomeDashboard', id: organizationId },
+      ],
+    }),
+
     // Fetch staff dashboard settings for a specific organization
     getStaffDashboardSettings: builder.query({
       query: (organizationId) => ({
@@ -130,6 +194,10 @@ export const {
   useGetOrganizationModuleAccessQuery,
   useUpdateOrganizationModuleAccessMutation,
   useGetModuleDefinitionsQuery,
+  useGetOrganizationDashboardQuery,
+  useGetOrganizationSiteDashboardQuery,
+  useGetOrganizationLineDashboardQuery,
+  useGetOrganizationStaffHomeDashboardQuery,
   useGetStaffDashboardSettingsQuery,
   useUpdateStaffDashboardSettingsMutation,
 } = organizationsApi;

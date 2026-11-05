@@ -16,7 +16,7 @@ export function StaffAttendanceToolbar({ startDate, endDate, onStartDateChange, 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">
                 <DatePicker label="Start date" value={startDate} onChange={onStartDateChange} format="MM/DD/YYYY" slotProps={{ textField: { size: 'small', sx: { width: { xs: '100%', sm: 260 } } } }} />
                 <DatePicker label="End date" value={endDate} onChange={onEndDateChange} format="MM/DD/YYYY" slotProps={{ textField: { size: 'small', sx: { width: { xs: '100%', sm: 260 } } } }} />
-                <Button variant="contained" onClick={onApply} disabled={!startDate || !endDate} startIcon={<Iconify icon="solar:check-circle-bold" width={19} />} sx={{ minWidth: 112, height: 40, px: 2.25, borderRadius: 1.5, fontWeight: 700, letterSpacing: 0, boxShadow: (theme) => `0 6px 16px ${theme.vars.palette.primary.main}33`, transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-1px)', boxShadow: (theme) => `0 8px 20px ${theme.vars.palette.primary.main}4D` }, '&.Mui-disabled': { boxShadow: 'none' } }}>Apply</Button>
+                <Button color="primary" variant="contained" onClick={onApply} disabled={!startDate || !endDate} startIcon={<Iconify icon="solar:check-circle-bold" width={19} />} sx={{ minWidth: 112, height: 40, px: 2.25, borderRadius: 1.5, fontWeight: 700, letterSpacing: 0, boxShadow: (theme) => `0 6px 16px ${theme.vars.palette.primary.main}33`, transition: 'transform 160ms ease, box-shadow 160ms ease', '&:hover': { transform: 'translateY(-1px)', boxShadow: (theme) => `0 8px 20px ${theme.vars.palette.primary.main}4D` }, '&.Mui-disabled': { boxShadow: 'none' } }}>Apply</Button>
             </Stack>
         </Stack>
     );

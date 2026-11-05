@@ -19,6 +19,9 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 // 4. GET  /admin/organizations/:organizationId/attendance-change-requests
 //    Lists staff-submitted attendance time adjustment and change requests
 //    for organization approval.
+//
+// 5. GET  /app/attendance?page=1&limit=10&punctualityStatus&keyword&from&to
+//    Lists the authenticated staff member's attendance days, summary, and meta.
 // ----------------------------------------------------------------------
 
 export function extractRecordsArray(payload) {
@@ -64,6 +67,10 @@ export function extractMeta(payload, fallbackLength = 0) {
 }
 
 const listTag = (organizationId) => ({ type: 'Attendance', id: `LIST-${organizationId}` });
+const staffListTag = (organizationId) => ({
+  type: 'Attendance',
+  id: `STAFF-LIST-${organizationId || 'UNSCOPED'}`,
+});
 const rotaTag = (organizationId) => ({ type: 'AttendanceRota', id: `ROTA-${organizationId}` });
 const changeRequestsListTag = (organizationId) => ({
   type: 'AttendanceChangeRequest',
@@ -75,6 +82,51 @@ export const attendanceApi = createApi({
   baseQuery: createCustomFetchBaseQuery(),
   tagTypes: ['Attendance', 'AttendanceRota', 'AttendanceChangeRequest'],
   endpoints: (builder) => ({
+    getStaffAttendance: builder.query({
+      query: ({
+        organizationId,
+        page = 1,
+        limit = 10,
+        punctualityStatus,
+        keyword,
+        from,
+        to,
+      } = {}) => ({
+        url: API_ROUTES.STAFF_ATTENDANCE,
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        params: {
+          page,
+          limit,
+          ...(punctualityStatus && punctualityStatus !== 'all' ? { punctualityStatus } : {}),
+          ...(typeof keyword === 'string' && keyword.trim()
+            ? { keyword: keyword.trim() }
+            : {}),
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
+        },
+      }),
+      transformResponse: (res) => {
+        const payload = res?.data && !Array.isArray(res.data) ? res.data : res;
+        const days = Array.isArray(payload?.days) ? payload.days : [];
+
+        return {
+          data: days,
+          summary: payload?.summary ?? {},
+          meta: extractMeta(res, days.length),
+        };
+      },
+      providesTags: (result, error, { organizationId } = {}) =>
+        result?.data && Array.isArray(result.data)
+          ? [
+              ...result.data
+                .filter((item) => item?._id)
+                .map(({ _id }) => ({ type: 'Attendance', id: _id })),
+              staffListTag(organizationId),
+            ]
+          : [staffListTag(organizationId)],
+    }),
+
     getOrganizationAttendance: builder.query({
       query: ({
         organizationId,
@@ -196,6 +248,7 @@ export const attendanceApi = createApi({
 });
 
 export const {
+  useGetStaffAttendanceQuery,
   useGetOrganizationAttendanceQuery,
   useGetOrganizationAttendanceRotaQuery,
   useGetAttendanceByIdQuery,

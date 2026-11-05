@@ -6,14 +6,18 @@ import ListItemText from '@mui/material/ListItemText';
 
 import { fToNow } from 'src/utils/format-time';
 
+import { EmptyContent } from 'src/components/empty-content';
 import { Scrollbar } from 'src/components/scrollbar';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function AnalyticsNews({ title, subheader, list, ...other }) {
+export function AnalyticsNews({ title, subheader, list, sx, ...other }) {
   return (
-    <Card {...other}>
+    <Card
+      {...other}
+      sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ...sx }}
+    >
       <CardHeader
         title={title}
         subheader={subheader}
@@ -30,13 +34,22 @@ export function AnalyticsNews({ title, subheader, list, ...other }) {
         }
       />
 
-      <Scrollbar sx={{ height:520 }}>
-        <Box>
-          {list.map((item) => (
-            <Item key={item.id} item={item} />
-          ))}
-        </Box>
-      </Scrollbar>
+      {!list?.length ? (
+        <EmptyContent
+          filled
+          title="No data available"
+          slotProps={{ img: { maxWidth: 96 } }}
+          sx={{ height: 'auto', flex: 1, minHeight: 0, m: 2.5, mt: 0, py: 3, overflow: 'hidden' }}
+        />
+      ) : (
+        <Scrollbar sx={{ height: 520 }}>
+          <Box>
+            {list.map((item) => (
+              <Item key={item.id} item={item} />
+            ))}
+          </Box>
+        </Scrollbar>
+      )}
     </Card>
   );
 }

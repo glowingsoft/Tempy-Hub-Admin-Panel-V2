@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useSearchParams } from 'react-router-dom';
 
 import { AuthSplitLayout } from 'src/layouts/auth-split';
 
@@ -103,15 +103,13 @@ const Amplify = {
 
 const Admin = {
   SignInPage: lazy(() => import('src/pages/auth/admin/sign-in')),
-}
-
-const Owner = {
-  SignInPage: lazy(() => import('src/pages/auth/owner/sign-in')),
-}
-
-const Staff = {
-  SignInPage: lazy(() => import('src/pages/auth/staff/sign-in')),
 };
+
+function RedirectToRootLogin() {
+  const [searchParams] = useSearchParams();
+  const search = searchParams.toString();
+  return <Navigate to={search ? `/?${search}` : '/'} replace />;
+}
 
 const authAmplify = {
   path: 'amplify',
@@ -192,18 +190,7 @@ const authOwner = {
   children: [
     {
       path: 'login',
-      element: (
-        <GuestGuard>
-          <AuthSplitLayout
-            section={{
-              title: 'Organization Owner Portal',
-              subtitle: 'Manage sites, rota schedules, resident profiles, and operational compliance.',
-            }}
-          >
-            <Owner.SignInPage />
-          </AuthSplitLayout>
-        </GuestGuard>
-      ),
+      element: <RedirectToRootLogin />,
     },
   ],
 };
@@ -213,18 +200,7 @@ const authStaff = {
   children: [
     {
       path: 'login',
-      element: (
-        <GuestGuard>
-          <AuthSplitLayout
-            section={{
-              title: 'Staff Portal',
-              subtitle: 'View your shift schedules, clock in attendance, and submit leave requests easily.',
-            }}
-          >
-            <Staff.SignInPage />
-          </AuthSplitLayout>
-        </GuestGuard>
-      ),
+      element: <RedirectToRootLogin />,
     },
   ],
 };

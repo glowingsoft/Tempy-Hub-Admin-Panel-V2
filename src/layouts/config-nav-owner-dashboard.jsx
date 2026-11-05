@@ -132,7 +132,7 @@ export const navDataOwner = [
       { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document },
       { title: 'Family Groups', path: paths.owner.familyEngagement.familyGroups, icon: ICONS.user },
       {
-        title: 'Memberships',
+        title: 'Family Memberships',
         path: paths.owner.familyEngagement.memberships.root,
         icon: ICONS.invitations,
         children: [

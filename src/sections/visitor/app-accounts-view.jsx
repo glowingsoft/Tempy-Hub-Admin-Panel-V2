@@ -14,6 +14,8 @@ import DialogActions from '@mui/material/DialogActions';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
+import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 
 import { useBoolean } from 'src/hooks/use-boolean';
@@ -72,11 +74,10 @@ const mapBranchOption = (item) => ({
 
 const TABLE_HEAD = [
   { id: 'sr#', label: 'Sr#', width: 50 },
-  { id: 'email', label: 'Email' },
+  { id: 'person', label: 'Person', minWidth: 200 },
   { id: 'site', label: 'Site' },
   { id: 'type', label: 'Type' },
   { id: 'status', label: 'Status', align: 'center' },
-  { id: 'linkedPerson', label: 'Linked person' },
   { id: 'actions', label: 'Actions', align: 'center' },
 ];
 
@@ -323,7 +324,7 @@ export function AppAccountsView({
         <Box sx={{ position: 'relative' }}>
           <TableContainer>
             <Scrollbar>
-              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
+              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                 <TableHeadCustom headLabel={TABLE_HEAD} />
 
                 <TableBody>
@@ -337,7 +338,34 @@ export function AppAccountsView({
                     <>
                       {displayedList.map((row, index) => {
                         const rowId = row._id || row.id;
-                        const email = row.email || row.visitorEmail || '—';
+                        const person = typeof row.person === 'object' && row.person !== null ? row.person : null;
+                        const externalPerson =
+                          typeof row.externalPerson === 'object' && row.externalPerson !== null
+                            ? row.externalPerson
+                            : null;
+                        const personName =
+                          row.name ||
+                          row.visitorName ||
+                          person?.name ||
+                          externalPerson?.name ||
+                          row.email ||
+                          row.visitorEmail ||
+                          '—';
+                        const email =
+                          row.email ||
+                          row.visitorEmail ||
+                          person?.email ||
+                          externalPerson?.email ||
+                          '';
+                        const personAvatar =
+                          row.avatarUrl ||
+                          row.photoUrl ||
+                          row.image ||
+                          person?.photoUrl ||
+                          person?.image ||
+                          externalPerson?.photoUrl ||
+                          externalPerson?.image ||
+                          '';
                         const siteName =
                           row.branch?.name ||
                           row.site ||
@@ -346,18 +374,46 @@ export function AppAccountsView({
                           '—';
                         const personType = row.personType || row.type || row.badgeType || 'Contractor';
                         const status = row.status || (row.acceptedAt ? 'accepted' : 'pending');
-                        const linkedPerson =
-                          row.person?.name ||
-                          row.name ||
-                          row.linkedPerson ||
-                          row.visitorName ||
-                          (email !== '—' ? `Existing ${email}` : '—');
 
                         return (
                           <TableRow hover key={rowId || index}>
                             <TableCell>{table.page * table.rowsPerPage + index + 1}</TableCell>
 
-                            <TableCell sx={{ fontWeight: 600 }}>{email}</TableCell>
+                            <TableCell sx={{ minWidth: 200 }}>
+                              <Stack spacing={2} direction="row" alignItems="center">
+                                <Avatar
+                                  alt={personName}
+                                  src={personAvatar}
+                                  sx={{
+                                    width: 36,
+                                    height: 36,
+                                    bgcolor: 'primary.lighter',
+                                    color: 'primary.darker',
+                                    fontWeight: 700,
+                                    fontSize: 16,
+                                  }}
+                                >
+                                  {personName?.charAt(0)?.toUpperCase()}
+                                </Avatar>
+
+                                <Stack
+                                  sx={{
+                                    typography: 'body2',
+                                    flex: '1 1 auto',
+                                    alignItems: 'flex-start',
+                                  }}
+                                >
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {personName}
+                                  </Typography>
+                                  {email && (
+                                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                      {email}
+                                    </Typography>
+                                  )}
+                                </Stack>
+                              </Stack>
+                            </TableCell>
 
                             <TableCell sx={{ whiteSpace: 'nowrap' }}>
                               {siteName}
@@ -373,12 +429,6 @@ export function AppAccountsView({
                               <Label variant="soft" color={getStatusColor(status)}>
                                 {getStatusLabel(status)}
                               </Label>
-                            </TableCell>
-
-                            <TableCell
-                              sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}
-                            >
-                              {linkedPerson}
                             </TableCell>
 
                             <TableCell align="center">

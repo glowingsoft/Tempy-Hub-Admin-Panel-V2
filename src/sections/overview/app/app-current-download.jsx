@@ -9,7 +9,7 @@ import { Chart, useChart, ChartLegends } from 'src/components/chart';
 
 // ----------------------------------------------------------------------
 
-export function AppCurrentDownload({ title, subheader, chart, ...other }) {
+export function AppCurrentDownload({ title, subheader, chart, sx, ...other }) {
   const theme = useTheme();
 
   const chartColors = chart.colors ?? [
@@ -52,7 +52,16 @@ export function AppCurrentDownload({ title, subheader, chart, ...other }) {
   });
 
   return (
-    <Card {...other}>
+    <Card
+      {...other}
+      sx={{
+        width: 1,
+        height: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        ...sx,
+      }}
+    >
       <CardHeader title={title} subheader={subheader} />
 
       <Chart
@@ -61,7 +70,7 @@ export function AppCurrentDownload({ title, subheader, chart, ...other }) {
         options={chartOptions}
         width={{ xs: 240, xl: 260 }}
         height={{ xs: 240, xl: 260 }}
-        sx={{ my: 6, mx: 'auto' }}
+        sx={{ my: 6, mx: 'auto', flex: 1 }}
       />
 
       <Divider sx={{ borderStyle: 'dashed' }} />

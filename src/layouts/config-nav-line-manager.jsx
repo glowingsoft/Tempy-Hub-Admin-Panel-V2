@@ -86,7 +86,7 @@ export const navDataLineManager = [
         ],
       },
 
-      { title: "Uploaded Photos", path: paths.lineManager.photoApproval, icon: ICONS.pendingApproval },
+      // { title: "Uploaded Photos", path: paths.lineManager.photoApproval, icon: ICONS.pendingApproval },
 
       { title: 'Feedback', path: paths.lineManager.feedback, icon: ICONS.feedback },
 

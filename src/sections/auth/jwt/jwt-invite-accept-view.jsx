@@ -27,23 +27,23 @@ import { JwtUpdatePasswordView } from './jwt-update-password-view';
 const ROLE_CONFIG = {
   staff: {
     label: 'Staff',
-    loginPath: paths.auth.staff.signIn,
-    loginButtonText: 'Proceed to Staff Login',
+    loginPath: '/',
+    loginButtonText: 'Continue to login',
   },
   lineManager: {
     label: 'Line Manager',
     loginPath: '/',
-    loginButtonText: 'Proceed to Manager Portal',
+    loginButtonText: 'Continue to login',
   },
   siteManager: {
     label: 'Site Manager',
     loginPath: '/',
-    loginButtonText: 'Proceed to Manager Portal',
+    loginButtonText: 'Continue to login',
   },
   owner: {
     label: 'Owner',
-    loginPath: paths.auth.owner.signIn,
-    loginButtonText: 'Proceed to Owner Login',
+    loginPath: '/',
+    loginButtonText: 'Continue to login',
   },
 };
 
@@ -58,7 +58,7 @@ function getRoleConfig(role) {
   return {
     label: role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Member',
     loginPath: '/',
-    loginButtonText: 'Proceed to Login',
+    loginButtonText: 'Continue to login',
   };
 }
 

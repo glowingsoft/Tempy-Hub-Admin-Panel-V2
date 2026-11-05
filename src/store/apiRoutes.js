@@ -30,6 +30,14 @@ export const API_ROUTES = {
     ORGANIZATION_MODULE_ACCESS: (id) => `/admin/organizations/${id}/module-access`,
     ORGANIZATION_STAFF_DASHBOARD_SETTINGS: (organizationId) =>
         `/admin/organizations/${organizationId}/staff-dashboard-settings`,
+    ORGANIZATION_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/dashboard`,
+    ORGANIZATION_SITE_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/site-dashboard`,
+    ORGANIZATION_LINE_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/line-dashboard`,
+    ORGANIZATION_STAFF_HOME_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/staff-dashboard`,
     MODULE_DEFINITIONS: '/admin/module-definitions',
     ORGANIZATION_DEPARTMENTS: (organizationId) => `/admin/organizations/${organizationId}/departments`,
     ORGANIZATION_DEPARTMENT_BY_ID: (organizationId, departmentId) =>
@@ -60,6 +68,8 @@ export const API_ROUTES = {
     STAFF_PROFILE_BY_ID: (staffProfileId) => `/admin/staff-profiles/${staffProfileId}`,
     ORGANIZATION_SHIFTS: (organizationId) => `/admin/organizations/${organizationId}/shifts`,
     SHIFT_BY_ID: (shiftId) => `/admin/shifts/${shiftId}`,
+    STAFF_MY_SHIFTS: '/app/shifts/my',
+    STAFF_OPEN_SHIFTS: '/app/shifts/open',
     STAFF_SHIFT_CLAIMS: (shiftId) => `/app/shifts/${shiftId}/claims`,
 
     // Shift claims — kept separate from shifts.
@@ -71,6 +81,7 @@ export const API_ROUTES = {
     SHIFT_CLAIM_APPROVE: (shiftClaimId) => `/admin/shift-claims/${shiftClaimId}/approve`,
 
     // Leave requests / entitlements / approvals.
+    STAFF_LEAVE_REQUESTS: '/app/leave-requests',
     ORGANIZATION_LEAVE_REQUESTS: (organizationId) =>
         `/admin/organizations/${organizationId}/leave-requests`,
     LEAVE_REQUEST_BY_ID: (leaveRequestId) => `/admin/leave-requests/${leaveRequestId}`,
@@ -80,7 +91,8 @@ export const API_ROUTES = {
     // TODO: confirm the reject path — assumed to mirror /approve.
     LEAVE_APPROVAL_REJECT: (leaveRequestId) => `/admin/leave-approvals/${leaveRequestId}/reject`,
 
-    // Attendance (shared line-manager / owner listing).
+    // Staff attendance and shared line-manager / owner attendance listings.
+    STAFF_ATTENDANCE: '/app/attendance',
     ORGANIZATION_ATTENDANCE: (organizationId) => `/admin/organizations/${organizationId}/attendance`,
     ORGANIZATION_ATTENDANCE_ROTA: (organizationId) =>
         `/admin/organizations/${organizationId}/attendance/rota`,
@@ -273,6 +285,9 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/competency-matrix`,
 
     SETTINGS_ALL: '/admin/settings/all',
+
+    STATISTICS: '/admin/statistics',
+    PLATFORM_DASHBOARD: '/admin/platform/dashboard',
 
     BILLING_USAGE: '/admin/billing/usage',
     BILLING_USAGE_BY_ORG: (organizationId) => `/admin/billing/usage/${organizationId}`,
