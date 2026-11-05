@@ -38,7 +38,12 @@ import {
 
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
-import { useGetExternalPeopleQuery } from 'src/store/Reducer/general-directory-api';
+import {
+  useExportExternalPeopleCsvMutation,
+  useGetExternalPeopleQuery,
+} from 'src/store/Reducer/general-directory-api';
+import { downloadBlob } from 'src/utils/export-helper';
+import { toast } from 'src/components/snackbar';
 import { VisitInvitationsView, VisitSessionsView, AppAccountsView } from 'src/sections/visitor';
 import QuickAddUserModal from '../quick-add-user-modal';
 import QuickStatusChangeModal from '../user-status-dialog';
@@ -176,19 +181,29 @@ export function UserListView() {
 
   const { branchId, departmentId, userType, siteStatus } = filters.state;
 
-  const { data, isLoading, isFetching } = useGetExternalPeopleQuery(
-    {
+  const directoryFilters = useMemo(
+    () => ({
       organizationId,
-      page: table.page + 1,
-      limit: table.rowsPerPage,
       ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
       ...(branchId && branchId !== 'all' ? { branchId } : {}),
       ...(departmentId && departmentId !== 'all' ? { departmentId } : {}),
       ...(userType && userType !== 'all' ? { type: userType } : {}),
       ...(siteStatus && siteStatus !== 'all' ? { siteStatus } : {}),
+    }),
+    [organizationId, trimmedKeyword, branchId, departmentId, userType, siteStatus]
+  );
+
+  const { data, isLoading, isFetching } = useGetExternalPeopleQuery(
+    {
+      ...directoryFilters,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
     },
     { skip: !organizationId || currentTab !== 'people' }
   );
+
+  const [exportExternalPeopleCsv, { isLoading: isExportingCsv }] =
+    useExportExternalPeopleCsvMutation();
 
   const apiUsers = data?.data || [];
   const meta = data?.meta || {};
@@ -267,6 +282,21 @@ export function UserListView() {
     [filters, table]
   );
 
+  const handleExportCsv = useCallback(async () => {
+    if (!organizationId) return;
+
+    try {
+      const result = await exportExternalPeopleCsv(directoryFilters).unwrap();
+      if (!(result?.blob instanceof Blob)) {
+        toast.error(result?.message || 'Unable to export directory');
+        return;
+      }
+      downloadBlob(result.blob, result.filename || 'directory.csv');
+    } catch (error) {
+      toast.error(error?.data?.message || error?.message || 'Unable to export directory');
+    }
+  }, [directoryFilters, exportExternalPeopleCsv, organizationId]);
+
   const toolbarFilterFields = useMemo(
     () => [
       ...FILTER_FIELDS.filter((field) => field.type !== 'status'),
@@ -301,10 +331,10 @@ export function UserListView() {
               currentTab === 'visits'
                 ? 'Visit invitations'
                 : currentTab === 'sessions'
-                ? 'Visit sessions'
-                : currentTab === 'accounts'
-                ? 'App accounts'
-                : 'List',
+                  ? 'Visit sessions'
+                  : currentTab === 'accounts'
+                    ? 'App accounts'
+                    : 'List',
           },
         ]}
         action={
@@ -314,7 +344,9 @@ export function UserListView() {
                 variant="outlined"
                 color="primary"
                 startIcon={<Iconify icon="solar:export-bold" />}
-                onClick={() => { }}
+                onClick={handleExportCsv}
+                disabled={!organizationId || isExportingCsv}
+                loading={isExportingCsv}
               >
                 Export to CSV
               </Button>

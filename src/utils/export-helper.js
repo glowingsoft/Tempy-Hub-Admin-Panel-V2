@@ -46,6 +46,20 @@ export function exportToCSV(data = [], filename = 'export.csv', columns = null) 
   document.body.removeChild(link);
 }
 
+export function downloadBlob(blob, filename = 'export.csv') {
+  if (!(blob instanceof Blob)) return;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 /**
  * Helper to trigger print view for PDF export
  * @param {string} title - Document title for the PDF export
