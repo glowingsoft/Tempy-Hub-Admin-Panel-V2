@@ -177,7 +177,13 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
 
             {value === "categories" && <Categories title="Staff Categories" />}
 
-            {value === "kioskBranding" && <KioskBranding title="Kiosk Pages" page={DEFAULT_KIOSK_SCREENS} />}
+            {value === "kioskBranding" && (
+                <KioskBranding
+                    title="Kiosk Pages"
+                    page={DEFAULT_KIOSK_SCREENS}
+                    ownerDashboard={ownerDashboard}
+                />
+            )}
 
             {value === "clockInSettings" && <ClockInSettins title="Automatic staff clock-out" subHeader="Clock out staff automatically at shift end" />}
 

@@ -7,7 +7,6 @@ import { alpha } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
-import { KIOSK_CONTENT_TYPES } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
@@ -25,12 +24,24 @@ export function KioskScreenCard({ screen, selected, onClick, onEdit }) {
     label: screen.type,
   };
 
+  const displayTitle = screen.title || screen.name || `Widget ${screen.sortOrder || screen.id || 1}`;
+  const displaySubtitle =
+    screen.type === 'text'
+      ? screen.config?.body || screen.value
+      : screen.type === 'image'
+        ? screen.config?.imageUrl || screen.value
+        : screen.type === 'qr'
+          ? screen.config?.url || screen.value
+          : screen.type === 'link'
+            ? screen.config?.url || screen.value
+            : screen.value;
+
   return (
     <Card
       onClick={onClick}
       sx={{
         p: 2,
-        cursor: 'pointer',
+        cursor: onClick ? 'pointer' : 'default',
         border: (theme) => `1.5px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
         bgcolor: (theme) =>
           selected
@@ -46,7 +57,7 @@ export function KioskScreenCard({ screen, selected, onClick, onEdit }) {
       }}
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
           <Box
             sx={{
               width: 32,
@@ -60,40 +71,52 @@ export function KioskScreenCard({ screen, selected, onClick, onEdit }) {
               bgcolor: (theme) => (selected ? 'primary.main' : theme.palette.background.neutral),
               color: (theme) => (selected ? 'primary.contrastText' : 'text.secondary'),
               transition: (theme) => theme.transitions.create(['background-color', 'color']),
+              flexShrink: 0,
             }}
           >
-            {screen.id}
+            {screen.sortOrder || screen.id || 1}
           </Box>
 
-          <div>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              {screen.name || `Widget ${screen.id}`}
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+              {displayTitle}
             </Typography>
 
-            <Label
-              color={meta.color}
-              variant="soft"
-              size="small"
-              startIcon={<Iconify icon={meta.icon} width={13} />}
-              sx={{ mt: 0.5, height: 20, px: 0.75, fontSize: 10, fontWeight: 700 }}
-            >
-              {meta.label}
-            </Label>
-          </div>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+              <Label
+                color={meta.color}
+                variant="soft"
+                size="small"
+                startIcon={<Iconify icon={meta.icon} width={13} />}
+                sx={{ height: 20, px: 0.75, fontSize: 10, fontWeight: 700, flexShrink: 0 }}
+              >
+                {meta.label}
+              </Label>
+
+              {displaySubtitle && (
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 220 }}>
+                  {displaySubtitle}
+                </Typography>
+              )}
+            </Stack>
+          </Box>
         </Stack>
 
-        {onEdit && (
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-            sx={{ color: 'text.secondary' }}
-          >
-            <Iconify icon="solar:pen-bold" width={18} />
-          </IconButton>
-        )}
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          {onEdit && (
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              sx={{ color: 'text.secondary' }}
+              title="Edit"
+            >
+              <Iconify icon="solar:pen-bold" width={18} />
+            </IconButton>
+          )}
+        </Stack>
       </Stack>
     </Card>
   );

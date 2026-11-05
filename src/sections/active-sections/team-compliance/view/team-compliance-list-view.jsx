@@ -27,9 +27,9 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
-import { useGetAppStaffCompetenciesQuery } from 'src/store/Reducer/assignments-api';
+import { useGetAppStaffCompetenciesQuery, useGetCompetencyMatrixQuery } from 'src/store/Reducer/assignments-api';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 
-import { _courseStats, _departmentStats } from '../mocks/data';
 import { TeamComplianceTable } from '../team-compliance-table';
 import { TrainingRecordTableRow } from '../../training/training-record-table-row';
 
@@ -265,6 +265,30 @@ function TeamComplianceListView({ dashboardHref: dashboardHrefProp }) {
           ? paths.owner.root
           : paths.lineManager.root);
 
+  const {
+    data: complianceMatrixData,
+    isLoading: isComplianceStatsLoading,
+    isError: isComplianceStatsError,
+    error: complianceStatsError,
+  } = useGetCompetencyMatrixQuery({ organizationId, page: 1, limit: 10 }, { skip: !organizationId || isStaffRoute });
+  const {
+    data: departmentsData,
+    isLoading: isDepartmentsLoading,
+    isError: isDepartmentsError,
+    error: departmentsError,
+  } = useGetDepartmentsQuery({ organizationId, page: 1, limit: 1000 }, { skip: !organizationId || isStaffRoute });
+  const courseStats = complianceMatrixData?.meta?.stats?.courses ?? [];
+  const departmentsById = useMemo(() => Object.fromEntries((departmentsData?.data ?? []).map(({ _id, name }) => [_id, name])), [departmentsData?.data]);
+  const departmentStats = useMemo(
+    () =>
+      (complianceMatrixData?.meta?.stats?.departments ?? []).map((department) => ({
+        ...department,
+        department: departmentsById[department.departmentId] || '—',
+      })),
+    [complianceMatrixData?.meta?.stats?.departments, departmentsById]
+  );
+  const isStatsLoading = isComplianceStatsLoading || isDepartmentsLoading;
+
   if (isStaffRoute) {
     return (
       <DashboardContent>
@@ -299,7 +323,15 @@ function TeamComplianceListView({ dashboardHref: dashboardHrefProp }) {
         sx={{ mb: 3 }}
       />
 
-      {/* Compliance Statistics Overview Section (reverted exactly as seen previously) */}
+      {/* Compliance Statistics Overview Section */}
+      {!isStaffRoute && (isComplianceStatsError || isDepartmentsError) && (
+        <Stack spacing={2} sx={{ mb: 2 }}>
+          {isComplianceStatsError && (
+            <Alert severity="error">{complianceStatsError?.data?.message || complianceStatsError?.error || 'Failed to load compliance statistics.'}</Alert>
+          )}
+          {isDepartmentsError && <Alert severity="error">{departmentsError?.data?.message || departmentsError?.error || 'Failed to load department names.'}</Alert>}
+        </Stack>
+      )}
       {!isStaffRoute && (
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {/* Course Compliance Rates */}
@@ -309,30 +341,34 @@ function TeamComplianceListView({ dashboardHref: dashboardHrefProp }) {
                 Compliance Statistics per Course
               </Typography>
               <Stack spacing={2}>
-                {_courseStats.map((course) => (
-                  <Box key={course.key}>
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                      <Typography variant="body2" fontWeight={600}>
-                        {course.label}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {course.compliance}% ({course.compliant}/{course.total} Compliant)
-                      </Typography>
-                    </Stack>
-                    <LinearProgress
-                      variant="determinate"
-                      value={course.compliance}
-                      color={
-                        course.compliance >= 90
-                          ? 'success'
-                          : course.compliance >= 75
-                            ? 'warning'
-                            : 'error'
-                      }
-                      sx={{ height: 8, borderRadius: 1 }}
-                    />
-                  </Box>
-                ))}
+                {isStatsLoading ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Loading course statistics...
+                  </Typography>
+                ) : courseStats.length ? (
+                  courseStats.map((course) => (
+                    <Box key={course.requirementId}>
+                      <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          {course.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {course.percent}% ({course.done}/{course.expected} Compliant)
+                        </Typography>
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={course.percent}
+                        color={course.percent > 90 ? 'success' : 'warning'}
+                        sx={{ height: 8, borderRadius: 1 }}
+                      />
+                    </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No course statistics available.
+                  </Typography>
+                )}
               </Stack>
             </Card>
           </Grid>
@@ -344,38 +380,39 @@ function TeamComplianceListView({ dashboardHref: dashboardHrefProp }) {
                 Department Compliance Overview
               </Typography>
               <Stack spacing={2}>
-                {_departmentStats.map((dept) => (
-                  <Stack
-                    key={dept.department}
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 1,
-                      bgcolor: 'background.neutral',
-                    }}
-                  >
-                    <Stack>
-                      <Typography variant="subtitle2">{dept.department}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {dept.staffCount} Staff members
-                      </Typography>
-                    </Stack>
-                    <Label
-                      variant="soft"
-                      color={
-                        dept.compliance >= 90
-                          ? 'success'
-                          : dept.compliance >= 75
-                            ? 'warning'
-                            : 'error'
-                      }
+                {isStatsLoading ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Loading department statistics...
+                  </Typography>
+                ) : departmentStats.length ? (
+                  departmentStats.map((dept) => (
+                    <Stack
+                      key={dept.departmentId}
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 1,
+                        bgcolor: 'background.neutral',
+                      }}
                     >
-                      {dept.compliance}%
-                    </Label>
-                  </Stack>
-                ))}
+                      <Stack>
+                        <Typography variant="subtitle2">{dept.department}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {dept.done}/{dept.expected} Compliant
+                        </Typography>
+                      </Stack>
+                      <Label variant="soft" color={dept.percent >= 90 ? 'success' : dept.percent >= 75 ? 'warning' : 'error'}>
+                        {dept.percent}%
+                      </Label>
+                    </Stack>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No department statistics available.
+                  </Typography>
+                )}
               </Stack>
             </Card>
           </Grid>

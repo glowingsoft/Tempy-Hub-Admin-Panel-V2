@@ -7,13 +7,13 @@ import { OwnerBranchFilterActions } from 'src/sections/branch/owner-branch-selec
 
 // ----------------------------------------------------------------------
 
-export function AttendanceHeader({ ownerDashboard, branchId, onBranchChange }) {
+export function AttendanceHeader({ ownerDashboard, branchId, onBranchChange, onExportCSV }) {
   const exportButton = (
     <Button
       variant="contained"
       color="primary"
       startIcon={<Iconify icon="solar:export-bold" />}
-      onClick={() => {}}
+      onClick={onExportCSV}
     >
       Export to CSV
     </Button>

@@ -111,7 +111,10 @@ export const assignmentsApi = createApi({
       providesTags: ['TrainingRecords'],
     }),
 
-    // GET /admin/organizations/:organizationId/competency-matrix
+    // GET /admin/organizations/:organizationId/competency-matrix?page=1&limit=10
+    // response: { data: { columns, rows }, meta: { currentPage, totalPages, totalRecords, limit,
+    //   stats: { courses: [{ requirementId, name, done, expected, percent }],
+    //     departments: [{ departmentId, done, expected, percent }] } } }
     getCompetencyMatrix: builder.query({
       query: ({ organizationId, keyword, branchId, departmentId, jobTitleId, page, limit, ...params } = {}) => ({
         url: API_ROUTES.COMPETENCY_MATRIX(organizationId),

@@ -2,7 +2,6 @@ import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import QRCode from 'react-qr-code';
 
 import { Iconify } from 'src/components/iconify';
 import { KioskContentRenderer } from './kiosk-content-renderer';
@@ -64,151 +63,69 @@ export function KioskMobilePreview({
           />
 
           {/* Screen Body */}
-          {isCheckout ? (
-            <Box
-              sx={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                p: 2.5,
-                textAlign: 'center',
-                background: 'linear-gradient(160deg, #1F9D5A 0%, #0D2A1A 100%)',
-                color: '#fff',
-              }}
-            >
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  fontSize: 13,
-                  fontWeight: 800,
-                  mb: 2,
-                  letterSpacing: 0.3,
-                  color: '#fff',
-                }}
-              >
-                You&apos;re checked out
-              </Typography>
-
-              {checkoutData?.type === 'qr' && (
-                <Box
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    p: 1,
-                    bgcolor: '#fff',
-                    borderRadius: 1.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mb: 1.5,
-                    boxShadow: '0 6px 16px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  <QRCode value={checkoutData?.value || 'https://tempy.app'} size={64} />
-                </Box>
-              )}
-
-              {checkoutData?.type === 'image' && (
-                <Box
-                  sx={{
-                    width: 90,
-                    height: 70,
-                    bgcolor: 'rgba(255,255,255,0.15)',
-                    borderRadius: 1.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mb: 1.5,
-                    overflow: 'hidden',
-                  }}
-                >
-                  {checkoutData?.value ? (
-                    <Box
-                      component="img"
-                      src={checkoutData.value}
-                      alt="Checkout"
-                      sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <Iconify icon="solar:gallery-bold" width={28} />
-                  )}
-                </Box>
-              )}
-
-              {checkoutData?.type === 'text' && (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: 700,
-                    color: '#fff',
-                    mb: 1.5,
-                    px: 1,
-                  }}
-                >
-                  {checkoutData?.value || 'Thank you for visiting!'}
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: '#0B0D14',
+              px: 3,
+              textAlign: 'center',
+            }}
+          >
+            {isCheckout ? (
+              checkoutData ? (
+                <KioskContentRenderer screen={checkoutData} preview />
+              ) : (
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                  No checkout widget to preview
                 </Typography>
-              )}
-
-              {checkoutData?.type === 'link' && (
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: '50%',
-                    bgcolor: 'rgba(255,255,255,0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mb: 1.5,
-                  }}
-                >
-                  <Iconify icon="solar:link-bold" width={24} />
-                </Box>
-              )}
-
-              <Typography
-                variant="caption"
-                sx={{
-                  fontSize: 10,
-                  opacity: 0.9,
-                  px: 1.5,
-                  lineHeight: 1.3,
-                  color: 'rgba(255,255,255,0.9)',
-                }}
-              >
-                {checkoutData?.caption || 'Scan to tell us about your visit'}
+              )
+            ) : screen ? (
+              <KioskContentRenderer screen={screen} preview />
+            ) : (
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                No home screen widgets to preview
               </Typography>
-            </Box>
-          ) : (
-            <KioskContentRenderer screen={screen} preview />
-          )}
+            )}
+          </Box>
         </Box>
       </Box>
 
-      {/* Navigation / Caption */}
-      {isCheckout ? (
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-          Checkout screen preview
-        </Typography>
-      ) : (
-        <Stack direction="row" alignItems="center" spacing={1.5}>
-          <IconButton size="small" disabled={screenIndex === 0} onClick={onPrevious}>
-            <Iconify icon="eva:arrow-ios-back-fill" width={18} />
+      {/* Screen Navigation Controls (Home Mode Only) */}
+      {!isCheckout && totalScreens > 1 && (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton
+            size="small"
+            disabled={screenIndex <= 0}
+            onClick={onPrevious}
+            sx={{
+              bgcolor: 'background.paper',
+              boxShadow: (theme) => theme.customShadows?.z8,
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
+          >
+            <Iconify icon="solar:alt-arrow-left-bold" width={16} />
           </IconButton>
 
-          <Typography variant="caption" sx={{ minWidth: 80, textAlign: 'center', fontWeight: 600 }}>
-            Widget {screenIndex + 1} / {totalScreens}
+          <Typography variant="caption" sx={{ fontWeight: 700, px: 1 }}>
+            Screen {screenIndex + 1} of {totalScreens}
           </Typography>
 
           <IconButton
             size="small"
-            disabled={screenIndex === totalScreens - 1}
+            disabled={screenIndex >= totalScreens - 1}
             onClick={onNext}
+            sx={{
+              bgcolor: 'background.paper',
+              boxShadow: (theme) => theme.customShadows?.z8,
+              '&:hover': { bgcolor: 'action.hover' },
+            }}
           >
-            <Iconify icon="eva:arrow-ios-forward-fill" width={18} />
+            <Iconify icon="solar:alt-arrow-right-bold" width={16} />
           </IconButton>
         </Stack>
       )}

@@ -4,6 +4,8 @@ import Box from '@mui/material/Box';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useTabs } from 'src/hooks/use-tabs';
+import { API_ROUTES } from 'src/store/apiRoutes';
+import { downloadCsvFromApi } from 'src/utils/export-helper';
 
 import { AttendanceHeader } from '../components/attendance-header';
 import { AttendanceSummaryWidgets } from '../components/attendance-summary-widgets';
@@ -68,12 +70,29 @@ export function TeamAttendanceListView({ ownerDashboard = false }) {
     [detailDrawer]
   );
 
+  const handleExportCSV = useCallback(() => {
+    if (!organizationId) return;
+    downloadCsvFromApi(
+      API_ROUTES.ORGANIZATION_ATTENDANCE(organizationId),
+      'attendance.csv',
+      {
+        branchId: branchId && branchId !== 'all' ? branchId : undefined,
+        punctualityStatus: filters?.status && filters.status !== 'all' ? filters.status : undefined,
+        keyword: filters?.search || undefined,
+        from: filters?.from || undefined,
+        to: filters?.to || undefined,
+      },
+      organizationId
+    );
+  }, [organizationId, branchId, filters]);
+
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
       <AttendanceHeader
         ownerDashboard={ownerDashboard}
         branchId={branchId}
         onBranchChange={onBranchChange}
+        onExportCSV={handleExportCSV}
       />
 
       <AttendanceSummaryWidgets summary={summary} loading={widgetsLoading} />

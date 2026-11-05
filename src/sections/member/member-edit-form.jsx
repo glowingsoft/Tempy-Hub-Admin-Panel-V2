@@ -17,6 +17,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { Label } from 'src/components/label';
 
@@ -76,8 +77,18 @@ export function MemberEditForm({ organizationId, currentMember }) {
     return { ...toTokenSource(options), moduleByKey };
   }, [grantablePermissions, currentMember]);
 
+  const allPermissionIds = permissionTokens.ids;
+
+  const permissionOptions = useMemo(() => {
+    if (!allPermissionIds.length) return [];
+    return ['all', ...allPermissionIds];
+  }, [allPermissionIds]);
+
   const getPermissionLabel = useCallback(
-    (id) => permissionTokens.labelById[id] ?? id,
+    (id) => {
+      if (id === 'all') return 'All';
+      return permissionTokens.labelById[id] ?? id;
+    },
     [permissionTokens]
   );
 
@@ -97,9 +108,27 @@ export function MemberEditForm({ organizationId, currentMember }) {
   });
 
   const {
+    watch,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  const selectedPermissions = watch('permissions') || [];
+
+  const isAllSelected = useMemo(
+    () =>
+      allPermissionIds.length > 0 &&
+      allPermissionIds.every((id) => selectedPermissions.includes(id)),
+    [allPermissionIds, selectedPermissions]
+  );
+
+  const handleToggleSelectAll = useCallback(() => {
+    if (isAllSelected) {
+      methods.setValue('permissions', [], { shouldValidate: true });
+    } else {
+      methods.setValue('permissions', allPermissionIds, { shouldValidate: true });
+    }
+  }, [isAllSelected, allPermissionIds, methods]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -162,7 +191,30 @@ export function MemberEditForm({ organizationId, currentMember }) {
         </Card>
 
         <Card sx={{ p: { xs: 2.5, md: 3 } }}>
-          <Typography variant="h6">Access</Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ mb: 1 }}
+          >
+            <Typography variant="h6">Access</Typography>
+            {allPermissionIds.length > 0 && (
+              <Button
+                size="small"
+                variant="text"
+                color={isAllSelected ? 'error' : 'primary'}
+                onClick={handleToggleSelectAll}
+                startIcon={
+                  <Iconify
+                    icon={isAllSelected ? 'solar:close-circle-bold' : 'solar:check-read-linear'}
+                    width={18}
+                  />
+                }
+              >
+                {isAllSelected ? 'Deselect all' : 'Select all'}
+              </Button>
+            )}
+          </Stack>
           <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2.5 }}>
             Update this member’s status and the modules they can access.
           </Typography>
@@ -190,8 +242,10 @@ export function MemberEditForm({ organizationId, currentMember }) {
             label="Permissions"
             placeholder="Search permissions"
             loading={isFetchingPermissions}
-            options={permissionTokens.ids}
-            groupBy={(option) => permissionTokens.moduleByKey[option] || 'Other'}
+            options={permissionOptions}
+            groupBy={(option) =>
+              option === 'all' ? 'All' : permissionTokens.moduleByKey[option] || 'Other'
+            }
             slotProps={{
               popper: {
                 placement: 'bottom-start',
@@ -201,22 +255,43 @@ export function MemberEditForm({ organizationId, currentMember }) {
             ListboxProps={{ style: { maxHeight: 320 } }}
             getOptionLabel={getPermissionLabel}
             isOptionEqualToValue={(option, value) => option === value}
+            onChange={(event, newValue) => {
+              if (newValue.some((item) => item === 'all')) {
+                if (isAllSelected) {
+                  methods.setValue('permissions', [], { shouldValidate: true });
+                } else {
+                  methods.setValue('permissions', allPermissionIds, { shouldValidate: true });
+                }
+              } else {
+                methods.setValue(
+                  'permissions',
+                  newValue.filter((item) => item !== 'all'),
+                  { shouldValidate: true }
+                );
+              }
+            }}
             renderOption={(props, option) => (
-              <li {...props} key={option}>
+              <li
+                {...props}
+                key={option}
+                aria-selected={option === 'all' ? isAllSelected : props['aria-selected']}
+              >
                 {getPermissionLabel(option)}
               </li>
             )}
             renderTags={(selected, getTagProps) =>
-              selected.map((option, index) => (
-                <Chip
-                  {...getTagProps({ index })}
-                  key={option}
-                  size="small"
-                  variant="soft"
-                  color="primary"
-                  label={getPermissionLabel(option)}
-                />
-              ))
+              selected
+                .filter((option) => option !== 'all')
+                .map((option, index) => (
+                  <Chip
+                    {...getTagProps({ index })}
+                    key={option}
+                    size="small"
+                    variant="soft"
+                    color="primary"
+                    label={getPermissionLabel(option)}
+                  />
+                ))
             }
           />
         </Card>

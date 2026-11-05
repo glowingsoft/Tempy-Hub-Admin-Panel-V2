@@ -35,7 +35,8 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { usePathname, useRouter } from 'src/routes/hooks';
-import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
+import { API_ROUTES } from 'src/store/apiRoutes';
+import { downloadCsvFromApi } from 'src/utils/export-helper';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import {
   useGetAppStaffAppraisalsQuery,
@@ -317,34 +318,30 @@ export function AppraisalListView({
   };
 
   const handleExportCSV = useCallback(() => {
-    const exportData = filteredRows.map((row) => ({
-      Name: row.name || row.staffName || '—',
-      Period: row.period || row.periodLabel || '—',
-      'Last Review': row.lastReview || row.lastCompletedAt || '—',
-      'Next Due': row.nextDue || row.nextDueAt || row.scheduledAt || '—',
-      Status: getAppraisalRowStatus(row),
-    }));
-    exportToCSV(exportData, 'staff-appraisals-report.csv');
-  }, [filteredRows]);
-
-  const handleExportPDF = useCallback(() => {
-    const columns = [
-      { id: 'name', label: 'Staff Member' },
-      { id: 'period', label: 'Review Period' },
-      { id: 'lastReview', label: 'Last Review' },
-      { id: 'nextDue', label: 'Next Due' },
-      { id: 'status', label: 'Status' },
-    ];
-    const mapped = filteredRows.map((r) => ({
-      ...r,
-      name: r.name || r.staffName || '—',
-      period: r.period || r.periodLabel || '—',
-      lastReview: r.lastReview || r.lastCompletedAt || '—',
-      nextDue: r.nextDue || r.nextDueAt || r.scheduledAt || '—',
-      status: getAppraisalRowStatus(r),
-    }));
-    exportToPDF('Appraisals Report', columns, mapped);
-  }, [filteredRows]);
+    if (isStaffView) {
+      downloadCsvFromApi(
+        API_ROUTES.APP_APPRAISALS,
+        'appraisals.csv',
+        {
+          search: trimmedKeyword || undefined,
+          status: filters.state.status !== 'all' ? filters.state.status : undefined,
+        },
+        organizationId
+      );
+    } else {
+      if (!organizationId) return;
+      downloadCsvFromApi(
+        API_ROUTES.ORGANIZATION_APPRAISALS(organizationId),
+        'appraisals.csv',
+        {
+          search: trimmedKeyword || undefined,
+          status: filters.state.status !== 'all' ? filters.state.status : undefined,
+          branchId: userBranchId && userBranchId !== 'all' ? userBranchId : undefined,
+        },
+        organizationId
+      );
+    }
+  }, [isStaffView, organizationId, trimmedKeyword, filters.state.status, userBranchId]);
 
   return (
     <DashboardContent>
@@ -373,14 +370,6 @@ export function AppraisalListView({
               onClick={handleExportCSV}
             >
               Export CSV
-            </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<Iconify icon="solar:printer-bold" />}
-              onClick={handleExportPDF}
-            >
-              Export PDF
             </Button>
           </Stack>
         }

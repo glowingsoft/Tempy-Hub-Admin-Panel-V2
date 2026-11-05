@@ -11,6 +11,8 @@ import TableBody from '@mui/material/TableBody';
 import TableContainer from '@mui/material/TableContainer';
 
 import { paths } from 'src/routes/paths';
+import { API_ROUTES } from 'src/store/apiRoutes';
+import { downloadCsvFromApi } from 'src/utils/export-helper';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -148,6 +150,20 @@ export function StaffAttendanceListView() {
     [statusCounts, totalRecords]
   );
 
+  const handleExportCSV = useCallback(() => {
+    downloadCsvFromApi(
+      API_ROUTES.STAFF_ATTENDANCE,
+      'attendance.csv',
+      {
+        keyword: keyword || undefined,
+        punctualityStatus: filters.state.status !== 'all' ? filters.state.status : undefined,
+        from: from || undefined,
+        to: to || undefined,
+      },
+      organizationId
+    );
+  }, [keyword, filters.state.status, from, to, organizationId]);
+
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
       <CustomBreadcrumbs
@@ -155,11 +171,12 @@ export function StaffAttendanceListView() {
         links={[{ name: 'Dashboard', href: paths.staff.dashboard }, { name: 'Attendance' }]}
         action={
           <Button
-            variant="outlined"
-            startIcon={<Iconify icon="solar:download-bold" />}
-            onClick={() => {}}
+            variant="contained"
+            color="primary"
+            startIcon={<Iconify icon="solar:export-bold" />}
+            onClick={handleExportCSV}
           >
-            Download PDF
+            Export to CSV
           </Button>
         }
         sx={{ mb: { xs: 3, md: 4 } }}

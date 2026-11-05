@@ -37,6 +37,8 @@ import {
 } from 'src/components/table';
 
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { API_ROUTES } from 'src/store/apiRoutes';
+import { downloadCsvFromApi } from 'src/utils/export-helper';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useExportExternalPeopleCsvMutation,
@@ -252,6 +254,22 @@ export function UserListView() {
   );
 
   const notFound = !isLoading && !isFetching && tableData.length === 0;
+
+  const handleExportCSV = useCallback(() => {
+    if (!organizationId) return;
+    downloadCsvFromApi(
+      API_ROUTES.ORGANIZATION_EXTERNAL_PEOPLE(organizationId),
+      'directory.csv',
+      {
+        keyword: trimmedKeyword || undefined,
+        branchId: branchId && branchId !== 'all' ? branchId : undefined,
+        departmentId: departmentId && departmentId !== 'all' ? departmentId : undefined,
+        type: userType && userType !== 'all' ? userType : undefined,
+        siteStatus: siteStatus && siteStatus !== 'all' ? siteStatus : undefined,
+      },
+      organizationId
+    );
+  }, [organizationId, trimmedKeyword, branchId, departmentId, userType, siteStatus]);
 
   const handleEditRow = useCallback(
     (user) => {

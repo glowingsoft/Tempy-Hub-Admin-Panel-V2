@@ -82,10 +82,6 @@ export function ReportsView({ ownerDashboard = false }) {
         console.log('Export CSV', selectedReport, filters);
     };
 
-    const handleExportPDF = () => {
-        console.log('Export PDF', selectedReport, filters);
-    };
-
     return (
         <DashboardContent>
             <CustomBreadcrumbs
@@ -157,15 +153,6 @@ export function ReportsView({ ownerDashboard = false }) {
                                     Export CSV
                                 </Button>
 
-                                <Button
-                                    variant="outlined"
-                                    startIcon={
-                                        <Iconify icon="solar:export-bold" />
-                                    }
-                                    onClick={handleExportPDF}
-                                >
-                                    Export PDF
-                                </Button>
                             </Stack>
                         </Box>
 

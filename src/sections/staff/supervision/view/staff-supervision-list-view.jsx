@@ -27,6 +27,8 @@ import { useTable, TableHeadCustom, TableNoData, TablePaginationCustom } from 's
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { fDate, fDateTime } from 'src/utils/format-time';
+import { API_ROUTES } from 'src/store/apiRoutes';
+import { downloadCsvFromApi } from 'src/utils/export-helper';
 
 import { StaffDocumentPreviewDialog } from '../../documents/view/staff-document-preview-dialog';
 import {
@@ -126,6 +128,21 @@ export function StaffSupervisionListView({ heading, dashboardHref, type: explici
             <CustomBreadcrumbs
                 heading={resolvedHeading}
                 links={[{ name: 'Dashboard', href: resolvedDashboardHref }, { name: resolvedHeading }]}
+                action={
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        startIcon={<Iconify icon="solar:export-bold" />}
+                        onClick={() =>
+                            downloadCsvFromApi(
+                                API_ROUTES.APP_SUPERVISION,
+                                'supervision.csv'
+                            )
+                        }
+                    >
+                        Export CSV
+                    </Button>
+                }
                 sx={{ mb: { xs: 3, md: 5 } }}
             />
 
