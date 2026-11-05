@@ -30,6 +30,10 @@ export const API_ROUTES = {
     ORGANIZATION_MODULE_ACCESS: (id) => `/admin/organizations/${id}/module-access`,
     ORGANIZATION_STAFF_DASHBOARD_SETTINGS: (organizationId) =>
         `/admin/organizations/${organizationId}/staff-dashboard-settings`,
+    ORGANIZATION_VISITOR_SURVEY_SETTINGS: (organizationId) =>
+        `/admin/organizations/${organizationId}/visitor-survey-settings`,
+    ORGANIZATION_VISITOR_SURVEY_QUESTIONS: (organizationId) =>
+        `/admin/organizations/${organizationId}/visitor-survey-questions`,
     MODULE_DEFINITIONS: '/admin/module-definitions',
     ORGANIZATION_DEPARTMENTS: (organizationId) => `/admin/organizations/${organizationId}/departments`,
     ORGANIZATION_DEPARTMENT_BY_ID: (organizationId, departmentId) =>
