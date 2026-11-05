@@ -8,25 +8,22 @@ import { Label } from 'src/components/label';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 import { CONFIG } from 'src/config-global';
-import { mockShiftsResponse } from 'src/sections/shift/mocks/data';
-
-// Same source the Shift Claims tile links to (the Shifts list page), so this
-// count can never disagree with what the staff member sees after clicking in.
-const availableShiftsCount = mockShiftsResponse.data.filter((shift) => shift.status === 'open').length;
 
 const QUICK_ACTIONS = [
     {
+        key: 'shiftClaims',
         label: 'Shift Claims',
         path: paths.staff.shifts,
         icon: 'ic-plan',
-        count: availableShiftsCount,
     },
     {
+        key: 'documents',
         label: 'Documents',
         path: paths.staff.documents.root,
         icon: 'ic-document',
     },
     {
+        key: 'myAttendance',
         label: 'My Attendance',
         path: paths.staff.attendance,
         icon: 'ic-clock',
@@ -35,14 +32,16 @@ const QUICK_ACTIONS = [
 
 const icon = (name) => `${CONFIG.site.basePath}/assets/icons/navbar/${name}.svg`;
 
-export function StaffQuickActions() {
+export function StaffQuickActions({ counts = {} }) {
     return (
         <Box>
             <Typography variant="h5" sx={{ mb: 1.5 }}>
                 Quick Actions
             </Typography>
             <Grid container spacing={1.5}>
-                {QUICK_ACTIONS.map((action) => (
+                {QUICK_ACTIONS.map((action) => {
+                    const count = counts[action.key];
+                    return (
                     <Grid key={action.path} xs={12} sm={4}>
                         <Card
                             component={RouterLink}
@@ -65,13 +64,13 @@ export function StaffQuickActions() {
                                 },
                             }}
                         >
-                            {action.count ? (
+                            {count ? (
                                 <Label
                                     color="info"
                                     variant="filled"
                                     sx={{ position: 'absolute', top: 8, right: 8 }}
                                 >
-                                    {action.count}
+                                    {count}
                                 </Label>
                             ) : null}
 
@@ -97,7 +96,8 @@ export function StaffQuickActions() {
                             </Typography>
                         </Card>
                     </Grid>
-                ))}
+                    );
+                })}
             </Grid>
         </Box>
     );

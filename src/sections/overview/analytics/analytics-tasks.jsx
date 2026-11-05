@@ -11,6 +11,7 @@ import IconButton from '@mui/material/IconButton';
 import CardHeader from '@mui/material/CardHeader';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { usePopover, CustomPopover } from 'src/components/custom-popover';
@@ -29,21 +30,30 @@ export function AnalyticsTasks({ title, subheader, list, sx, ...other }) {
   };
 
   return (
-    <Card sx={{ display: 'flex', flexDirection: 'column', ...sx }} {...other}>
+    <Card sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ...sx }} {...other}>
       <CardHeader title={title} subheader={subheader} sx={{ mb: 1 }} />
 
-      <Scrollbar sx={{ minHeight: 304 }}>
-        <Stack divider={<Divider sx={{ borderStyle: 'dashed' }} />} sx={{ minWidth: 560 }}>
-          {list.map((item) => (
-            <Item
-              key={item.id}
-              item={item}
-              checked={selected.includes(item.id)}
-              onChange={() => handleClickComplete(item.id)}
-            />
-          ))}
-        </Stack>
-      </Scrollbar>
+      {!list?.length ? (
+        <EmptyContent
+          filled
+          title="No data available"
+          slotProps={{ img: { maxWidth: 96 } }}
+          sx={{ height: 'auto', flex: 1, minHeight: 0, m: 2.5, mt: 0, py: 3, overflow: 'hidden' }}
+        />
+      ) : (
+        <Scrollbar sx={{ minHeight: 304 }}>
+          <Stack divider={<Divider sx={{ borderStyle: 'dashed' }} />} sx={{ minWidth: 560 }}>
+            {list.map((item) => (
+              <Item
+                key={item.id}
+                item={item}
+                checked={selected.includes(item.id)}
+                onChange={() => handleClickComplete(item.id)}
+              />
+            ))}
+          </Stack>
+        </Scrollbar>
+      )}
     </Card>
   );
 }

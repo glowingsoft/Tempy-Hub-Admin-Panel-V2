@@ -30,7 +30,7 @@ function startOfWeek(date) {
   return date.subtract(mondayOffset, 'day').startOf('day');
 }
 
-export function StaffShiftCalendarStrip({ title, shifts = [], sx, ...other }) {
+export function StaffShiftCalendarStrip({ title, shifts = [], scheduledHours, sx, ...other }) {
   const [weekOffset, setWeekOffset] = useState(0);
 
   const weekStart = useMemo(() => startOfWeek(dayjs().add(weekOffset, 'week')), [weekOffset]);
@@ -39,27 +39,31 @@ export function StaffShiftCalendarStrip({ title, shifts = [], sx, ...other }) {
     () =>
       Array.from({ length: 7 }, (_, index) => {
         const date = weekStart.add(index, 'day');
-        const shift = shifts.find((item) => dayjs(item.startsAt).isSame(date, 'day'));
+        const dayShifts = shifts.filter((item) => dayjs(item.startsAt).isSame(date, 'day'));
 
         return {
           key: date.format('YYYY-MM-DD'),
           weekday: date.format('ddd'),
           dayLabel: date.format('D MMM'),
           isToday: date.isSame(dayjs(), 'day'),
-          shift,
+          shifts: dayShifts,
         };
       }),
     [weekStart, shifts]
   );
 
-  const weekHours = useMemo(
-    () =>
-      dayColumns.reduce((total, day) => {
-        if (!day.shift) return total;
-        return total + dayjs(day.shift.endsAt).diff(dayjs(day.shift.startsAt), 'hour', true);
-      }, 0),
-    [dayColumns]
-  );
+  const weekHours = useMemo(() => {
+    if (weekOffset === 0 && scheduledHours != null) return Number(scheduledHours);
+    return dayColumns.reduce(
+      (total, day) =>
+        total +
+        day.shifts.reduce(
+          (dayTotal, shift) => dayTotal + dayjs(shift.endsAt).diff(dayjs(shift.startsAt), 'hour', true),
+          0
+        ),
+      0
+    );
+  }, [dayColumns, scheduledHours, weekOffset]);
 
   const subheader = `${weekStart.format('D MMM')} – ${weekStart.add(6, 'day').format('D MMM')} · ${Math.round(weekHours * 10) / 10}h scheduled`;
 
@@ -104,22 +108,28 @@ export function StaffShiftCalendarStrip({ title, shifts = [], sx, ...other }) {
                 </Typography>
               </Stack>
 
-              {day.shift ? (
+              {day.shifts.length ? (
                 <Stack alignItems="center" spacing={0.5} sx={{ width: 1 }}>
-                  <RotaShiftChip
-                    shift={{
-                      type: 'default',
-                      start: fTime(day.shift.startsAt),
-                      end: fTime(day.shift.endsAt),
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    noWrap
-                    sx={{ color: 'text.secondary', maxWidth: 1 }}
-                  >
-                    {day.shift.location}
-                  </Typography>
+                  {day.shifts.map((shift, index) => (
+                    <Stack key={shift._id || `${day.key}-${index}`} alignItems="center" spacing={0.5} sx={{ width: 1 }}>
+                      <RotaShiftChip
+                        shift={{
+                          type: 'default',
+                          start: fTime(shift.startsAt),
+                          end: fTime(shift.endsAt),
+                        }}
+                      />
+                      {shift.location ? (
+                        <Typography
+                          variant="caption"
+                          noWrap
+                          sx={{ color: 'text.secondary', maxWidth: 1 }}
+                        >
+                          {shift.location}
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  ))}
                 </Stack>
               ) : (
                 <Typography variant="caption" sx={{ color: 'text.disabled', mt: 1 }}>
