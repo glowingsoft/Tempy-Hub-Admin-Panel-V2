@@ -35,8 +35,8 @@ export function StaffShiftTableRow({ row, serialNumber, claimed = false, showCla
       <TableCell sx={{ whiteSpace: 'nowrap' }}>{fDateTime(row.endsAt)}</TableCell>
 
       <TableCell align="center">
-        <Label variant="soft" color={claimed ? 'info' : status.color}>
-          {claimed ? 'Claim requested' : status.label}
+        <Label variant="soft" color={status.color}>
+          {status.label}
         </Label>
       </TableCell>
 
