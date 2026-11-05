@@ -21,7 +21,6 @@ import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { useDispatch } from 'react-redux';
-import { AppSurface } from 'src/auth/constants';
 import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
 import { getDeviceType } from 'src/utils/getDeviceType';
@@ -43,7 +42,6 @@ export const SignInSchema = zod.object({
 // ----------------------------------------------------------------------
 
 export function JwtSignInView({
-  surface = AppSurface.MANAGER_APP,
   forgotReturnPath = '/',
   title = 'Sign in to your account',
 }) {
@@ -111,7 +109,6 @@ export function JwtSignInView({
       userType: data.email.includes('admin') ? 'admin' : 'user',
       deviceType: deviceType || 'desktop',
       deviceId: '123',
-      surface,
     };
 
     try {
