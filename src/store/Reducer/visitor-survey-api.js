@@ -8,6 +8,11 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //
 // GET/PUT /admin/organizations/:organizationId/visitor-survey-settings
 // GET/PUT /admin/organizations/:organizationId/visitor-survey-questions
+// POST /admin/organizations/:organizationId/visitor-survey-responses
+//   request: {
+//     "branchId": "string", "hostStaffId": "string", "visitorName": "string",
+//     "stayDuration": "string", "answers": [{ "questionId": "string", "value": "string" }]
+//   }
 // ----------------------------------------------------------------------
 
 const orgHeaders = (organizationId) =>
@@ -26,7 +31,7 @@ const questionsTag = (organizationId) => ({
 export const visitorSurveyApi = createApi({
   reducerPath: 'visitorSurveyApi',
   baseQuery: createCustomFetchBaseQuery(),
-  tagTypes: ['VisitorSurveySettings', 'VisitorSurveyQuestions'],
+  tagTypes: ['VisitorSurveySettings', 'VisitorSurveyQuestions', 'VisitorFeedback'],
   endpoints: (builder) => ({
     getVisitorSurveySettings: builder.query({
       extraOptions: { disableToast: true },
@@ -74,6 +79,29 @@ export const visitorSurveyApi = createApi({
       transformResponse: (res) => res?.data ?? res,
       invalidatesTags: (result, error, { organizationId } = {}) => [questionsTag(organizationId)],
     }),
+
+    submitVisitorFeedback: builder.mutation({
+      extraOptions: { disableToast: true },
+      query: ({ organizationId, branchId, ...body } = {}) => ({
+        url: API_ROUTES.ORGANIZATION_VISITOR_SURVEY_RESPONSES(organizationId),
+        method: 'POST',
+        headers: {
+          ...orgHeaders(organizationId),
+          ...(branchId ? { 'x-branch-id': branchId } : {}),
+        },
+        params: {
+          ...(branchId ? { branchId } : {}),
+        },
+        body: {
+          ...(branchId ? { branchId } : {}),
+          ...body,
+        },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { organizationId } = {}) => [
+        { type: 'VisitorFeedback', id: organizationId || 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -82,4 +110,5 @@ export const {
   useUpdateVisitorSurveySettingsMutation,
   useGetVisitorSurveyQuestionsQuery,
   useUpdateVisitorSurveyQuestionsMutation,
+  useSubmitVisitorFeedbackMutation,
 } = visitorSurveyApi;

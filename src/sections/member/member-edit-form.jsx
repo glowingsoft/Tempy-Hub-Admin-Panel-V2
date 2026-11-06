@@ -78,11 +78,14 @@ export function MemberEditForm({ organizationId, currentMember }) {
   }, [grantablePermissions, currentMember]);
 
   const allPermissionIds = permissionTokens.ids;
+  const isLineManager = currentMember?.role === 'lineManager';
+  const showSelectAll = !isLineManager;
 
   const permissionOptions = useMemo(() => {
     if (!allPermissionIds.length) return [];
+    if (!showSelectAll) return allPermissionIds;
     return ['all', ...allPermissionIds];
-  }, [allPermissionIds]);
+  }, [allPermissionIds, showSelectAll]);
 
   const getPermissionLabel = useCallback(
     (id) => {
@@ -198,7 +201,7 @@ export function MemberEditForm({ organizationId, currentMember }) {
             sx={{ mb: 1 }}
           >
             <Typography variant="h6">Access</Typography>
-            {allPermissionIds.length > 0 && (
+            {showSelectAll && allPermissionIds.length > 0 && (
               <Button
                 size="small"
                 variant="text"

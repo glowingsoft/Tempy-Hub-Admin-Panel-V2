@@ -11,6 +11,7 @@ export const kioskBrandingApi = createApi({
 
   endpoints: (builder) => ({
     getKioskWidgets: builder.query({
+      extraOptions: { disableToast: true },
       query: ({ organizationId, branchId, kioskId } = {}) => ({
         url: API_ROUTES.ORGANIZATION_KIOSK_WIDGETS(organizationId),
         params: {

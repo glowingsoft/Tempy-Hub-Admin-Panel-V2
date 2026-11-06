@@ -10,14 +10,15 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { toast } from 'src/components/snackbar';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import {
     useGetVisitorSurveyQuestionsQuery,
     useGetVisitorSurveySettingsQuery,
     useUpdateVisitorSurveyQuestionsMutation,
     useUpdateVisitorSurveySettingsMutation,
+    useSubmitVisitorFeedbackMutation,
 } from 'src/store/Reducer/visitor-survey-api';
 import Categories from '../categories';
-import ClockInSettins from '../clock-in-settings';
 import KioskBranding from '../kiosk-branding';
 import VisitorSurveySettings from '../visitor-survey-settings';
 import ExternalWidgetsSettings from '../external-widgets-settings';
@@ -38,7 +39,6 @@ import {
 const CONFIGURATION_TABS_OPTIONS = [
     { value: "categories", label: "Categories", icon: "iconamoon:category-bold" },
     { value: "kioskBranding", label: "Kiosk Branding", icon: "solar:monitor-bold" },
-    { value: "clockInSettings", label: "Clock In Settings", icon: "solar:settings-bold-duotone" },
     { value: "visitorSurvey", label: "Visitor Survey", icon: "solar:chat-square-like-bold-duotone" },
     // { value: "externalWidgets", label: "External Widgets", icon: "solar:widget-5-bold-duotone" },
 ]
@@ -48,7 +48,7 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
     const rootPath = ownerDashboard ? paths.owner.root : paths.siteManager.root;
     const rootLabel = ownerDashboard ? 'Owner Dashboard' : 'Dashboard';
     const { value, onChange } = useTabs("categories");
-    const { organizationId, isOwner } = useCurrentOrganization();
+    const { organizationId, isOwner, user } = useCurrentOrganization();
     const canEditSurvey = Boolean(ownerDashboard || isOwner);
 
     const skipSurvey = value !== 'visitorSurvey' || !organizationId;
@@ -74,6 +74,8 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
         useUpdateVisitorSurveySettingsMutation();
     const [updateVisitorSurveyQuestions, { isLoading: savingQuestions }] =
         useUpdateVisitorSurveyQuestionsMutation();
+    const [submitVisitorFeedback, { isLoading: submittingFeedback }] =
+        useSubmitVisitorFeedbackMutation();
 
     const [surveyWriteBlocked, setSurveyWriteBlocked] = useState(false);
 
@@ -126,6 +128,33 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
                 setSurveyWriteBlocked(true);
             }
             toast.error(mutationErrorMessage(error, 'Failed to save survey questions'));
+            return false;
+        }
+    };
+
+    const handleSubmitVisitorFeedback = async (payload) => {
+        if (!organizationId) {
+            toast.error('No organization selected');
+            return false;
+        }
+        const resolvedBranchId = isOwner
+            ? payload.branchId
+            : getAssignedBranch(user, organizationId)?.id;
+
+        if (!resolvedBranchId) {
+            toast.error('A branch is required to log visitor feedback');
+            return false;
+        }
+
+        try {
+            await submitVisitorFeedback({
+                ...payload,
+                organizationId,
+                branchId: resolvedBranchId,
+            }).unwrap();
+            return true;
+        } catch (error) {
+            toast.error(mutationErrorMessage(error, 'Failed to log visitor feedback'));
             return false;
         }
     };
@@ -185,8 +214,6 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
                 />
             )}
 
-            {value === "clockInSettings" && <ClockInSettins title="Automatic staff clock-out" subHeader="Clock out staff automatically at shift end" />}
-
             {value === "visitorSurvey" && (
                 <VisitorSurveySettings
                     settings={visitorSurveySettings}
@@ -196,8 +223,10 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
                     canEdit={canEditSurvey && !surveyWriteBlocked}
                     saving={savingSettings}
                     savingQuestions={savingQuestions}
+                    submittingFeedback={submittingFeedback}
                     onSave={handleSaveVisitorSurveySettings}
                     onSaveQuestions={handleSaveVisitorSurveyQuestions}
+                    onSubmitFeedback={handleSubmitVisitorFeedback}
                     onRetry={() => {
                         refetchSettings();
                         refetchQuestions();

@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -57,7 +57,7 @@ export const MembershipSchema = zod
   })
   .superRefine((data, ctx) => {
     if (data.role === 'siteManager') return;
-    if (!data.jobTitleId?.value) {
+    if (data.role !== 'lineManager' && !data.jobTitleId?.value) {
       ctx.addIssue({ code: 'custom', path: ['jobTitleId'], message: 'Job title is required!' });
     }
     if (!data.startDate) {
@@ -128,11 +128,6 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
 
   const allPermissionIds = permissionTokens.ids;
 
-  const permissionOptions = useMemo(() => {
-    if (!allPermissionIds.length) return [];
-    return ['all', ...allPermissionIds];
-  }, [allPermissionIds]);
-
   const getPermissionLabel = useCallback(
     (id) => {
       if (id === 'all') return 'All';
@@ -188,8 +183,29 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
 
   const role = watch('role');
   const selectedPermissions = watch('permissions') || [];
-  const hideStaffDetails = role === 'siteManager';
+  const hideJobTitle = role === 'siteManager' || role === 'lineManager';
+  const hideDepartment = role === 'siteManager' || role === 'lineManager';
+  const hideStartDate = role === 'siteManager';
   const hidePermissions = role === 'staff';
+
+  const permissionOptions = useMemo(() => {
+    if (!allPermissionIds.length) return [];
+    return ['all', ...allPermissionIds];
+  }, [allPermissionIds]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    if (role === 'lineManager') {
+      methods.setValue('jobTitleId', null);
+      methods.setValue('departmentIds', []);
+    } else if (role === 'siteManager') {
+      methods.setValue('jobTitleId', null);
+      methods.setValue('departmentIds', []);
+      methods.setValue('startDate', null);
+    } else if (role === 'staff') {
+      methods.setValue('permissions', []);
+    }
+  }, [role, isEdit, methods]);
 
   const isAllSelected = useMemo(
     () =>
@@ -239,6 +255,10 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
           delete payload.jobTitleId;
           delete payload.departmentIds;
           delete payload.startDate;
+        }
+        if (data.role === 'lineManager') {
+          delete payload.jobTitleId;
+          delete payload.departmentIds;
         }
         if (data.role === 'staff') {
           delete payload.permissions;
@@ -298,7 +318,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               enabled={!!resolvedOrganizationId}
             />
 
-            {!hideStaffDetails && (
+            {!hideJobTitle && (
               <Field.InfiniteAutocomplete
                 name="jobTitleId"
                 label="Job title"
@@ -311,7 +331,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               />
             )}
 
-            {!hideStaffDetails && (
+            {!hideStartDate && (
               <Field.DatePicker name="startDate" label="Start date" disabled={isEdit} />
             )}
           </Box>
@@ -358,6 +378,12 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                 placeholder="Search permissions"
                 loading={isFetchingPermissions}
                 options={permissionOptions}
+                sx={{
+                  gridColumn: {
+                    xs: 'span 1',
+                    sm: hideDepartment ? 'span 2' : 'span 1',
+                  },
+                }}
                 groupBy={(option) =>
                   option === 'all' ? 'All' : permissionTokens.moduleByKey[option] || 'Other'
                 }
@@ -410,7 +436,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               />
             )}
 
-            {(!hideStaffDetails || isEdit) && (
+            {!hideDepartment && (
               <Field.InfiniteAutocomplete
                 multiple
                 disableCloseOnSelect

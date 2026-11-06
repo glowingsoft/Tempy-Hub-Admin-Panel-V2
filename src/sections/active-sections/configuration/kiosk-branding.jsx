@@ -1,6 +1,6 @@
 // kiosk-branding.jsx
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -11,7 +11,6 @@ import Grid from '@mui/material/Grid';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 
 import { Iconify } from 'src/components/iconify';
 import { toast } from 'src/components/snackbar';
@@ -249,12 +248,26 @@ export default function KioskBranding({ ownerDashboard = false }) {
   // Selected Kiosk ID ('all' for site default or specific kiosk id)
   const [selectedKioskId, setSelectedKioskId] = useState('all');
 
-  const activeBranchId = useMemo(() => {
-    if (!isOwner && siteManagerBranch?.value) {
-      return siteManagerBranch.value;
+  const effectiveBranch = useMemo(() => {
+    if (!isOwner) {
+      if (siteManagerBranch) return siteManagerBranch;
+      if (selectedBranch?.organizationId === organizationId) return selectedBranch;
+      if (branches.length > 0) {
+        const fallback = defaultBranch || branches[0];
+        return { ...mapBranchOption(fallback), organizationId };
+      }
+      return null;
     }
-    return selectedBranch?.organizationId === organizationId ? selectedBranch.value : '';
-  }, [isOwner, siteManagerBranch, selectedBranch, organizationId]);
+    if (selectedBranch?.organizationId === organizationId) {
+      return selectedBranch;
+    }
+    if (defaultBranch) {
+      return { ...mapBranchOption(defaultBranch), organizationId };
+    }
+    return null;
+  }, [isOwner, siteManagerBranch, selectedBranch, organizationId, branches, defaultBranch]);
+
+  const activeBranchId = effectiveBranch?.value || '';
 
   // Load Kiosks for the selected branch
   const { currentData: kiosksData } = useGetKiosksQuery(
@@ -274,8 +287,10 @@ export default function KioskBranding({ ownerDashboard = false }) {
   // Fetch Kiosk Widgets from API
   const {
     currentData: apiWidgetsData,
+    isLoading: isLoadingWidgets,
     isFetching: isRefetchingWidgets,
     isError: isWidgetsError,
+    error: widgetsError,
   } = useGetKioskWidgetsQuery(
     {
       organizationId,
@@ -287,9 +302,8 @@ export default function KioskBranding({ ownerDashboard = false }) {
 
   const [updateKioskWidgets, { isLoading: isSaving }] = useUpdateKioskWidgetsMutation();
   const isLoadingKioskBranding =
-    (!activeBranchId && isLoadingBranches) ||
-    (branches.length > 0 && !activeBranchId) ||
-    (Boolean(activeBranchId) && isRefetchingWidgets && !apiWidgetsData);
+    isLoadingBranches ||
+    (Boolean(activeBranchId) && !apiWidgetsData && !isWidgetsError && (isLoadingWidgets || isRefetchingWidgets));
   const hasKioskLoadError = isBranchesError || isWidgetsError;
 
   // Local state for Home Screen Widgets and Checkout Widget
@@ -298,70 +312,35 @@ export default function KioskBranding({ ownerDashboard = false }) {
   const [checkoutWidget, setCheckoutWidget] = useState(EMPTY_CHECKOUT_WIDGET_CONFIG);
   const [hasCheckoutWidget, setHasCheckoutWidget] = useState(false);
 
-  // Select branch by default and recover if organization or context changes.
+  // Reset when organization changes
+  const prevOrgRef = useRef(organizationId);
   useEffect(() => {
-    if (isOwner) {
-      if (isLoadingBranches || isBranchesError) return;
+    if (prevOrgRef.current !== organizationId) {
+      prevOrgRef.current = organizationId;
+      setSelectedBranch(null);
+      setSelectedKioskId('all');
+      setScreens([]);
+      setSelectedScreen(0);
+      setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
+      setHasCheckoutWidget(false);
+    }
+  }, [organizationId]);
 
-      if (!branches.length) {
-        if (selectedBranch) {
-          setSelectedBranch(null);
-          setSelectedKioskId('all');
-          setScreens([]);
-          setSelectedScreen(0);
-          setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
-          setHasCheckoutWidget(false);
-        }
-        return;
-      }
-
-      if (selectedBranch?.organizationId !== organizationId) {
-        setSelectedBranch(
-          defaultBranch
-            ? {
-                ...mapBranchOption(defaultBranch),
-                organizationId,
-              }
-            : null
-        );
-        setSelectedKioskId('all');
-        setScreens([]);
-        setSelectedScreen(0);
-        setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
-        setHasCheckoutWidget(false);
-      }
-    } else {
-      // Site Manager flow: lock to assigned site
-      if (siteManagerBranch) {
-        if (
-          selectedBranch?.value !== siteManagerBranch.value ||
-          selectedBranch?.organizationId !== organizationId ||
-          (siteManagerBranch.label !== 'Current Site' && selectedBranch?.label !== siteManagerBranch.label)
-        ) {
-          setSelectedBranch(siteManagerBranch);
-          setSelectedKioskId('all');
-        }
-      } else if (!isLoadingBranches && !isBranchesError && branches.length > 0) {
-        if (selectedBranch?.organizationId !== organizationId || !selectedBranch) {
-          const fallback = defaultBranch || branches[0];
-          setSelectedBranch({
-            ...mapBranchOption(fallback),
-            organizationId,
-          });
-          setSelectedKioskId('all');
-        }
+  // Handle widget error gracefully (404 is normal when no widgets configured yet)
+  const lastWidgetErrorRef = useRef(null);
+  useEffect(() => {
+    if (isWidgetsError && widgetsError) {
+      if (widgetsError?.status === 404) return;
+      const msg =
+        widgetsError?.data?.message ||
+        widgetsError?.message ||
+        'Failed to load kiosk widgets';
+      if (lastWidgetErrorRef.current !== msg) {
+        lastWidgetErrorRef.current = msg;
+        toast.error(msg);
       }
     }
-  }, [
-    isOwner,
-    siteManagerBranch,
-    branches,
-    defaultBranch,
-    isBranchesError,
-    isLoadingBranches,
-    organizationId,
-    selectedBranch,
-  ]);
+  }, [isWidgetsError, widgetsError]);
 
   const openModal = useBoolean();
   const [editingScreen, setEditingScreen] = useState(null);
@@ -488,23 +467,6 @@ export default function KioskBranding({ ownerDashboard = false }) {
     }
   };
 
-  const persistKioskWidgets = async (homeScreens, checkout = checkoutWidget) => {
-    ensureWidgetScopeReady();
-    if (homeScreens.length > MAX_HOME_WIDGETS) {
-      throw new Error(`A maximum of ${MAX_HOME_WIDGETS} home screen widgets is allowed`);
-    }
-
-    const formattedHomeWidgets = homeScreens.map(formatHomeWidget);
-
-    return updateKioskWidgets({
-      organizationId,
-      branchId: activeBranchId,
-      kioskId: selectedKioskId !== 'all' ? selectedKioskId : null,
-      homeWidgets: formattedHomeWidgets,
-      ...(hasCheckoutWidget ? { checkoutWidget: formatCheckoutWidget(checkout) } : {}),
-    }).unwrap();
-  };
-
   const handleSaveScreenFromModal = async (savedScreen) => {
     let updatedScreens;
 
@@ -551,58 +513,7 @@ export default function KioskBranding({ ownerDashboard = false }) {
     toast.success(response?.message || 'Checkout widget saved successfully');
   };
 
-  const handleReset = () => {
-    if (apiWidgetsData) {
-      // Re-trigger sync with API response
-      const raw = apiWidgetsData?.data || apiWidgetsData;
-      if (Array.isArray(raw?.homeWidgets)) {
-        setScreens(
-          raw.homeWidgets.map((w, index) => ({
-            ...w,
-            id: w._id || w.sortOrder || index + 1,
-            name: w.title || `Widget ${w.sortOrder || index + 1}`,
-            value:
-              w.type === 'image'
-                ? w.config?.imageUrl || w.imageUrl || ''
-                : w.type === 'text'
-                  ? w.config?.body || w.body || ''
-                  : w.type === 'qr'
-                    ? w.config?.url || w.url || ''
-                    : w.type === 'link'
-                      ? w.config?.url || w.url || ''
-                      : '',
-            caption: w.config?.caption || w.caption || '',
-          }))
-        );
-      } else {
-        setScreens([]);
-      }
-      if (raw?.checkoutWidget) {
-        setCheckoutWidget(raw.checkoutWidget);
-        setHasCheckoutWidget(true);
-      } else {
-        setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
-        setHasCheckoutWidget(false);
-      }
-    } else {
-      setScreens([]);
-      setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
-      setHasCheckoutWidget(false);
-    }
-    setSelectedScreen(0);
-    toast.info('Reverted unsaved changes');
-  };
 
-  // PUT /admin/organizations/:orgId/kiosk-widgets
-  const handleSave = async () => {
-    try {
-      const response = await persistKioskWidgets(screens);
-      toast.success(response?.message || 'Kiosk branding saved successfully!');
-    } catch (error) {
-      console.error('Failed to save kiosk branding:', error);
-      toast.error(error?.data?.message || error?.message || 'Failed to save kiosk branding');
-    }
-  };
 
   return (
     <Box>
@@ -642,9 +553,7 @@ export default function KioskBranding({ ownerDashboard = false }) {
         {/* Scope Bar */}
         <KioskScopeBar
           organizationId={organizationId}
-          currentBranch={
-            selectedBranch?.organizationId === organizationId ? selectedBranch : null
-          }
+          currentBranch={effectiveBranch}
           onChangeBranchId={handleBranchChange}
           kiosks={kiosks}
           currentKioskId={selectedKioskId}
@@ -656,9 +565,12 @@ export default function KioskBranding({ ownerDashboard = false }) {
         {!organizationId && (
           <Alert severity="error">An organization scope is required to load kiosk branding.</Alert>
         )}
+        {isBranchesError && (
+          <Alert severity="error">Failed to load sites. Please check your connection or refresh the page.</Alert>
+        )}
         {isLoadingKioskBranding && <KioskBrandingSkeleton />}
 
-        {organizationId && !isLoadingKioskBranding && !hasKioskLoadError && (
+        {organizationId && !isLoadingKioskBranding && (
           <>
             {/* HOME SCREEN WIDGETS SECTION */}
             <Stack spacing={2.5}>
@@ -729,28 +641,6 @@ export default function KioskBranding({ ownerDashboard = false }) {
               }
               onOpenDialog={handleOpenCheckoutDialog}
             />
-
-            {/* Bottom Actions Row */}
-            <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ pt: 2 }}>
-              <Button variant="outlined" color="inherit" onClick={handleReset} disabled={isSaving}>
-                Cancel
-              </Button>
-              <LoadingButton
-                variant="contained"
-                color="primary"
-                onClick={handleSave}
-                loading={isSaving}
-                disabled={
-                  !activeBranchId ||
-                  !apiWidgetsData ||
-                  isRefetchingWidgets ||
-                  isWidgetsError ||
-                  screens.length > MAX_HOME_WIDGETS
-                }
-              >
-                Save changes
-              </LoadingButton>
-            </Stack>
           </>
         )}
       </Stack>

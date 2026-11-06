@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 
 import Alert from '@mui/material/Alert';
@@ -15,6 +15,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormHelperText from '@mui/material/FormHelperText';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -34,14 +35,36 @@ import { LoadingButton } from '@mui/lab';
 import { alpha } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 import { addMockVisitorFeedbackResponse } from './mocks/data';
 import {
   EMPTY_VISITOR_SURVEY_SETTINGS,
   isChoiceQuestionType,
   resetQuestionsToSystemDefaults,
 } from './visitor-survey-mappers';
+
+const ALL_SITES_OPTION = { value: 'all', label: 'All sites' };
+
+const mapVisitorBranchOption = (branch) => ({
+  value: branch._id,
+  label: branch.name,
+});
+
+const mapVisitorStaffOption = (profile) => {
+  const branch = profile.branchId || profile.branch;
+
+  return {
+    value: profile._id,
+    label: profile.userId?.name || profile.user?.name || profile.employeeCode || profile._id,
+    branchId: typeof branch === 'object' ? branch?._id : branch,
+  };
+};
 
 // ----------------------------------------------------------------------
 
@@ -327,7 +350,7 @@ function QuestionEditorDialog({ open, question, onSave, onClose, saving }) {
           </Box>
 
           <Box sx={{ pr: 4 }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 {question ? 'Edit Survey Question' : 'Add New Survey Question'}
               </Typography>
@@ -335,9 +358,6 @@ function QuestionEditorDialog({ open, question, onSave, onClose, saving }) {
                 {question ? 'Editing' : 'New'}
               </Label>
             </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-              Set up the question prompt, choose the answer format, and customize options.
-            </Typography>
           </Box>
         </Stack>
 
@@ -359,8 +379,8 @@ function QuestionEditorDialog({ open, question, onSave, onClose, saving }) {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, pt: 3 }}>
-        <Stack spacing={3}>
+      <DialogContent sx={{ p: 3, pt: '28px !important' }}>
+        <Stack spacing={3} sx={{ pt: 1.5 }}>
           {/* 1. Question Prompt */}
           <Stack spacing={1}>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -623,6 +643,7 @@ function QuestionEditorDialog({ open, question, onSave, onClose, saving }) {
                 />
                 <Button
                   variant="contained"
+                  color="primary"
                   size="small"
                   onClick={handleAddOption}
                   startIcon={<Iconify icon="mingcute:add-line" />}
@@ -825,6 +846,7 @@ function QuestionEditorDialog({ open, question, onSave, onClose, saving }) {
         </Button>
         <LoadingButton
           variant="contained"
+          color="primary"
           onClick={handleSave}
           loading={Boolean(saving)}
           startIcon={<Iconify icon="solar:check-circle-bold" />}
@@ -860,8 +882,10 @@ function VisitorSurveySettings({
   canEdit = true,
   saving,
   savingQuestions,
+  submittingFeedback,
   onSave,
   onSaveQuestions,
+  onSubmitFeedback: onSubmitFeedbackProp,
   onRetry,
 }) {
   const [state, setState] = useState(() => settings || EMPTY_VISITOR_SURVEY_SETTINGS);
@@ -871,20 +895,82 @@ function VisitorSurveySettings({
   const [builderMode, setBuilderMode] = useState(false);
   const [editorDialog, setEditorDialog] = useState({ open: false, index: null, question: null });
 
+  const { organizationId, isOwner, user } = useCurrentOrganization();
+  const isApiSubmission = Boolean(onSubmitFeedbackProp);
+
+  const assignedBranch = useMemo(
+    () => (!isOwner ? getAssignedBranch(user, organizationId) : null),
+    [isOwner, user, organizationId]
+  );
+
+  const { data: branchesData } = useGetBranchesQuery(
+    { organizationId, page: 1, limit: 100 },
+    { skip: !organizationId || isApiSubmission }
+  );
+  const branches = useMemo(() => branchesData?.data ?? [], [branchesData]);
+
+  // Selected Branch for feedback logging
+  const [selectedBranchId, setSelectedBranchId] = useState(() => assignedBranch?.id || '');
+  const [selectedOwnerSite, setSelectedOwnerSite] = useState(ALL_SITES_OPTION);
+  const [selectedHostStaff, setSelectedHostStaff] = useState(null);
+  const staffBranchId = isOwner
+    ? selectedOwnerSite.value === 'all'
+      ? undefined
+      : selectedOwnerSite.value
+    : assignedBranch?.id;
+  const staffQueryArgs = {
+    organizationId,
+    ...(staffBranchId ? { branchId: staffBranchId } : {}),
+  };
+
+  // Auto-select branch
+  useEffect(() => {
+    if (!isOwner && assignedBranch?.id) {
+      setSelectedBranchId(assignedBranch.id);
+    } else if (isOwner && !isApiSubmission && branches.length > 0) {
+      setSelectedBranchId((prev) => {
+        if (prev && branches.some((b) => b._id === prev)) return prev;
+        return branches[0]._id;
+      });
+    }
+  }, [isOwner, isApiSubmission, assignedBranch, branches]);
+
   // Dynamic form responses state
   const [visitorName, setVisitorName] = useState('');
   const [duration, setDuration] = useState('');
+  const [formErrors, setFormErrors] = useState({});
   const [answers, setAnswers] = useState(() => {
     const initial = {};
-    questions.forEach((q) => {
-      if (isChoiceQuestionType(q.type)) initial[q.id] = q.options?.[0] || '';
-      else if (q.type === 'rating') initial[q.id] = 5;
-      else initial[q.id] = '';
+    questionsProp?.forEach((q) => {
+      initial[q.id] = '';
     });
     return initial;
   });
   const [otherExplanations, setOtherExplanations] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setSelectedHostStaff(null);
+  }, [staffBranchId]);
+
+  const lastSurveyErrorRef = useRef(null);
+  useEffect(() => {
+    if (errorMessage && errorMessage !== 'No organization selected') {
+      if (lastSurveyErrorRef.current !== errorMessage) {
+        lastSurveyErrorRef.current = errorMessage;
+        toast.error(errorMessage);
+      }
+    }
+  }, [errorMessage]);
+
+  const clearFormError = (field) => {
+    setFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
 
   useEffect(() => {
     setState(settings || EMPTY_VISITOR_SURVEY_SETTINGS);
@@ -910,9 +996,7 @@ function VisitorSurveySettings({
       const next = { ...prev };
       questions.forEach((q) => {
         if (next[q.id] === undefined) {
-          if (isChoiceQuestionType(q.type)) next[q.id] = q.options?.[0] || '';
-          else if (q.type === 'rating') next[q.id] = 5;
-          else next[q.id] = '';
+          next[q.id] = '';
         }
       });
       return next;
@@ -941,7 +1025,15 @@ function VisitorSurveySettings({
       );
       successMessage = 'Question updated successfully!';
     } else {
-      nextQuestions = [...questions, { ...questionData, source: 'custom', active: true }];
+      nextQuestions = [
+        ...questions,
+        {
+          ...questionData,
+          id: questionData.id || questionData._id || questionData.key || `custom-${Date.now()}`,
+          source: 'custom',
+          active: true,
+        },
+      ];
       successMessage = 'New question added successfully!';
     }
     nextQuestions = nextQuestions.map((item, idx) => ({ ...item, sortOrder: idx + 1 }));
@@ -980,20 +1072,29 @@ function VisitorSurveySettings({
   // Form answer handlers
   const handleAnswerChange = (questionId, value) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    clearFormError(questionId);
   };
 
   const handleOtherExplanationChange = (questionId, value) => {
     setOtherExplanations((prev) => ({ ...prev, [questionId]: value }));
+    clearFormError(`${questionId}_other`);
   };
 
   const handleClearFeedbackForm = () => {
+    setSelectedHostStaff(null);
     setVisitorName('');
     setDuration('');
+    setFormErrors({});
+    if (isApiSubmission && isOwner) {
+      setSelectedOwnerSite(ALL_SITES_OPTION);
+    } else if (isOwner && branches.length > 0) {
+      setSelectedBranchId(branches[0]._id);
+    } else if (assignedBranch?.id) {
+      setSelectedBranchId(assignedBranch.id);
+    }
     const resetAns = {};
-    questions.forEach((q) => {
-      if (isChoiceQuestionType(q.type)) resetAns[q.id] = q.options?.[0] || '';
-      else if (q.type === 'rating') resetAns[q.id] = 5;
-      else resetAns[q.id] = '';
+    formQuestions.forEach((q) => {
+      resetAns[q.id] = '';
     });
     setAnswers(resetAns);
     setOtherExplanations({});
@@ -1002,49 +1103,129 @@ function VisitorSurveySettings({
   const onSubmitFeedback = async (e) => {
     e.preventDefault();
 
+    const errors = {};
+    const submissionBranchId = isApiSubmission
+      ? isOwner
+        ? selectedHostStaff?.branchId
+        : assignedBranch?.id
+      : selectedBranchId;
+
+    if (!submissionBranchId) {
+      errors.branchId = 'Please select a site / branch';
+    }
+    if (isApiSubmission && (!selectedHostStaff?.value || !selectedHostStaff.branchId)) {
+      errors.hostStaffId = 'Please select a staff member';
+    }
+    if (
+      isApiSubmission &&
+      !isOwner &&
+      selectedHostStaff?.branchId !== assignedBranch?.id
+    ) {
+      errors.hostStaffId = 'Please select a staff member from your assigned site';
+    }
+    if (
+      isApiSubmission &&
+      isOwner &&
+      selectedOwnerSite.value !== 'all' &&
+      selectedHostStaff?.branchId !== selectedOwnerSite.value
+    ) {
+      errors.hostStaffId = 'Please select a staff member from the selected site';
+    }
     if (!visitorName.trim()) {
-      toast.error('Visitor name is required');
-      return;
+      errors.visitorName = 'Visitor name is required';
     }
     if (!duration.trim()) {
-      toast.error('Stay duration is required');
-      return;
+      errors.duration = 'Stay duration is required';
     }
 
-    // Validate required questions
-    for (let i = 0; i < questions.length; i += 1) {
-      const q = questions[i];
+    // Validate required questions among visible form questions only
+    for (let i = 0; i < formQuestions.length; i += 1) {
+      const q = formQuestions[i];
       if (q.required) {
         const ans = answers[q.id];
         if (ans === undefined || ans === null || String(ans).trim() === '') {
-          toast.error(`Please answer question ${i + 1}: "${q.prompt || q.title}"`);
-          return;
-        }
-        if (String(ans).toLowerCase() === 'other' && !otherExplanations[q.id]?.trim()) {
-          toast.error(`Please explain your answer for question ${i + 1}`);
-          return;
+          errors[q.id] = 'This field is required';
+        } else if (
+          !isApiSubmission &&
+          String(ans).toLowerCase() === 'other' &&
+          !otherExplanations[q.id]?.trim()
+        ) {
+          errors[`${q.id}_other`] = 'Please explain your answer';
         }
       }
     }
 
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      addMockVisitorFeedbackResponse({
-        visitorName,
-        duration,
-        rating: answers['q-rating'] || 5,
-        comment: answers['q-comment'] || '',
-        whoVisited: answers['q-who-visited'] || '—',
-        whoVisitedOther: otherExplanations['q-who-visited'] || '',
-        expectedReason: answers['q-expected-reason'] || 'yes',
-        expectedReasonOther: otherExplanations['q-expected-reason'] || '',
-        customAnswers: answers,
-      });
+      const formattedAnswers = formQuestions
+        .filter((q) => {
+          const value = answers[q.id];
+          return value !== undefined && value !== null && String(value).trim() !== '';
+        })
+        .map((q) => ({
+          questionId: q.id,
+          value: String(answers[q.id]),
+        }));
 
-      handleClearFeedbackForm();
-      toast.success('Visitor feedback logged successfully!');
+      const ratingQuestion = formQuestions.find((q) => q.type === 'rating');
+      const commentQuestion = formQuestions.find((q) => q.type === 'text');
+      const whoQuestion = formQuestions.find(
+        (q) => q.key === 'whoVisited' || q.prompt?.toLowerCase().includes('who did you visit')
+      );
+      const reasonQuestion = formQuestions.find(
+        (q) => q.key === 'expectedVisit' || q.prompt?.toLowerCase().includes('reason you expected')
+      );
+      const legacyPayload = {
+        branchId: selectedBranchId,
+        visitorName: visitorName.trim(),
+        duration: duration.trim(),
+        rating: ratingQuestion ? Number(answers[ratingQuestion.id]) || 5 : 5,
+        comment: commentQuestion ? answers[commentQuestion.id] || '' : '',
+        whoVisited: whoQuestion ? answers[whoQuestion.id] || '—' : '—',
+        whoVisitedOther: whoQuestion ? otherExplanations[whoQuestion.id] || '' : '',
+        expectedReason: reasonQuestion ? answers[reasonQuestion.id] || 'Yes' : 'Yes',
+        expectedReasonOther: reasonQuestion ? otherExplanations[reasonQuestion.id] || '' : '',
+        responses: formQuestions.map((q) => ({
+          questionId: q.id,
+          questionKey: q.key,
+          prompt: q.prompt || q.title,
+          type: q.type,
+          answer: answers[q.id] ?? '',
+          explanation: otherExplanations[q.id] || null,
+        })),
+        customAnswers: answers,
+        otherExplanations,
+      };
+      const apiPayload = {
+        branchId: submissionBranchId,
+        hostStaffId: selectedHostStaff?.value,
+        visitorName: visitorName.trim(),
+        stayDuration: duration.trim(),
+        answers: formattedAnswers,
+      };
+
+      if (onSubmitFeedbackProp) {
+        const ok = await onSubmitFeedbackProp(apiPayload);
+        if (ok !== false) {
+          addMockVisitorFeedbackResponse(legacyPayload);
+          handleClearFeedbackForm();
+          toast.success('Visitor feedback logged successfully!');
+        }
+      } else {
+        addMockVisitorFeedbackResponse(legacyPayload);
+        handleClearFeedbackForm();
+        toast.success('Visitor feedback logged successfully!');
+      }
     } catch (error) {
-      toast.error('Something went wrong. Please try again.');
+      console.error('Failed to log visitor feedback:', error);
+      toast.error(error?.data?.message || error?.message || 'Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -1091,28 +1272,16 @@ function VisitorSurveySettings({
     );
   }
 
-  if (errorMessage) {
+  if (errorMessage === 'No organization selected') {
     return (
-      <Alert
-        severity="error"
-        action={
-          onRetry ? (
-            <Button color="inherit" size="small" onClick={onRetry}>
-              Retry
-            </Button>
-          ) : null
-        }
-      >
-        {errorMessage}
+      <Alert severity="warning">
+        Please select an organization to view visitor survey settings.
       </Alert>
     );
   }
 
   return (
     <Stack spacing={3}>
-      {!canEdit && (
-        <Alert severity="info">Survey settings are view-only for this role. Only an owner can save changes.</Alert>
-      )}
       {/* 1. Notifications Configuration Card */}
       <Card>
         <CardHeader
@@ -1238,6 +1407,7 @@ function VisitorSurveySettings({
               </Button>
               <LoadingButton
                 variant="contained"
+                color="primary"
                 size="small"
                 loading={saving}
                 onClick={handleSaveSettings}
@@ -1260,18 +1430,58 @@ function VisitorSurveySettings({
               : 'Manually record feedback shared by a visitor after checkout'
           }
           action={
-            <Button
-              variant={builderMode ? 'contained' : 'outlined'}
-              size="small"
-              startIcon={
-                <Iconify
-                  icon={builderMode ? 'solar:clipboard-check-bold' : 'solar:pen-new-square-bold'}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+              {isApiSubmission && isOwner && (
+                <InfiniteAutocomplete
+                  value={selectedOwnerSite}
+                  onChange={(site) => {
+                    const nextSite = site || ALL_SITES_OPTION;
+                    setSelectedOwnerSite(nextSite);
+                    setSelectedHostStaff(null);
+                    clearFormError('branchId');
+                    clearFormError('hostStaffId');
+                  }}
+                  useQuery={useGetBranchesQuery}
+                  queryArgs={{ organizationId }}
+                  mapOption={mapVisitorBranchOption}
+                  extraOptions={[ALL_SITES_OPTION]}
+                  label="Site"
+                  placeholder="All sites"
+                  disabled={!organizationId}
+                  disableClearable
+                  size="small"
+                  sx={{ minWidth: { xs: 220, sm: 200 } }}
+                  error={Boolean(formErrors.branchId)}
+                  helperText={formErrors.branchId}
+                  textFieldProps={{
+                    InputProps: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Iconify
+                            icon="solar:buildings-bold-duotone"
+                            width={20}
+                            sx={{ color: 'primary.main' }}
+                          />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
                 />
-              }
-              onClick={() => setBuilderMode((prev) => !prev)}
-            >
-              {builderMode ? 'View & Log Feedback' : `Customize Questions (${questions.length})`}
-            </Button>
+              )}
+              <Button
+                variant={builderMode ? 'contained' : 'outlined'}
+                color="primary"
+                size="small"
+                startIcon={
+                  <Iconify
+                    icon={builderMode ? 'solar:clipboard-check-bold' : 'solar:pen-new-square-bold'}
+                  />
+                }
+                onClick={() => setBuilderMode((prev) => !prev)}
+              >
+                {builderMode ? 'View & Log Feedback' : `Customize Questions (${questions.length})`}
+              </Button>
+            </Stack>
           }
           sx={{ pb: 1.5 }}
         />
@@ -1314,6 +1524,7 @@ function VisitorSurveySettings({
                 </Button>
                 <Button
                   variant="contained"
+                  color="primary"
                   size="small"
                   startIcon={<Iconify icon="mingcute:add-line" />}
                   onClick={handleOpenAdd}
@@ -1479,6 +1690,7 @@ function VisitorSurveySettings({
               {canEdit ? (
               <Button
                 variant="outlined"
+                color="primary"
                 size="small"
                 startIcon={<Iconify icon="mingcute:add-line" />}
                 onClick={handleOpenAdd}
@@ -1496,6 +1708,7 @@ function VisitorSurveySettings({
 
               <Button
                 variant="contained"
+                color="primary"
                 size="small"
                 startIcon={<Iconify icon="solar:clipboard-check-bold" />}
                 onClick={() => setBuilderMode(false)}
@@ -1506,26 +1719,107 @@ function VisitorSurveySettings({
           </Stack>
         ) : (
           /* ================= DYNAMIC FEEDBACK FORM MODE ================= */
-          <Box component="form" onSubmit={onSubmitFeedback}>
+          <Box component="form" onSubmit={onSubmitFeedback} noValidate>
             <Stack spacing={2.5} sx={{ p: { xs: 2, sm: 3 } }}>
-              {/* Top row: visitor name and stay duration */}
+              {/* Top row: host staff, visitor name, and stay duration */}
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                {!isApiSubmission ? (
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth size="small" error={Boolean(formErrors.branchId)}>
+                      <InputLabel id="visitor-branch-select-label">Site / Branch *</InputLabel>
+                      <Select
+                        labelId="visitor-branch-select-label"
+                        label="Site / Branch *"
+                        value={selectedBranchId}
+                        onChange={(e) => {
+                          setSelectedBranchId(e.target.value);
+                          clearFormError('branchId');
+                        }}
+                      >
+                        {!isOwner && assignedBranch ? (
+                          <MenuItem value={assignedBranch.id}>
+                            {assignedBranch.name || 'Current Site'} (Assigned)
+                          </MenuItem>
+                        ) : (
+                          branches.map((branch) => (
+                            <MenuItem key={branch._id} value={branch._id}>
+                              {branch.name}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                      {formErrors.branchId && (
+                        <FormHelperText error>{formErrors.branchId}</FormHelperText>
+                      )}
+                    </FormControl>
+                  </Grid>
+                ) : (
+                  <Grid item xs={12} sm={4}>
+                    <InfiniteAutocomplete
+                      key={`${organizationId || 'no-organization'}-${staffBranchId || 'all-sites'}`}
+                      value={selectedHostStaff}
+                      onChange={(staff) => {
+                        setSelectedHostStaff(staff);
+                        clearFormError('hostStaffId');
+                        clearFormError('branchId');
+                      }}
+                      useQuery={useGetStaffProfilesQuery}
+                      queryArgs={staffQueryArgs}
+                      mapOption={mapVisitorStaffOption}
+                      enabled={Boolean(organizationId && (isOwner || staffBranchId))}
+                      label="Host staff *"
+                      placeholder="Search host staff..."
+                      disabled={!organizationId || (!isOwner && !staffBranchId)}
+                      error={Boolean(formErrors.hostStaffId)}
+                      helperText={formErrors.hostStaffId}
+                      fullWidth
+                      size="small"
+                      textFieldProps={{
+                        InputProps: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Iconify
+                                icon="solar:user-id-bold-duotone"
+                                width={20}
+                                sx={{ color: 'primary.main' }}
+                              />
+                            </InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+                  </Grid>
+                )}
+
+                <Grid item xs={12} sm={isApiSubmission ? 4 : 6}>
                   <TextField
                     fullWidth
+                    size="small"
                     label="Visitor name"
                     value={visitorName}
-                    onChange={(e) => setVisitorName(e.target.value)}
+                    onChange={(e) => {
+                      setVisitorName(e.target.value);
+                      clearFormError('visitorName');
+                    }}
+                    error={Boolean(formErrors.visitorName)}
+                    helperText={formErrors.visitorName}
                     required
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={isApiSubmission ? 4 : 6}>
                   <TextField
                     fullWidth
+                    size="small"
                     label="Stay duration"
-                    placeholder="e.g. 45m"
+                    placeholder="e.g. 45"
                     value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
+                    onChange={(e) => {
+                      setDuration(e.target.value.replace(/[^0-9]/g, ''));
+                      clearFormError('duration');
+                    }}
+                    inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                    error={Boolean(formErrors.duration)}
+                    helperText={formErrors.duration || 'Enter duration in minutes.'}
                     required
                   />
                 </Grid>
@@ -1546,7 +1840,7 @@ function VisitorSurveySettings({
 
                     {/* 1. Multiple choice (Radio) */}
                     {q.type === 'yesNo' && (
-                      <>
+                      <FormControl error={Boolean(formErrors[q.id])} component="fieldset">
                         <RadioGroup
                           row
                           value={currentAnswer}
@@ -1562,25 +1856,34 @@ function VisitorSurveySettings({
                             />
                           ))}
                         </RadioGroup>
+                        {formErrors[q.id] && (
+                          <FormHelperText error sx={{ mx: 0 }}>
+                            {formErrors[q.id]}
+                          </FormHelperText>
+                        )}
 
-                        <Collapse in={isOtherSelected} timeout="auto" unmountOnExit>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            label="Please explain"
-                            placeholder="Explain your answer..."
-                            value={otherExplanations[q.id] || ''}
-                            onChange={(e) => handleOtherExplanationChange(q.id, e.target.value)}
-                            sx={{ mt: 1 }}
-                          />
-                        </Collapse>
-                      </>
+                        {!isApiSubmission && (
+                          <Collapse in={isOtherSelected} timeout="auto" unmountOnExit>
+                            <TextField
+                              size="small"
+                              fullWidth
+                              label="Please explain"
+                              placeholder="Explain your answer..."
+                              value={otherExplanations[q.id] || ''}
+                              onChange={(e) => handleOtherExplanationChange(q.id, e.target.value)}
+                              error={Boolean(formErrors[`${q.id}_other`])}
+                              helperText={formErrors[`${q.id}_other`]}
+                              sx={{ mt: 1 }}
+                            />
+                          </Collapse>
+                        )}
+                      </FormControl>
                     )}
 
                     {/* 2. Dropdown selection */}
                     {q.type === 'singleSelect' && (
                       <>
-                        <FormControl fullWidth size="small">
+                        <FormControl fullWidth size="small" error={Boolean(formErrors[q.id])}>
                           <InputLabel id={`select-label-${q.id}`}>Select option</InputLabel>
                           <Select
                             labelId={`select-label-${q.id}`}
@@ -1594,40 +1897,54 @@ function VisitorSurveySettings({
                               </MenuItem>
                             ))}
                           </Select>
+                          {formErrors[q.id] && (
+                            <FormHelperText error>{formErrors[q.id]}</FormHelperText>
+                          )}
                         </FormControl>
 
-                        <Collapse in={isOtherSelected} timeout="auto" unmountOnExit>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            label="Please specify details"
-                            placeholder="Provide additional details..."
-                            value={otherExplanations[q.id] || ''}
-                            onChange={(e) => handleOtherExplanationChange(q.id, e.target.value)}
-                            sx={{ mt: 1 }}
-                          />
-                        </Collapse>
+                        {!isApiSubmission && (
+                          <Collapse in={isOtherSelected} timeout="auto" unmountOnExit>
+                            <TextField
+                              size="small"
+                              fullWidth
+                              label="Please specify details"
+                              placeholder="Provide additional details..."
+                              value={otherExplanations[q.id] || ''}
+                              onChange={(e) => handleOtherExplanationChange(q.id, e.target.value)}
+                              error={Boolean(formErrors[`${q.id}_other`])}
+                              helperText={formErrors[`${q.id}_other`]}
+                              sx={{ mt: 1 }}
+                            />
+                          </Collapse>
+                        )}
                       </>
                     )}
 
                     {/* 3. Star rating */}
                     {q.type === 'rating' && (
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Rating
-                          size="large"
-                          value={Number(currentAnswer) || 0}
-                          onChange={(_, val) => handleAnswerChange(q.id, val)}
-                        />
-                        {Number(currentAnswer) > 0 && (
-                          <Label
-                            variant="soft"
-                            color={RATING_COLORS[Number(currentAnswer)] || 'default'}
-                            sx={{ textTransform: 'capitalize', fontWeight: 600 }}
-                          >
-                            {RATING_LABELS[Number(currentAnswer)]}
-                          </Label>
+                      <FormControl error={Boolean(formErrors[q.id])}>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Rating
+                            size="large"
+                            value={Number(currentAnswer) || 0}
+                            onChange={(_, val) => handleAnswerChange(q.id, val)}
+                          />
+                          {Number(currentAnswer) > 0 && (
+                            <Label
+                              variant="soft"
+                              color={RATING_COLORS[Number(currentAnswer)] || 'default'}
+                              sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                            >
+                              {RATING_LABELS[Number(currentAnswer)]}
+                            </Label>
+                          )}
+                        </Stack>
+                        {formErrors[q.id] && (
+                          <FormHelperText error sx={{ mx: 0 }}>
+                            {formErrors[q.id]}
+                          </FormHelperText>
                         )}
-                      </Stack>
+                      </FormControl>
                     )}
 
                     {/* 4. Text input / Comment */}
@@ -1639,6 +1956,8 @@ function VisitorSurveySettings({
                         placeholder={q.placeholder || 'Enter your response...'}
                         value={currentAnswer}
                         onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        error={Boolean(formErrors[q.id])}
+                        helperText={formErrors[q.id]}
                       />
                     )}
                   </Stack>
@@ -1650,7 +1969,7 @@ function VisitorSurveySettings({
               <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center">
                 <Button
                   variant="text"
-                  color="inherit"
+                  color="primary"
                   size="small"
                   startIcon={<Iconify icon="solar:pen-new-square-bold" />}
                   onClick={() => setBuilderMode(true)}
@@ -1670,8 +1989,9 @@ function VisitorSurveySettings({
                   <LoadingButton
                     type="submit"
                     variant="contained"
+                    color="primary"
                     size="small"
-                    loading={isSubmitting}
+                    loading={isSubmitting || Boolean(submittingFeedback)}
                   >
                     Log feedback
                   </LoadingButton>
@@ -1704,7 +2024,9 @@ VisitorSurveySettings.propTypes = {
   canEdit: PropTypes.bool,
   onSave: PropTypes.func,
   onSaveQuestions: PropTypes.func,
+  onSubmitFeedback: PropTypes.func,
   onRetry: PropTypes.func,
   saving: PropTypes.bool,
   savingQuestions: PropTypes.bool,
+  submittingFeedback: PropTypes.bool,
 };
