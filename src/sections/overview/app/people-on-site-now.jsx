@@ -41,6 +41,7 @@ const TYPE_COLOR = {
 
 const STATUS_COLOR = {
   on_site: 'primary',
+  onsite: 'primary',
   on_break: 'warning',
   checked_out: 'default',
 };
@@ -114,7 +115,9 @@ export function PeopleOnSiteNow({ title, subheader, tableData = [], headLabel, o
               <TableRow>
                 <TableCell colSpan={headLabel?.length || 5} sx={{ py: 6, textAlign: 'center' }}>
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    No {filterType} currently on site.
+                    {filterType === 'all'
+                      ? 'No one currently on site.'
+                      : `No ${filterType} currently on site.`}
                   </Typography>
                 </TableCell>
               </TableRow>

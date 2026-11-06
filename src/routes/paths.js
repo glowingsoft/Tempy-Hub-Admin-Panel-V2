@@ -71,10 +71,10 @@ export const paths = {
       signIn: `${ROOTS.AUTH}/admin/login`,
     },
     owner: {
-      signIn: '/owner/login',
+      signIn: '/',
     },
     staff: {
-      signIn: '/staff/login',
+      signIn: '/',
     },
     invite: (token) => `/invite/${token}`,
     jwt: {

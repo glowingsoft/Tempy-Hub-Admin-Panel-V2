@@ -38,6 +38,14 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/visitor-survey-responses`,
     ORGANIZATION_VISITOR_SURVEY_RESPONSES: (organizationId) =>
         `/admin/organizations/${organizationId}/visitor-survey-responses`,
+    ORGANIZATION_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/dashboard`,
+    ORGANIZATION_SITE_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/site-dashboard`,
+    ORGANIZATION_LINE_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/line-dashboard`,
+    ORGANIZATION_STAFF_HOME_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/staff-dashboard`,
     MODULE_DEFINITIONS: '/admin/module-definitions',
     ORGANIZATION_DEPARTMENTS: (organizationId) => `/admin/organizations/${organizationId}/departments`,
     ORGANIZATION_DEPARTMENT_BY_ID: (organizationId, departmentId) =>

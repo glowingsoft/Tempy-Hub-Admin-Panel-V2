@@ -49,10 +49,18 @@ const TIMEFRAME_OPTIONS = ['This week', 'This month', 'This year'];
 
 // ----------------------------------------------------------------------
 
-export function VisitorContractorActivity({ sx, ...other }) {
-  const [timeframe, setTimeframe] = useState('This month');
+export function VisitorContractorActivity({
+  sx,
+  activity,
+  timeframe,
+  onTimeframeChange,
+  timeframeOptions = TIMEFRAME_OPTIONS,
+  ...other
+}) {
+  const [internalTimeframe, setInternalTimeframe] = useState('This month');
+  const selectedTimeframe = timeframe ?? internalTimeframe;
 
-  const currentData = ACTIVITY_DATA[timeframe] || ACTIVITY_DATA['This month'];
+  const currentData = activity || ACTIVITY_DATA[selectedTimeframe] || ACTIVITY_DATA['This month'];
 
   const totalCount = currentData.topReasons.reduce((acc, curr) => acc + curr.count, 0) || 1;
 
@@ -70,9 +78,9 @@ export function VisitorContractorActivity({ sx, ...other }) {
         </Typography>
 
         <ChartSelect
-          value={timeframe}
-          onChange={setTimeframe}
-          options={TIMEFRAME_OPTIONS}
+          value={selectedTimeframe}
+          onChange={onTimeframeChange || setInternalTimeframe}
+          options={timeframeOptions}
         />
       </Stack>
 
@@ -155,7 +163,12 @@ export function VisitorContractorActivity({ sx, ...other }) {
         </Typography>
 
         <Stack spacing={2}>
-          {currentData.topReasons.map((item) => {
+          {(currentData.topReasons || []).length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No data available
+            </Typography>
+          ) : (
+          currentData.topReasons.map((item) => {
             const percentage = Math.min(Math.round((item.count / totalCount) * 100), 100);
 
             return (
@@ -211,7 +224,8 @@ export function VisitorContractorActivity({ sx, ...other }) {
                 </Typography>
               </Stack>
             );
-          })}
+          })
+          )}
         </Stack>
       </Box>
     </Card>

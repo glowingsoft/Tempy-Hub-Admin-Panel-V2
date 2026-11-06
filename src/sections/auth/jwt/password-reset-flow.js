@@ -9,12 +9,7 @@ const RESEND_UNTIL_KEY = 'tempy-password-reset-resend-until';
 
 export const RESEND_COOLDOWN_SECONDS = 30;
 
-const ALLOWED_RETURN_PATHS = new Set([
-  '/',
-  paths.auth.jwt.signIn,
-  paths.auth.owner.signIn,
-  paths.auth.staff.signIn,
-]);
+const ALLOWED_RETURN_PATHS = new Set(['/', paths.auth.jwt.signIn]);
 
 function withQuery(path, params) {
   const searchParams = new URLSearchParams();
