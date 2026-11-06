@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PropTypes from 'prop-types';
 
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -16,7 +17,7 @@ import Typography from '@mui/material/Typography';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
-import { TableHeadCustom, TableNoData, TablePaginationCustom, useTable } from 'src/components/table';
+import { TableHeadCustom, TableNoData, TablePaginationCustom, TableSkeleton } from 'src/components/table';
 import { fDate } from 'src/utils/format-time';
 
 // ----------------------------------------------------------------------
@@ -30,56 +31,91 @@ const HEAD_LABELS = [
     { id: 'action', label: 'Action / Detail', align: 'center', width: 120 },
 ];
 
-const LEAVE_TYPE_COLOR = { SSP: 'warning', SMP: 'info', Unpaid: 'default' };
+const LEAVE_TYPE_COLOR = {
+    SSP: 'warning',
+    SMP: 'info',
+    Unpaid: 'default',
+    sick: 'warning',
+    maternity: 'info',
+    unpaid: 'default',
+};
 
-export function SicknessRateTable({ data }) {
-    const table = useTable();
+// ----------------------------------------------------------------------
 
-    const paginatedRows = data.slice(
-        table.page * table.rowsPerPage,
-        table.page * table.rowsPerPage + table.rowsPerPage
-    );
-
+export function SicknessRateTable({
+    data = [],
+    loading = false,
+    table,
+    totalRecords = 0,
+}) {
     return (
         <Card>
             <TableContainer sx={{ mt: 1 }}>
                 <Scrollbar>
-                    <Table>
+                    <Table size={table?.dense ? 'small' : 'medium'}>
                         <TableHeadCustom headLabel={HEAD_LABELS} />
 
                         <TableBody>
-                            {paginatedRows.map((row, index) => (
-                                <SicknessRow
-                                    key={row.id}
-                                    row={row}
-                                    serialNumber={table.page * table.rowsPerPage + index + 1}
+                            {loading ? (
+                                <TableSkeleton
+                                    rowCount={table?.rowsPerPage || 10}
+                                    cellCount={HEAD_LABELS.length}
                                 />
-                            ))}
-
-                            <TableNoData notFound={!paginatedRows.length} title="No sickness records found" />
+                            ) : data.length === 0 ? (
+                                <TableNoData notFound={true} title="No sickness records found" />
+                            ) : (
+                                data.map((row, index) => (
+                                    <SicknessRow
+                                        key={row._id || row.id || index}
+                                        row={row}
+                                        serialNumber={
+                                            (table?.page || 0) * (table?.rowsPerPage || 10) + index + 1
+                                        }
+                                    />
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                 </Scrollbar>
 
                 <TablePaginationCustom
-                    page={table.page}
-                    dense={table.dense}
-                    count={data.length}
-                    rowsPerPage={table.rowsPerPage}
-                    onPageChange={table.onChangePage}
-                    onChangeDense={table.onChangeDense}
-                    onRowsPerPageChange={table.onChangeRowsPerPage}
+                    page={table?.page || 0}
+                    dense={table?.dense}
+                    count={totalRecords}
+                    rowsPerPage={table?.rowsPerPage || 10}
+                    onPageChange={table?.onChangePage}
+                    onChangeDense={table?.onChangeDense}
+                    onRowsPerPageChange={table?.onChangeRowsPerPage}
                 />
             </TableContainer>
         </Card>
     );
 }
 
+SicknessRateTable.propTypes = {
+    data: PropTypes.array,
+    loading: PropTypes.bool,
+    table: PropTypes.object,
+    totalRecords: PropTypes.number,
+};
+
 // ----------------------------------------------------------------------
 
 function SicknessRow({ row, serialNumber }) {
     const [expanded, setExpanded] = useState(false);
-    const dates = row.dates || [];
+
+    const staff = row.staff || {};
+    const displayName = staff.name || row.name || '—';
+    const displayEmail = staff.email || row.email || '—';
+    const photoUrl = staff.photoUrl || row.image || '';
+    const departmentName = staff.department?.name || row.department || '—';
+    const leaveLabel = row.leaveTypeLabel || row.leaveType || '—';
+    const days = row.days || row.dates || [];
+
+    const badgeColor =
+        LEAVE_TYPE_COLOR[leaveLabel] ||
+        LEAVE_TYPE_COLOR[row.leaveType] ||
+        'default';
 
     return (
         <>
@@ -88,28 +124,30 @@ function SicknessRow({ row, serialNumber }) {
 
                 <TableCell>
                     <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar alt={row.name} src={row.image}>
-                            {row.name?.charAt(0)}
+                        <Avatar alt={displayName} src={photoUrl}>
+                            {displayName.charAt(0).toUpperCase()}
                         </Avatar>
                         <Stack sx={{ typography: 'body2', minWidth: 0 }}>
-                            <Box sx={{ fontWeight: 600 }}>{row.name || '—'}</Box>
-                            <Box sx={{ color: 'text.secondary', typography: 'caption' }}>{row.email || '—'}</Box>
+                            <Box sx={{ fontWeight: 600 }}>{displayName}</Box>
+                            <Box sx={{ color: 'text.secondary', typography: 'caption' }}>
+                                {displayEmail}
+                            </Box>
                         </Stack>
                     </Stack>
                 </TableCell>
 
-                <TableCell>{row.department || '—'}</TableCell>
+                <TableCell>{departmentName}</TableCell>
 
-                <TableCell align="center">{row.sickDays}</TableCell>
+                <TableCell align="center">{row.sickDays ?? 0}</TableCell>
 
                 <TableCell align="center">
-                    <Label variant="soft" color={LEAVE_TYPE_COLOR[row.leaveType] || 'default'}>
-                        {row.leaveType || '—'}
+                    <Label variant="soft" color={badgeColor}>
+                        {leaveLabel}
                     </Label>
                 </TableCell>
 
                 <TableCell align="center">
-                    {!!dates.length && (
+                    {!!days.length && (
                         <IconButton size="small" onClick={() => setExpanded((prev) => !prev)}>
                             <Iconify icon={expanded ? 'eva:chevron-up-fill' : 'eva:chevron-down-fill'} />
                         </IconButton>
@@ -117,19 +155,35 @@ function SicknessRow({ row, serialNumber }) {
                 </TableCell>
             </TableRow>
 
-            {!!dates.length && (
+            {!!days.length && (
                 <TableRow>
-                    <TableCell colSpan={HEAD_LABELS.length} sx={{ py: 0, borderBottom: expanded ? undefined : 'none' }}>
+                    <TableCell
+                        colSpan={HEAD_LABELS.length}
+                        sx={{ py: 0, borderBottom: expanded ? undefined : 'none' }}
+                    >
                         <Collapse in={expanded} unmountOnExit>
                             <Stack spacing={1} sx={{ py: 2, pl: 7, pr: 2 }}>
-                                {dates.map((entry) => (
-                                    <Stack key={entry.date} direction="row" spacing={2} alignItems="center">
-                                        <Typography variant="body2" sx={{ minWidth: 110, fontWeight: 600 }}>
+                                {days.map((entry, idx) => (
+                                    <Stack
+                                        key={entry.date || idx}
+                                        direction="row"
+                                        spacing={2}
+                                        alignItems="center"
+                                    >
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ minWidth: 110, fontWeight: 600 }}
+                                        >
                                             {fDate(entry.date)}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary">
-                                            {entry.reason}
+                                            {entry.reason || '—'}
                                         </Typography>
+                                        {entry.leaveTypeLabel && (
+                                            <Label variant="soft" color={LEAVE_TYPE_COLOR[entry.leaveTypeLabel] || 'default'}>
+                                                {entry.leaveTypeLabel}
+                                            </Label>
+                                        )}
                                     </Stack>
                                 ))}
                             </Stack>
@@ -140,3 +194,8 @@ function SicknessRow({ row, serialNumber }) {
         </>
     );
 }
+
+SicknessRow.propTypes = {
+    row: PropTypes.object.isRequired,
+    serialNumber: PropTypes.number.isRequired,
+};

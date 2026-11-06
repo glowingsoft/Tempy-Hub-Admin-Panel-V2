@@ -107,6 +107,16 @@ export const API_ROUTES = {
     ATTENDANCE_BY_ID: (attendanceDayId) => `/admin/attendance/${attendanceDayId}`,
     ORGANIZATION_ATTENDANCE_CHANGE_REQUESTS: (organizationId) =>
         `/admin/organizations/${organizationId}/attendance-change-requests`,
+    REPORTS_ATTENDANCE: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/attendance`,
+    REPORTS_STAFF_HOURS_SUMMARY: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/staff-hours-summary`,
+    REPORTS_VISITOR_CHECK_INS: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/visitor-check-ins`,
+    REPORTS_SICKNESS_RATE: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/sickness-rate`,
+    REPORTS_LATE_CHECK_INS: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/late-check-ins`,
 
     // Residents
     RESIDENTS: '/admin/residents',
