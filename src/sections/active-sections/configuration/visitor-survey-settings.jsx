@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -14,8 +15,10 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
 import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormHelperText from '@mui/material/FormHelperText';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
+import LinearProgress from '@mui/material/LinearProgress';
 import InputAdornment from '@mui/material/InputAdornment';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
@@ -32,31 +35,54 @@ import { LoadingButton } from '@mui/lab';
 import { alpha } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
+import { addMockVisitorFeedbackResponse } from './mocks/data';
 import {
-  addMockVisitorFeedbackResponse,
-  DEFAULT_VISITOR_SURVEY_SETTINGS,
-  DEFAULT_SURVEY_QUESTIONS,
-  getSurveyQuestions,
-  saveSurveyQuestions,
-  resetSurveyQuestions,
-} from './mocks/data';
+  EMPTY_VISITOR_SURVEY_SETTINGS,
+  isChoiceQuestionType,
+  resetQuestionsToSystemDefaults,
+} from './visitor-survey-mappers';
+
+const ALL_SITES_OPTION = { value: 'all', label: 'All sites' };
+
+const mapVisitorBranchOption = (branch) => ({
+  value: branch._id,
+  label: branch.name,
+});
+
+const mapVisitorStaffOption = (profile) => {
+  const branch = profile.branchId || profile.branch;
+
+  return {
+    value: profile._id,
+    label: profile.userId?.name || profile.user?.name || profile.employeeCode || profile._id,
+    branchId: typeof branch === 'object' ? branch?._id : branch,
+  };
+};
 
 // ----------------------------------------------------------------------
 
-function CompactOptionCard({ icon, label, checked, onChange }) {
+function CompactOptionCard({ icon, label, checked, onChange, disabled }) {
   return (
     <Card
       variant="outlined"
-      onClick={() => onChange(!checked)}
+      onClick={() => {
+        if (!disabled) onChange(!checked);
+      }}
       sx={{
         py: 1,
         px: 1.5,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        cursor: 'pointer',
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.7 : 1,
         borderRadius: 1.25,
         borderColor: checked ? 'primary.main' : 'divider',
         bgcolor: (theme) =>
@@ -65,7 +91,7 @@ function CompactOptionCard({ icon, label, checked, onChange }) {
             : 'background.paper',
         transition: (theme) => theme.transitions.create(['border-color', 'background-color']),
         '&:hover': {
-          borderColor: 'primary.main',
+          borderColor: disabled ? undefined : 'primary.main',
         },
       }}
     >
@@ -82,10 +108,11 @@ function CompactOptionCard({ icon, label, checked, onChange }) {
 
       <Switch
         size="small"
+        disabled={disabled}
         checked={Boolean(checked)}
         onChange={(e) => {
           e.stopPropagation();
-          onChange(e.target.checked);
+          if (!disabled) onChange(e.target.checked);
         }}
       />
     </Card>
@@ -97,6 +124,7 @@ CompactOptionCard.propTypes = {
   label: PropTypes.string.isRequired,
   checked: PropTypes.bool,
   onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
 };
 
 // ----------------------------------------------------------------------
@@ -136,31 +164,31 @@ const RATING_COLORS = {
 };
 
 const QUESTION_TYPE_LABELS = {
-  radio: 'Multiple Choice (Radio)',
-  select: 'Dropdown Select',
+  yesNo: 'Yes / No',
+  singleSelect: 'Single Select',
   rating: 'Star Rating',
   text: 'Text / Comment',
 };
 
 const QUESTION_TYPE_COLORS = {
-  radio: 'primary',
-  select: 'info',
+  yesNo: 'primary',
+  singleSelect: 'info',
   rating: 'warning',
   text: 'secondary',
 };
 
 const QUESTION_TYPES = [
   {
-    value: 'radio',
-    label: 'Multiple Choice',
-    description: 'Radio buttons for visible single choice',
+    value: 'yesNo',
+    label: 'Yes / No',
+    description: 'Two-choice yes or no answers',
     icon: 'solar:list-check-bold',
     color: 'primary',
   },
   {
-    value: 'select',
-    label: 'Dropdown Select',
-    description: 'Compact dropdown picker menu',
+    value: 'singleSelect',
+    label: 'Single Select',
+    description: 'Pick one option from a list',
     icon: 'solar:menu-dots-square-bold',
     color: 'info',
   },
@@ -188,33 +216,43 @@ const QUICK_PRESETS = [
 
 // ----------------------------------------------------------------------
 
-function QuestionEditorDialog({ open, question, onSave, onClose }) {
+function QuestionEditorDialog({ open, question, onSave, onClose, saving }) {
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('radio');
+  const [type, setType] = useState('yesNo');
   const [options, setOptions] = useState([]);
   const [newOptionText, setNewOptionText] = useState('');
   const [hasOtherOption, setHasOtherOption] = useState(false);
   const [required, setRequired] = useState(false);
-  const [placeholder, setPlaceholder] = useState('');
+  const [active, setActive] = useState(true);
+  const [keyValue, setKeyValue] = useState('');
 
   useEffect(() => {
     if (question) {
-      setTitle(question.title || '');
-      setType(question.type || 'radio');
+      setTitle(question.title || question.prompt || '');
+      setType(question.type || 'yesNo');
       setOptions(Array.isArray(question.options) ? [...question.options] : []);
       setHasOtherOption(Boolean(question.hasOtherOption));
       setRequired(Boolean(question.required));
-      setPlaceholder(question.placeholder || '');
+      setActive(question.active !== false);
+      setKeyValue(question.key || '');
     } else {
       setTitle('');
-      setType('radio');
+      setType('yesNo');
       setOptions(['Yes', 'No']);
-      setHasOtherOption(true);
+      setHasOtherOption(false);
       setRequired(true);
-      setPlaceholder('');
+      setActive(true);
+      setKeyValue('');
     }
     setNewOptionText('');
   }, [question, open]);
+
+  const handleSelectType = (nextType) => {
+    setType(nextType);
+    if (nextType === 'yesNo' && options.length === 0) {
+      setOptions(['Yes', 'No']);
+    }
+  };
 
   const handleAddOption = () => {
     const trimmed = newOptionText.trim();
@@ -240,25 +278,30 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
     toast.info('Applied preset options');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
-      toast.error('Question prompt / text is required');
+      toast.error('Question prompt is required');
       return;
     }
-    if ((type === 'radio' || type === 'select') && options.length === 0) {
+    if (isChoiceQuestionType(type) && options.filter((opt) => String(opt).trim()).length === 0) {
       toast.error('Please add at least one option for this question');
       return;
     }
-    onSave({
-      id: question?.id || `q-${Date.now()}`,
+    const result = await onSave({
+      id: question?.id,
+      _id: question?._id,
+      key: keyValue.trim() || question?.key,
+      source: question?.source || 'custom',
       title: title.trim(),
+      prompt: title.trim(),
       type,
-      options: type === 'radio' || type === 'select' ? options : [],
-      hasOtherOption: type === 'radio' || type === 'select' ? hasOtherOption : false,
+      options: isChoiceQuestionType(type) ? options : [],
+      hasOtherOption: isChoiceQuestionType(type) ? hasOtherOption : false,
       required,
-      placeholder: type === 'text' ? placeholder.trim() : '',
+      active,
+      sortOrder: question?.sortOrder,
     });
-    onClose();
+    if (result !== false) onClose();
   };
 
   return (
@@ -307,7 +350,7 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
           </Box>
 
           <Box sx={{ pr: 4 }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 {question ? 'Edit Survey Question' : 'Add New Survey Question'}
               </Typography>
@@ -315,9 +358,6 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
                 {question ? 'Editing' : 'New'}
               </Label>
             </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
-              Set up the question prompt, choose the answer format, and customize options.
-            </Typography>
           </Box>
         </Stack>
 
@@ -339,8 +379,8 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3, pt: 3 }}>
-        <Stack spacing={3}>
+      <DialogContent sx={{ p: 3, pt: '28px !important' }}>
+        <Stack spacing={3} sx={{ pt: 1.5 }}>
           {/* 1. Question Prompt */}
           <Stack spacing={1}>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -384,7 +424,7 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
                   <Grid item xs={12} sm={6} key={item.value}>
                     <Card
                       variant="outlined"
-                      onClick={() => setType(item.value)}
+                      onClick={() => handleSelectType(item.value)}
                       sx={{
                         p: 1.5,
                         borderRadius: 1.75,
@@ -474,7 +514,7 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
           </Stack>
 
           {/* 3. MCQ Options Configuration (if radio or select) */}
-          {(type === 'radio' || type === 'select') && (
+          {isChoiceQuestionType(type) && (
             <Card
               variant="outlined"
               sx={{
@@ -603,6 +643,7 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
                 />
                 <Button
                   variant="contained"
+                  color="primary"
                   size="small"
                   onClick={handleAddOption}
                   startIcon={<Iconify icon="mingcute:add-line" />}
@@ -671,26 +712,17 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
             </Card>
           )}
 
-          {/* 4. Text Placeholder config */}
-          {type === 'text' && (
-            <Stack spacing={1}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Iconify icon="solar:text-bold" width={18} sx={{ color: 'secondary.main' }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  Placeholder Hint (Optional)
-                </Typography>
-              </Stack>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="e.g. Please describe your feedback in detail..."
-                value={placeholder}
-                onChange={(e) => setPlaceholder(e.target.value)}
-                InputProps={{ sx: { borderRadius: 1.5 } }}
-                helperText="Hint text displayed inside the text area when empty"
-              />
-            </Stack>
-          )}
+          <TextField
+            fullWidth
+            size="small"
+            label="Question key"
+            placeholder="auto-generated from prompt if left blank"
+            value={keyValue}
+            onChange={(e) => setKeyValue(e.target.value)}
+            disabled={question?.source === 'system'}
+            helperText="Stable identifier sent to the API (key). System questions keep their reserved key."
+            InputProps={{ sx: { borderRadius: 1.5 } }}
+          />
 
           {/* 5. Required Question Switch Card */}
           <Stack
@@ -741,6 +773,56 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
               onClick={(e) => e.stopPropagation()}
             />
           </Stack>
+
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{
+              p: 1.75,
+              px: 2,
+              borderRadius: 1.75,
+              border: '1px solid',
+              borderColor: active ? 'success.main' : 'divider',
+              bgcolor: (theme) =>
+                active ? alpha(theme.palette.success.main, 0.05) : 'background.paper',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onClick={() => setActive((prev) => !prev)}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box
+                sx={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 1,
+                  bgcolor: (theme) =>
+                    active ? alpha(theme.palette.success.main, 0.15) : alpha(theme.palette.grey[500], 0.1),
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: active ? 'success.main' : 'text.disabled',
+                }}
+              >
+                <Iconify icon="solar:eye-bold" width={20} />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 13.5 }}>
+                  Active
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Inactive questions stay in the list but are not shown to visitors
+                </Typography>
+              </Box>
+            </Stack>
+            <Switch
+              size="small"
+              color="success"
+              checked={active}
+              onChange={(e) => setActive(e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Stack>
         </Stack>
       </DialogContent>
 
@@ -762,9 +844,11 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
         >
           Cancel
         </Button>
-        <Button
+        <LoadingButton
           variant="contained"
+          color="primary"
           onClick={handleSave}
+          loading={Boolean(saving)}
           startIcon={<Iconify icon="solar:check-circle-bold" />}
           sx={{
             fontWeight: 700,
@@ -774,7 +858,7 @@ function QuestionEditorDialog({ open, question, onSave, onClose }) {
           }}
         >
           {question ? 'Update Question' : 'Save Question'}
-        </Button>
+        </LoadingButton>
       </DialogActions>
     </Dialog>
   );
@@ -785,33 +869,126 @@ QuestionEditorDialog.propTypes = {
   question: PropTypes.object,
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
+  saving: PropTypes.bool,
 };
 
 // ----------------------------------------------------------------------
 
-function VisitorSurveySettings({ settings, onSave, saving }) {
-  const [state, setState] = useState(() => settings || DEFAULT_VISITOR_SURVEY_SETTINGS);
+function VisitorSurveySettings({
+  settings,
+  questions: questionsProp,
+  loading,
+  errorMessage,
+  canEdit = true,
+  saving,
+  savingQuestions,
+  submittingFeedback,
+  onSave,
+  onSaveQuestions,
+  onSubmitFeedback: onSubmitFeedbackProp,
+  onRetry,
+}) {
+  const [state, setState] = useState(() => settings || EMPTY_VISITOR_SURVEY_SETTINGS);
 
   // Dynamic survey questions state
-  const [questions, setQuestions] = useState(() => getSurveyQuestions());
+  const [questions, setQuestions] = useState(() => questionsProp || []);
   const [builderMode, setBuilderMode] = useState(false);
   const [editorDialog, setEditorDialog] = useState({ open: false, index: null, question: null });
+
+  const { organizationId, isOwner, user } = useCurrentOrganization();
+  const isApiSubmission = Boolean(onSubmitFeedbackProp);
+
+  const assignedBranch = useMemo(
+    () => (!isOwner ? getAssignedBranch(user, organizationId) : null),
+    [isOwner, user, organizationId]
+  );
+
+  const { data: branchesData } = useGetBranchesQuery(
+    { organizationId, page: 1, limit: 100 },
+    { skip: !organizationId || isApiSubmission }
+  );
+  const branches = useMemo(() => branchesData?.data ?? [], [branchesData]);
+
+  // Selected Branch for feedback logging
+  const [selectedBranchId, setSelectedBranchId] = useState(() => assignedBranch?.id || '');
+  const [selectedOwnerSite, setSelectedOwnerSite] = useState(ALL_SITES_OPTION);
+  const [selectedHostStaff, setSelectedHostStaff] = useState(null);
+  const staffBranchId = isOwner
+    ? selectedOwnerSite.value === 'all'
+      ? undefined
+      : selectedOwnerSite.value
+    : assignedBranch?.id;
+  const staffQueryArgs = {
+    organizationId,
+    ...(staffBranchId ? { branchId: staffBranchId } : {}),
+  };
+
+  // Auto-select branch
+  useEffect(() => {
+    if (!isOwner && assignedBranch?.id) {
+      setSelectedBranchId(assignedBranch.id);
+    } else if (isOwner && !isApiSubmission && branches.length > 0) {
+      setSelectedBranchId((prev) => {
+        if (prev && branches.some((b) => b._id === prev)) return prev;
+        return branches[0]._id;
+      });
+    }
+  }, [isOwner, isApiSubmission, assignedBranch, branches]);
 
   // Dynamic form responses state
   const [visitorName, setVisitorName] = useState('');
   const [duration, setDuration] = useState('');
+  const [formErrors, setFormErrors] = useState({});
   const [answers, setAnswers] = useState(() => {
     const initial = {};
-    questions.forEach((q) => {
-      if (q.type === 'radio') initial[q.id] = q.options?.[0] || '';
-      else if (q.type === 'select') initial[q.id] = q.options?.[0] || '';
-      else if (q.type === 'rating') initial[q.id] = 5;
-      else initial[q.id] = '';
+    questionsProp?.forEach((q) => {
+      initial[q.id] = '';
     });
     return initial;
   });
   const [otherExplanations, setOtherExplanations] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setSelectedHostStaff(null);
+  }, [staffBranchId]);
+
+  const lastSurveyErrorRef = useRef(null);
+  useEffect(() => {
+    if (errorMessage && errorMessage !== 'No organization selected') {
+      if (lastSurveyErrorRef.current !== errorMessage) {
+        lastSurveyErrorRef.current = errorMessage;
+        toast.error(errorMessage);
+      }
+    }
+  }, [errorMessage]);
+
+  const clearFormError = (field) => {
+    setFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    setState(settings || EMPTY_VISITOR_SURVEY_SETTINGS);
+  }, [settings]);
+
+  useEffect(() => {
+    setQuestions(Array.isArray(questionsProp) ? questionsProp : []);
+  }, [questionsProp]);
+
+  const persistQuestions = async (nextQuestions, successMessage) => {
+    const ok = await onSaveQuestions?.(nextQuestions);
+    if (ok !== false) {
+      setQuestions(nextQuestions);
+      if (successMessage) toast.success(successMessage);
+      return true;
+    }
+    return false;
+  };
 
   // Ensure answer keys exist when questions change
   useEffect(() => {
@@ -819,10 +996,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
       const next = { ...prev };
       questions.forEach((q) => {
         if (next[q.id] === undefined) {
-          if (q.type === 'radio') next[q.id] = q.options?.[0] || '';
-          else if (q.type === 'select') next[q.id] = q.options?.[0] || '';
-          else if (q.type === 'rating') next[q.id] = 5;
-          else next[q.id] = '';
+          next[q.id] = '';
         }
       });
       return next;
@@ -842,61 +1016,85 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
     setEditorDialog({ open: false, index: null, question: null });
   };
 
-  const handleSaveQuestion = (questionData) => {
+  const handleSaveQuestion = async (questionData) => {
     let nextQuestions;
+    let successMessage;
     if (editorDialog.index !== null) {
-      nextQuestions = questions.map((item, idx) => (idx === editorDialog.index ? questionData : item));
-      toast.success('Question updated successfully!');
+      nextQuestions = questions.map((item, idx) =>
+        idx === editorDialog.index ? { ...item, ...questionData } : item
+      );
+      successMessage = 'Question updated successfully!';
     } else {
-      nextQuestions = [...questions, questionData];
-      toast.success('New question added successfully!');
+      nextQuestions = [
+        ...questions,
+        {
+          ...questionData,
+          id: questionData.id || questionData._id || questionData.key || `custom-${Date.now()}`,
+          source: 'custom',
+          active: true,
+        },
+      ];
+      successMessage = 'New question added successfully!';
     }
-    setQuestions(nextQuestions);
-    saveSurveyQuestions(nextQuestions);
+    nextQuestions = nextQuestions.map((item, idx) => ({ ...item, sortOrder: idx + 1 }));
+    return persistQuestions(nextQuestions, successMessage);
   };
 
-  const handleDeleteQuestion = (indexToRemove) => {
-    const nextQuestions = questions.filter((_, idx) => idx !== indexToRemove);
-    setQuestions(nextQuestions);
-    saveSurveyQuestions(nextQuestions);
-    toast.info('Question removed');
+  const handleDeleteQuestion = async (indexToRemove) => {
+    const target = questions[indexToRemove];
+    const nextQuestions =
+      target?.source === 'system'
+        ? questions.map((item, idx) => (idx === indexToRemove ? { ...item, active: false } : item))
+        : questions.filter((_, idx) => idx !== indexToRemove);
+    await persistQuestions(
+      nextQuestions.map((item, idx) => ({ ...item, sortOrder: idx + 1 })),
+      'Question removed'
+    );
   };
 
-  const handleMoveQuestion = (index, delta) => {
+  const handleMoveQuestion = async (index, delta) => {
     const targetIndex = index + delta;
     if (targetIndex < 0 || targetIndex >= questions.length) return;
     const nextQuestions = [...questions];
     const temp = nextQuestions[index];
     nextQuestions[index] = nextQuestions[targetIndex];
     nextQuestions[targetIndex] = temp;
-    setQuestions(nextQuestions);
-    saveSurveyQuestions(nextQuestions);
+    await persistQuestions(nextQuestions.map((item, idx) => ({ ...item, sortOrder: idx + 1 })));
   };
 
-  const handleResetToDefaultQuestions = () => {
-    const defaults = resetSurveyQuestions();
-    setQuestions(defaults);
-    toast.info('Questions reset to default template');
+  const handleResetToDefaultQuestions = async () => {
+    await persistQuestions(
+      resetQuestionsToSystemDefaults(questions),
+      'Restored system default questions'
+    );
   };
 
   // Form answer handlers
   const handleAnswerChange = (questionId, value) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    clearFormError(questionId);
   };
 
   const handleOtherExplanationChange = (questionId, value) => {
     setOtherExplanations((prev) => ({ ...prev, [questionId]: value }));
+    clearFormError(`${questionId}_other`);
   };
 
   const handleClearFeedbackForm = () => {
+    setSelectedHostStaff(null);
     setVisitorName('');
     setDuration('');
+    setFormErrors({});
+    if (isApiSubmission && isOwner) {
+      setSelectedOwnerSite(ALL_SITES_OPTION);
+    } else if (isOwner && branches.length > 0) {
+      setSelectedBranchId(branches[0]._id);
+    } else if (assignedBranch?.id) {
+      setSelectedBranchId(assignedBranch.id);
+    }
     const resetAns = {};
-    questions.forEach((q) => {
-      if (q.type === 'radio') resetAns[q.id] = q.options?.[0] || '';
-      else if (q.type === 'select') resetAns[q.id] = q.options?.[0] || '';
-      else if (q.type === 'rating') resetAns[q.id] = 5;
-      else resetAns[q.id] = '';
+    formQuestions.forEach((q) => {
+      resetAns[q.id] = '';
     });
     setAnswers(resetAns);
     setOtherExplanations({});
@@ -905,49 +1103,129 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
   const onSubmitFeedback = async (e) => {
     e.preventDefault();
 
+    const errors = {};
+    const submissionBranchId = isApiSubmission
+      ? isOwner
+        ? selectedHostStaff?.branchId
+        : assignedBranch?.id
+      : selectedBranchId;
+
+    if (!submissionBranchId) {
+      errors.branchId = 'Please select a site / branch';
+    }
+    if (isApiSubmission && (!selectedHostStaff?.value || !selectedHostStaff.branchId)) {
+      errors.hostStaffId = 'Please select a staff member';
+    }
+    if (
+      isApiSubmission &&
+      !isOwner &&
+      selectedHostStaff?.branchId !== assignedBranch?.id
+    ) {
+      errors.hostStaffId = 'Please select a staff member from your assigned site';
+    }
+    if (
+      isApiSubmission &&
+      isOwner &&
+      selectedOwnerSite.value !== 'all' &&
+      selectedHostStaff?.branchId !== selectedOwnerSite.value
+    ) {
+      errors.hostStaffId = 'Please select a staff member from the selected site';
+    }
     if (!visitorName.trim()) {
-      toast.error('Visitor name is required');
-      return;
+      errors.visitorName = 'Visitor name is required';
     }
     if (!duration.trim()) {
-      toast.error('Stay duration is required');
-      return;
+      errors.duration = 'Stay duration is required';
     }
 
-    // Validate required questions
-    for (let i = 0; i < questions.length; i += 1) {
-      const q = questions[i];
+    // Validate required questions among visible form questions only
+    for (let i = 0; i < formQuestions.length; i += 1) {
+      const q = formQuestions[i];
       if (q.required) {
         const ans = answers[q.id];
         if (ans === undefined || ans === null || String(ans).trim() === '') {
-          toast.error(`Please answer question ${i + 1}: "${q.title}"`);
-          return;
-        }
-        if (String(ans).toLowerCase() === 'other' && !otherExplanations[q.id]?.trim()) {
-          toast.error(`Please explain your answer for question ${i + 1}`);
-          return;
+          errors[q.id] = 'This field is required';
+        } else if (
+          !isApiSubmission &&
+          String(ans).toLowerCase() === 'other' &&
+          !otherExplanations[q.id]?.trim()
+        ) {
+          errors[`${q.id}_other`] = 'Please explain your answer';
         }
       }
     }
 
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      addMockVisitorFeedbackResponse({
-        visitorName,
-        duration,
-        rating: answers['q-rating'] || 5,
-        comment: answers['q-comment'] || '',
-        whoVisited: answers['q-who-visited'] || '—',
-        whoVisitedOther: otherExplanations['q-who-visited'] || '',
-        expectedReason: answers['q-expected-reason'] || 'yes',
-        expectedReasonOther: otherExplanations['q-expected-reason'] || '',
-        customAnswers: answers,
-      });
+      const formattedAnswers = formQuestions
+        .filter((q) => {
+          const value = answers[q.id];
+          return value !== undefined && value !== null && String(value).trim() !== '';
+        })
+        .map((q) => ({
+          questionId: q.id,
+          value: String(answers[q.id]),
+        }));
 
-      handleClearFeedbackForm();
-      toast.success('Visitor feedback logged successfully!');
+      const ratingQuestion = formQuestions.find((q) => q.type === 'rating');
+      const commentQuestion = formQuestions.find((q) => q.type === 'text');
+      const whoQuestion = formQuestions.find(
+        (q) => q.key === 'whoVisited' || q.prompt?.toLowerCase().includes('who did you visit')
+      );
+      const reasonQuestion = formQuestions.find(
+        (q) => q.key === 'expectedVisit' || q.prompt?.toLowerCase().includes('reason you expected')
+      );
+      const legacyPayload = {
+        branchId: selectedBranchId,
+        visitorName: visitorName.trim(),
+        duration: duration.trim(),
+        rating: ratingQuestion ? Number(answers[ratingQuestion.id]) || 5 : 5,
+        comment: commentQuestion ? answers[commentQuestion.id] || '' : '',
+        whoVisited: whoQuestion ? answers[whoQuestion.id] || '—' : '—',
+        whoVisitedOther: whoQuestion ? otherExplanations[whoQuestion.id] || '' : '',
+        expectedReason: reasonQuestion ? answers[reasonQuestion.id] || 'Yes' : 'Yes',
+        expectedReasonOther: reasonQuestion ? otherExplanations[reasonQuestion.id] || '' : '',
+        responses: formQuestions.map((q) => ({
+          questionId: q.id,
+          questionKey: q.key,
+          prompt: q.prompt || q.title,
+          type: q.type,
+          answer: answers[q.id] ?? '',
+          explanation: otherExplanations[q.id] || null,
+        })),
+        customAnswers: answers,
+        otherExplanations,
+      };
+      const apiPayload = {
+        branchId: submissionBranchId,
+        hostStaffId: selectedHostStaff?.value,
+        visitorName: visitorName.trim(),
+        stayDuration: duration.trim(),
+        answers: formattedAnswers,
+      };
+
+      if (onSubmitFeedbackProp) {
+        const ok = await onSubmitFeedbackProp(apiPayload);
+        if (ok !== false) {
+          addMockVisitorFeedbackResponse(legacyPayload);
+          handleClearFeedbackForm();
+          toast.success('Visitor feedback logged successfully!');
+        }
+      } else {
+        addMockVisitorFeedbackResponse(legacyPayload);
+        handleClearFeedbackForm();
+        toast.success('Visitor feedback logged successfully!');
+      }
     } catch (error) {
-      toast.error('Something went wrong. Please try again.');
+      console.error('Failed to log visitor feedback:', error);
+      toast.error(error?.data?.message || error?.message || 'Something went wrong. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -975,14 +1253,32 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
   };
 
   const handleResetSettings = () => {
-    setState(settings || DEFAULT_VISITOR_SURVEY_SETTINGS);
+    setState(settings || EMPTY_VISITOR_SURVEY_SETTINGS);
     toast.info('Reverted changes');
   };
 
-  const handleSaveSettings = () => {
-    onSave?.(state);
-    toast.success('Visitor survey settings saved!');
+  const handleSaveSettings = async () => {
+    await onSave?.(state);
   };
+
+  const visibleQuestions = questions.filter((q) => q.active !== false);
+  const formQuestions = builderMode ? questions : visibleQuestions;
+
+  if (loading) {
+    return (
+      <Card>
+        <LinearProgress />
+      </Card>
+    );
+  }
+
+  if (errorMessage === 'No organization selected') {
+    return (
+      <Alert severity="warning">
+        Please select an organization to view visitor survey settings.
+      </Alert>
+    );
+  }
 
   return (
     <Stack spacing={3}>
@@ -993,6 +1289,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
           subheader="Notify staff when a visitor completes the post-visit survey"
           action={
             <Switch
+              disabled={!canEdit}
               checked={Boolean(state.enabled)}
               onChange={(e) => setState((prev) => ({ ...prev, enabled: e.target.checked }))}
             />
@@ -1013,6 +1310,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                     icon="solar:letter-bold-duotone"
                     label="Email notifications"
                     checked={state.channels?.email}
+                    disabled={!canEdit}
                     onChange={(val) => updateChannel('email', val)}
                   />
                 </Grid>
@@ -1021,6 +1319,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                     icon="solar:bell-bold-duotone"
                     label="In-app notification bell"
                     checked={state.channels?.inApp}
+                    disabled={!canEdit}
                     onChange={(val) => updateChannel('inApp', val)}
                   />
                 </Grid>
@@ -1038,6 +1337,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                     icon="solar:user-id-bold-duotone"
                     label="Site Manager"
                     checked={state.recipients?.siteManager}
+                    disabled={!canEdit}
                     onChange={(val) => updateRecipient('siteManager', val)}
                   />
                 </Grid>
@@ -1046,6 +1346,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                     icon="solar:user-bold-duotone"
                     label="Line Manager"
                     checked={state.recipients?.lineManager}
+                    disabled={!canEdit}
                     onChange={(val) => updateRecipient('lineManager', val)}
                   />
                 </Grid>
@@ -1063,6 +1364,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                     icon="solar:star-bold-duotone"
                     label="Feedback rating & summary"
                     checked={state.includes?.feedbackRating}
+                    disabled={!canEdit}
                     onChange={(val) => updateInclude('feedbackRating', val)}
                   />
                 </Grid>
@@ -1071,6 +1373,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                     icon="solar:clock-circle-bold-duotone"
                     label="Visit duration"
                     checked={state.includes?.visitDuration}
+                    disabled={!canEdit}
                     onChange={(val) => updateInclude('visitDuration', val)}
                   />
                 </Grid>
@@ -1079,6 +1382,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                     icon="solar:user-hand-up-bold-duotone"
                     label="Who they visited"
                     checked={state.includes?.whoVisited}
+                    disabled={!canEdit}
                     onChange={(val) => updateInclude('whoVisited', val)}
                   />
                 </Grid>
@@ -1087,6 +1391,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                     icon="solar:chat-round-line-bold-duotone"
                     label="Free-text comments"
                     checked={state.includes?.freeTextComments}
+                    disabled={!canEdit}
                     onChange={(val) => updateInclude('freeTextComments', val)}
                   />
                 </Grid>
@@ -1095,13 +1400,14 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
 
             <Divider sx={{ borderStyle: 'dashed', my: 0.5 }} />
 
-            {/* Save Row */}
+            {canEdit && (
             <Stack direction="row" spacing={1.5} justifyContent="flex-end">
               <Button variant="outlined" color="inherit" size="small" onClick={handleResetSettings}>
                 Cancel
               </Button>
               <LoadingButton
                 variant="contained"
+                color="primary"
                 size="small"
                 loading={saving}
                 onClick={handleSaveSettings}
@@ -1109,6 +1415,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                 Save changes
               </LoadingButton>
             </Stack>
+            )}
           </Stack>
         </Collapse>
       </Card>
@@ -1123,18 +1430,58 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
               : 'Manually record feedback shared by a visitor after checkout'
           }
           action={
-            <Button
-              variant={builderMode ? 'contained' : 'outlined'}
-              size="small"
-              startIcon={
-                <Iconify
-                  icon={builderMode ? 'solar:clipboard-check-bold' : 'solar:pen-new-square-bold'}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
+              {isApiSubmission && isOwner && (
+                <InfiniteAutocomplete
+                  value={selectedOwnerSite}
+                  onChange={(site) => {
+                    const nextSite = site || ALL_SITES_OPTION;
+                    setSelectedOwnerSite(nextSite);
+                    setSelectedHostStaff(null);
+                    clearFormError('branchId');
+                    clearFormError('hostStaffId');
+                  }}
+                  useQuery={useGetBranchesQuery}
+                  queryArgs={{ organizationId }}
+                  mapOption={mapVisitorBranchOption}
+                  extraOptions={[ALL_SITES_OPTION]}
+                  label="Site"
+                  placeholder="All sites"
+                  disabled={!organizationId}
+                  disableClearable
+                  size="small"
+                  sx={{ minWidth: { xs: 220, sm: 200 } }}
+                  error={Boolean(formErrors.branchId)}
+                  helperText={formErrors.branchId}
+                  textFieldProps={{
+                    InputProps: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Iconify
+                            icon="solar:buildings-bold-duotone"
+                            width={20}
+                            sx={{ color: 'primary.main' }}
+                          />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
                 />
-              }
-              onClick={() => setBuilderMode((prev) => !prev)}
-            >
-              {builderMode ? 'View & Log Feedback' : `Customize Questions (${questions.length})`}
-            </Button>
+              )}
+              <Button
+                variant={builderMode ? 'contained' : 'outlined'}
+                color="primary"
+                size="small"
+                startIcon={
+                  <Iconify
+                    icon={builderMode ? 'solar:clipboard-check-bold' : 'solar:pen-new-square-bold'}
+                  />
+                }
+                onClick={() => setBuilderMode((prev) => !prev)}
+              >
+                {builderMode ? 'View & Log Feedback' : `Customize Questions (${questions.length})`}
+              </Button>
+            </Stack>
           }
           sx={{ pb: 1.5 }}
         />
@@ -1156,10 +1503,14 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                   Survey Questions
                 </Typography>
                 <Label variant="soft" color="primary">
+                  {questions.filter((item) => item.active !== false).length} active
+                </Label>
+                <Label variant="soft" color="default">
                   {questions.length} configured
                 </Label>
               </Stack>
 
+              {canEdit && (
               <Stack direction="row" spacing={1.5}>
                 <Button
                   variant="outlined"
@@ -1167,14 +1518,17 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                   size="small"
                   startIcon={<Iconify icon="solar:restart-bold" />}
                   onClick={handleResetToDefaultQuestions}
+                  disabled={savingQuestions}
                 >
                   Reset defaults
                 </Button>
                 <Button
                   variant="contained"
+                  color="primary"
                   size="small"
                   startIcon={<Iconify icon="mingcute:add-line" />}
                   onClick={handleOpenAdd}
+                  disabled={savingQuestions}
                   sx={{
                     fontWeight: 700,
                     borderRadius: 1.25,
@@ -1184,19 +1538,21 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                   Add question
                 </Button>
               </Stack>
+              )}
             </Stack>
 
             {/* Questions List */}
             <Stack spacing={2}>
               {questions.map((q, idx) => (
                 <Card
-                  key={q.id || idx}
+                  key={q.id || q.key || idx}
                   variant="outlined"
                   sx={{
                     p: 2,
                     borderRadius: 1.5,
                     bgcolor: (theme) => alpha(theme.palette.background.default, 0.5),
                     borderColor: 'divider',
+                    opacity: q.active === false ? 0.7 : 1,
                     transition: 'all 0.2s',
                     '&:hover': {
                       borderColor: 'primary.main',
@@ -1211,24 +1567,41 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                         color="default"
                         sx={{ height: 26, minWidth: 26, fontWeight: 700, borderRadius: 0.75 }}
                       >
-                        Q{idx + 1}
+                        Q{q.sortOrder || idx + 1}
                       </Label>
 
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.5} sx={{ mb: 0.75 }}>
                           <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: 14 }}>
-                            {q.title}
+                            {q.prompt || q.title}
                           </Typography>
-                          {q.required && (
+                          {q.required ? (
                             <Chip size="small" label="Required" color="error" variant="outlined" sx={{ height: 20, fontSize: 11 }} />
+                          ) : (
+                            <Chip size="small" label="Optional" color="default" variant="outlined" sx={{ height: 20, fontSize: 11 }} />
                           )}
+                          <Chip
+                            size="small"
+                            label={q.active === false ? 'Inactive' : 'Active'}
+                            color={q.active === false ? 'default' : 'success'}
+                            variant="outlined"
+                            sx={{ height: 20, fontSize: 11 }}
+                          />
+                          <Label variant="soft" color={q.source === 'system' ? 'info' : 'default'} sx={{ height: 20, fontSize: 11 }}>
+                            {q.source === 'system' ? 'System' : 'Custom'}
+                          </Label>
                           <Label variant="soft" color={QUESTION_TYPE_COLORS[q.type] || 'default'} sx={{ height: 20, fontSize: 11 }}>
-                            {QUESTION_TYPE_LABELS[q.type]}
+                            {QUESTION_TYPE_LABELS[q.type] || q.type}
                           </Label>
                         </Stack>
 
-                        {/* Options preview for MCQ / Select */}
-                        {(q.type === 'radio' || q.type === 'select') && q.options && q.options.length > 0 && (
+                        {q.key && (
+                          <Typography variant="caption" color="text.disabled" sx={{ display: 'block' }}>
+                            key: {q.key}
+                          </Typography>
+                        )}
+
+                        {isChoiceQuestionType(q.type) && q.options && q.options.length > 0 && (
                           <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75} sx={{ mt: 1 }}>
                             {q.options.map((opt, oIdx) => (
                               <Chip
@@ -1240,38 +1613,28 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                                 sx={{ height: 24, fontSize: 12 }}
                               />
                             ))}
-                            {q.hasOtherOption && (
-                              <Chip
-                                label="+ Other (with explanation field)"
-                                size="small"
-                                variant="soft"
-                                color="warning"
-                                sx={{ height: 24, fontSize: 12 }}
-                              />
-                            )}
                           </Stack>
                         )}
 
-                        {/* Rating preview */}
                         {q.type === 'rating' && (
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
                             <Rating value={5} readOnly size="small" />
                             <Typography variant="caption" color="text.secondary">
-                              (1 - 5 star rating)
+                              1 to 5
                             </Typography>
                           </Stack>
                         )}
 
-                        {/* Text preview */}
                         {q.type === 'text' && (
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                            Multiline text comment field {q.placeholder ? `(Placeholder: "${q.placeholder}")` : ''}
+                            Free-text comment
                           </Typography>
                         )}
                       </Box>
                     </Stack>
 
                     {/* Question Actions */}
+                    {canEdit && (
                     <Stack direction="row" spacing={0.5} alignItems="center">
                       <Tooltip title="Move up">
                         <span>
@@ -1304,7 +1667,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                           <Iconify icon="solar:pen-bold" width={16} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete question">
+                      <Tooltip title={q.source === 'system' ? 'Deactivate system question' : 'Delete question'}>
                         <IconButton
                           size="small"
                           color="error"
@@ -1314,6 +1677,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                         </IconButton>
                       </Tooltip>
                     </Stack>
+                    )}
                   </Stack>
                 </Card>
               ))}
@@ -1323,11 +1687,14 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
 
             {/* Bottom Builder actions */}
             <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center">
+              {canEdit ? (
               <Button
                 variant="outlined"
+                color="primary"
                 size="small"
                 startIcon={<Iconify icon="mingcute:add-line" />}
                 onClick={handleOpenAdd}
+                disabled={savingQuestions}
                 sx={{
                   fontWeight: 600,
                   borderRadius: 1.25,
@@ -1337,9 +1704,11 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
               >
                 Add another question
               </Button>
+              ) : <span />}
 
               <Button
                 variant="contained"
+                color="primary"
                 size="small"
                 startIcon={<Iconify icon="solar:clipboard-check-bold" />}
                 onClick={() => setBuilderMode(false)}
@@ -1350,33 +1719,114 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
           </Stack>
         ) : (
           /* ================= DYNAMIC FEEDBACK FORM MODE ================= */
-          <Box component="form" onSubmit={onSubmitFeedback}>
+          <Box component="form" onSubmit={onSubmitFeedback} noValidate>
             <Stack spacing={2.5} sx={{ p: { xs: 2, sm: 3 } }}>
-              {/* Top row: visitor name and stay duration */}
+              {/* Top row: host staff, visitor name, and stay duration */}
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+                {!isApiSubmission ? (
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth size="small" error={Boolean(formErrors.branchId)}>
+                      <InputLabel id="visitor-branch-select-label">Site / Branch *</InputLabel>
+                      <Select
+                        labelId="visitor-branch-select-label"
+                        label="Site / Branch *"
+                        value={selectedBranchId}
+                        onChange={(e) => {
+                          setSelectedBranchId(e.target.value);
+                          clearFormError('branchId');
+                        }}
+                      >
+                        {!isOwner && assignedBranch ? (
+                          <MenuItem value={assignedBranch.id}>
+                            {assignedBranch.name || 'Current Site'} (Assigned)
+                          </MenuItem>
+                        ) : (
+                          branches.map((branch) => (
+                            <MenuItem key={branch._id} value={branch._id}>
+                              {branch.name}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                      {formErrors.branchId && (
+                        <FormHelperText error>{formErrors.branchId}</FormHelperText>
+                      )}
+                    </FormControl>
+                  </Grid>
+                ) : (
+                  <Grid item xs={12} sm={4}>
+                    <InfiniteAutocomplete
+                      key={`${organizationId || 'no-organization'}-${staffBranchId || 'all-sites'}`}
+                      value={selectedHostStaff}
+                      onChange={(staff) => {
+                        setSelectedHostStaff(staff);
+                        clearFormError('hostStaffId');
+                        clearFormError('branchId');
+                      }}
+                      useQuery={useGetStaffProfilesQuery}
+                      queryArgs={staffQueryArgs}
+                      mapOption={mapVisitorStaffOption}
+                      enabled={Boolean(organizationId && (isOwner || staffBranchId))}
+                      label="Host staff *"
+                      placeholder="Search host staff..."
+                      disabled={!organizationId || (!isOwner && !staffBranchId)}
+                      error={Boolean(formErrors.hostStaffId)}
+                      helperText={formErrors.hostStaffId}
+                      fullWidth
+                      size="small"
+                      textFieldProps={{
+                        InputProps: {
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Iconify
+                                icon="solar:user-id-bold-duotone"
+                                width={20}
+                                sx={{ color: 'primary.main' }}
+                              />
+                            </InputAdornment>
+                          ),
+                        },
+                      }}
+                    />
+                  </Grid>
+                )}
+
+                <Grid item xs={12} sm={isApiSubmission ? 4 : 6}>
                   <TextField
                     fullWidth
+                    size="small"
                     label="Visitor name"
                     value={visitorName}
-                    onChange={(e) => setVisitorName(e.target.value)}
+                    onChange={(e) => {
+                      setVisitorName(e.target.value);
+                      clearFormError('visitorName');
+                    }}
+                    error={Boolean(formErrors.visitorName)}
+                    helperText={formErrors.visitorName}
                     required
                   />
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={isApiSubmission ? 4 : 6}>
                   <TextField
                     fullWidth
+                    size="small"
                     label="Stay duration"
-                    placeholder="e.g. 45m"
+                    placeholder="e.g. 45"
                     value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
+                    onChange={(e) => {
+                      setDuration(e.target.value.replace(/[^0-9]/g, ''));
+                      clearFormError('duration');
+                    }}
+                    inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                    error={Boolean(formErrors.duration)}
+                    helperText={formErrors.duration || 'Enter duration in minutes.'}
                     required
                   />
                 </Grid>
               </Grid>
 
               {/* Dynamic Questions List */}
-              {questions.map((q, idx) => {
+              {formQuestions.map((q, idx) => {
                 const currentAnswer = answers[q.id] ?? '';
                 const isOtherSelected =
                   String(currentAnswer).toLowerCase() === 'other' ||
@@ -1385,12 +1835,12 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                 return (
                   <Stack key={q.id || idx} spacing={1}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      {idx + 1}. {q.title} {q.required && <Box component="span" sx={{ color: 'error.main' }}>*</Box>}
+                      {idx + 1}. {q.prompt || q.title} {q.required && <Box component="span" sx={{ color: 'error.main' }}>*</Box>}
                     </Typography>
 
                     {/* 1. Multiple choice (Radio) */}
-                    {q.type === 'radio' && (
-                      <>
+                    {q.type === 'yesNo' && (
+                      <FormControl error={Boolean(formErrors[q.id])} component="fieldset">
                         <RadioGroup
                           row
                           value={currentAnswer}
@@ -1406,25 +1856,34 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                             />
                           ))}
                         </RadioGroup>
+                        {formErrors[q.id] && (
+                          <FormHelperText error sx={{ mx: 0 }}>
+                            {formErrors[q.id]}
+                          </FormHelperText>
+                        )}
 
-                        <Collapse in={isOtherSelected} timeout="auto" unmountOnExit>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            label="Please explain"
-                            placeholder="Explain your answer..."
-                            value={otherExplanations[q.id] || ''}
-                            onChange={(e) => handleOtherExplanationChange(q.id, e.target.value)}
-                            sx={{ mt: 1 }}
-                          />
-                        </Collapse>
-                      </>
+                        {!isApiSubmission && (
+                          <Collapse in={isOtherSelected} timeout="auto" unmountOnExit>
+                            <TextField
+                              size="small"
+                              fullWidth
+                              label="Please explain"
+                              placeholder="Explain your answer..."
+                              value={otherExplanations[q.id] || ''}
+                              onChange={(e) => handleOtherExplanationChange(q.id, e.target.value)}
+                              error={Boolean(formErrors[`${q.id}_other`])}
+                              helperText={formErrors[`${q.id}_other`]}
+                              sx={{ mt: 1 }}
+                            />
+                          </Collapse>
+                        )}
+                      </FormControl>
                     )}
 
                     {/* 2. Dropdown selection */}
-                    {q.type === 'select' && (
+                    {q.type === 'singleSelect' && (
                       <>
-                        <FormControl fullWidth size="small">
+                        <FormControl fullWidth size="small" error={Boolean(formErrors[q.id])}>
                           <InputLabel id={`select-label-${q.id}`}>Select option</InputLabel>
                           <Select
                             labelId={`select-label-${q.id}`}
@@ -1438,40 +1897,54 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                               </MenuItem>
                             ))}
                           </Select>
+                          {formErrors[q.id] && (
+                            <FormHelperText error>{formErrors[q.id]}</FormHelperText>
+                          )}
                         </FormControl>
 
-                        <Collapse in={isOtherSelected} timeout="auto" unmountOnExit>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            label="Please specify details"
-                            placeholder="Provide additional details..."
-                            value={otherExplanations[q.id] || ''}
-                            onChange={(e) => handleOtherExplanationChange(q.id, e.target.value)}
-                            sx={{ mt: 1 }}
-                          />
-                        </Collapse>
+                        {!isApiSubmission && (
+                          <Collapse in={isOtherSelected} timeout="auto" unmountOnExit>
+                            <TextField
+                              size="small"
+                              fullWidth
+                              label="Please specify details"
+                              placeholder="Provide additional details..."
+                              value={otherExplanations[q.id] || ''}
+                              onChange={(e) => handleOtherExplanationChange(q.id, e.target.value)}
+                              error={Boolean(formErrors[`${q.id}_other`])}
+                              helperText={formErrors[`${q.id}_other`]}
+                              sx={{ mt: 1 }}
+                            />
+                          </Collapse>
+                        )}
                       </>
                     )}
 
                     {/* 3. Star rating */}
                     {q.type === 'rating' && (
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Rating
-                          size="large"
-                          value={Number(currentAnswer) || 0}
-                          onChange={(_, val) => handleAnswerChange(q.id, val)}
-                        />
-                        {Number(currentAnswer) > 0 && (
-                          <Label
-                            variant="soft"
-                            color={RATING_COLORS[Number(currentAnswer)] || 'default'}
-                            sx={{ textTransform: 'capitalize', fontWeight: 600 }}
-                          >
-                            {RATING_LABELS[Number(currentAnswer)]}
-                          </Label>
+                      <FormControl error={Boolean(formErrors[q.id])}>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Rating
+                            size="large"
+                            value={Number(currentAnswer) || 0}
+                            onChange={(_, val) => handleAnswerChange(q.id, val)}
+                          />
+                          {Number(currentAnswer) > 0 && (
+                            <Label
+                              variant="soft"
+                              color={RATING_COLORS[Number(currentAnswer)] || 'default'}
+                              sx={{ textTransform: 'capitalize', fontWeight: 600 }}
+                            >
+                              {RATING_LABELS[Number(currentAnswer)]}
+                            </Label>
+                          )}
+                        </Stack>
+                        {formErrors[q.id] && (
+                          <FormHelperText error sx={{ mx: 0 }}>
+                            {formErrors[q.id]}
+                          </FormHelperText>
                         )}
-                      </Stack>
+                      </FormControl>
                     )}
 
                     {/* 4. Text input / Comment */}
@@ -1483,6 +1956,8 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                         placeholder={q.placeholder || 'Enter your response...'}
                         value={currentAnswer}
                         onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        error={Boolean(formErrors[q.id])}
+                        helperText={formErrors[q.id]}
                       />
                     )}
                   </Stack>
@@ -1494,7 +1969,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
               <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="center">
                 <Button
                   variant="text"
-                  color="inherit"
+                  color="primary"
                   size="small"
                   startIcon={<Iconify icon="solar:pen-new-square-bold" />}
                   onClick={() => setBuilderMode(true)}
@@ -1514,8 +1989,9 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
                   <LoadingButton
                     type="submit"
                     variant="contained"
+                    color="primary"
                     size="small"
-                    loading={isSubmitting}
+                    loading={isSubmitting || Boolean(submittingFeedback)}
                   >
                     Log feedback
                   </LoadingButton>
@@ -1532,6 +2008,7 @@ function VisitorSurveySettings({ settings, onSave, saving }) {
         question={editorDialog.question}
         onSave={handleSaveQuestion}
         onClose={handleCloseEditor}
+        saving={savingQuestions}
       />
     </Stack>
   );
@@ -1541,6 +2018,15 @@ export default VisitorSurveySettings;
 
 VisitorSurveySettings.propTypes = {
   settings: PropTypes.object,
+  questions: PropTypes.array,
+  loading: PropTypes.bool,
+  errorMessage: PropTypes.string,
+  canEdit: PropTypes.bool,
   onSave: PropTypes.func,
+  onSaveQuestions: PropTypes.func,
+  onSubmitFeedback: PropTypes.func,
+  onRetry: PropTypes.func,
   saving: PropTypes.bool,
+  savingQuestions: PropTypes.bool,
+  submittingFeedback: PropTypes.bool,
 };

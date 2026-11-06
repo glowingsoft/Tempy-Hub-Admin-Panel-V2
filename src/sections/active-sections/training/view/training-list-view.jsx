@@ -31,7 +31,7 @@ import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
-import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
+import { exportToCSV } from 'src/utils/export-helper';
 import { fDate } from 'src/utils/format-time';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import {
@@ -214,30 +214,6 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
     exportToCSV(exportData, 'training-records-report.csv');
   }, [records]);
 
-  const handleExportPDF = useCallback(() => {
-    const columns = [
-      { id: 'staffName', label: 'Staff Member' },
-      { id: 'requirementName', label: 'Course / Requirement' },
-      { id: 'type', label: 'Type' },
-      { id: 'dueDate', label: 'Due Date' },
-      { id: 'completedDate', label: 'Completed' },
-      { id: 'status', label: 'Status' },
-    ];
-    const pdfData = records.map((row) => ({
-      staffName: row.staff?.name || row.staff?.email || '—',
-      requirementName: row.requirement?.name || '—',
-      type: row.requirement?.type || '—',
-      dueDate: row.dueDate ? fDate(row.dueDate) : '—',
-      completedDate: row.completedAt
-        ? fDate(row.completedAt)
-        : row.record?.completedAt
-          ? fDate(row.record.completedAt)
-          : '—',
-      status: row.status || row.cellStatus || '—',
-    }));
-    exportToPDF('Training Records Report', columns, pdfData);
-  }, [records]);
-
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -256,15 +232,6 @@ export default function TrainingListView({ dashboardHref: dashboardHrefProp }) {
               disabled={!records.length}
             >
               Export CSV
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<Iconify icon="solar:printer-bold" />}
-              onClick={handleExportPDF}
-              disabled={!records.length}
-            >
-              Export PDF
             </Button>
           </Stack>
         }

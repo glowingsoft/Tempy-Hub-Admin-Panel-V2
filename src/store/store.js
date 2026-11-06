@@ -39,6 +39,7 @@ import { kioskBrandingApi } from './Reducer/kiosk-branding-api';
 import { competenciesApi } from './Reducer/competencies-api';
 import { assignmentsApi } from './Reducer/assignments-api';
 import { visitorApi } from './Reducer/visitor-api';
+import { visitorSurveyApi } from './Reducer/visitor-survey-api';
 import { chatsApi } from './Reducer/chats-api';
 import { billingApi } from './Reducer/billing-api';
 import { settingsApi } from './Reducer/settings-api';
@@ -119,6 +120,7 @@ const apiSlices = [
   competenciesApi,
   assignmentsApi,
   visitorApi,
+  visitorSurveyApi,
   chatsApi,
   billingApi,
   settingsApi,
@@ -179,6 +181,7 @@ export const store = configureStore({
     [competenciesApi.reducerPath]: competenciesApi.reducer,
     [assignmentsApi.reducerPath]: assignmentsApi.reducer,
     [visitorApi.reducerPath]: visitorApi.reducer,
+    [visitorSurveyApi.reducerPath]: visitorSurveyApi.reducer,
     [chatsApi.reducerPath]: chatsApi.reducer,
     [billingApi.reducerPath]: billingApi.reducer,
     [settingsApi.reducerPath]: settingsApi.reducer,
@@ -230,6 +233,7 @@ export const store = configureStore({
       competenciesApi.middleware,
       assignmentsApi.middleware,
       visitorApi.middleware,
+      visitorSurveyApi.middleware,
       chatsApi.middleware,
       billingApi.middleware,
       settingsApi.middleware,

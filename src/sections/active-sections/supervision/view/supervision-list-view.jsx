@@ -31,8 +31,8 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
 import { useRouter, usePathname } from 'src/routes/hooks';
-import { exportToCSV, exportToPDF } from 'src/utils/export-helper';
-import { fDateTime } from 'src/utils/format-time';
+import { API_ROUTES } from 'src/store/apiRoutes';
+import { downloadCsvFromApi } from 'src/utils/export-helper';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import {
   useGetAppSupervisionsQuery,
@@ -300,36 +300,30 @@ function SupervisionListView({
   const canReset = !!filters.state.name || filters.state.status !== 'all';
 
   const handleExportCSV = useCallback(() => {
-    const exportData = filteredRows.map((row) => ({
-      Name: row.name || row.staff?.name,
-      'Employee Code': row.employeeCode || row.staff?.employeeCode,
-      Email: row.email || row.staff?.email,
-      'Created At': row.createdAt ? fDateTime(row.createdAt) : '—',
-      'Last Session': row.completedAt || row.lastCompletedAt || row.lastSession || '—',
-      'Scheduled At': row.scheduledAt ? fDateTime(row.scheduledAt) : (row.nextDueAt || row.upcoming?.scheduledAt || row.nextDue || '—'),
-      Status: getRowStatus(row),
-    }));
-    exportToCSV(exportData, 'supervision-sessions-report.csv');
-  }, [filteredRows]);
-
-  const handleExportPDF = useCallback(() => {
-    const columns = [
-      { id: 'name', label: 'Staff Member' },
-      { id: 'createdAt', label: 'Created At' },
-      { id: 'lastSession', label: 'Last Session' },
-      { id: 'scheduledAt', label: 'Scheduled At' },
-      { id: 'status', label: 'Status' },
-    ];
-    const mapped = filteredRows.map((r) => ({
-      ...r,
-      name: r.name || r.staff?.name || '—',
-      createdAt: r.createdAt ? fDateTime(r.createdAt) : '—',
-      lastSession: r.completedAt || r.lastCompletedAt || r.lastSession || '—',
-      scheduledAt: r.scheduledAt ? fDateTime(r.scheduledAt) : (r.nextDueAt || r.upcoming?.scheduledAt || r.nextDue || '—'),
-      status: getRowStatus(r),
-    }));
-    exportToPDF('Supervision Sessions Report', columns, mapped);
-  }, [filteredRows]);
+    if (isStaffView) {
+      downloadCsvFromApi(
+        API_ROUTES.APP_SUPERVISION,
+        'supervision.csv',
+        {
+          search: trimmedKeyword || undefined,
+          status: filters.state.status !== 'all' ? filters.state.status : undefined,
+        },
+        organizationId
+      );
+    } else {
+      if (!organizationId) return;
+      downloadCsvFromApi(
+        API_ROUTES.ORGANIZATION_SUPERVISION(organizationId),
+        'supervision.csv',
+        {
+          search: trimmedKeyword || undefined,
+          status: filters.state.status !== 'all' ? filters.state.status : undefined,
+          branchId: userBranchId && userBranchId !== 'all' ? userBranchId : undefined,
+        },
+        organizationId
+      );
+    }
+  }, [isStaffView, organizationId, trimmedKeyword, filters.state.status, userBranchId]);
 
   return (
     <DashboardContent>
@@ -358,14 +352,6 @@ function SupervisionListView({
               onClick={handleExportCSV}
             >
               Export CSV
-            </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<Iconify icon="solar:printer-bold" />}
-              onClick={handleExportPDF}
-            >
-              Export PDF
             </Button>
           </Stack>
         }

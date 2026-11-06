@@ -43,20 +43,45 @@ const FALLBACK_MODULES = mockModuleAccessResponse.data.moduleAccess;
 // Merge the API's module-access list onto the full catalog so every module is
 // represented (enabled or not), matching the payload requirement.
 function mergeWithCatalog(apiModules = []) {
-  const bySlug = new Map(apiModules.map((item) => [item.moduleSlug, item]));
+  const rawList = Array.isArray(apiModules)
+    ? apiModules
+    : apiModules?.moduleAccess || apiModules?.data || [];
 
-  return MODULE_CATALOG.map((mod) => {
-    const match = bySlug.get(mod.moduleSlug);
-    return {
-      moduleSlug: mod.moduleSlug,
-      name: match?.name || mod.name,
-      description: match?.description || mod.description,
-      enabled: match?.enabled ?? false,
-      // Activation time. `null` => activate immediately when access is applied.
-      purchasedAt: match?.purchasedAt ?? null,
-      expiresAt: match?.expiresAt ?? null,
-    };
+  const seenSlugs = new Set();
+  const result = [];
+
+  // 1. Process items from API response first, maintaining exact response metadata & order
+  rawList.forEach((item) => {
+    if (!item?.moduleSlug) return;
+    seenSlugs.add(item.moduleSlug);
+
+    const catalogMatch = MODULE_CATALOG.find((m) => m.moduleSlug === item.moduleSlug);
+
+    result.push({
+      moduleSlug: item.moduleSlug,
+      name: item.name || catalogMatch?.name || item.moduleSlug,
+      description: item.description || catalogMatch?.description || '',
+      enabled: Boolean(item.enabled),
+      purchasedAt: item.purchasedAt ?? null,
+      expiresAt: item.expiresAt ?? null,
+    });
   });
+
+  // 2. Append any catalog items not present in the API response
+  MODULE_CATALOG.forEach((catMod) => {
+    if (!seenSlugs.has(catMod.moduleSlug)) {
+      result.push({
+        moduleSlug: catMod.moduleSlug,
+        name: catMod.name,
+        description: catMod.description,
+        enabled: false,
+        purchasedAt: null,
+        expiresAt: null,
+      });
+    }
+  });
+
+  return result;
 }
 
 // ----------------------------------------------------------------------
@@ -96,7 +121,7 @@ export function OrganizationModuleAccess({ organizationId }) {
           ...mod,
           enabled,
           purchasedAt: enabled
-            ? dayjs().startOf('day').toISOString()
+            ? (mod.purchasedAt || dayjs().toISOString())
             : mod.purchasedAt,
         };
       })
@@ -113,14 +138,13 @@ export function OrganizationModuleAccess({ organizationId }) {
   };
 
   // All modules go into the payload, enabled or not.
-  // `purchasedAt` is optional — only sent when an Activation At value is chosen;
-  // otherwise the backend activates the module immediately.
   const buildPayload = () => ({
-    moduleAccess: modules.map(({ moduleSlug, enabled, expiresAt, purchasedAt }) => {
-      const entry = { moduleSlug, enabled, expiresAt };
-      if (purchasedAt) entry.purchasedAt = purchasedAt;
-      return entry;
-    }),
+    moduleAccess: modules.map(({ moduleSlug, enabled, expiresAt, purchasedAt }) => ({
+      moduleSlug,
+      enabled,
+      purchasedAt: purchasedAt || null,
+      expiresAt: expiresAt || null,
+    })),
   });
 
   const handleSave = async () => {
@@ -211,11 +235,11 @@ export function OrganizationModuleAccess({ organizationId }) {
                     <TableCell sx={{ verticalAlign: 'middle' }}>
                       <DatePicker
                         disabled={!mod.enabled}
-                        value={mod.enabled && mod.purchasedAt ? dayjs(mod.purchasedAt) : null}
+                        value={mod.purchasedAt && dayjs(mod.purchasedAt).isValid() ? dayjs(mod.purchasedAt) : null}
                         onChange={(newValue) =>
                           handleDateChange(mod.moduleSlug, 'purchasedAt', newValue)
                         }
-                        format="DD/MM/YYYY"
+                        format={formatStr.split.date}
                         slotProps={{
                           textField: { fullWidth: true, size: 'small' },
                           field: { clearable: true },
@@ -226,7 +250,7 @@ export function OrganizationModuleAccess({ organizationId }) {
                     <TableCell sx={{ verticalAlign: 'middle' }}>
                       <DatePicker
                         disabled={!mod.enabled}
-                        value={mod.enabled && mod.expiresAt ? dayjs(mod.expiresAt) : null}
+                        value={mod.expiresAt && dayjs(mod.expiresAt).isValid() ? dayjs(mod.expiresAt) : null}
                         onChange={(newValue) =>
                           handleDateChange(mod.moduleSlug, 'expiresAt', newValue)
                         }
