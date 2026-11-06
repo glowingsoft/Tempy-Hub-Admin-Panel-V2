@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
@@ -12,49 +10,27 @@ import { alpha } from '@mui/material/styles';
 
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
-import { KIOSK_SITE_SCOPES } from './mocks/data';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 
 // ----------------------------------------------------------------------
 
+const mapBranchOption = (branch) => ({
+  value: branch._id,
+  label: branch.name,
+});
+
 export function KioskScopeBar({
-  currentSite,
-  onChangeSite,
-  currentKiosk,
-  onChangeKiosk,
+  organizationId,
+  currentBranch,
+  onChangeBranchId,
+  kiosks = [],
+  currentKioskId,
+  onChangeKioskId,
   ownerDashboard = false,
+  branchDisabled = false,
   sx,
 }) {
-  const activeSiteData = useMemo(
-    () => KIOSK_SITE_SCOPES.find((s) => s.id === currentSite) || KIOSK_SITE_SCOPES[0],
-    [currentSite]
-  );
-
-  const scopeInfo = useMemo(() => {
-    const siteName = activeSiteData?.name || 'this site';
-    if (currentKiosk === 'all') {
-      return {
-        status: 'Site-wide Default',
-        color: 'info',
-        icon: 'solar:shield-check-bold-duotone',
-        text: `Changes here apply to every kiosk at ${siteName}, unless that kiosk has its own override set.`,
-      };
-    }
-    if (currentKiosk === 'new') {
-      return {
-        status: 'New Override',
-        color: 'warning',
-        icon: 'solar:add-circle-bold-duotone',
-        text: `Select an existing kiosk from ${siteName}'s Kiosks list to give it a device-specific override.`,
-      };
-    }
-    return {
-      status: 'Device Override',
-      color: 'success',
-      icon: 'solar:tuning-square-bold-duotone',
-      text: `Editing an override for this kiosk at ${siteName} only — it will stop inheriting the site-wide default once saved.`,
-    };
-  }, [activeSiteData, currentKiosk]);
-
   return (
     <Card
       sx={{
@@ -98,59 +74,62 @@ export function KioskScopeBar({
             </div>
           </Stack>
 
-          <Label
-            color="warning"
-            variant="soft"
-            startIcon={<Iconify icon="solar:crown-bold" width={14} />}
-            sx={{ width: 'fit-content', fontWeight: 700, fontSize: 11, alignSelf: { xs: 'flex-start', sm: 'center' } }}
-          >
-            Owner-Level Control
-          </Label>
+          {ownerDashboard && (
+            <Label
+              color="warning"
+              variant="soft"
+              startIcon={<Iconify icon="solar:crown-bold" width={14} />}
+              sx={{ width: 'fit-content', fontWeight: 700, fontSize: 11, alignSelf: { xs: 'flex-start', sm: 'center' } }}
+            >
+              Owner-Level Control
+            </Label>
+          )}
         </Stack>
 
         {/* Dropdowns Row */}
         <Grid container spacing={2} alignItems="center">
-          {/* Site Dropdown */}
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              select
+          {/* Site / Branch Dropdown */}
+          <Grid item xs={12} sm={6} md={6}>
+            <InfiniteAutocomplete
+              key={organizationId || 'no-organization'}
+              value={currentBranch}
+              onChange={(branch) => {
+                if (branchDisabled) return;
+                onChangeBranchId(branch);
+                onChangeKioskId('all');
+              }}
+              useQuery={useGetBranchesQuery}
+              queryArgs={{ organizationId }}
+              mapOption={mapBranchOption}
+              limit={100}
+              label="Site / Branch"
+              placeholder="Search site..."
+              disabled={!organizationId || branchDisabled}
+              disableClearable
               fullWidth
               size="small"
-              label="Site"
-              value={currentSite}
-              onChange={(e) => {
-                const nextSite = e.target.value;
-                onChangeSite(nextSite);
-                const nextSiteData = KIOSK_SITE_SCOPES.find((s) => s.id === nextSite);
-                if (nextSiteData?.kiosks?.[0]) {
-                  onChangeKiosk(nextSiteData.kiosks[0].value);
-                }
+              textFieldProps={{
+                helperText: branchDisabled ? 'Site selection is locked to your assigned site' : undefined,
+                InputProps: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Iconify icon="solar:buildings-bold-duotone" width={20} sx={{ color: 'primary.main' }} />
+                    </InputAdornment>
+                  ),
+                },
               }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Iconify icon="solar:buildings-bold-duotone" width={20} sx={{ color: 'primary.main' }} />
-                  </InputAdornment>
-                ),
-              }}
-            >
-              {KIOSK_SITE_SCOPES.map((site) => (
-                <MenuItem key={site.id} value={site.id}>
-                  {site.name}
-                </MenuItem>
-              ))}
-            </TextField>
+            />
           </Grid>
 
-          {/* Applying To Dropdown */}
-          <Grid item xs={12} sm={6} md={5}>
+          {/* Applying To Kiosk Dropdown */}
+          <Grid item xs={12} sm={6} md={6}>
             <TextField
               select
               fullWidth
               size="small"
               label="Applying to"
-              value={currentKiosk}
-              onChange={(e) => onChangeKiosk(e.target.value)}
+              value={currentKioskId || 'all'}
+              onChange={(e) => onChangeKioskId(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -159,55 +138,18 @@ export function KioskScopeBar({
                 ),
               }}
             >
-              {activeSiteData?.kiosks?.map((kiosk) => (
-                <MenuItem key={kiosk.value} value={kiosk.value}>
-                  {kiosk.label}
+              <MenuItem value="all">
+                All kiosks at this site (default)
+              </MenuItem>
+              {kiosks.map((kiosk) => (
+                <MenuItem key={kiosk._id} value={kiosk._id}>
+                  {kiosk.name || kiosk.code || `Kiosk ${kiosk._id.slice(-4)}`}
                 </MenuItem>
               ))}
             </TextField>
           </Grid>
 
-          {/* Scope Status Badge / Indicator */}
-          <Grid item xs={12} md={3}>
-            <Label
-              color={scopeInfo.color}
-              variant="soft"
-              startIcon={<Iconify icon={scopeInfo.icon} width={16} />}
-              sx={{
-                py: 2,
-                px: 1.5,
-                width: 1,
-                height: 40,
-                justifyContent: 'flex-start',
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {scopeInfo.status}
-            </Label>
-          </Grid>
         </Grid>
-
-        {/* Dynamic Context Banner */}
-        <Box
-          sx={{
-            py: 1,
-            px: 1.5,
-            borderRadius: 1,
-            bgcolor: (theme) =>
-              theme.palette.mode === 'dark'
-                ? alpha(theme.palette.grey[800], 0.6)
-                : alpha(theme.palette.grey[200], 0.5),
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}
-        >
-          <Iconify icon="solar:info-circle-bold" width={18} sx={{ color: 'text.secondary', flexShrink: 0 }} />
-          <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.4 }}>
-            {scopeInfo.text}
-          </Typography>
-        </Box>
       </Stack>
     </Card>
   );

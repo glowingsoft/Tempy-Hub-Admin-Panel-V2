@@ -1,97 +1,519 @@
 // kiosk-branding.jsx
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 
+import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
+import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
 import { toast } from 'src/components/snackbar';
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { usePathname } from 'src/routes/hooks';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { useGetKiosksQuery } from 'src/store/Reducer/kiosks-api';
+import {
+  useGetKioskWidgetsQuery,
+  useUpdateKioskWidgetsMutation,
+} from 'src/store/Reducer/kiosk-branding-api';
 
 import { KioskCheckoutWidget } from './kiosk-checkout-widget';
 import { KioskContentDialog } from './kiosk-content-dialog';
 import { KioskMobilePreview } from './kiosk-mobile-preview';
 import { KioskScopeBar } from './kiosk-scope-bar';
 import { KioskScreenCard } from './kiosk-screen-card';
-import { KioskTypeSelector } from './kiosk-type-selector';
-import { DEFAULT_CHECKOUT_WIDGET, DEFAULT_KIOSK_SCREENS } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
-export default function KioskBranding() {
-  const [site, setSite] = useState('agnes');
-  const [kioskScope, setKioskScope] = useState('all');
+const EMPTY_CHECKOUT_WIDGET_CONFIG = {
+  type: 'qr',
+  title: 'Checkout survey',
+  config: {
+    url: '',
+    caption: '',
+  },
+  value: '',
+  caption: '',
+  showToVisitors: true,
+  showToEmployees: false,
+};
 
-  const [screens, setScreens] = useState(DEFAULT_KIOSK_SCREENS);
+const MAX_HOME_WIDGETS = 3;
+
+const mapBranchOption = (branch) => ({
+  value: branch._id,
+  label: branch.name,
+});
+
+function KioskBrandingSkeleton() {
+  return (
+    <Stack spacing={2.5} aria-busy="true" aria-label="Loading kiosk branding settings">
+      <Stack spacing={1}>
+        <Skeleton variant="text" width={180} height={28} />
+        <Skeleton variant="text" width={320} height={20} />
+      </Stack>
+
+      <Grid container spacing={3} alignItems="flex-start">
+        <Grid item xs={12} md={8}>
+          <Card sx={{ p: 3 }}>
+            <Stack spacing={1.5}>
+              {[0, 1, 2].map((item) => (
+                <Skeleton key={item} variant="rounded" height={72} />
+              ))}
+            </Stack>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Skeleton
+            variant="rounded"
+            sx={{ width: { xs: 240, sm: 260 }, height: 480, borderRadius: '34px' }}
+          />
+        </Grid>
+      </Grid>
+
+      <Divider />
+
+      <Stack spacing={1}>
+        <Skeleton variant="text" width={160} height={28} />
+        <Skeleton variant="text" width={360} height={20} />
+      </Stack>
+      <Grid container spacing={3} alignItems="flex-start">
+        <Grid item xs={12} md={8}>
+          <Skeleton variant="rounded" height={72} />
+        </Grid>
+        <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Skeleton
+            variant="rounded"
+            sx={{ width: { xs: 240, sm: 260 }, height: 480, borderRadius: '34px' }}
+          />
+        </Grid>
+      </Grid>
+    </Stack>
+  );
+}
+
+const formatHomeWidget = (screen, index) => {
+  let config = {};
+
+  if (screen.type === 'image') {
+    config = {
+      imageUrl: screen.config?.imageUrl || screen.value || '',
+      caption: screen.config?.caption || screen.caption || '',
+    };
+  } else if (screen.type === 'text') {
+    config = {
+      textKind: screen.config?.textKind || 'quoteOfTheDay',
+      body: screen.config?.body || screen.value || '',
+    };
+  } else if (screen.type === 'qr') {
+    config = {
+      url: screen.config?.url || screen.value || '',
+      caption: screen.config?.caption || screen.caption || '',
+    };
+  } else if (screen.type === 'link') {
+    const rawUrl = screen.config?.url || screen.value || '';
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(rawUrl);
+    } catch {
+      throw new Error('Please enter a valid HTTPS link URL');
+    }
+
+    if (parsedUrl.protocol !== 'https:') {
+      throw new Error('Link URL must use HTTPS');
+    }
+    if (!screen.config?.buttonLabel?.trim()) {
+      throw new Error('Please enter a button label');
+    }
+
+    config = {
+      url: parsedUrl.toString(),
+      buttonLabel: screen.config.buttonLabel.trim(),
+    };
+  }
+
+  return {
+    type: screen.type,
+    title: screen.title || screen.name || `Widget ${index + 1}`,
+    sortOrder: Number(screen.sortOrder) || index + 1,
+    config,
+  };
+};
+
+const getCheckoutWidgetValue = (widget) => {
+  if (widget.type === 'image') {
+    return widget.config?.imageUrl || widget.config?.url || widget.value || '';
+  }
+  if (widget.type === 'text') {
+    return widget.config?.body || widget.value || widget.config?.url || '';
+  }
+  return widget.config?.url || widget.value || '';
+};
+
+const normalizeCheckoutWidget = (widget) => ({
+  ...widget,
+  type: widget.type || 'qr',
+  title: widget.title || 'Checkout survey',
+  value: getCheckoutWidgetValue(widget),
+  caption: widget.config?.caption || widget.caption || '',
+  showToVisitors: widget.showToVisitors ?? true,
+  showToEmployees: widget.showToEmployees ?? false,
+  config: { ...(widget.config || {}) },
+});
+
+const formatCheckoutWidget = (widget) => {
+  const formattedWidget = formatHomeWidget(widget, 1);
+  return {
+    type: formattedWidget.type,
+    title: formattedWidget.title,
+    config: formattedWidget.config,
+    showToVisitors: Boolean(widget.showToVisitors),
+    showToEmployees: Boolean(widget.showToEmployees),
+  };
+};
+
+// ----------------------------------------------------------------------
+
+export default function KioskBranding({ ownerDashboard = false }) {
+  const pathname = usePathname();
+  const isOwner = Boolean(ownerDashboard || pathname?.startsWith('/owner-dashboard'));
+
+  const { organizationId, user } = useCurrentOrganization();
+
+  const assignedBranch = useMemo(
+    () => (!isOwner ? getAssignedBranch(user, organizationId) : null),
+    [isOwner, user, organizationId]
+  );
+
+  const {
+    currentData: branchesData,
+    isLoading: isLoadingBranches,
+    isError: isBranchesError,
+  } = useGetBranchesQuery(
+    { organizationId, page: 1, limit: 100 },
+    { skip: !organizationId }
+  );
+
+  const branches = useMemo(() => branchesData?.data ?? [], [branchesData]);
+  const defaultBranch = useMemo(
+    () =>
+      branches.reduce((latest, branch) => {
+        if (!latest) return branch;
+        const branchCreatedAt = Date.parse(branch.createdAt || '');
+        const latestCreatedAt = Date.parse(latest.createdAt || '');
+        return Number.isFinite(branchCreatedAt) &&
+          (!Number.isFinite(latestCreatedAt) || branchCreatedAt > latestCreatedAt)
+          ? branch
+          : latest;
+      }, null),
+    [branches]
+  );
+
+  const siteManagerBranch = useMemo(() => {
+    if (isOwner) return null;
+    const assignedId = assignedBranch?.id;
+    if (!assignedId) return null;
+
+    const matchedBranch = branches.find((b) => b._id === assignedId);
+    return {
+      value: assignedId,
+      label: matchedBranch?.name || assignedBranch?.name || 'Current Site',
+      organizationId,
+    };
+  }, [isOwner, assignedBranch, branches, organizationId]);
+
+  // Keep the selected option label available when it comes from a later page.
+  const [selectedBranch, setSelectedBranch] = useState(() => {
+    if (!isOwner) {
+      const assigned = getAssignedBranch(user, organizationId);
+      if (assigned?.id) {
+        return {
+          value: assigned.id,
+          label: assigned.name || 'Current Site',
+          organizationId,
+        };
+      }
+    }
+    return null;
+  });
+
+  // Selected Kiosk ID ('all' for site default or specific kiosk id)
+  const [selectedKioskId, setSelectedKioskId] = useState('all');
+
+  const effectiveBranch = useMemo(() => {
+    if (!isOwner) {
+      if (siteManagerBranch) return siteManagerBranch;
+      if (selectedBranch?.organizationId === organizationId) return selectedBranch;
+      if (branches.length > 0) {
+        const fallback = defaultBranch || branches[0];
+        return { ...mapBranchOption(fallback), organizationId };
+      }
+      return null;
+    }
+    if (selectedBranch?.organizationId === organizationId) {
+      return selectedBranch;
+    }
+    if (defaultBranch) {
+      return { ...mapBranchOption(defaultBranch), organizationId };
+    }
+    return null;
+  }, [isOwner, siteManagerBranch, selectedBranch, organizationId, branches, defaultBranch]);
+
+  const activeBranchId = effectiveBranch?.value || '';
+
+  // Load Kiosks for the selected branch
+  const { currentData: kiosksData } = useGetKiosksQuery(
+    {
+      organizationId,
+      branchId: activeBranchId,
+      limit: 100,
+    },
+    { skip: !organizationId || !activeBranchId }
+  );
+
+  const kiosks = useMemo(() => {
+    const list = kiosksData?.data || kiosksData?.kiosks || kiosksData || [];
+    return Array.isArray(list) ? list : [];
+  }, [kiosksData]);
+
+  // Fetch Kiosk Widgets from API
+  const {
+    currentData: apiWidgetsData,
+    isLoading: isLoadingWidgets,
+    isFetching: isRefetchingWidgets,
+    isError: isWidgetsError,
+    error: widgetsError,
+  } = useGetKioskWidgetsQuery(
+    {
+      organizationId,
+      branchId: activeBranchId,
+      kioskId: selectedKioskId,
+    },
+    { skip: !organizationId || !activeBranchId }
+  );
+
+  const [updateKioskWidgets, { isLoading: isSaving }] = useUpdateKioskWidgetsMutation();
+  const isLoadingKioskBranding =
+    isLoadingBranches ||
+    (Boolean(activeBranchId) && !apiWidgetsData && !isWidgetsError && (isLoadingWidgets || isRefetchingWidgets));
+  const hasKioskLoadError = isBranchesError || isWidgetsError;
+
+  // Local state for Home Screen Widgets and Checkout Widget
+  const [screens, setScreens] = useState([]);
   const [selectedScreen, setSelectedScreen] = useState(0);
+  const [checkoutWidget, setCheckoutWidget] = useState(EMPTY_CHECKOUT_WIDGET_CONFIG);
+  const [hasCheckoutWidget, setHasCheckoutWidget] = useState(false);
 
-  const [checkoutWidget, setCheckoutWidget] = useState(DEFAULT_CHECKOUT_WIDGET);
+  // Reset when organization changes
+  const prevOrgRef = useRef(organizationId);
+  useEffect(() => {
+    if (prevOrgRef.current !== organizationId) {
+      prevOrgRef.current = organizationId;
+      setSelectedBranch(null);
+      setSelectedKioskId('all');
+      setScreens([]);
+      setSelectedScreen(0);
+      setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
+      setHasCheckoutWidget(false);
+    }
+  }, [organizationId]);
+
+  // Handle widget error gracefully (404 is normal when no widgets configured yet)
+  const lastWidgetErrorRef = useRef(null);
+  useEffect(() => {
+    if (isWidgetsError && widgetsError) {
+      if (widgetsError?.status === 404) return;
+      const msg =
+        widgetsError?.data?.message ||
+        widgetsError?.message ||
+        'Failed to load kiosk widgets';
+      if (lastWidgetErrorRef.current !== msg) {
+        lastWidgetErrorRef.current = msg;
+        toast.error(msg);
+      }
+    }
+  }, [isWidgetsError, widgetsError]);
 
   const openModal = useBoolean();
   const [editingScreen, setEditingScreen] = useState(null);
+  const [dialogMode, setDialogMode] = useState('home');
 
-  const currentActiveScreen = screens[selectedScreen] || screens[0];
+  // Sync API response to local state
+  useEffect(() => {
+    if (apiWidgetsData) {
+      const raw = apiWidgetsData?.data || apiWidgetsData;
 
-  const handleUpdateCurrentScreenType = (newType) => {
-    setScreens((prev) =>
-      prev.map((s, idx) => (idx === selectedScreen ? { ...s, type: newType } : s))
-    );
-  };
+      if (Array.isArray(raw?.homeWidgets)) {
+        const mapped = raw.homeWidgets.map((w, index) => ({
+          ...w,
+          id: w._id || w.sortOrder || index + 1,
+          name: w.title || `Widget ${w.sortOrder || index + 1}`,
+          value:
+            w.type === 'image'
+              ? w.config?.imageUrl || w.imageUrl || ''
+              : w.type === 'text'
+                ? w.config?.body || w.body || ''
+                : w.type === 'qr'
+                  ? w.config?.url || w.url || ''
+                  : w.type === 'link'
+                    ? w.config?.url || w.url || ''
+                    : '',
+          caption: w.config?.caption || w.caption || '',
+        }));
+        setScreens(mapped);
+      } else {
+        setScreens([]);
+      }
 
-  const handleUpdateCurrentScreenValue = (newValue) => {
-    setScreens((prev) =>
-      prev.map((s, idx) => (idx === selectedScreen ? { ...s, value: newValue } : s))
-    );
-  };
+      if (raw?.checkoutWidget) {
+        setCheckoutWidget(normalizeCheckoutWidget(raw.checkoutWidget));
+        setHasCheckoutWidget(true);
+      } else {
+        setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
+        setHasCheckoutWidget(false);
+      }
 
-  const handleUpdateCurrentScreenLabel = (newLabel) => {
-    setScreens((prev) =>
-      prev.map((s, idx) => (idx === selectedScreen ? { ...s, label: newLabel } : s))
-    );
-  };
+      setSelectedScreen(0);
+    }
+  }, [apiWidgetsData]);
 
-  const handleUpdateScreenFromModal = (updatedScreen) => {
-    setScreens((currentScreens) =>
-      currentScreens.map((screen) => (screen.id === updatedScreen.id ? updatedScreen : screen))
-    );
-  };
+  const visibleScreens = activeBranchId && apiWidgetsData ? screens : [];
+  const currentActiveScreen = visibleScreens[selectedScreen] || visibleScreens[0];
 
-  const handleAddWidget = () => {
-    const nextId = screens.length + 1;
-    const newWidget = {
-      id: nextId,
-      name: `Widget ${nextId}`,
-      type: 'text',
-      value: 'Welcome to our facility',
-    };
-    setScreens([...screens, newWidget]);
-    setSelectedScreen(screens.length);
-    toast.info(`Added Widget ${nextId}`);
-  };
-
-  const handleReset = () => {
-    setScreens(DEFAULT_KIOSK_SCREENS);
+  const resetScopeDraft = () => {
+    setScreens([]);
     setSelectedScreen(0);
-    setCheckoutWidget(DEFAULT_CHECKOUT_WIDGET);
-    toast.info('Reverted changes to default');
+    setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
+    setHasCheckoutWidget(false);
+    setEditingScreen(null);
+    openModal.onFalse();
   };
 
-  const handleSave = () => {
-    console.log('Kiosk branding configuration saved:', {
-      site,
-      kioskScope,
-      homeWidgets: screens,
-      checkoutWidget,
-    });
-    toast.success('Kiosk branding saved successfully!');
+  const handleBranchChange = (branchOption) => {
+    if (!isOwner) return;
+    const branchId = branchOption?.value || '';
+    if (branchId !== activeBranchId || selectedKioskId !== 'all') {
+      resetScopeDraft();
+    }
+    setSelectedBranch(branchOption ? { ...branchOption, organizationId } : null);
+    setSelectedKioskId('all');
   };
+
+  const handleKioskChange = (kioskId) => {
+    if (kioskId !== selectedKioskId) {
+      resetScopeDraft();
+    }
+    setSelectedKioskId(kioskId);
+  };
+
+  // Add & Edit modal handlers
+  const handleAddWidgetClick = () => {
+    if (screens.length >= MAX_HOME_WIDGETS) {
+      toast.error(`A maximum of ${MAX_HOME_WIDGETS} home screen widgets is allowed`);
+      return;
+    }
+
+    setEditingScreen(null);
+    setDialogMode('home');
+    openModal.onTrue();
+  };
+
+  const handleEditScreenClick = (screen) => {
+    setEditingScreen(screen);
+    setDialogMode('home');
+    openModal.onTrue();
+  };
+
+  const handleOpenCheckoutDialog = () => {
+    setEditingScreen(hasCheckoutWidget ? checkoutWidget : null);
+    setDialogMode('checkout');
+    openModal.onTrue();
+  };
+
+  const handleDeleteCheckoutWidget = () => {
+    setCheckoutWidget(EMPTY_CHECKOUT_WIDGET_CONFIG);
+    setHasCheckoutWidget(false);
+    toast.info(`Removed widget "${checkoutWidget.title || 'Checkout widget'}"`);
+  };
+
+  const handleDeleteScreen = (screenToDelete) => {
+    const filtered = screens.filter((s) => s.id !== screenToDelete.id);
+    const reindexed = filtered.map((s, i) => ({
+      ...s,
+      sortOrder: i + 1,
+    }));
+    setScreens(reindexed);
+    setSelectedScreen(0);
+    toast.info(`Removed widget "${screenToDelete.title || screenToDelete.name}"`);
+  };
+
+  const ensureWidgetScopeReady = () => {
+    if (!organizationId) {
+      throw new Error('Organization ID not found');
+    }
+    if (!activeBranchId) {
+      throw new Error('Please select a branch first');
+    }
+    if (!apiWidgetsData || isRefetchingWidgets || isWidgetsError) {
+      throw new Error('Wait for the selected branch settings to load before saving.');
+    }
+  };
+
+  const handleSaveScreenFromModal = async (savedScreen) => {
+    let updatedScreens;
+
+    if (editingScreen) {
+      updatedScreens = screens.map((screen) => (screen.id === savedScreen.id ? savedScreen : screen));
+    } else {
+      if (screens.length >= MAX_HOME_WIDGETS) {
+        throw new Error(`A maximum of ${MAX_HOME_WIDGETS} home screen widgets is allowed`);
+      }
+
+      const nextSortOrder = screens.length + 1;
+      const newWidget = {
+        ...savedScreen,
+        id: Date.now(),
+        sortOrder: nextSortOrder,
+      };
+      updatedScreens = [...screens, newWidget];
+    }
+
+    ensureWidgetScopeReady();
+    const response = await updateKioskWidgets({
+      organizationId,
+      branchId: activeBranchId,
+      kioskId: selectedKioskId !== 'all' ? selectedKioskId : null,
+      homeWidgets: updatedScreens.map(formatHomeWidget),
+    }).unwrap();
+    setScreens(updatedScreens);
+    setSelectedScreen(editingScreen ? updatedScreens.findIndex((screen) => screen.id === savedScreen.id) : updatedScreens.length - 1);
+    toast.success(response?.message || 'Kiosk widget saved successfully');
+  };
+
+  const handleSaveCheckoutWidget = async (savedWidget) => {
+    ensureWidgetScopeReady();
+    const formattedCheckoutWidget = formatCheckoutWidget(savedWidget);
+    const response = await updateKioskWidgets({
+      organizationId,
+      branchId: activeBranchId,
+      kioskId: selectedKioskId !== 'all' ? selectedKioskId : null,
+      checkoutWidget: formattedCheckoutWidget,
+    }).unwrap();
+
+    setCheckoutWidget(normalizeCheckoutWidget(savedWidget));
+    setHasCheckoutWidget(true);
+    toast.success(response?.message || 'Checkout widget saved successfully');
+  };
+
+
 
   return (
     <Box>
@@ -112,7 +534,16 @@ export default function KioskBranding() {
 
           <Button
             variant="contained"
-            onClick={handleAddWidget}
+            color="primary"
+            onClick={handleAddWidgetClick}
+            disabled={
+              !activeBranchId ||
+              !apiWidgetsData ||
+              isRefetchingWidgets ||
+              isWidgetsError ||
+              isSaving ||
+              screens.length >= MAX_HOME_WIDGETS
+            }
             startIcon={<Iconify icon="mingcute:add-line" />}
           >
             Add Widget
@@ -121,110 +552,63 @@ export default function KioskBranding() {
 
         {/* Scope Bar */}
         <KioskScopeBar
-          currentSite={site}
-          onChangeSite={setSite}
-          currentKiosk={kioskScope}
-          onChangeKiosk={setKioskScope}
+          organizationId={organizationId}
+          currentBranch={effectiveBranch}
+          onChangeBranchId={handleBranchChange}
+          kiosks={kiosks}
+          currentKioskId={selectedKioskId}
+          onChangeKioskId={handleKioskChange}
+          ownerDashboard={isOwner}
+          branchDisabled={!isOwner}
         />
 
-        {/* HOME SCREEN WIDGETS SECTION */}
-        <Stack spacing={2.5}>
+        {!organizationId && (
+          <Alert severity="error">An organization scope is required to load kiosk branding.</Alert>
+        )}
+        {isBranchesError && (
+          <Alert severity="error">Failed to load sites. Please check your connection or refresh the page.</Alert>
+        )}
+        {isLoadingKioskBranding && <KioskBrandingSkeleton />}
+
+        {organizationId && !isLoadingKioskBranding && (
+          <>
+            {/* HOME SCREEN WIDGETS SECTION */}
+            <Stack spacing={2.5}>
           <div>
             <Typography variant="h6">Home Screen Widgets</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Each widget displays one content type — shown before check-in
+              Each widget displays one content type — shown before check-in (in order of sort order)
             </Typography>
+            {visibleScreens.length >= MAX_HOME_WIDGETS && (
+              <Typography variant="caption" color="text.secondary">
+                Maximum of {MAX_HOME_WIDGETS} home screen widgets reached.
+              </Typography>
+            )}
           </div>
 
           <Grid container spacing={3} alignItems="flex-start">
-            {/* Left Column: List + Selected Widget Editor */}
+            {/* Left Column: Home Widget List */}
             <Grid item xs={12} md={8}>
               <Card sx={{ p: 3 }}>
                 <Stack spacing={3}>
-                  {/* Widget List */}
+                  {/* Home Widget List */}
                   <Stack spacing={1.5}>
-                    {screens.map((screen, index) => (
-                      <KioskScreenCard
-                        key={screen.id}
-                        screen={screen}
-                        selected={selectedScreen === index}
-                        onClick={() => setSelectedScreen(index)}
-                        onEdit={() => {
-                          setEditingScreen(screen);
-                          openModal.onTrue();
-                        }}
-                      />
-                    ))}
-                  </Stack>
-
-                  {/* Selected Widget Inline Editor */}
-                  {currentActiveScreen && (
-                    <Box sx={{ pt: 1 }}>
-                      <Divider sx={{ mb: 2.5, borderStyle: 'dashed' }} />
-
-                      <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'text.secondary' }}>
-                        {currentActiveScreen.name || `Widget ${selectedScreen + 1}`} — content type
+                    {visibleScreens.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                        No home widgets added yet. Click &quot;Add Widget&quot; above to create one.
                       </Typography>
-
-                      <KioskTypeSelector
-                        value={currentActiveScreen.type}
-                        onChange={handleUpdateCurrentScreenType}
-                        sx={{ mb: 2.5 }}
-                      />
-
-                      {/* Content Input Fields */}
-                      {currentActiveScreen.type === 'text' && (
-                        <TextField
-                          fullWidth
-                          label="Text content"
-                          value={currentActiveScreen.value || ''}
-                          onChange={(e) => handleUpdateCurrentScreenValue(e.target.value)}
-                          placeholder="Welcome to Agnes and Arthur"
-                          multiline
-                          rows={2}
+                    ) : (
+                      visibleScreens.map((screen, index) => (
+                        <KioskScreenCard
+                          key={screen.id || index}
+                          screen={screen}
+                          selected={selectedScreen === index}
+                          onClick={() => setSelectedScreen(index)}
+                          onEdit={() => handleEditScreenClick(screen)}
                         />
-                      )}
-
-                      {currentActiveScreen.type === 'image' && (
-                        <TextField
-                          fullWidth
-                          label="Image URL"
-                          value={currentActiveScreen.value || ''}
-                          onChange={(e) => handleUpdateCurrentScreenValue(e.target.value)}
-                          placeholder="https://images.unsplash.com/..."
-                        />
-                      )}
-
-                      {currentActiveScreen.type === 'qr' && (
-                        <TextField
-                          fullWidth
-                          label="QR Code destination URL"
-                          value={currentActiveScreen.value || ''}
-                          onChange={(e) => handleUpdateCurrentScreenValue(e.target.value)}
-                          placeholder="https://..."
-                        />
-                      )}
-
-                      {currentActiveScreen.type === 'link' && (
-                        <Stack spacing={2}>
-                          <TextField
-                            fullWidth
-                            label="Link Label"
-                            value={currentActiveScreen.label || ''}
-                            onChange={(e) => handleUpdateCurrentScreenLabel(e.target.value)}
-                            placeholder="Visit Website"
-                          />
-                          <TextField
-                            fullWidth
-                            label="Target URL"
-                            value={currentActiveScreen.value || ''}
-                            onChange={(e) => handleUpdateCurrentScreenValue(e.target.value)}
-                            placeholder="https://..."
-                          />
-                        </Stack>
-                      )}
-                    </Box>
-                  )}
+                      ))
+                    )}
+                  </Stack>
                 </Stack>
               </Card>
             </Grid>
@@ -234,39 +618,46 @@ export default function KioskBranding() {
               <KioskMobilePreview
                 screen={currentActiveScreen}
                 screenIndex={selectedScreen}
-                totalScreens={screens.length}
+                totalScreens={visibleScreens.length}
                 onPrevious={() => setSelectedScreen((curr) => Math.max(curr - 1, 0))}
-                onNext={() => setSelectedScreen((curr) => Math.min(curr + 1, screens.length - 1))}
+                onNext={() => setSelectedScreen((curr) => Math.min(curr + 1, visibleScreens.length - 1))}
               />
             </Grid>
           </Grid>
-        </Stack>
+            </Stack>
 
-        <Divider />
+            <Divider />
 
-        {/* CHECKOUT WIDGET SECTION */}
-        <KioskCheckoutWidget data={checkoutWidget} onChange={setCheckoutWidget} />
-
-        {/* Bottom Actions Row */}
-        <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ pt: 2 }}>
-          <Button variant="outlined" color="inherit" onClick={handleReset}>
-            Cancel
-          </Button>
-          <Button variant="contained" color="primary" onClick={handleSave}>
-            Save changes
-          </Button>
-        </Stack>
+            {/* CHECKOUT WIDGET SECTION */}
+            <KioskCheckoutWidget
+              data={checkoutWidget}
+              isConfigured={hasCheckoutWidget}
+              isSaving={isSaving}
+              disabled={
+                !activeBranchId ||
+                !apiWidgetsData ||
+                isRefetchingWidgets ||
+                isWidgetsError
+              }
+              onOpenDialog={handleOpenCheckoutDialog}
+            />
+          </>
+        )}
       </Stack>
 
-      {/* Optional Modal Dialog for deep editing */}
+      {/* Modal Dialog for adding/editing widgets */}
       <KioskContentDialog
         open={openModal.value}
         screen={editingScreen}
+        mode={dialogMode}
+        maxReached={dialogMode === 'home' && screens.length >= MAX_HOME_WIDGETS && !editingScreen}
+        saving={isSaving}
         onClose={() => {
           setEditingScreen(null);
+          setDialogMode('home');
           openModal.onFalse();
         }}
-        onSave={handleUpdateScreenFromModal}
+        onSave={dialogMode === 'checkout' ? handleSaveCheckoutWidget : handleSaveScreenFromModal}
       />
     </Box>
   );

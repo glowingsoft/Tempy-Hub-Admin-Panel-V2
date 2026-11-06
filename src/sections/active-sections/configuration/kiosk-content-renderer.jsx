@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
+import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import QRCode from 'react-qr-code';
 
@@ -7,10 +7,19 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
-export function KioskContentRenderer({ screen, preview = false }) {
+export function KioskContentRenderer({ screen }) {
   if (!screen) return null;
 
-  switch (screen.type) {
+  const currentType = screen.type;
+  const imageUrl = screen.config?.imageUrl || (currentType === 'image' ? screen.value : '');
+  const imageCaption = screen.config?.caption || screen.caption || '';
+  const textBody = screen.config?.body || (currentType === 'text' ? screen.value : '') || 'WELCOME';
+  const qrUrl = screen.config?.url || (currentType === 'qr' ? screen.value : '');
+  const qrCaption = screen.config?.caption || screen.caption || 'Scan QR code to continue';
+  const linkUrl = screen.config?.url || (currentType === 'link' ? screen.value : '');
+  const buttonLabel = screen.config?.buttonLabel || 'Open link';
+
+  switch (currentType) {
     case 'image':
       return (
         <Box
@@ -19,24 +28,45 @@ export function KioskContentRenderer({ screen, preview = false }) {
             height: '100%',
             position: 'relative',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             bgcolor: '#111',
             overflow: 'hidden',
           }}
         >
-          {screen.value ? (
-            <Box
-              component="img"
-              src={screen.value}
-              alt="Kiosk content"
-              sx={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-              }}
-            />
+          {imageUrl ? (
+            <>
+              <Box
+                component="img"
+                src={imageUrl}
+                alt={screen.title || 'Kiosk content'}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
+              {imageCaption && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    p: 1.5,
+                    bgcolor: 'rgba(0,0,0,0.65)',
+                    color: '#fff',
+                    textAlign: 'center',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                    {imageCaption}
+                  </Typography>
+                </Box>
+              )}
+            </>
           ) : (
             <Box
               sx={{
@@ -88,7 +118,7 @@ export function KioskContentRenderer({ screen, preview = false }) {
               boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
             }}
           >
-            <QRCode value={screen.value || 'https://tempy.app'} size={120} />
+            <QRCode value={qrUrl || 'https://tempy.app'} size={120} />
           </Box>
 
           <Typography
@@ -101,7 +131,7 @@ export function KioskContentRenderer({ screen, preview = false }) {
               lineHeight: 1.4,
             }}
           >
-            {screen.caption || 'Scan QR code to continue'}
+            {qrCaption}
           </Typography>
         </Box>
       );
@@ -113,6 +143,7 @@ export function KioskContentRenderer({ screen, preview = false }) {
             width: '100%',
             height: '100%',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             p: 3,
@@ -121,17 +152,30 @@ export function KioskContentRenderer({ screen, preview = false }) {
             color: '#fff',
           }}
         >
+          {screen.config?.textKind && (
+            <Typography
+              variant="caption"
+              sx={{
+                letterSpacing: 1,
+                opacity: 0.8,
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                mb: 1,
+              }}
+            >
+              {screen.config.textKind}
+            </Typography>
+          )}
           <Typography
             variant="subtitle1"
             sx={{
               fontWeight: 800,
               letterSpacing: 0.5,
               color: '#fff',
-              textTransform: 'uppercase',
               lineHeight: 1.4,
             }}
           >
-            {screen.value || 'WELCOME'}
+            {textBody}
           </Typography>
         </Box>
       );
@@ -146,55 +190,24 @@ export function KioskContentRenderer({ screen, preview = false }) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 2,
             p: 3,
             textAlign: 'center',
-            background: 'linear-gradient(160deg, #3D7DE0, #1B3A6B)',
+            bgcolor: '#1A1D27',
             color: '#fff',
           }}
         >
-          <Box
-            sx={{
-              width: 52,
-              height: 52,
-              borderRadius: '50%',
-              bgcolor: 'rgba(255,255,255,0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mb: 1.5,
-            }}
-          >
-            <Iconify icon="solar:link-bold" width={28} sx={{ color: '#fff' }} />
-          </Box>
-          <Typography
-            variant="subtitle2"
-            sx={{
-              fontWeight: 700,
-              color: '#fff',
-              maxWidth: 180,
-              wordBreak: 'break-word',
-            }}
-          >
-            {screen.label || screen.value || 'Tap to open link'}
+          <Iconify icon="solar:link-bold" width={36} />
+          <Button variant="contained" type="button">
+            {buttonLabel}
+          </Button>
+          <Typography variant="caption" sx={{ color: 'grey.400', wordBreak: 'break-word' }}>
+            {linkUrl}
           </Typography>
         </Box>
       );
 
     default:
-      return (
-        <Box
-          sx={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            p: 2,
-            color: 'text.secondary',
-          }}
-        >
-          <Typography variant="caption">No content configured</Typography>
-        </Box>
-      );
+      return null;
   }
 }

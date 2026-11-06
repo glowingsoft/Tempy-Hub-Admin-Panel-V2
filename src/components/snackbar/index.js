@@ -24,6 +24,12 @@ function createToastProxy(target) {
               ? message
               : message?.message || String(message || '');
 
+          // Deduplicate identical error messages within 2000ms window
+          const lastShown = recentErrorToasts.get(text);
+          if (lastShown && now - lastShown < 2000) {
+            return null;
+          }
+
           // If explicitly flagged as an API error
           if (options?.isApiError) {
             lastApiErrorTimestamp = now;
@@ -35,12 +41,6 @@ function createToastProxy(target) {
           // If an API error was already displayed within 1500ms:
           // Suppress secondary/fallback toasts so only the API error is shown.
           if (now - lastApiErrorTimestamp < 1500) {
-            return null;
-          }
-
-          // Deduplicate identical error messages within 1500ms window
-          const lastShown = recentErrorToasts.get(text);
-          if (lastShown && now - lastShown < 1500) {
             return null;
           }
 
@@ -64,6 +64,13 @@ function createToastProxy(target) {
             typeof message === 'string'
               ? message
               : message?.message || String(message || '');
+
+          // Deduplicate identical API error messages within 2000ms window
+          const lastShown = recentErrorToasts.get(text);
+          if (lastShown && now - lastShown < 2000) {
+            return null;
+          }
+
           lastApiErrorTimestamp = now;
           lastApiErrorMessage = text;
           recentErrorToasts.set(text, now);

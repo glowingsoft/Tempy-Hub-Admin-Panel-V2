@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -17,6 +17,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
@@ -56,7 +57,7 @@ export const MembershipSchema = zod
   })
   .superRefine((data, ctx) => {
     if (data.role === 'siteManager') return;
-    if (!data.jobTitleId?.value) {
+    if (data.role !== 'lineManager' && !data.jobTitleId?.value) {
       ctx.addIssue({ code: 'custom', path: ['jobTitleId'], message: 'Job title is required!' });
     }
     if (!data.startDate) {
@@ -125,8 +126,13 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
     return { ...toTokenSource(options), moduleByKey };
   }, [grantablePermissions, currentMembership]);
 
+  const allPermissionIds = permissionTokens.ids;
+
   const getPermissionLabel = useCallback(
-    (id) => permissionTokens.labelById[id] ?? id,
+    (id) => {
+      if (id === 'all') return 'All';
+      return permissionTokens.labelById[id] ?? id;
+    },
     [permissionTokens]
   );
 
@@ -176,8 +182,45 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   } = methods;
 
   const role = watch('role');
-  const hideStaffDetails = role === 'siteManager';
+  const selectedPermissions = watch('permissions') || [];
+  const hideJobTitle = role === 'siteManager' || role === 'lineManager';
+  const hideDepartment = role === 'siteManager' || role === 'lineManager';
+  const hideStartDate = role === 'siteManager';
   const hidePermissions = role === 'staff';
+
+  const permissionOptions = useMemo(() => {
+    if (!allPermissionIds.length) return [];
+    return ['all', ...allPermissionIds];
+  }, [allPermissionIds]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    if (role === 'lineManager') {
+      methods.setValue('jobTitleId', null);
+      methods.setValue('departmentIds', []);
+    } else if (role === 'siteManager') {
+      methods.setValue('jobTitleId', null);
+      methods.setValue('departmentIds', []);
+      methods.setValue('startDate', null);
+    } else if (role === 'staff') {
+      methods.setValue('permissions', []);
+    }
+  }, [role, isEdit, methods]);
+
+  const isAllSelected = useMemo(
+    () =>
+      allPermissionIds.length > 0 &&
+      allPermissionIds.every((id) => selectedPermissions.includes(id)),
+    [allPermissionIds, selectedPermissions]
+  );
+
+  const handleToggleSelectAll = useCallback(() => {
+    if (isAllSelected) {
+      methods.setValue('permissions', [], { shouldValidate: true });
+    } else {
+      methods.setValue('permissions', allPermissionIds, { shouldValidate: true });
+    }
+  }, [isAllSelected, allPermissionIds, methods]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -212,6 +255,10 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
           delete payload.jobTitleId;
           delete payload.departmentIds;
           delete payload.startDate;
+        }
+        if (data.role === 'lineManager') {
+          delete payload.jobTitleId;
+          delete payload.departmentIds;
         }
         if (data.role === 'staff') {
           delete payload.permissions;
@@ -271,7 +318,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               enabled={!!resolvedOrganizationId}
             />
 
-            {!hideStaffDetails && (
+            {!hideJobTitle && (
               <Field.InfiniteAutocomplete
                 name="jobTitleId"
                 label="Job title"
@@ -284,16 +331,37 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               />
             )}
 
-            {!hideStaffDetails && (
+            {!hideStartDate && (
               <Field.DatePicker name="startDate" label="Start date" disabled={isEdit} />
             )}
           </Box>
         </Card>
 
         <Card sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Access
-          </Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ mb: 2 }}
+          >
+            <Typography variant="h6">Access</Typography>
+            {(!hidePermissions || isEdit) && allPermissionIds.length > 0 && (
+              <Button
+                size="small"
+                variant="text"
+                color={isAllSelected ? 'error' : 'primary'}
+                onClick={handleToggleSelectAll}
+                startIcon={
+                  <Iconify
+                    icon={isAllSelected ? 'solar:close-circle-bold' : 'solar:check-read-linear'}
+                    width={18}
+                  />
+                }
+              >
+                {isAllSelected ? 'Deselect all' : 'Select all'}
+              </Button>
+            )}
+          </Stack>
 
           <Box
             rowGap={3}
@@ -309,8 +377,16 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                 label="Permissions"
                 placeholder="Search permissions"
                 loading={isFetchingPermissions}
-                options={permissionTokens.ids}
-                groupBy={(option) => permissionTokens.moduleByKey[option] || 'Other'}
+                options={permissionOptions}
+                sx={{
+                  gridColumn: {
+                    xs: 'span 1',
+                    sm: hideDepartment ? 'span 2' : 'span 1',
+                  },
+                }}
+                groupBy={(option) =>
+                  option === 'all' ? 'All' : permissionTokens.moduleByKey[option] || 'Other'
+                }
                 slotProps={{
                   popper: {
                     placement: 'bottom-start',
@@ -320,26 +396,47 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                 ListboxProps={{ style: { maxHeight: 320 } }}
                 getOptionLabel={getPermissionLabel}
                 isOptionEqualToValue={(option, value) => option === value}
+                onChange={(event, newValue) => {
+                  if (newValue.some((item) => item === 'all')) {
+                    if (isAllSelected) {
+                      methods.setValue('permissions', [], { shouldValidate: true });
+                    } else {
+                      methods.setValue('permissions', allPermissionIds, { shouldValidate: true });
+                    }
+                  } else {
+                    methods.setValue(
+                      'permissions',
+                      newValue.filter((item) => item !== 'all'),
+                      { shouldValidate: true }
+                    );
+                  }
+                }}
                 renderOption={(props, option) => (
-                  <li {...props} key={option}>
+                  <li
+                    {...props}
+                    key={option}
+                    aria-selected={option === 'all' ? isAllSelected : props['aria-selected']}
+                  >
                     {getPermissionLabel(option)}
                   </li>
                 )}
                 renderTags={(selected, getTagProps) =>
-                  selected.map((option, index) => (
-                    <Chip
-                      {...getTagProps({ index })}
-                      key={option}
-                      size="small"
-                      variant="soft"
-                      label={getPermissionLabel(option)}
-                    />
-                  ))
+                  selected
+                    .filter((option) => option !== 'all')
+                    .map((option, index) => (
+                      <Chip
+                        {...getTagProps({ index })}
+                        key={option}
+                        size="small"
+                        variant="soft"
+                        label={getPermissionLabel(option)}
+                      />
+                    ))
                 }
               />
             )}
 
-            {(!hideStaffDetails || isEdit) && (
+            {!hideDepartment && (
               <Field.InfiniteAutocomplete
                 multiple
                 disableCloseOnSelect
@@ -358,9 +455,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                       key={option.value}
                       size="small"
                       variant="soft"
-                      color="primary"
                       label={option.label}
-                      sx={{ textTransform: 'capitalize' }}
                     />
                   ))
                 }

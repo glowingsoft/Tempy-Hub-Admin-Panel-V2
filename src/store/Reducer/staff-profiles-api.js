@@ -12,7 +12,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 // List + create are organization-scoped; read + update address a staff profile
 // directly by its id.
 //
-// GET  /admin/organizations/:organizationId/staff-profiles?page=1&limit=10
+// GET  /admin/organizations/:organizationId/staff-profiles?page=1&limit=10&branchId=
 //   response:
 //   {
 //     "message": "Data fetched successfully",
@@ -37,7 +37,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //     ],
 //     "meta": { "currentPage": 1, "totalPages": 1, "totalRecords": 1, "limit": 10 }
 //   }
-//   TODO: confirm whether the list endpoint supports a `keyword` / search param.
+//   The list endpoint supports filtering by branchId and optionally keyword / role.
 //
 // GET  /admin/staff-profiles/:staffProfileId   -> { "message": "string", "data": StaffProfile }
 //
@@ -64,9 +64,13 @@ export const staffProfilesApi = createApi({
 
   endpoints: (builder) => ({
     getStaffProfiles: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, keyword, role }) => {
+      query: ({ organizationId, page = 1, limit = 10, keyword, role, branchId }) => {
         const params = { page, limit };
         const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
+
+        if (branchId) {
+          params.branchId = branchId;
+        }
 
         if (trimmedKeyword) {
           params.keyword = trimmedKeyword;

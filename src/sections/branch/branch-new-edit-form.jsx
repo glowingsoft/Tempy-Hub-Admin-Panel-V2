@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import { z as zod } from 'zod';
 import { useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -10,7 +9,6 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -23,85 +21,48 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
-import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useCreateBranchMutation, useUpdateBranchMutation } from 'src/store/Reducer/branches-api';
 import { DEFAULT_BRANCH_SETTINGS } from './mocks/data';
 import { getBrowserTimezone } from './utils';
 
 // ----------------------------------------------------------------------
 
-export const BranchSchema = zod
-  .object({
-    name: zod.string().min(1, { message: 'Site name is required!' }),
-    code: zod.string().optional(),
-    address: zod.string().optional(),
-    assemblyPoint: zod.string().optional(),
-    // Settings
-    enableBreaks: zod.boolean(),
-    enableLeaveRequests: zod.boolean(),
-    lateGraceMinutes: zod.coerce
-      .number({ invalid_type_error: 'Late grace minutes must be a number' })
-      .int('Must be a whole number')
-      .min(0, 'Cannot be negative'),
-    allowPhoneCheckIn: zod.boolean(),
-    // Break rules — only relevant while enableBreaks is on.
-    breaksPaid: zod.boolean(),
-    breakRules: zod.array(
-      zod.object({
-        minHours: zod.coerce
-          .number({ invalid_type_error: 'Must be a number' })
-          .min(0, 'Cannot be negative'),
-        unpaidMinutes: zod.coerce
-          .number({ invalid_type_error: 'Must be a number' })
-          .min(0, 'Cannot be negative'),
-      })
+export const BranchSchema = zod.object({
+  name: zod.string().trim().min(1, { message: 'Site name is required!' }),
+  code: zod
+    .string()
+    .trim()
+    .min(1, { message: 'Code is required!' })
+    .regex(
+      /^(?=.*[a-zA-Z])(?=.*[0-9])[a-zA-Z0-9]{6}$/,
+      {
+        message:
+          'Branch code must be exactly 6 characters and include both letters and numbers (A–Z, 0–9). Do not use spaces or hyphens. Example: FH01AB',
+      }
     ),
-    // Manager
-    hasManager: zod.boolean(),
-    managerJobTitleId: zod.string().optional(),
-    managerDepartmentId: zod.string().optional(),
-    managerEmail: zod.string().optional(),
-    managerName: zod.string().optional(),
-    managerStartDate: zod.union([zod.string(), zod.null()]).optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (!data.hasManager) return;
-
-    if (!data.managerJobTitleId) {
-      ctx.addIssue({
-        path: ['managerJobTitleId'],
-        code: zod.ZodIssueCode.custom,
-        message: 'Job title is required',
-      });
-    }
-    if (!data.managerName) {
-      ctx.addIssue({
-        path: ['managerName'],
-        code: zod.ZodIssueCode.custom,
-        message: 'Manager name is required',
-      });
-    }
-    if (!data.managerEmail) {
-      ctx.addIssue({
-        path: ['managerEmail'],
-        code: zod.ZodIssueCode.custom,
-        message: 'Manager email is required',
-      });
-    } else if (!zod.string().email().safeParse(data.managerEmail).success) {
-      ctx.addIssue({
-        path: ['managerEmail'],
-        code: zod.ZodIssueCode.custom,
-        message: 'Enter a valid email address',
-      });
-    }
-    if (!data.managerStartDate) {
-      ctx.addIssue({
-        path: ['managerStartDate'],
-        code: zod.ZodIssueCode.custom,
-        message: 'Start date is required',
-      });
-    }
-  });
+  address: zod.string().optional(),
+  assemblyPoint: zod.string().optional(),
+  // Settings
+  enableBreaks: zod.boolean(),
+  enableLeaveRequests: zod.boolean(),
+  lateGraceMinutes: zod.coerce
+    .number({ invalid_type_error: 'Late grace minutes must be a number' })
+    .int('Must be a whole number')
+    .min(0, 'Cannot be negative'),
+  allowPhoneCheckIn: zod.boolean(),
+  // Break rules — only relevant while enableBreaks is on.
+  breaksPaid: zod.boolean(),
+  breakRules: zod.array(
+    zod.object({
+      minHours: zod.coerce
+        .number({ invalid_type_error: 'Must be a number' })
+        .min(0, 'Cannot be negative'),
+      unpaidMinutes: zod.coerce
+        .number({ invalid_type_error: 'Must be a number' })
+        .min(0, 'Cannot be negative'),
+    })
+  ),
+});
 
 // ----------------------------------------------------------------------
 
@@ -109,13 +70,6 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
   const router = useRouter();
 
   const isEdit = !!currentBranch;
-
-  const { jobTitleOptions, departmentOptions } = useOrganizationLookups({
-    organizationId,
-    jobTitles: !!organizationId,
-    departments: !!organizationId,
-    limit: 100,
-  });
 
   const [createBranch, { isLoading: isCreating }] = useCreateBranchMutation();
   const [updateBranch, { isLoading: isUpdating }] = useUpdateBranchMutation();
@@ -137,12 +91,6 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
       breakRules: currentBranch?.settings?.breakRules?.length
         ? currentBranch.settings.breakRules
         : DEFAULT_BRANCH_SETTINGS.breakRules,
-      hasManager: !!currentBranch?.manager,
-      managerJobTitleId: currentBranch?.manager?.jobTitleId || '',
-      managerDepartmentId: currentBranch?.manager?.departmentId || '',
-      managerEmail: currentBranch?.manager?.email || '',
-      managerName: currentBranch?.manager?.name || '',
-      managerStartDate: currentBranch?.manager?.startDate || null,
     }),
     [currentBranch]
   );
@@ -160,7 +108,6 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
     formState: { isSubmitting },
   } = methods;
 
-  const hasManager = watch('hasManager');
   const enableBreaks = watch('enableBreaks');
 
   const { fields: breakRuleFields, append: appendBreakRule, remove: removeBreakRule } = useFieldArray({
@@ -182,21 +129,9 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
         breakRules: data.breakRules,
       };
 
-      const manager = data.hasManager
-        ? {
-          name: data.managerName,
-          email: data.managerEmail,
-          jobTitleId: data.managerJobTitleId,
-          ...(data.managerDepartmentId ? { departmentId: data.managerDepartmentId } : {}),
-          startDate: data.managerStartDate
-            ? dayjs(data.managerStartDate).toISOString()
-            : undefined,
-        }
-        : undefined;
-
       const branchPayload = {
-        name: data.name,
-        code: data.code || undefined,
+        name: data.name.trim(),
+        code: data.code.trim().toUpperCase(),
         // Timezone is not a form field — resolved from the browser (Intl API);
         // an existing branch keeps its stored value.
         timezone: currentBranch?.timezone || getBrowserTimezone(),
@@ -212,14 +147,12 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
           branchId: currentBranch._id,
           organizationId,
           ...branchPayload,
-          manager: data.hasManager ? manager : null,
         }).unwrap();
         branchId = response?._id || response?.data?._id || currentBranch._id;
       } else {
         const response = await createBranch({
           organizationId,
           ...branchPayload,
-          manager,
         }).unwrap();
         branchId = response?._id || response?.data?._id || response?.data?.branch?._id;
       }
@@ -239,6 +172,29 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
         error?.error ||
         error?.message ||
         'Something went wrong. Please try again.';
+
+      if (typeof errorMessage === 'string') {
+        const lower = errorMessage.toLowerCase();
+        if (lower.includes('code')) {
+          methods.setError('code', {
+            type: 'manual',
+            message: lower.includes('missing')
+              ? 'Code is required!'
+              : errorMessage,
+          });
+          return;
+        }
+        if (lower.includes('name')) {
+          methods.setError('name', {
+            type: 'manual',
+            message: lower.includes('missing')
+              ? 'Site name is required!'
+              : errorMessage,
+          });
+          return;
+        }
+      }
+
       toast.error(errorMessage);
     }
   });
@@ -258,7 +214,16 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
             gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
           >
             <Field.Text name="name" label="Site name" />
-            <Field.Text name="code" label="Code" />
+            <Field.Text
+              name="code"
+              label="Code"
+              placeholder="FH01AB"
+              helperText="Branch code must be exactly 6 characters and include both letters and numbers (A–Z, 0–9). Do not use spaces or hyphens. Example: FH01AB"
+              inputProps={{
+                maxLength: 6,
+                style: { textTransform: 'uppercase' },
+              }}
+            />
             <Field.Text name="assemblyPoint" label="Assembly point" />
 
             <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
@@ -441,52 +406,6 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               <Field.Switch name="enableLeaveRequests" label="" sx={{ m: 0 }} />
             </Box>
           </Stack>
-        </Card>
-
-        <Card sx={{ p: 3 }}>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ mb: 1 }}
-          >
-            <Typography variant="h6">Site manager</Typography>
-            <Field.Switch name="hasManager" label="Add manager" />
-          </Stack>
-
-          {hasManager && (
-            <>
-              <Divider sx={{ my: 2 }} />
-              <Box
-                rowGap={3}
-                columnGap={2}
-                display="grid"
-                gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
-              >
-                <Field.Select name="managerJobTitleId" label="Job title">
-                  {jobTitleOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Field.Select>
-
-                <Field.Select name="managerDepartmentId" label="Department (optional)">
-                  <MenuItem value="">None</MenuItem>
-                  {departmentOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Field.Select>
-
-                <Field.Text name="managerName" label="Manager name" />
-                <Field.Text name="managerEmail" label="Manager email" />
-
-                <Field.DatePicker name="managerStartDate" label="Start date" />
-              </Box>
-            </>
-          )}
         </Card>
 
         <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
