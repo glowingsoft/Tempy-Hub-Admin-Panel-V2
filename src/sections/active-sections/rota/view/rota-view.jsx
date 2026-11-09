@@ -1,116 +1,271 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Drawer from '@mui/material/Drawer';
-import Typography from '@mui/material/Typography';
-
-import {
-  ROTA_ACCESS,
-  ROTA_DAYS,
-  ROTA_LOCATIONS,
-  ROTA_SCOPE_OPTIONS_BY_PERMISSION,
-  ROTA_SUMMARY,
-  ROTA_TEAMS,
-} from '../mocks/data';
+import InputAdornment from '@mui/material/InputAdornment';
+import LinearProgress from '@mui/material/LinearProgress';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { Iconify } from 'src/components/iconify';
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { toast } from 'src/components/snackbar';
 import { useBoolean } from 'src/hooks/use-boolean';
+import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { paths } from 'src/routes/paths';
-import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
+import { LeaveEntitlementModal } from 'src/sections/leave-request/leave-entitlement-modal';
 import { TempyConnectCard } from 'src/sections/tempy-connection/tempy-connect-card';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import {
+  useBookRotaShiftMutation,
+  useGetRotaBoardQuery,
+  useRecordRotaLeaveMutation,
+} from 'src/store/Reducer/rota-api';
 import { selectUser } from 'src/store/slices/userSlice';
 
+import { getDateRangeForPeriod, mapRotaBoardFromApi } from '../rota-mappers';
+import RotaBookShiftDialog from '../rota-book-shift-dialog';
+import RotaCellActionPopover from '../rota-cell-action-popover';
+import RotaCreateLeaveDialog from '../rota-create-leave-dialog';
 import RotaScheduleGrid from '../rota-schedule-grid';
-import RotaStaffDetailPanel from '../rota-staff-detail-panel';
+import { RotaGridSkeleton } from '../rota-skeleton';
 import RotaSummaryBar from '../rota-summary-bar';
 import RotaToolbar from '../rota-toolbar';
-import RotaCellActionPopover from '../rota-cell-action-popover';
-import RotaBookShiftDialog from '../rota-book-shift-dialog';
-import RotaCreateLeaveDialog from '../rota-create-leave-dialog';
 
 // ----------------------------------------------------------------------
 
 const defaultValues = {
   period: 'Fortnight',
-  filter: 'current',
-  groupBy: 'team',
 };
+
+const ALL_SCOPE_OPTIONS = [
+  { value: 'personal', label: 'My Rota' },
+  { value: 'managed', label: 'My Team(s)' },
+  { value: 'all', label: 'All Teams' },
+];
+
+const LM_SCOPE_OPTIONS = [
+  { value: 'personal', label: 'My Rota' },
+  { value: 'managed', label: 'My Team(s)' },
+];
 
 export default function RotaView({ ownerDashboard = false, showTempyConnect = false }) {
   const user = useSelector(selectUser);
-  const { branchId, onBranchChange } = useOwnerBranchFilter();
+  const { organizationId, isOwner: orgIsOwner } = useCurrentOrganization();
 
-  const [selectedStaff, setSelectedStaff] = useState(null);
-  const [teamsData, setTeamsData] = useState(ROTA_TEAMS);
+  // Role detection: Owner, Site Manager (sm), Line Manager (lm), Staff
+  const isOwner =
+    ownerDashboard ||
+    orgIsOwner ||
+    user?.role === 'owner' ||
+    user?.role === 'Organization Owner' ||
+    user?.permission === 1 ||
+    user?.permission === 4;
+
+  const isSiteManager =
+    !isOwner &&
+    (user?.permission === 2 || user?.role === 'site-manager' || user?.role === 'Site Manager');
+
+  const isLineManager =
+    !isOwner &&
+    !isSiteManager &&
+    (user?.permission === 3 || user?.role === 'line-manager' || user?.role === 'Line Manager');
+
+  const isStaff =
+    !isOwner &&
+    !isSiteManager &&
+    !isLineManager &&
+    (user?.permission === 5 || user?.accountState?.userType === 'staff' || user?.role === 'staff');
+
+  // Role-specific scope configuration
+  const scopeOptions = useMemo(() => {
+    if (isOwner || isSiteManager) return ALL_SCOPE_OPTIONS;
+    if (isLineManager) return LM_SCOPE_OPTIONS;
+    return []; // Staff is locked to personal
+  }, [isOwner, isSiteManager, isLineManager]);
+
+  const initialScope = useMemo(() => {
+    if (isOwner || isSiteManager) return 'all';
+    if (isLineManager) return 'managed';
+    return 'personal';
+  }, [isOwner, isSiteManager, isLineManager]);
+
+  const [scope, setScope] = useState(initialScope);
   const [selectedTeamId, setSelectedTeamId] = useState('all');
 
-  const { state, setState } = useSetState(defaultValues);
-  const locked = useBoolean();
+  // Site / Branch selection (Only enabled for Owner via InfiniteAutocomplete)
+  const [selectedBranchOption, setSelectedBranchOption] = useState(null);
+  const branchId = selectedBranchOption?.value;
 
-  const rangeLabel = `${ROTA_DAYS[0].label.split(' ')[1]} ${ROTA_DAYS[0].label.split(' ')[2]} - ${ROTA_DAYS[ROTA_DAYS.length - 1].label.split(' ')[1]
-    } ${ROTA_DAYS[ROTA_DAYS.length - 1].label.split(' ')[2]}`;
-
-  const isStaff = user?.accountState?.userType === 'staff';
-
-  // Client feedback: "myself" vs "team(s) I'm in or manage", gated by
-  // permission — a line manager/site manager/owner can switch, a staff
-  // member is locked to their own rota (see ROTA_SCOPE_OPTIONS_BY_PERMISSION).
-  const scopeOptions = ROTA_SCOPE_OPTIONS_BY_PERMISSION[user?.permission] || ROTA_SCOPE_OPTIONS_BY_PERMISSION[5];
-  const [scope, setScope] = useState(scopeOptions[scopeOptions.length - 1].value);
-
-  // Managed teams list (teams the manager belongs to or manages)
-  const managedTeams = useMemo(
-    () => teamsData.filter((team) => ROTA_ACCESS.managedTeamIds.includes(team.id)),
-    [teamsData]
+  const { data: branchesResponse } = useGetBranchesQuery(
+    { organizationId, page: 1, limit: 100 },
+    { skip: !organizationId || !isOwner }
   );
 
+  // Auto-select first/top site when branches load for owner
+  useEffect(() => {
+    if (isOwner && branchesResponse?.data?.length > 0 && (!selectedBranchOption || selectedBranchOption.value === 'all')) {
+      const topSite = branchesResponse.data[0];
+      setSelectedBranchOption({
+        value: topSite._id || topSite.id,
+        label: topSite.name,
+        timezone: topSite.timezone || 'Europe/London',
+      });
+    }
+  }, [isOwner, branchesResponse, selectedBranchOption]);
+
+  const facilityTimezone = useMemo(() => {
+    return selectedBranchOption?.timezone || 'Europe/London';
+  }, [selectedBranchOption]);
+
+  const handleBranchChange = useCallback((arg1, arg2) => {
+    const selected =
+      arg2 && typeof arg2 === 'object' && ('value' in arg2 || 'label' in arg2)
+        ? arg2
+        : arg1 && typeof arg1 === 'object' && ('value' in arg1 || 'label' in arg1)
+          ? arg1
+          : null;
+
+    if (selected && selected.value !== 'all') {
+      setSelectedBranchOption(selected);
+    }
+  }, []);
+
+  // Period and date navigation
+  const { state, setState } = useSetState(defaultValues);
+  const [anchorDate, setAnchorDate] = useState(dayjs());
+  const locked = useBoolean();
+
+  const { from, to, rangeLabel } = useMemo(
+    () => getDateRangeForPeriod(state.period, anchorDate),
+    [state.period, anchorDate]
+  );
+
+  const handlePrevRange = useCallback(() => {
+    setAnchorDate((prev) => {
+      const p = state.period.toLowerCase();
+      if (p === 'week') return prev.subtract(1, 'week');
+      if (p === 'month') return prev.subtract(1, 'month');
+      return prev.subtract(14, 'day');
+    });
+  }, [state.period]);
+
+  const handleNextRange = useCallback(() => {
+    setAnchorDate((prev) => {
+      const p = state.period.toLowerCase();
+      if (p === 'week') return prev.add(1, 'week');
+      if (p === 'month') return prev.add(1, 'month');
+      return prev.add(14, 'day');
+    });
+  }, [state.period]);
+
+  // Rota Board API Query
+  const queryArgs = useMemo(() => {
+    return {
+      organizationId,
+      branchId: isOwner ? (branchId || undefined) : undefined,
+      scope: isStaff ? 'personal' : scope,
+      period: state.period.toLowerCase(),
+      from,
+      to,
+      timezone: facilityTimezone,
+      departmentId:
+        scope === 'managed' && selectedTeamId !== 'all' ? selectedTeamId : undefined,
+    };
+  }, [organizationId, isOwner, branchId, isStaff, scope, state.period, from, to, facilityTimezone, selectedTeamId]);
+
+  const {
+    data: apiRotaData,
+    isLoading: isRotaLoading,
+    isFetching: isRotaFetching,
+    refetch: refetchRota,
+  } = useGetRotaBoardQuery(queryArgs, {
+    skip: !organizationId || (isOwner && !branchId),
+  });
+
+  // Map API response to UI shape (strictly without static mock data)
+  const mappedBoard = useMemo(() => {
+    return mapRotaBoardFromApi(apiRotaData, {
+      from,
+      to,
+      defaultPermissions: {
+        canBookShift: !isStaff,
+        canRecordLeave: !isStaff,
+      },
+    });
+  }, [apiRotaData, from, to, isStaff]);
+
+  // Working state for teams (allows optimistic local updates)
+  const [teamsData, setTeamsData] = useState([]);
+
+  useEffect(() => {
+    setTeamsData(mappedBoard.teams || []);
+  }, [mappedBoard.teams]);
+
+  // Effective permissions from API or role rules
+  const effectivePermissions = useMemo(() => {
+    return {
+      canBookShift: Boolean(
+        mappedBoard.permissions?.canBookShift ?? !isStaff
+      ),
+      canRecordLeave: Boolean(mappedBoard.permissions?.canRecordLeave ?? !isStaff),
+    };
+  }, [mappedBoard.permissions, isStaff]);
+
+  // Available managed teams for the team dropdown filter
+  const managedTeams = useMemo(() => {
+    return teamsData.filter((team) => team.id !== 'team-unassigned');
+  }, [teamsData]);
+
+  // Filtered visible teams based on active scope & team dropdown
   const visibleTeams = useMemo(() => {
     if (scope === 'personal') {
+      const ownId = user?._id || user?.id || user?.staffProfileId || user?.staffId;
       return teamsData
         .map((team) => ({
           ...team,
-          staff: team.staff.filter((member) => member.id === ROTA_ACCESS.ownStaffId),
+          staff: team.staff.filter((m) => !ownId || m.id === ownId || m.staffId === ownId),
         }))
         .filter((team) => team.staff.length > 0);
     }
+
     if (scope === 'managed') {
-      const managed = teamsData.filter((team) => ROTA_ACCESS.managedTeamIds.includes(team.id));
       if (selectedTeamId && selectedTeamId !== 'all') {
-        return managed.filter((team) => team.id === selectedTeamId);
+        return teamsData.filter((team) => team.id === selectedTeamId);
       }
-      return managed;
+      return teamsData.filter((team) => team.id !== 'team-unassigned');
     }
+
     return teamsData;
-  }, [scope, selectedTeamId, teamsData]);
+  }, [scope, selectedTeamId, teamsData, user]);
 
-  const totalStaffShown = visibleTeams.reduce((sum, team) => sum + team.staff.length, 0);
+  const totalStaffShown = visibleTeams.reduce(
+    (sum, team) => sum + (team.id === 'team-unassigned' ? 0 : team.staff.length),
+    0
+  );
 
-  // Unfiltered by the managed-team dropdown, so the toolbar can show
-  // "X of Y shown" when a single team is selected out of several managed.
   const scopedTeams = useMemo(() => {
     if (scope === 'personal') {
+      const ownId = user?._id || user?.id || user?.staffProfileId || user?.staffId;
       return teamsData
         .map((team) => ({
           ...team,
-          staff: team.staff.filter((member) => member.id === ROTA_ACCESS.ownStaffId),
+          staff: team.staff.filter((m) => !ownId || m.id === ownId || m.staffId === ownId),
         }))
         .filter((team) => team.staff.length > 0);
     }
-    if (scope === 'managed') {
-      return teamsData.filter((team) => ROTA_ACCESS.managedTeamIds.includes(team.id));
-    }
     return teamsData;
-  }, [scope, teamsData]);
+  }, [scope, teamsData, user]);
 
-  const totalStaffInScope = scopedTeams.reduce((sum, team) => sum + team.staff.length, 0);
+  const totalStaffInScope = scopedTeams.reduce(
+    (sum, team) => sum + (team.id === 'team-unassigned' ? 0 : team.staff.length),
+    0
+  );
 
-  // Scoped Total Hours and Shifts derived reactively from visible teams
+  // Scoped summary stats
   const scopedTotalHours = useMemo(() => {
     return visibleTeams.reduce(
       (sum, team) =>
@@ -137,25 +292,104 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     );
   }, [visibleTeams]);
 
-  // Money Earnt — only for your own rota, and only when a rate is set
+  // Derived summary numbers preferring API summary when unfiltered
+  const summaryStaffCount = useMemo(() => {
+    if (mappedBoard.summary?.staffCount != null && selectedTeamId === 'all' && scope !== 'personal') {
+      return mappedBoard.summary.staffCount;
+    }
+    return totalStaffShown;
+  }, [mappedBoard.summary?.staffCount, selectedTeamId, scope, totalStaffShown]);
+
+  const summaryTotalMinutes = useMemo(() => {
+    if (mappedBoard.summary?.totalMinutes != null && selectedTeamId === 'all' && scope !== 'personal') {
+      return mappedBoard.summary.totalMinutes;
+    }
+    return Math.round(scopedTotalHours * 60);
+  }, [mappedBoard.summary?.totalMinutes, selectedTeamId, scope, scopedTotalHours]);
+
+  const summaryTotalShifts = useMemo(() => {
+    if (mappedBoard.summary?.totalShifts != null && selectedTeamId === 'all' && scope !== 'personal') {
+      return mappedBoard.summary.totalShifts;
+    }
+    return scopedTotalShifts;
+  }, [mappedBoard.summary?.totalShifts, selectedTeamId, scope, scopedTotalShifts]);
+
+  const summaryUnassignedCount = useMemo(() => {
+    if (mappedBoard.summary?.unassignedCount != null && selectedTeamId === 'all' && scope !== 'personal') {
+      return mappedBoard.summary.unassignedCount;
+    }
+    const unassignedTeam = teamsData.find((t) => t.id === 'team-unassigned');
+    if (!unassignedTeam) return 0;
+    return unassignedTeam.staff.reduce(
+      (sum, s) =>
+        sum +
+        Object.values(s.shifts || {}).reduce((sub, shifts) => sub + shifts.length, 0),
+      0
+    );
+  }, [mappedBoard.summary?.unassignedCount, selectedTeamId, scope, teamsData]);
+
+  // Money Earnt for personal view (only when in personal scope and rate is set)
   const ownStaff = scope === 'personal' ? visibleTeams[0]?.staff[0] : null;
-  const personalEarnings = ownStaff?.hourlyRate
-    ? (parseFloat(ownStaff.totalHours) || 0) * ownStaff.hourlyRate
-    : null;
+  const personalEarnings =
+    scope === 'personal' && ownStaff?.hourlyRate
+      ? (parseFloat(ownStaff.totalHours) || 0) * ownStaff.hourlyRate
+      : null;
 
   // Date cell interactive selection states
   const [cellPopoverAnchor, setCellPopoverAnchor] = useState(null);
   const [selectedCellData, setSelectedCellData] = useState(null);
   const [bookShiftOpen, setBookShiftOpen] = useState(false);
   const [createLeaveOpen, setCreateLeaveOpen] = useState(false);
+  const [entitlementOpen, setEntitlementOpen] = useState(false);
+  const [selectedEntitlementStaffId, setSelectedEntitlementStaffId] = useState(null);
 
-  const handleCellClick = useCallback(({ staff, day, target }) => {
-    setCellPopoverAnchor(target);
-    setSelectedCellData({ staff, day });
-  }, []);
+  // RTK Query Mutations
+  const [bookRotaShift] = useBookRotaShiftMutation();
+  const [recordRotaLeave] = useRecordRotaLeaveMutation();
+
+  // Distinct staff list across all teams for general dialog selectors
+  const allStaffList = useMemo(() => {
+    const map = new Map();
+    teamsData.forEach((team) => {
+      team.staff.forEach((s) => {
+        if (!map.has(s.id)) {
+          map.set(s.id, {
+            id: s.id,
+            name: s.name,
+            role: s.role,
+          });
+        }
+      });
+    });
+    return Array.from(map.values());
+  }, [teamsData]);
+
+  // Cell Click: respect role permissions
+  const handleCellClick = useCallback(
+    (arg1, arg2) => {
+      if (isStaff) {
+        // View-only for staff
+        return;
+      }
+
+      const data = arg2 || arg1 || {};
+      const target = arg1?.currentTarget || data.target || (arg1?.target ? arg1.target : null);
+
+      setCellPopoverAnchor(target);
+      setSelectedCellData({
+        staff: data.staff,
+        day: data.day,
+        shifts: data.shifts || (data.staff?.shifts?.[data.day?.date]) || [],
+        team: data.team,
+      });
+    },
+    [isStaff]
+  );
 
   const handleOpenBookShift = useCallback((data) => {
-    setSelectedCellData(data);
+    if (data) {
+      setSelectedCellData((prev) => ({ ...prev, ...data }));
+    }
     setBookShiftOpen(true);
   }, []);
 
@@ -164,111 +398,176 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     setCreateLeaveOpen(true);
   }, []);
 
+  const handleOpenSetEntitlement = useCallback((data) => {
+    setSelectedEntitlementStaffId(data?.staff?.id || data?.staff?.staffId || null);
+    setEntitlementOpen(true);
+  }, []);
+
+  // Book Shift action handler
   const handleBookShiftSubmit = useCallback(
-    ({ staffId, date, shift }) => {
-      setTeamsData((prevTeams) =>
-        prevTeams.map((team) => {
-          const hasStaff = team.staff.some((s) => s.id === staffId);
-          if (!hasStaff) return team;
+    async (payload) => {
+      try {
+        if (organizationId) {
+          await bookRotaShift({
+            organizationId,
+            branchId: payload.branchId || (isOwner ? branchId : undefined),
+            startsAt: payload.startsAt,
+            endsAt: payload.endsAt,
+            ...(payload.staffId ? { staffId: payload.staffId } : {}),
+          }).unwrap();
+        }
 
-          const updatedStaff = team.staff.map((member) => {
-            if (member.id !== staffId) return member;
-
-            const currentShifts = member.shifts?.[date] || [];
-            const updatedShifts = [...currentShifts, shift];
-            const newHours = (parseFloat(member.totalHours) || 0) + (shift.hours || 8);
-
-            return {
-              ...member,
-              totalHours: `${newHours}h`,
-              shifts: {
-                ...member.shifts,
-                [date]: updatedShifts,
-              },
-            };
-          });
-
-          return {
-            ...team,
-            staff: updatedStaff,
-          };
-        })
-      );
-
-      const staffName = selectedCellData?.staff?.name || 'Staff member';
-      toast.success(`Shift booked for ${staffName} on ${date}!`);
+        refetchRota();
+        toast.success('Shift created successfully!');
+      } catch (err) {
+        console.error('Failed to book shift:', err);
+        toast.error(err?.data?.message || err?.message || 'Failed to create shift');
+      }
     },
-    [selectedCellData]
+    [organizationId, isOwner, branchId, bookRotaShift, refetchRota]
   );
 
+  // Record Leave action handler
   const handleCreateLeaveSubmit = useCallback(
-    (payload) => {
-      const { staffId, startDate, endDate, leaveType, reason } = payload;
+    async (payload) => {
+      const { staffId, startDate, endDate, leaveType, reason, totalDays, timezone } = payload;
       const start = dayjs(startDate);
       const end = dayjs(endDate);
 
-      setTeamsData((prevTeams) =>
-        prevTeams.map((team) => {
-          const hasStaff = team.staff.some((s) => s.id === staffId);
-          if (!hasStaff) return team;
+      try {
+        if (organizationId) {
+          await recordRotaLeave({
+            organizationId,
+            staffId,
+            branchId: isOwner ? (branchId || undefined) : undefined,
+            startDate,
+            endDate,
+            leaveType,
+            reason,
+            totalDays,
+            timezone: timezone || facilityTimezone,
+          }).unwrap();
+        }
 
-          const updatedStaff = team.staff.map((member) => {
-            if (member.id !== staffId) return member;
+        // Optimistic UI update
+        setTeamsData((prevTeams) =>
+          prevTeams.map((team) => {
+            const hasStaff = team.staff.some((s) => s.id === staffId);
+            if (!hasStaff) return team;
 
-            const updatedShifts = { ...(member.shifts || {}) };
-            let curr = start;
-            const leaveLabel =
-              leaveType === 'sick'
-                ? 'Sick Leave'
-                : leaveType === 'compassionate'
-                  ? 'Compassionate'
-                  : 'Annual Leave';
+            const updatedStaff = team.staff.map((member) => {
+              if (member.id !== staffId) return member;
 
-            while (curr.isBefore(end) || curr.isSame(end, 'day')) {
-              const dateStr = curr.format('YYYY-MM-DD');
-              const dayShifts = updatedShifts[dateStr] || [];
-              updatedShifts[dateStr] = [
-                ...dayShifts,
-                {
-                  type: 'leave',
-                  label: leaveLabel,
-                  reason,
-                },
-              ];
-              curr = curr.add(1, 'day');
-            }
+              const updatedShifts = { ...(member.shifts || {}) };
+              let curr = start;
+              const leaveLabel =
+                leaveType === 'sick'
+                  ? 'Sick Leave'
+                  : leaveType === 'compassionate'
+                    ? 'Compassionate'
+                    : 'Annual Leave';
+
+              while (curr.isBefore(end) || curr.isSame(end, 'day')) {
+                const dateStr = curr.format('YYYY-MM-DD');
+                const dayShifts = updatedShifts[dateStr] || [];
+                updatedShifts[dateStr] = [
+                  ...dayShifts,
+                  {
+                    type: 'leave',
+                    label: leaveLabel,
+                    reason,
+                  },
+                ];
+                curr = curr.add(1, 'day');
+              }
+
+              return {
+                ...member,
+                shifts: updatedShifts,
+              };
+            });
 
             return {
-              ...member,
-              shifts: updatedShifts,
+              ...team,
+              staff: updatedStaff,
             };
-          });
+          })
+        );
 
-          return {
-            ...team,
-            staff: updatedStaff,
-          };
-        })
-      );
-
-      const staffName = selectedCellData?.staff?.name || 'Staff member';
-      toast.success(`Leave recorded for ${staffName}!`);
+        const staffName = selectedCellData?.staff?.name || 'Staff member';
+        toast.success(`Leave recorded for ${staffName}!`);
+      } catch (err) {
+        console.error('Failed to record leave:', err);
+        toast.error(err?.data?.message || err?.message || 'Failed to record leave');
+      }
     },
-    [selectedCellData]
+    [organizationId, isOwner, branchId, facilityTimezone, recordRotaLeave, selectedCellData]
   );
+
+  // Dynamic headings and breadcrumb links per role
+  const pageTitle = isOwner
+    ? 'Rota Management'
+    : scope === 'personal'
+      ? 'My Rota'
+      : 'Rota';
+
+  const dashboardHref = isOwner
+    ? paths.owner.root
+    : isSiteManager
+      ? paths.siteManager.root
+      : isLineManager
+        ? paths.lineManager.root
+        : paths.staff.dashboard;
+
+  const isInitialLoading =
+    isRotaLoading ||
+    (!apiRotaData && isRotaFetching) ||
+    (isOwner && !selectedBranchOption);
+
+  const daysCount =
+    mappedBoard.days?.length ||
+    (state.period.toLowerCase() === 'week' ? 7 : state.period.toLowerCase() === 'month' ? 30 : 14);
 
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading={ownerDashboard ? 'Rota Management' : scope === 'personal' ? 'My Rota' : 'Rota'}
-        links={[
-          {
-            name: 'Dashboard',
-            href: ownerDashboard ? paths.owner.root : isStaff ? paths.staff.dashboard : paths.lineManager.root,
-          },
-          { name: ownerDashboard ? 'Rota Management' : scope === 'personal' ? 'My Rota' : 'Rota' },
-        ]}
-        action={ownerDashboard ? <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} /> : null}
+        heading={pageTitle}
+        links={[{ name: 'Dashboard', href: dashboardHref }, { name: pageTitle }]}
+        action={
+          isOwner ? (
+            <Box sx={{ minWidth: { xs: 1, sm: 260 } }}>
+              <InfiniteAutocomplete
+                size="small"
+                label="Site"
+                placeholder="Search site..."
+                value={selectedBranchOption}
+                onChange={handleBranchChange}
+                useQuery={useGetBranchesQuery}
+                queryArgs={{ organizationId }}
+                enabled={Boolean(organizationId)}
+                disableClearable
+                mapOption={(branch) => ({
+                  value: branch._id || branch.id,
+                  label: branch.name,
+                  timezone: branch.timezone || 'Europe/London',
+                })}
+                textFieldProps={{
+                  InputProps: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify
+                          icon="solar:buildings-2-bold-duotone"
+                          width={20}
+                          sx={{ color: 'text.disabled' }}
+                        />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            </Box>
+          ) : null
+        }
         sx={{ mb: { xs: 2.5, md: 3 } }}
       />
 
@@ -281,70 +580,48 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         <RotaToolbar
           rangeLabel={rangeLabel}
           period={state.period}
-          filter={state.filter}
-          groupBy={state.groupBy}
           locked={locked.value}
           onToggleLock={locked.onToggle}
           scope={scope}
           scopeOptions={scopeOptions}
           onScopeChange={(value) => {
             setScope(value);
-            setSelectedStaff(null);
           }}
           managedTeams={managedTeams}
           selectedTeamId={selectedTeamId}
           onSelectTeamId={setSelectedTeamId}
-          shownCount={totalStaffShown}
-          totalCount={totalStaffInScope}
           onPeriodChange={(value) => setState({ period: value })}
-          onFilterChange={(value) => setState({ filter: value })}
-          onGroupByChange={(value) => setState({ groupBy: value })}
-          onPrev={() => console.log('prev range')}
-          onNext={() => console.log('next range')}
-          onRefresh={() => console.log('refresh rota')}
+          onPrev={handlePrevRange}
+          onNext={handleNextRange}
+          onRefresh={refetchRota}
         />
 
-        {/* Compact Total Summary Bar: removes vertical dead space */}
+        {isRotaFetching && !isInitialLoading && <LinearProgress sx={{ height: 2 }} />}
+
+        {/* Compact Total Summary Bar */}
         <RotaSummaryBar
-          totalHours={scopedTotalHours}
-          totalShifts={scopedTotalShifts}
-          totalCost={ROTA_SUMMARY.totalCost}
-          showTotalCost={!isStaff && scope === 'all'}
-          earnings={personalEarnings}
+          staffCount={summaryStaffCount}
+          totalMinutes={summaryTotalMinutes}
+          totalShifts={summaryTotalShifts}
+          unassignedCount={summaryUnassignedCount}
+          showUnassigned={scope !== 'personal'}
+          scope={scope}
+          earnings={scope === 'personal' ? personalEarnings : null}
         />
 
-        {/* Full-width schedule grid */}
+        {/* Schedule grid or Skeleton loader */}
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden' }}>
-          <RotaScheduleGrid
-            teams={visibleTeams}
-            days={ROTA_DAYS}
-            selectedStaffId={selectedStaff?.id}
-            onSelectStaff={setSelectedStaff}
-            onCellClick={handleCellClick}
-          />
+          {isInitialLoading ? (
+            <RotaGridSkeleton daysCount={daysCount} teamsCount={3} staffPerTeam={3} />
+          ) : (
+            <RotaScheduleGrid
+              teams={visibleTeams}
+              days={mappedBoard.days}
+              onCellClick={handleCellClick}
+            />
+          )}
         </Box>
       </Card>
-
-      {/* Slide-over right drawer for Staff details and quick actions */}
-      <Drawer
-        anchor="right"
-        open={Boolean(selectedStaff)}
-        onClose={() => setSelectedStaff(null)}
-        PaperProps={{
-          sx: {
-            width: { xs: '100%', sm: 340 },
-            p: 2.5,
-          },
-        }}
-      >
-        <RotaStaffDetailPanel
-          staff={selectedStaff}
-          onBack={() => setSelectedStaff(null)}
-          onAction={(actionKey, staff) => {
-            console.log(actionKey, staff);
-          }}
-        />
-      </Drawer>
 
       {/* Date Cell Contextual Popover */}
       <RotaCellActionPopover
@@ -353,7 +630,9 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         onClose={() => setCellPopoverAnchor(null)}
         cellData={selectedCellData}
         onBookShift={handleOpenBookShift}
-        onCreateLeave={handleOpenCreateLeave}
+        onSetEntitlement={handleOpenSetEntitlement}
+        canBookShift={effectivePermissions.canBookShift}
+        canSetEntitlement={!isStaff}
       />
 
       {/* Book Shift Dialog */}
@@ -361,6 +640,9 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         open={bookShiftOpen}
         onClose={() => setBookShiftOpen(false)}
         cellData={selectedCellData}
+        organizationId={organizationId}
+        branchId={branchId}
+        selectedBranch={selectedBranchOption}
         onSubmit={handleBookShiftSubmit}
       />
 
@@ -369,7 +651,23 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         open={createLeaveOpen}
         onClose={() => setCreateLeaveOpen(false)}
         cellData={selectedCellData}
+        staffList={allStaffList}
+        timezone={facilityTimezone}
         onSubmit={handleCreateLeaveSubmit}
+      />
+
+      {/* Set Leave Entitlement Modal */}
+      <LeaveEntitlementModal
+        open={entitlementOpen}
+        onClose={() => {
+          setEntitlementOpen(false);
+          setSelectedEntitlementStaffId(null);
+        }}
+        organizationId={organizationId}
+        initialStaffId={selectedEntitlementStaffId}
+        onSuccess={() => {
+          refetchRota();
+        }}
       />
     </DashboardContent>
   );

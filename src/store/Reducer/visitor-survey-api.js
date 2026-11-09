@@ -102,6 +102,32 @@ export const visitorSurveyApi = createApi({
         { type: 'VisitorFeedback', id: organizationId || 'LIST' },
       ],
     }),
+
+    getVisitorSurveyResponses: builder.query({
+      extraOptions: { disableToast: true },
+      query: ({ organizationId, branchId, page = 1, limit = 10, search } = {}) => {
+        const params = {
+          page,
+          limit,
+          ...(branchId && branchId !== 'all' ? { branchId } : {}),
+          ...(search ? { search } : {}),
+        };
+
+        return {
+          url: API_ROUTES.ORGANIZATION_VISITOR_SURVEY_RESPONSES(organizationId),
+          method: 'GET',
+          headers: orgHeaders(organizationId),
+          params,
+        };
+      },
+      transformResponse: (res) => ({
+        data: res?.data || [],
+        meta: res?.meta || { currentPage: 1, totalPages: 1, totalRecords: res?.data?.length || 0, limit: 10 },
+      }),
+      providesTags: (result, error, { organizationId } = {}) => [
+        { type: 'VisitorFeedback', id: organizationId || 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -111,4 +137,5 @@ export const {
   useGetVisitorSurveyQuestionsQuery,
   useUpdateVisitorSurveyQuestionsMutation,
   useSubmitVisitorFeedbackMutation,
+  useGetVisitorSurveyResponsesQuery,
 } = visitorSurveyApi;

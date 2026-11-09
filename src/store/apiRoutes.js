@@ -76,6 +76,7 @@ export const API_ROUTES = {
     STAFF_PROFILE_BY_ID: (staffProfileId) => `/admin/staff-profiles/${staffProfileId}`,
     ORGANIZATION_SHIFTS: (organizationId) => `/admin/organizations/${organizationId}/shifts`,
     SHIFT_BY_ID: (shiftId) => `/admin/shifts/${shiftId}`,
+    ORGANIZATION_ROTA_BOARD: (organizationId) => `/admin/organizations/${organizationId}/rota/board`,
     STAFF_MY_SHIFTS: '/app/shifts/my',
     STAFF_OPEN_SHIFTS: '/app/shifts/open',
     STAFF_SHIFT_CLAIMS: (shiftId) => `/app/shifts/${shiftId}/claims`,

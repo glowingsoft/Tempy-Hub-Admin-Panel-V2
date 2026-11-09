@@ -85,36 +85,63 @@ const lookupOptionSchema = zod.object({
 
 // ----------------------------------------------------------------------
 
-export const StaffProfileSchema = zod.object({
-  organizationId: zod.string().optional(),
-  userId: zod.string().min(1, { message: 'User is required!' }),
-  supervisorStaffId: lookupOptionSchema.nullable().optional(),
-  branchId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
-    message: 'Site is required!',
-  }),
-  jobTitleId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
-    message: 'Job title is required!',
-  }),
-  departmentIds: zod.array(lookupOptionSchema),
-  startDate: zod
-    .union([zod.string(), zod.null()])
-    .refine((value) => !!value, { message: 'Start date is required!' }),
-  pin: zod
-    .string()
-    .optional()
-    .refine((value) => !value || /^\d{4,6}$/.test(value), {
-      message: 'PIN must be 4 to 6 digits.',
-    }),
-  // Optional — used to show earnings alongside worked hours on the Staff Dashboard.
-  hourlyRate: zod
-    .string()
-    .optional()
-    .refine((value) => !value || /^\d+(\.\d{1,2})?$/.test(value), {
-      message: 'Enter a valid amount (e.g. 12.50)',
-    }),
-  supervisionIntervalMonths: zod.union([zod.number(), zod.string(), zod.null()]).optional(),
-  appraisalIntervalMonths: zod.union([zod.number(), zod.string(), zod.null()]).optional(),
-});
+function getStaffRole(profile) {
+  return (
+    profile?.role ||
+    profile?.membership?.role ||
+    profile?.user?.role ||
+    (typeof profile?.userId === 'object' && profile?.userId?.role) ||
+    ''
+  );
+}
+
+function isLineManager(profile) {
+  const role = getStaffRole(profile);
+  const normalized = String(role || '').toLowerCase().replace(/[-_\s]/g, '');
+  return normalized === 'linemanager';
+}
+
+export const createStaffProfileSchema = ({ isLineManager: isLineManagerStaff = false } = {}) =>
+  zod
+    .object({
+      organizationId: zod.string().optional(),
+      userId: zod.string().min(1, { message: 'User is required!' }),
+      supervisorStaffId: lookupOptionSchema.nullable().optional(),
+      branchId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
+        message: 'Site is required!',
+      }),
+      jobTitleId: lookupOptionSchema.nullable().optional(),
+      departmentIds: zod.array(lookupOptionSchema),
+      startDate: zod
+        .union([zod.string(), zod.null()])
+        .refine((value) => !!value, { message: 'Start date is required!' }),
+      pin: zod
+        .string()
+        .optional()
+        .refine((value) => !value || /^\d{4,6}$/.test(value), {
+          message: 'PIN must be 4 to 6 digits.',
+        }),
+      // Optional — used to show earnings alongside worked hours on the Staff Dashboard.
+      hourlyRate: zod
+        .string()
+        .optional()
+        .refine((value) => !value || /^\d+(\.\d{1,2})?$/.test(value), {
+          message: 'Enter a valid amount (e.g. 12.50)',
+        }),
+      supervisionIntervalMonths: zod.union([zod.number(), zod.string(), zod.null()]).optional(),
+      appraisalIntervalMonths: zod.union([zod.number(), zod.string(), zod.null()]).optional(),
+    })
+    .superRefine((data, ctx) => {
+      if (!isLineManagerStaff && !data.jobTitleId?.value) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['jobTitleId'],
+          message: 'Job title is required!',
+        });
+      }
+    });
+
+export const StaffProfileSchema = createStaffProfileSchema();
 
 export const SUPERVISION_INTERVAL_OPTIONS = [
   { value: 1, label: '1 month' },
@@ -152,6 +179,7 @@ export function StaffProfileNewEditForm({
 
   const isEdit = !!currentStaffProfile;
   const staffProfileId = currentStaffProfile?._id;
+  const isLineManagerStaff = isEdit && isLineManager(currentStaffProfile);
 
   const defaultValues = useMemo(
     () => ({
@@ -220,9 +248,14 @@ export function StaffProfileNewEditForm({
     [currentStaffProfile, organizationId]
   );
 
+  const schema = useMemo(
+    () => createStaffProfileSchema({ isLineManager: isLineManagerStaff }),
+    [isLineManagerStaff]
+  );
+
   const methods = useForm({
     mode: 'onSubmit',
-    resolver: zodResolver(StaffProfileSchema),
+    resolver: zodResolver(schema),
     defaultValues,
   });
 
@@ -268,9 +301,13 @@ export function StaffProfileNewEditForm({
     try {
       const payload = {
         branchId: data.branchId?.value,
-        jobTitleId: data.jobTitleId?.value,
         departmentIds: (data.departmentIds || []).map((department) => department.value),
         startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
+        ...(data.jobTitleId?.value
+          ? { jobTitleId: data.jobTitleId.value }
+          : isEdit
+            ? { jobTitleId: null }
+            : {}),
         ...(data.supervisorStaffId?.value
           ? { supervisorStaffId: data.supervisorStaffId.value }
           : isEdit && data.supervisorStaffId === null
@@ -366,7 +403,7 @@ export function StaffProfileNewEditForm({
 
             <Field.InfiniteAutocomplete
               name="jobTitleId"
-              label="Job title"
+              label={isLineManagerStaff ? 'Job title (optional)' : 'Job title'}
               placeholder="Search job titles"
               useQuery={useGetJobTitlesQuery}
               queryArgs={lookupQueryArgs}
@@ -454,13 +491,7 @@ export function StaffProfileNewEditForm({
           <Button
             variant="outlined"
             color="primary"
-            onClick={() =>
-              router.push(
-                isEdit
-                  ? resolvedPaths.detail(staffProfileId)
-                  : resolvedPaths.root
-              )
-            }
+            onClick={() => router.push(resolvedPaths.root)}
           >
             Cancel
           </Button>

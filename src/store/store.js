@@ -46,6 +46,7 @@ import { settingsApi } from './Reducer/settings-api';
 import { statisticsApi } from './Reducer/statistics-api';
 import { platformDashboardApi } from './Reducer/platform-dashboard-api';
 import { reportsApi } from './Reducer/reports-api';
+import { rotaApi } from './Reducer/rota-api';
 
 // Vite/Rolldown does not unwrap redux-persist's CJS `lib/storage` default export,
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
@@ -129,6 +130,7 @@ const apiSlices = [
   statisticsApi,
   platformDashboardApi,
   reportsApi,
+  rotaApi,
 ];
 
 const clearApiCachesOnLogout = ({ dispatch }) => (next) => (action) => {
@@ -191,6 +193,7 @@ export const store = configureStore({
     [statisticsApi.reducerPath]: statisticsApi.reducer,
     [platformDashboardApi.reducerPath]: platformDashboardApi.reducer,
     [reportsApi.reducerPath]: reportsApi.reducer,
+    [rotaApi.reducerPath]: rotaApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -244,6 +247,7 @@ export const store = configureStore({
       statisticsApi.middleware,
       platformDashboardApi.middleware,
       reportsApi.middleware,
+      rotaApi.middleware,
       clearApiCachesOnLogout,
     ),
 });
