@@ -30,6 +30,14 @@ export const API_ROUTES = {
     ORGANIZATION_MODULE_ACCESS: (id) => `/admin/organizations/${id}/module-access`,
     ORGANIZATION_STAFF_DASHBOARD_SETTINGS: (organizationId) =>
         `/admin/organizations/${organizationId}/staff-dashboard-settings`,
+    ORGANIZATION_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/dashboard`,
+    ORGANIZATION_SITE_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/site-dashboard`,
+    ORGANIZATION_LINE_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/line-dashboard`,
+    ORGANIZATION_STAFF_HOME_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/staff-dashboard`,
     ORGANIZATION_VISITOR_SURVEY_SETTINGS: (organizationId) =>
         `/admin/organizations/${organizationId}/visitor-survey-settings`,
     ORGANIZATION_VISITOR_SURVEY_QUESTIONS: (organizationId) =>
