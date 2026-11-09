@@ -29,23 +29,34 @@ const lookupOptionSchema = zod.object({
     label: zod.string(),
 });
 
-const ResidentSchema = zod.object({
-    name: zod.string().trim().min(1, { message: 'Full name is required' }),
-    email: zod
-        .string()
-        .trim()
-        .refine((value) => !value || zod.string().email().safeParse(value).success, {
-            message: 'Email must be a valid email address',
+const digitsOnly = (value) => String(value || '').replace(/\D/g, '').slice(0, 32);
+
+const getResidentSchema = (isEdit) =>
+    zod.object({
+        name: zod.string().trim().min(1, { message: 'Full name is required' }),
+        email: zod
+            .string()
+            .trim()
+            .refine((value) => !value || zod.string().email().safeParse(value).success, {
+                message: 'Email must be a valid email address',
+            }),
+        phone: zod.string(),
+        roomNumber: zod.string().trim().min(1, { message: 'Room number is required' }),
+        careLevel: zod.string().min(1, { message: 'Care level is required' }),
+        branchId: lookupOptionSchema.nullable().refine((value) => Boolean(value?.value), {
+            message: 'Site is required',
         }),
-    phone: zod.string(),
-    roomNumber: zod.string().trim().min(1, { message: 'Room number is required' }),
-    careLevel: zod.string().min(1, { message: 'Care level is required' }),
-    branchId: lookupOptionSchema.nullable().refine((value) => Boolean(value?.value), {
-        message: 'Site is required',
-    }),
-    visitorPasscode: zod.string(),
-    admissionStatus: zod.string().min(1, { message: 'Admission status is required' }),
-});
+        visitorPasscode: isEdit
+            ? zod.string().optional()
+            : zod
+                .string()
+                .trim()
+                .min(1, { message: 'Visitor passcode is required' })
+                .regex(/^\d+$/, { message: 'Passcode must contain numbers only' })
+                .min(4, { message: 'Passcode must be at least 4 digits' })
+                .max(32, { message: 'Passcode cannot exceed 32 digits' }),
+        admissionStatus: zod.string().min(1, { message: 'Admission status is required' }),
+    });
 
 const mapLookupOption = (item) => ({
     value: item._id,
@@ -76,8 +87,8 @@ function resolveBranchOption(resident) {
     return { value: branchId, label: branchName };
 }
 
-function randomPasscode() {
-    return `PASS-${Math.floor(1000 + Math.random() * 9000)}`;
+function generateRandom4Digits() {
+    return String(Math.floor(1000 + Math.random() * 9000));
 }
 
 // ----------------------------------------------------------------------
@@ -93,6 +104,14 @@ export function ResidentAddEditDialog({
 
     const lookupQueryArgs = useMemo(() => ({ organizationId }), [organizationId]);
 
+    const randomPlaceholder = useMemo(
+        () => generateRandom4Digits(),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [open]
+    );
+
+    const schema = useMemo(() => getResidentSchema(isEdit), [isEdit]);
+
     const defaultValues = useMemo(
         () => ({
             name: currentResident?.name || '',
@@ -101,10 +120,11 @@ export function ResidentAddEditDialog({
             roomNumber: currentResident?.roomNumber || '',
             careLevel: currentResident?.careLevel || 'low',
             branchId: resolveBranchOption(currentResident),
-            visitorPasscode:
+            visitorPasscode: digitsOnly(
                 currentResident?.visitorPasscode ||
                 currentResident?.securityPassword ||
-                randomPasscode(),
+                ''
+            ),
             admissionStatus:
                 currentResident?.admissionStatus ||
                 (currentResident?.status === 'inactive' ? 'discharged' : 'admitted'),
@@ -114,7 +134,7 @@ export function ResidentAddEditDialog({
 
     const methods = useForm({
         mode: 'onTouched',
-        resolver: zodResolver(ResidentSchema),
+        resolver: zodResolver(schema),
         defaultValues,
     });
 
@@ -268,8 +288,30 @@ export function ResidentAddEditDialog({
                                 <Field.Text
                                     name="visitorPasscode"
                                     label="Visitor Passcode / Security PIN"
-                                    placeholder="e.g. PASS-1098"
-                                    helperText="Required for visitor verification"
+                                    placeholder={randomPlaceholder}
+                                    helperText="Numbers only (4–32 digits). Required for visitor verification"
+                                    inputProps={{
+                                        inputMode: 'numeric',
+                                        pattern: '[0-9]*',
+                                        maxLength: 32,
+                                        autoComplete: 'off',
+                                    }}
+                                    onChange={(event) => {
+                                        methods.setValue('visitorPasscode', digitsOnly(event.target.value), {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                        });
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (
+                                            event.key.length === 1 &&
+                                            !/[0-9]/.test(event.key) &&
+                                            !event.ctrlKey &&
+                                            !event.metaKey
+                                        ) {
+                                            event.preventDefault();
+                                        }
+                                    }}
                                 />
                             </Grid>
                         )}

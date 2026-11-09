@@ -1,17 +1,20 @@
+import { useMemo } from 'react';
 import {
     MenuItem,
     Stack,
-    TextField
+    TextField,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
+import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
+import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { PERIOD_PRESET_OPTIONS } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
-// `periodPreset` / `onPeriodPresetChange` are optional — pass both to show the
-// preset dropdown and lock the date pickers to a computed range; omit them to
-// keep this a plain custom date-range + department toolbar.
+const EXTRA_DEPARTMENT_OPTIONS = [{ value: 'all', label: 'All departments' }];
+const mapDepartmentOption = (item) => ({ value: item._id, label: item.name });
+
 export function ReportToolbar({
     startDate,
     endDate,
@@ -21,8 +24,18 @@ export function ReportToolbar({
     onEndDateChange,
     onDepartmentChange,
     onPeriodPresetChange,
+    organizationId,
+    branchId,
 }) {
     const isCustomRange = !onPeriodPresetChange || periodPreset === 'custom';
+
+    const departmentValue = useMemo(() => {
+        if (!department || department === 'all') {
+            return { value: 'all', label: 'All departments' };
+        }
+        if (typeof department === 'object') return department;
+        return { value: department, label: department };
+    }, [department]);
 
     return (
         <Stack
@@ -64,24 +77,38 @@ export function ReportToolbar({
                 sx={{ width: 1 }}
             />
 
-            <TextField
-                select
-                label="Department"
-                value={department}
-                onChange={(event) =>
-                    onDepartmentChange(event.target.value)
-                }
-                fullWidth
-            >
-                <MenuItem value="all">All departments</MenuItem>
-                <MenuItem value="care">Care</MenuItem>
-                <MenuItem value="nursing">Nursing</MenuItem>
-                <MenuItem value="kitchen">Kitchen & Catering</MenuItem>
-                <MenuItem value="housekeeping">Housekeeping</MenuItem>
-                <MenuItem value="admin">Administration</MenuItem>
-            </TextField>
-
-
+            {organizationId ? (
+                <InfiniteAutocomplete
+                    value={departmentValue}
+                    onChange={(opt) => onDepartmentChange(opt?.value || 'all')}
+                    useQuery={useGetDepartmentsQuery}
+                    queryArgs={{
+                        organizationId,
+                        ...(branchId && branchId !== 'all' ? { branchId } : {}),
+                    }}
+                    mapOption={mapDepartmentOption}
+                    extraOptions={EXTRA_DEPARTMENT_OPTIONS}
+                    label="Department"
+                    placeholder="Search departments..."
+                    disabled={!organizationId}
+                    fullWidth
+                />
+            ) : (
+                <TextField
+                    select
+                    label="Department"
+                    value={typeof department === 'object' ? department.value : department}
+                    onChange={(event) => onDepartmentChange(event.target.value)}
+                    fullWidth
+                >
+                    <MenuItem value="all">All departments</MenuItem>
+                    <MenuItem value="care">Care</MenuItem>
+                    <MenuItem value="nursing">Nursing</MenuItem>
+                    <MenuItem value="kitchen">Kitchen & Catering</MenuItem>
+                    <MenuItem value="housekeeping">Housekeeping</MenuItem>
+                    <MenuItem value="admin">Administration</MenuItem>
+                </TextField>
+            )}
         </Stack>
     );
 }

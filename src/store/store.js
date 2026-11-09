@@ -45,6 +45,7 @@ import { billingApi } from './Reducer/billing-api';
 import { settingsApi } from './Reducer/settings-api';
 import { statisticsApi } from './Reducer/statistics-api';
 import { platformDashboardApi } from './Reducer/platform-dashboard-api';
+import { reportsApi } from './Reducer/reports-api';
 
 // so `storage.getItem` is undefined. Use a promise-based localStorage adapter instead.
 const persistStorage = {
@@ -126,6 +127,7 @@ const apiSlices = [
   settingsApi,
   statisticsApi,
   platformDashboardApi,
+  reportsApi,
 ];
 
 const clearApiCachesOnLogout = ({ dispatch }) => (next) => (action) => {
@@ -187,6 +189,7 @@ export const store = configureStore({
     [settingsApi.reducerPath]: settingsApi.reducer,
     [statisticsApi.reducerPath]: statisticsApi.reducer,
     [platformDashboardApi.reducerPath]: platformDashboardApi.reducer,
+    [reportsApi.reducerPath]: reportsApi.reducer,
 
     user: persistedUserReducer,
   },
@@ -239,6 +242,7 @@ export const store = configureStore({
       settingsApi.middleware,
       statisticsApi.middleware,
       platformDashboardApi.middleware,
+      reportsApi.middleware,
       clearApiCachesOnLogout,
     ),
 });

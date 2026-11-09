@@ -54,8 +54,13 @@ export function getPeriodPresetRange(preset) {
   const today = dayjs();
 
   switch (preset) {
-    case 'this_week':
-      return { startDate: today.startOf('week'), endDate: today.endOf('week') };
+    case 'this_week': {
+      const day = today.day();
+      const diff = day === 0 ? -6 : 1 - day;
+      const startDate = today.add(diff, 'day').startOf('day');
+      const endDate = startDate.add(6, 'day').endOf('day');
+      return { startDate, endDate };
+    }
     case 'this_month':
       return { startDate: today.startOf('month'), endDate: today.endOf('month') };
     case 'pay_period_4wk':

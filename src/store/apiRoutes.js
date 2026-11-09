@@ -46,6 +46,14 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/visitor-survey-responses`,
     ORGANIZATION_VISITOR_SURVEY_RESPONSES: (organizationId) =>
         `/admin/organizations/${organizationId}/visitor-survey-responses`,
+    ORGANIZATION_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/dashboard`,
+    ORGANIZATION_SITE_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/site-dashboard`,
+    ORGANIZATION_LINE_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/line-dashboard`,
+    ORGANIZATION_STAFF_HOME_DASHBOARD: (organizationId) =>
+        `/admin/organizations/${organizationId}/staff-dashboard`,
     MODULE_DEFINITIONS: '/admin/module-definitions',
     ORGANIZATION_DEPARTMENTS: (organizationId) => `/admin/organizations/${organizationId}/departments`,
     ORGANIZATION_DEPARTMENT_BY_ID: (organizationId, departmentId) =>
@@ -107,6 +115,16 @@ export const API_ROUTES = {
     ATTENDANCE_BY_ID: (attendanceDayId) => `/admin/attendance/${attendanceDayId}`,
     ORGANIZATION_ATTENDANCE_CHANGE_REQUESTS: (organizationId) =>
         `/admin/organizations/${organizationId}/attendance-change-requests`,
+    REPORTS_ATTENDANCE: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/attendance`,
+    REPORTS_STAFF_HOURS_SUMMARY: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/staff-hours-summary`,
+    REPORTS_VISITOR_CHECK_INS: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/visitor-check-ins`,
+    REPORTS_SICKNESS_RATE: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/sickness-rate`,
+    REPORTS_LATE_CHECK_INS: (organizationId) =>
+        `/admin/organizations/${organizationId}/reports/late-check-ins`,
 
     // Residents
     RESIDENTS: '/admin/residents',

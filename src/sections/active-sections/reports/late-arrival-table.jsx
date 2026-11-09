@@ -1,8 +1,11 @@
+import { useMemo, useCallback } from 'react';
+import PropTypes from 'prop-types';
+import dayjs from 'dayjs';
+
 import {
     Avatar,
     Box,
     Card,
-    CardHeader,
     Link,
     Stack,
     Table,
@@ -11,8 +14,7 @@ import {
     TableContainer,
     TableRow,
 } from '@mui/material';
-import { useCallback, useMemo } from 'react';
-import { VISITOR_STATUS_OPTIONS } from 'src/_mock';
+
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
@@ -22,238 +24,302 @@ import { Scrollbar } from 'src/components/scrollbar';
 import {
     TableHeadCustom,
     TablePaginationCustom,
-    useTable,
+    TableSkeleton,
+    TableNoData,
 } from 'src/components/table';
-import { useSetState } from 'src/hooks/use-set-state';
 import { TableInfo } from 'src/sections/user/attendance-table';
-import { UserTableFiltersResult } from 'src/sections/user/user-table-filters-result';
-import { fDate, fTime } from 'src/utils/format-time';
 
 // ----------------------------------------------------------------------
-const USER_TYPE_OPTION = [
+
+const USER_TYPE_OPTIONS = [
     { value: 'all', label: 'All', color: 'default' },
     { value: 'staff', label: 'Staff' },
     { value: 'contractor', label: 'Contractor' },
-]
+];
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...VISITOR_STATUS_OPTIONS];
+const STATUS_OPTIONS = [
+    { value: 'all', label: 'All', color: 'default' },
+    { value: 'onSite', label: 'On Site', color: 'success' },
+    { value: 'late', label: 'Late', color: 'warning' },
+    { value: 'onBreak', label: 'On Break', color: 'info' },
+    { value: 'onLeave', label: 'On Leave', color: 'default' },
+    { value: 'checkedOut', label: 'Checked Out', color: 'default' },
+];
 
 const HEAD_LABELS = [
-    { id: "sr#", label: "Sr#" },
-    { id: 'name', label: 'Name' },
-    { id: 'type', label: 'Type' },
-    { id: 'date', label: 'Date' },
-    { id: 'checkIn', label: 'In', align: "center" },
-    { id: 'method', label: 'Method' },
-    { id: 'status', label: 'Status', align: "center" },
+    { id: 'sr#', label: 'Sr#', width: 70 },
+    { id: 'name', label: 'Name', minWidth: 220 },
+    { id: 'type', label: 'Type', minWidth: 120 },
+    { id: 'date', label: 'Date', minWidth: 140 },
+    { id: 'checkIn', label: 'In', align: 'center', minWidth: 130 },
+    { id: 'method', label: 'Method', minWidth: 130 },
+    { id: 'status', label: 'Status', align: 'center', minWidth: 130 },
 ];
 
-const FILTER_FIELDS = [
-    createFilterField.status({
-        options: STATUS_OPTIONS,
-        showCounts: true,
-    }),
+export function formatMethod(method) {
+    if (!method) return '—';
+    const map = {
+        phone: 'Phone',
+        kiosk: 'Kiosk',
+        qr: 'QR Code',
+        walkIn: 'Walk-in',
+        manual: 'Manual',
+        nfc: 'NFC',
+    };
+    return map[method] || method;
+}
 
-    createFilterField.search({
-        placeholder: 'Search ...',
-    }),
-    createFilterField.select({
-        key: 'userType',
-        label: 'User Type',
-        options: USER_TYPE_OPTION,
-        defaultValue: 'all',
-    }),
-
-
-];
+export function getStatusBadge(presenceStatus, punctualityStatus) {
+    const status = presenceStatus || punctualityStatus;
+    switch (status) {
+        case 'onSite':
+        case 'inBuilding':
+            return { label: 'On site', color: 'success' };
+        case 'late':
+            return { label: 'Late', color: 'warning' };
+        case 'onBreak':
+            return { label: 'On break', color: 'info' };
+        case 'onLeave':
+            return { label: 'On leave', color: 'default' };
+        case 'checkedOut':
+            return { label: 'Checked out', color: 'default' };
+        case 'awaiting':
+            return { label: 'Awaiting', color: 'warning' };
+        default:
+            return { label: status || '—', color: 'default' };
+    }
+}
 
 // ----------------------------------------------------------------------
 
-export function LateArrivalTable({ data, title = 'Visitor Check In' }) {
-
-    const table = useTable();
-
-    const filters = useSetState({ name: '', status: 'all' });
-
-
-    const apiUsers = data || [];
-
-    // const meta = data?.meta||{};
-    const meta = {};
-
+export function LateArrivalTable({
+    data = [],
+    meta = {},
+    loading = false,
+    table,
+    filters,
+    onFilterChange,
+}) {
     const statusFilterField = useMemo(
-        () => FILTER_FIELDS.find((f) => f.type === 'status'),
+        () =>
+            createFilterField.status({
+                options: STATUS_OPTIONS,
+                showCounts: true,
+            }),
         []
     );
 
-    // Get toolbar filter fields (exclude status as it's in tabs)
     const toolbarFilterFields = useMemo(
-        () => FILTER_FIELDS.filter((f) => f.type !== 'status'),
+        () => [
+            createFilterField.search({
+                key: 'search',
+                placeholder: 'Search ...',
+            }),
+            createFilterField.select({
+                key: 'userType',
+                label: 'User Type',
+                options: USER_TYPE_OPTIONS,
+                defaultValue: 'all',
+            }),
+        ],
         []
     );
-    const getStatusCount = useCallback((status) => {
-        const statusCounts = meta?.usersCount || {};
-        if (status === 'all') {
-            return statusCounts.total || 0;
-        }
 
-
-        return statusCounts[status] || 0;
-    },
+    const getStatusCount = useCallback(
+        (statusValue) => {
+            if (statusValue === 'all') {
+                return meta?.totalRecords || 0;
+            }
+            return meta?.counts?.[statusValue] || 0;
+        },
         [meta]
     );
 
+    const handleStatusTabChange = useCallback(
+        (fieldKey, newValue) => {
+            table?.onResetPage?.();
+            onFilterChange?.('status', newValue);
+        },
+        [table, onFilterChange]
+    );
 
-    const canReset = !!filters.state.name || filters.state.status !== 'all';
+    const handleToolbarFilterChange = useCallback(
+        (fieldKey, newValue) => {
+            table?.onResetPage?.();
+            onFilterChange?.(fieldKey, newValue);
+        },
+        [table, onFilterChange]
+    );
 
-    const handleFilterChange = () => {
+    const handleSearchChange = useCallback(
+        (e) => {
+            table?.onResetPage?.();
+            onFilterChange?.('search', e.target.value);
+        },
+        [table, onFilterChange]
+    );
 
-    }
-
-    const handleSearchChange = () => {
-
-    }
+    const totalRecords = meta?.totalRecords ?? data.length;
 
     return (
         <Card>
-            {/* {title && <CardHeader title={title} />} */}
-
             <StatusTabsFilterWrapper
                 filterField={statusFilterField}
-                value={filters.state.status}
-                onChange={handleFilterChange}
+                value={filters?.status || 'all'}
+                onChange={handleStatusTabChange}
                 getCount={getStatusCount}
             />
 
-
-            {/* Toolbar with Search */}
             <FlexibleTableToolbar
                 filterFields={toolbarFilterFields}
-                filterValues={filters.state}
-                onFilterChange={handleFilterChange}
+                filterValues={filters || {}}
+                onFilterChange={handleToolbarFilterChange}
                 onSearchChange={handleSearchChange}
             />
 
-            {canReset && (
-                <UserTableFiltersResult
-                    filters={filters}
-                    totalResults={meta?.totalRecords || 0}
-                    onResetPage={table.onResetPage}
-                    sx={{ p: 2.5, pt: 0 }}
-                />
-            )}
-
             <TableContainer sx={{ mt: 1 }}>
                 <Scrollbar>
-                    <Table>
+                    <Table size={table?.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
                         <TableHeadCustom headLabel={HEAD_LABELS} />
 
                         <TableBody>
-                            {data.map((row, index) => (
-                                <TableRow key={row.id} hover>
+                            {loading ? (
+                                <TableSkeleton
+                                    rowCount={table?.rowsPerPage || 10}
+                                    cellCount={HEAD_LABELS.length}
+                                />
+                            ) : data.length === 0 ? (
+                                <TableNoData notFound={true} />
+                            ) : (
+                                data.map((row, index) => {
+                                    const badge = getStatusBadge(row.presenceStatus, row.punctualityStatus);
+                                    const staff = row.staff || {};
+                                    const displayName = staff.name || row.name || '—';
+                                    const displayEmail = staff.email || row.email || '';
+                                    const photoUrl = staff.photoUrl || row.image || '';
+                                    const displayType =
+                                        row.type === 'contractor' || row.personType === 'contractor'
+                                            ? 'Contractor'
+                                            : 'Staff';
+                                    const workDate = row.workDate || row.date;
+                                    const checkInTime = row.clockInAt || row.checkIn;
 
-                                    <TableCell>{index + 1}</TableCell>
-                                    {/* Name */}
-                                    <TableCell>
-                                        <Stack direction="row" alignItems="center" spacing={2}>
-                                            <Avatar
-                                                alt={row.name}
-                                                src={row.image}
-                                                sx={{ width: 36, height: 36 }}
-                                            >
-                                                {row.name?.charAt(0)}
-                                            </Avatar>
+                                    return (
+                                        <TableRow key={row._id || row.id || index} hover>
+                                            <TableCell>
+                                                {(table?.page || 0) * (table?.rowsPerPage || 10) + index + 1}
+                                            </TableCell>
 
-                                            <Stack
-                                                sx={{
-                                                    typography: 'body2',
-                                                    flex: '1 1 auto',
-                                                    alignItems: 'flex-start',
-                                                }}
-                                            >
-                                                <Link
-                                                    color="inherit"
-                                                    sx={{
-                                                        cursor: 'pointer',
-                                                        fontWeight: 600,
-                                                    }}
-                                                >
-                                                    {row.name || '—'}
-                                                </Link>
+                                            {/* Name */}
+                                            <TableCell>
+                                                <Stack direction="row" alignItems="center" spacing={2}>
+                                                    <Avatar
+                                                        alt={displayName}
+                                                        src={photoUrl}
+                                                        sx={{ width: 36, height: 36 }}
+                                                    >
+                                                        {displayName.charAt(0).toUpperCase()}
+                                                    </Avatar>
 
-                                                {row.email && (
-                                                    <Box
+                                                    <Stack
                                                         sx={{
-                                                            color: 'text.secondary',
-                                                            typography: 'caption',
+                                                            typography: 'body2',
+                                                            flex: '1 1 auto',
+                                                            alignItems: 'flex-start',
                                                         }}
                                                     >
-                                                        {row.email}
-                                                    </Box>
+                                                        <Link
+                                                            color="inherit"
+                                                            sx={{
+                                                                fontWeight: 600,
+                                                            }}
+                                                        >
+                                                            {displayName}
+                                                        </Link>
+
+                                                        {displayEmail && (
+                                                            <Box
+                                                                sx={{
+                                                                    color: 'text.secondary',
+                                                                    typography: 'caption',
+                                                                }}
+                                                            >
+                                                                {displayEmail}
+                                                            </Box>
+                                                        )}
+
+                                                        {staff.employeeCode && (
+                                                            <Box
+                                                                sx={{
+                                                                    color: 'text.disabled',
+                                                                    typography: 'caption',
+                                                                    fontSize: '11px',
+                                                                }}
+                                                            >
+                                                                {staff.employeeCode}
+                                                            </Box>
+                                                        )}
+                                                    </Stack>
+                                                </Stack>
+                                            </TableCell>
+
+                                            {/* Type */}
+                                            <TableCell>{displayType}</TableCell>
+
+                                            {/* Date */}
+                                            <TableCell>
+                                                {workDate ? dayjs(workDate).format('DD MMM YYYY') : '—'}
+                                            </TableCell>
+
+                                            {/* Check In */}
+                                            <TableCell align="center">
+                                                {checkInTime ? (
+                                                    <TableInfo
+                                                        icon="famicons:log-in"
+                                                        color="success"
+                                                        value={dayjs(checkInTime).format('h:mm a')}
+                                                    />
+                                                ) : (
+                                                    '—'
                                                 )}
-                                            </Stack>
-                                        </Stack>
-                                    </TableCell>
+                                            </TableCell>
 
-                                    {/* Type */}
-                                    <TableCell>
-                                        {row.type || '—'}
-                                    </TableCell>
+                                            {/* Method */}
+                                            <TableCell>{formatMethod(row.checkInMethod || row.method)}</TableCell>
 
-                                    {/* Date */}
-                                    <TableCell>
-                                        {row.date ? fDate(row.date) : '—'}
-                                    </TableCell>
-
-                                    {/* Check In */}
-                                    <TableCell>
-                                        {/* {row.checkIn || '—'} */}
-                                        {row.checkIn ?
-                                            <TableInfo
-                                                icon="famicons:log-in"
-                                                color="success"
-                                                value={fTime(new Date())}
-                                            /> : '—'}
-                                    </TableCell>
-
-                                    {/* Method */}
-                                    <TableCell>
-                                        {row.method || '—'}
-                                    </TableCell>
-
-                                    {/* Status */}
-                                    <TableCell align="center">
-                                        <Label
-                                            variant="soft"
-                                            color={
-                                                row.status === 'On site'
-                                                    ? 'success'
-                                                    : row.status === 'Awaiting'
-                                                        ? 'warning'
-                                                        : row.status === 'Late'
-                                                            ? 'warning'
-                                                            : row.status === "In building" ? "success" : "default"
-                                            }
-                                        >
-                                            {row.status || '—'}
-                                        </Label>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                            {/* Status */}
+                                            <TableCell align="center">
+                                                <Label variant="soft" color={badge.color}>
+                                                    {badge.label}
+                                                </Label>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            )}
                         </TableBody>
                     </Table>
-
                 </Scrollbar>
+
                 <TablePaginationCustom
-                    page={table.page}
-                    dense={table.dense}
-                    count={data.length}
-                    rowsPerPage={table.rowsPerPage}
-                    onPageChange={table.onChangePage}
-                    onChangeDense={table.onChangeDense}
-                    onRowsPerPageChange={table.onChangeRowsPerPage}
+                    page={table?.page || 0}
+                    dense={table?.dense}
+                    count={totalRecords}
+                    rowsPerPage={table?.rowsPerPage || 10}
+                    onPageChange={table?.onChangePage}
+                    onChangeDense={table?.onChangeDense}
+                    onRowsPerPageChange={table?.onChangeRowsPerPage}
                 />
             </TableContainer>
         </Card>
     );
 }
+
+LateArrivalTable.propTypes = {
+    data: PropTypes.array,
+    filters: PropTypes.object,
+    loading: PropTypes.bool,
+    meta: PropTypes.object,
+    onFilterChange: PropTypes.func,
+    table: PropTypes.object,
+};
