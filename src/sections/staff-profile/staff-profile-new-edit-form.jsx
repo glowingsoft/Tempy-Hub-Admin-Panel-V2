@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -76,6 +76,17 @@ function mapSupervisorOption(item) {
     value: item._id,
     label,
   };
+}
+
+function lookupId(value) {
+  if (!value) return '';
+  if (typeof value === 'object') return value._id || value.value || '';
+  return value;
+}
+
+function getDepartmentBranchId(department) {
+  const branch = department?.branchId || department?.branch;
+  return typeof branch === 'object' ? branch?._id || branch?.id || '' : branch || '';
 }
 
 const lookupOptionSchema = zod.object({
@@ -164,7 +175,7 @@ export function StaffProfileNewEditForm({
   pathsConfig,
 } = {}) {
   const router = useRouter();
-  const { organizationId: currentOrgId, isOwner } = useCurrentOrganization(organizationId);
+  const { organizationId: currentOrgId, isOwner, user } = useCurrentOrganization(organizationId);
 
   const resolvedPaths = useMemo(
     () => ({
@@ -180,6 +191,25 @@ export function StaffProfileNewEditForm({
   const isEdit = !!currentStaffProfile;
   const staffProfileId = currentStaffProfile?._id;
   const isLineManagerStaff = isEdit && isLineManager(currentStaffProfile);
+  const memberships = user?.access?.memberships || [];
+  const currentOrganizationMembership = memberships.find((membership) => {
+    const membershipOrganizationId =
+      typeof membership?.organizationId === 'object'
+        ? membership.organizationId?._id
+        : membership?.organizationId;
+    return currentOrgId && membershipOrganizationId === currentOrgId;
+  });
+  const currentUserRole =
+    currentOrganizationMembership?.role ||
+    user?.role ||
+    user?.basicInfo?.role ||
+    user?.accountState?.role;
+  const isLineManagerUser =
+    Number(user?.permission) === 3 ||
+    isLineManager({ role: currentUserRole }) ||
+    (!currentOrgId && memberships.some((membership) => isLineManager({ role: membership?.role })));
+  const hideSupervisorField =
+    isEdit && (isLineManagerStaff || isLineManagerUser);
 
   const defaultValues = useMemo(
     () => ({
@@ -273,6 +303,45 @@ export function StaffProfileNewEditForm({
   const [createStaffProfile, { isLoading: isCreating }] = useCreateStaffProfileMutation();
   const [updateStaffProfile, { isLoading: isUpdating }] = useUpdateStaffProfileMutation();
   const lookupQueryArgs = useMemo(() => ({ organizationId: activeOrgId }), [activeOrgId]);
+
+  const { data: departmentsData, isLoading: isLoadingDepartments } = useGetDepartmentsQuery(
+    { organizationId: activeOrgId, page: 1, limit: 1000, status: 'active' },
+    { skip: !activeOrgId }
+  );
+
+  const watchedBranch = watch('branchId');
+  const selectedBranchId = lookupId(watchedBranch);
+
+  const departmentOptions = useMemo(() => {
+    const departments = Array.isArray(departmentsData?.data) ? departmentsData.data : [];
+
+    return departments
+      .filter((department) => {
+        if (department.active === false) return false;
+
+        const departmentBranchId = getDepartmentBranchId(department);
+        return !departmentBranchId || departmentBranchId === selectedBranchId;
+      })
+      .map(mapLookupOption);
+  }, [departmentsData?.data, selectedBranchId]);
+
+  const eligibleDepartmentIds = useMemo(
+    () => new Set(departmentOptions.map((option) => option.value)),
+    [departmentOptions]
+  );
+
+  useEffect(() => {
+    if (!departmentsData) return;
+
+    const selectedDepartments = methods.getValues('departmentIds') || [];
+    const validDepartments = selectedDepartments.filter((department) =>
+      eligibleDepartmentIds.has(department.value)
+    );
+
+    if (validDepartments.length !== selectedDepartments.length) {
+      methods.setValue('departmentIds', validDepartments, { shouldValidate: true });
+    }
+  }, [departmentsData, eligibleDepartmentIds, methods]);
 
   const userOptions = useMemo(() => {
     const list = [...mockStaffUsers.filter((u) => !activeOrgId || u.organizationId === activeOrgId)];
@@ -411,28 +480,31 @@ export function StaffProfileNewEditForm({
               enabled={!!activeOrgId}
             />
 
-            <Field.InfiniteAutocomplete
-              name="supervisorStaffId"
-              label="Supervisor"
-              placeholder="Search supervisor"
-              useQuery={useGetStaffProfilesQuery}
-              queryArgs={lookupQueryArgs}
-              mapOption={mapSupervisorOption}
-              enabled={!!activeOrgId}
-            />
+            {!hideSupervisorField && (
+              <Field.InfiniteAutocomplete
+                name="supervisorStaffId"
+                label="Supervisor"
+                placeholder="Search supervisor"
+                useQuery={useGetStaffProfilesQuery}
+                queryArgs={lookupQueryArgs}
+                mapOption={mapSupervisorOption}
+                enabled={!!activeOrgId}
+              />
+            )}
 
             <Field.DatePicker name="startDate" label="Start date" />
 
-            <Field.InfiniteAutocomplete
+            <Field.Autocomplete
               multiple
               disableCloseOnSelect
               name="departmentIds"
               label="Departments"
-              placeholder="Search departments"
-              useQuery={useGetDepartmentsQuery}
-              queryArgs={lookupQueryArgs}
-              mapOption={mapLookupOption}
-              enabled={!!activeOrgId}
+              placeholder={selectedBranchId ? 'Search departments' : 'Select a site first'}
+              loading={isLoadingDepartments}
+              options={departmentOptions}
+              disabled={!activeOrgId || !selectedBranchId || isLoadingDepartments}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
+              getOptionLabel={(option) => option.label || ''}
               renderTags={(selected, getTagProps) =>
                 selected.map((option, index) => (
                   <Chip

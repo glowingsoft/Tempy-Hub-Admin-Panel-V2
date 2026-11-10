@@ -209,14 +209,6 @@ export function ResidentListView({ ownerDashboard = false }) {
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
                         <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />
                         <Button
-                            variant="outlined"
-                            color="primary"
-                            onClick={importDialog.onTrue}
-                            startIcon={<Iconify icon="solar:upload-bold" />}
-                        >
-                            Import CSV
-                        </Button>
-                        <Button
                             variant="contained"
                             color="primary"
                             onClick={handleOpenAdd}

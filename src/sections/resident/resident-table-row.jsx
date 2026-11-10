@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -21,7 +20,6 @@ import {
 } from './mocks/data';
 
 export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) {
-    const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
     const statusValue = row.admissionStatus || row.status;
@@ -30,8 +28,6 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
         RESIDENT_STATUS_OPTIONS.find((option) => option.value === statusValue);
     const careLevel = RESIDENT_CARE_LEVEL_OPTIONS.find((option) => option.value === row.careLevel);
     const branchName = row.branch?.name || row.branchName || row.branch || '—';
-    const passcode = row.visitorPasscode || row.securityPassword;
-
     // Shared across the site manager, line manager and owner dashboards, so
     // the detail route is resolved from the current URL rather than a prop.
     const isOwner = pathname.startsWith(paths.owner.root);
@@ -91,11 +87,8 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             <TableCell align="center" onClick={(event) => event.stopPropagation()}>
                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                        {showPassword ? (passcode || '—') : '••••••••'}
+                        ••••••••
                     </Typography>
-                    <IconButton size="small" onClick={() => setShowPassword((prev) => !prev)}>
-                        <Iconify icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'} width={16} />
-                    </IconButton>
                     <Tooltip title="Edit Security Password">
                         <IconButton size="small" color="primary" onClick={() => onEditSecurity?.(row)}>
                             <Iconify icon="solar:shield-keyhole-bold" width={16} />

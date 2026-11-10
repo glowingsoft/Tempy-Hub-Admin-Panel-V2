@@ -40,7 +40,7 @@ const FloorSchema = zod.object({
 
 // ----------------------------------------------------------------------
 
-// A floor requires a name, site, and floor-plan image (PNG/JPG/WebP). The image
+// A floor requires a name and site. An optional floor-plan image (PNG/JPG/WebP)
 // is uploaded to S3 first, then its object key is stored with the floor record.
 export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, onSuccess, ownerDashboard = true }) {
   // Resolve organizationId the same way every other modal does —
@@ -100,33 +100,30 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
 
   const handleRemoveFile = useCallback(() => {
     setUploadedFile(null);
-    setFileError('A floor plan image is required.');
+    setFileError('');
   }, []);
 
   const onSubmit = methods.handleSubmit(async (data) => {
-    // Validate file is present (required)
-    if (!uploadedFile) {
-      setFileError('A floor plan image is required.');
-      return;
-    }
-
-    if (!(await isAllowedFloorPlanImage(uploadedFile))) {
+    if (uploadedFile && !(await isAllowedFloorPlanImage(uploadedFile))) {
       setFileError('Choose a valid JPG, PNG, or WebP image. PDF files are not supported.');
       toast.error('Only JPG, PNG, or WebP image files are allowed for a new floor.');
       return;
     }
+
     setIsSubmitting(true);
     try {
-      // Step 1: Upload the required floor-plan image.
-      const uploadResult = await uploadFile(uploadedFile).unwrap();
-      const imageUrl = uploadResult.key ?? '';
+      let imageUrl;
+      if (uploadedFile) {
+        const uploadResult = await uploadFile(uploadedFile).unwrap();
+        imageUrl = uploadResult.key ?? '';
+      }
 
       // Step 3: Create floor plan record
       const result = await createFloor({
         organizationId,
         name: data.name,
         branchId: data.branchId.value,
-        imageUrl,
+        ...(imageUrl ? { imageUrl } : {}),
         pdfUrl: '',
       }).unwrap();
 
@@ -161,10 +158,10 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
             {/* Floor name */}
             <Field.Text name="name" label="Floor / wing label" placeholder="e.g. Second Floor" />
 
-            {/* Floor plan image upload — required */}
+            {/* Optional floor plan image upload */}
             <Stack spacing={1}>
               <Typography variant="subtitle2">
-                Floor Plan File <Typography component="span" color="error.main" variant="subtitle2">*</Typography>
+                Floor Plan File
               </Typography>
               <Upload
                 value={uploadedFile}
