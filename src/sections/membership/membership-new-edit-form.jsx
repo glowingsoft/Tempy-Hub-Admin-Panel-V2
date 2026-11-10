@@ -60,7 +60,7 @@ export const MembershipSchema = zod
     if (data.role !== 'lineManager' && !data.jobTitleId?.value) {
       ctx.addIssue({ code: 'custom', path: ['jobTitleId'], message: 'Job title is required!' });
     }
-    if (!data.startDate) {
+    if (data.role !== 'lineManager' && !data.startDate) {
       ctx.addIssue({ code: 'custom', path: ['startDate'], message: 'Start date is required!' });
     }
   });
@@ -185,7 +185,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const selectedPermissions = watch('permissions') || [];
   const hideJobTitle = role === 'siteManager' || role === 'lineManager';
   const hideDepartment = role === 'siteManager' || role === 'lineManager';
-  const hideStartDate = role === 'siteManager';
+  const hideStartDate = role === 'siteManager' || role === 'lineManager';
   const hidePermissions = role === 'staff';
 
   const permissionOptions = useMemo(() => {
@@ -198,6 +198,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
     if (role === 'lineManager') {
       methods.setValue('jobTitleId', null);
       methods.setValue('departmentIds', []);
+      methods.setValue('startDate', null);
     } else if (role === 'siteManager') {
       methods.setValue('jobTitleId', null);
       methods.setValue('departmentIds', []);
@@ -259,6 +260,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
         if (data.role === 'lineManager') {
           delete payload.jobTitleId;
           delete payload.departmentIds;
+          delete payload.startDate;
         }
         if (data.role === 'staff') {
           delete payload.permissions;
