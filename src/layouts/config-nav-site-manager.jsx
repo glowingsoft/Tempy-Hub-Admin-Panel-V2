@@ -50,6 +50,7 @@ const ICONS = {
   pendingApproval: icon('ic-check'),
   compliance: icon('ic-compliance'),
   supervision: icon('ic-users'),
+  calendar: icon('ic-calendar'),
 };
 
 // ----------------------------------------------------------------------
@@ -94,8 +95,8 @@ export const navDataSiteManager = [
         ],
       },
       { title: 'Configuration', path: paths.siteManager.configuration, icon: ICONS.settings },
-      { title: "Approvals", path: paths.siteManager.pendingApproval, icon: ICONS.pendingApproval },
-      { title: "Roles", path: paths.siteManager.roles, icon: ICONS.lock },
+      { title: 'Leave Requests', path: paths.siteManager.leaveRequests.root, icon: ICONS.calendar },
+      { title: 'Job Titles', path: paths.siteManager.jobTitles.root, icon: ICONS.label },
     ],
   },
   /**

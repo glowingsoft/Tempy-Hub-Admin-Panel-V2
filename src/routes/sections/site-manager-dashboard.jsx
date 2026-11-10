@@ -131,6 +131,10 @@ const PendingApprovalPage = lazy(() => import('src/pages/dashboard/active-routes
 //roles 
 const RolesPage = lazy(() => import('src/pages/dashboard/active-routes/role'));
 
+const JobTitleListPage = lazy(() => import('src/pages/site-manager/job-titles/list'));
+const LeaveRequestListPage = lazy(() => import('src/pages/site-manager/leave-requests/list'));
+const LeaveRequestDetailPage = lazy(() => import('src/pages/site-manager/leave-requests/detail'));
+
 //rota
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
 
@@ -285,6 +289,19 @@ export const siteManagerDashboardRoutes = [
       },
       {
         path: "roles", element: <RolesPage />
+      },
+      {
+        path: 'job-titles',
+        children: [
+          { index: true, element: <JobTitleListPage /> },
+        ],
+      },
+      {
+        path: 'leave-requests',
+        children: [
+          { index: true, element: <LeaveRequestListPage /> },
+          { path: ':id', element: <LeaveRequestDetailPage /> },
+        ],
       },
       {
         path: 'family-engagement',

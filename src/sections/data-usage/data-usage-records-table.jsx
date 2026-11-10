@@ -62,7 +62,7 @@ export function DataUsageRecordsTable({
       { id: 'imageUsageGb', label: 'Image Usage', minWidth: 160 },
       { id: 'otherFilesGb', label: 'Other Files', minWidth: 140 },
       { id: 'usagePercentage', label: 'Usage %', minWidth: 180 },
-      { id: 'actions', label: 'Actions', width: 80, align: 'right' },
+      { id: 'actions', label: 'Actions', width: 112, align: 'right' },
     ],
     [nameColumnLabel, rows]
   );

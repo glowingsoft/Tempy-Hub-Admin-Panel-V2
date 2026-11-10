@@ -104,9 +104,17 @@ function EmployeeProfileView() {
     () => ({
       id: person?._id || person?.id || id,
       name: person?.name || '',
+      email: person?.email || '',
       status: person?.status || 'active',
       phone: person?.phone || '',
       carRegistration: person?.carRegistration || '',
+      departmentId:
+        person?.departmentId ||
+        (typeof person?.department === 'object'
+          ? person.department?._id
+          : person?.department) ||
+        '',
+      type: person?.type || '',
     }),
     [id, person]
   );
