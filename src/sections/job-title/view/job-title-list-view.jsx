@@ -147,13 +147,15 @@ export function JobTitleListView() {
   const handleCreateSuccess = useCallback(() => table.onResetPage(), [table.onResetPage]);
 
   const orgName = organizationName || user?.organization?.name;
+  const dashboardHref =
+    user?.permission === 2 ? paths.siteManager.root : paths.owner.root;
 
   return (
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Job Titles"
         links={[
-          { name: 'Dashboard', href: paths.owner.root },
+          { name: 'Dashboard', href: dashboardHref },
           { name: 'Job Titles' },
           ...(orgName ? [{ name: orgName }] : []),
         ]}

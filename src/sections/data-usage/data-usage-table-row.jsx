@@ -169,27 +169,53 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit, clickable = true 
         </Stack>
       </TableCell>
 
-      {/* Actions: Edit Icon */}
-      <TableCell align="right" sx={{ width: 80, pr: 2 }}>
-        {canEdit ? (
-          <Tooltip title="Edit Organization">
-            <IconButton
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(row);
-              }}
-              sx={{
-                color: 'text.secondary',
-                '&:hover': {
-                  color: 'primary.main',
-                  bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.08),
-                },
-              }}
-            >
-              <Iconify icon="solar:pen-bold" width={22} />
-            </IconButton>
+      {/* Actions: View + Edit */}
+      <TableCell align="right" sx={{ width: 112, pr: 2 }}>
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="View details">
+            <span>
+              <IconButton
+                disabled={!clickable}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!clickable) return;
+                  onViewDetail?.(row);
+                }}
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': {
+                    color: 'primary.main',
+                    bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.08),
+                  },
+                }}
+              >
+                <Iconify icon="solar:eye-bold" width={22} />
+              </IconButton>
+            </span>
           </Tooltip>
-        ) : null}
+
+          <Tooltip title={canEdit ? 'Edit Organization' : 'Editing is not available'}>
+            <span>
+              <IconButton
+                disabled={!canEdit}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!canEdit) return;
+                  onEdit(row);
+                }}
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': {
+                    color: 'primary.main',
+                    bgcolor: varAlpha(theme.vars.palette.primary.mainChannel, 0.08),
+                  },
+                }}
+              >
+                <Iconify icon="solar:pen-bold" width={22} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
       </TableCell>
     </TableRow>
   );

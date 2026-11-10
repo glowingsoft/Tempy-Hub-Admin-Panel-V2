@@ -64,7 +64,7 @@ const FILTER_FIELDS = [
  * One listing for both the Owner Dashboard and the Line Manager "Leave Approval"
  * screen.
  *
- * @param {'owner' | 'lineManager'} variant
+ * @param {'owner' | 'lineManager' | 'siteManager'} variant
  * @param {boolean} [canSetEntitlement] - overrides the per-variant default
  *   (owner: true, line manager: false — the owner grants this). Approve + Reject
  *   are always available on both surfaces.

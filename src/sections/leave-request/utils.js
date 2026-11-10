@@ -8,7 +8,7 @@ import { paths } from 'src/routes/paths';
 // views stay identical.
 // ----------------------------------------------------------------------
 
-export const LEAVE_REQUEST_VARIANTS = ['owner', 'lineManager'];
+export const LEAVE_REQUEST_VARIANTS = ['owner', 'lineManager', 'siteManager'];
 
 export function getLeaveRequestContext(variant = 'owner') {
   if (variant === 'lineManager') {
@@ -19,6 +19,17 @@ export function getLeaveRequestContext(variant = 'owner') {
       listHref: paths.lineManager.leaveApproval.root,
       detailHref: (id) => paths.lineManager.leaveApproval.detail(id),
       // Owner grants this; wire to the real permission flag when it exists.
+      defaultCanSetEntitlement: false,
+    };
+  }
+
+  if (variant === 'siteManager') {
+    return {
+      variant,
+      heading: 'Leave Requests',
+      dashboardHref: paths.siteManager.root,
+      listHref: paths.siteManager.leaveRequests.root,
+      detailHref: (id) => paths.siteManager.leaveRequests.detail(id),
       defaultCanSetEntitlement: false,
     };
   }

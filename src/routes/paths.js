@@ -333,6 +333,14 @@ export const paths = {
     configuration: `${ROOTS.SITE_MANAGER}/configuration`,
     pendingApproval: `${ROOTS.SITE_MANAGER}/approvals`,
     roles: `${ROOTS.SITE_MANAGER}/roles`,
+    jobTitles: {
+      root: `${ROOTS.SITE_MANAGER}/job-titles`,
+      detail: (id) => `${ROOTS.SITE_MANAGER}/job-titles/${id}`,
+    },
+    leaveRequests: {
+      root: `${ROOTS.SITE_MANAGER}/leave-requests`,
+      detail: (id) => `${ROOTS.SITE_MANAGER}/leave-requests/${id}`,
+    },
     familyEngagement: {
       root: `${ROOTS.SITE_MANAGER}/family-engagement`,
       overview: `${ROOTS.SITE_MANAGER}/family-engagement/overview`,
