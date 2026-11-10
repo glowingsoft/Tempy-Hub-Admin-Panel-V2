@@ -34,11 +34,7 @@ export function StaffProfileEditView({ staffProfile: propStaffProfile, pathsConf
   const resolvedPaths = useMemo(
     () => ({
       dashboardRoot: isOwner ? paths.owner.root : paths.dashboard.root,
-      root: isOwner
-        ? paths.owner.staffProfiles.root
-        : organizationId
-          ? `${paths.dashboard.organizations.detail(organizationId)}?tab=staff-profiles`
-          : paths.dashboard.staffProfiles.root,
+      root: isOwner ? paths.owner.staffProfiles.root : paths.dashboard.staffProfiles.root,
       detail: (detailId) =>
         isOwner
           ? paths.owner.staffProfiles.detail(detailId)

@@ -3,7 +3,6 @@ import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
@@ -17,7 +16,9 @@ export default function RotaCellActionPopover({
   onClose,
   cellData,
   onBookShift,
-  onCreateLeave,
+  onSetEntitlement,
+  canBookShift = true,
+  canSetEntitlement = false,
 }) {
   if (!cellData) return null;
 
@@ -28,10 +29,12 @@ export default function RotaCellActionPopover({
     onBookShift(cellData);
   };
 
-  const handleCreateLeave = () => {
+  const handleSetEntitlement = () => {
     onClose();
-    onCreateLeave(cellData);
+    onSetEntitlement(cellData);
   };
+
+  if (!canBookShift && !canSetEntitlement) return null;
 
   return (
     <CustomPopover
@@ -45,7 +48,7 @@ export default function RotaCellActionPopover({
     >
       {/* Popover Header with Staff Name & Date */}
       <Box sx={{ p: 1.5, pb: 1 }}>
-        <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600 }}>
+        <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
           {staff?.name || 'Staff Member'}
         </Typography>
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -56,43 +59,47 @@ export default function RotaCellActionPopover({
       <Divider sx={{ borderStyle: 'dashed' }} />
 
       <MenuList sx={{ p: 0.75 }}>
-        <MenuItem
-          onClick={handleBookShift}
-          sx={{
-            py: 1,
-            px: 1.25,
-            borderRadius: 0.75,
-            typography: 'body2',
-            fontWeight: 500,
-            gap: 1.5,
-            '&:hover': {
-              bgcolor: (theme) => `${theme.palette.primary.lighter}80`,
-              color: 'primary.darker',
-            },
-          }}
-        >
-          <Iconify icon="solar:calendar-add-bold" width={18} sx={{ color: 'primary.main' }} />
-          Book Shift
-        </MenuItem>
+        {canBookShift && (
+          <MenuItem
+            onClick={handleBookShift}
+            sx={{
+              py: 1,
+              px: 1.25,
+              borderRadius: 0.75,
+              typography: 'body2',
+              fontWeight: 500,
+              gap: 1.5,
+              '&:hover': {
+                bgcolor: (theme) => `${theme.palette.primary.lighter}80`,
+                color: 'primary.darker',
+              },
+            }}
+          >
+            <Iconify icon="solar:calendar-add-bold" width={18} sx={{ color: 'primary.main' }} />
+            Create Shift
+          </MenuItem>
+        )}
 
-        <MenuItem
-          onClick={handleCreateLeave}
-          sx={{
-            py: 1,
-            px: 1.25,
-            borderRadius: 0.75,
-            typography: 'body2',
-            fontWeight: 500,
-            gap: 1.5,
-            '&:hover': {
-              bgcolor: (theme) => `${theme.palette.warning.lighter}80`,
-              color: 'warning.darker',
-            },
-          }}
-        >
-          <Iconify icon="solar:sun-2-bold" width={18} sx={{ color: 'warning.main' }} />
-          Create Leave
-        </MenuItem>
+        {canSetEntitlement && onSetEntitlement && (
+          <MenuItem
+            onClick={handleSetEntitlement}
+            sx={{
+              py: 1,
+              px: 1.25,
+              borderRadius: 0.75,
+              typography: 'body2',
+              fontWeight: 500,
+              gap: 1.5,
+              '&:hover': {
+                bgcolor: (theme) => `${theme.palette.info.lighter}80`,
+                color: 'info.darker',
+              },
+            }}
+          >
+            <Iconify icon="solar:document-add-bold" width={18} sx={{ color: 'info.main' }} />
+            Set Entitlement
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -107,5 +114,7 @@ RotaCellActionPopover.propTypes = {
     day: PropTypes.object,
   }),
   onBookShift: PropTypes.func,
-  onCreateLeave: PropTypes.func,
+  onSetEntitlement: PropTypes.func,
+  canBookShift: PropTypes.bool,
+  canSetEntitlement: PropTypes.bool,
 };

@@ -84,6 +84,7 @@ const KioskDetailPage = lazy(() => import('src/pages/dashboard/active-routes/kio
 
 //visitor feedback
 const VisitorFeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/visitor-feedback'));
+const VisitorFeedbackDetailPage = lazy(() => import('src/pages/dashboard/active-routes/visitor-feedback/detail'));
 
 //fire drills
 const FireDrillsPage = lazy(() => import('src/pages/dashboard/active-routes/fire-drills'));
@@ -217,7 +218,11 @@ export const siteManagerDashboardRoutes = [
         ],
       },
       {
-        path: 'feedback', element: <VisitorFeedbackPage />
+        path: 'feedback',
+        children: [
+          { index: true, element: <VisitorFeedbackPage /> },
+          { path: ':id', element: <VisitorFeedbackDetailPage /> },
+        ],
       },
       {
         path: 'fire-drills', element: <FireDrillsPage />
