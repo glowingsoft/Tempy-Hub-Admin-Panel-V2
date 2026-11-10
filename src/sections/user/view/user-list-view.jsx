@@ -60,7 +60,6 @@ const mapBranchOption = (item) => ({
   label: item.name || '',
 });
 
-// ----------------------------------------------------------------------
 
 const USER_TYPE_OPTION = [
   { value: 'all', label: 'All', color: 'default' },
