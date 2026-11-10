@@ -78,11 +78,10 @@ function StatBadge({ icon, value }) {
   );
 }
 
-function StaffRow({ staff, days, selected, onSelect, onCellClick }) {
+function StaffRow({ staff, days, team, onCellClick }) {
   return (
     <Stack direction="row" alignItems="stretch" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
       <Box
-        onClick={() => !staff.vacant && onSelect(staff)}
         sx={{
           width: NAME_COL_WIDTH,
           flexShrink: 0,
@@ -92,12 +91,7 @@ function StaffRow({ staff, days, selected, onSelect, onCellClick }) {
           bgcolor: 'background.paper',
           px: 1.5,
           py: 1.25,
-          cursor: staff.vacant ? 'default' : 'pointer',
-          borderLeft: (theme) =>
-            selected ? `2px solid ${theme.palette.primary.main}` : '2px solid transparent',
-          '&:hover': {
-            bgcolor: (theme) => (!staff.vacant ? alpha(theme.palette.grey[500], 0.04) : 'transparent'),
-          },
+          cursor: 'default',
         }}
       >
         {staff.vacant ? (
@@ -106,7 +100,10 @@ function StaffRow({ staff, days, selected, onSelect, onCellClick }) {
           </Typography>
         ) : (
           <>
-            <Typography variant="body2" sx={{ fontWeight: 600, color: selected ? 'primary.main' : 'text.primary' }}>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 600, color: 'text.primary', textTransform: 'capitalize' }}
+            >
               {staff.name}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -127,7 +124,7 @@ function StaffRow({ staff, days, selected, onSelect, onCellClick }) {
             justifyContent="center"
             onClick={(event) => {
               if (isInteractive) {
-                onCellClick({ staff, day, target: event.currentTarget });
+                onCellClick({ staff, day, shifts: shiftsForDay, team, target: event.currentTarget });
               }
             }}
             sx={{
@@ -190,7 +187,7 @@ function StaffRow({ staff, days, selected, onSelect, onCellClick }) {
   );
 }
 
-export default function RotaTeamSection({ team, days, selectedStaffId, onSelectStaff, onCellClick }) {
+export default function RotaTeamSection({ team, days, onCellClick }) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -203,8 +200,7 @@ export default function RotaTeamSection({ team, days, selectedStaffId, onSelectS
             key={staff.id}
             staff={staff}
             days={days}
-            selected={staff.id === selectedStaffId}
-            onSelect={onSelectStaff}
+            team={team}
             onCellClick={onCellClick}
           />
         ))}

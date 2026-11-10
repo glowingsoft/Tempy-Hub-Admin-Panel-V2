@@ -34,14 +34,15 @@ import { StaffProfileTableRow } from '../staff-profile-table-row';
 
 const ROLE_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
-  ...MEMBERSHIP_ROLE_OPTIONS.map((option) => ({
-    ...option,
-    color:
-      (option.value === 'siteManager' && 'info') ||
-      (option.value === 'lineManager' && 'warning') ||
-      (option.value === 'staff' && 'success') ||
-      'default',
-  })),
+  ...MEMBERSHIP_ROLE_OPTIONS
+    .filter((option) => option.value !== 'siteManager')
+    .map((option) => ({
+      ...option,
+      color:
+        (option.value === 'lineManager' && 'warning') ||
+        (option.value === 'staff' && 'success') ||
+        'default',
+    })),
 ];
 
 const ROLE_FILTER_FIELD = createFilterField.status({

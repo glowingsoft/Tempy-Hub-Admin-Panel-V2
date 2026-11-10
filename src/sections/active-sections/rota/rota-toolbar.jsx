@@ -6,7 +6,6 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
@@ -16,27 +15,10 @@ import { Iconify } from 'src/components/iconify';
 
 const PERIOD_OPTIONS = ['Week', 'Fortnight', 'Month'];
 
-const CURRENCY_OPTIONS = [
-  { value: 'current', label: 'Current' },
-  { value: 'all', label: 'All' },
-];
-
-const GROUP_BY_OPTIONS = [
-  { value: 'staff', label: 'Staff' },
-  { value: 'team', label: 'Group by Team' },
-  { value: 'name', label: 'First Name' },
-];
-
 export default function RotaToolbar({
   rangeLabel,
   period,
   onPeriodChange,
-  filter,
-  onFilterChange,
-  shownCount,
-  totalCount,
-  groupBy,
-  onGroupByChange,
   onPrev,
   onNext,
   locked,
@@ -89,34 +71,6 @@ export default function RotaToolbar({
     },
   };
 
-  const pillGroupSx = {
-    p: 0.5,
-    borderRadius: 1.25,
-    bgcolor: (theme) => alpha(theme.palette.grey[500], 0.08),
-    border: (theme) => `1px solid ${alpha(theme.palette.grey[500], 0.16)}`,
-    '& .MuiToggleButton-root': {
-      border: 0,
-      borderRadius: 1,
-      px: 1.5,
-      py: 0.5,
-      typography: 'subtitle2',
-      fontWeight: 600,
-      color: 'text.secondary',
-      transition: (theme) => theme.transitions.create(['background-color', 'color', 'box-shadow']),
-      '&.Mui-selected': {
-        bgcolor: 'background.paper',
-        color: 'primary.main',
-        boxShadow: (theme) => theme.customShadows?.z1 ?? theme.shadows[1],
-        '&:hover': {
-          bgcolor: 'background.paper',
-        },
-      },
-    },
-  };
-
-  const shownLabel =
-    totalCount != null && totalCount !== shownCount ? `${shownCount} of ${totalCount} shown` : `${shownCount} shown`;
-
   return (
     <Box
       sx={{
@@ -126,7 +80,6 @@ export default function RotaToolbar({
         bgcolor: 'background.paper',
       }}
     >
-      {/* Row 1: Scope switch + Team filter (left) / Date range navigation (right) */}
       <Stack
         direction="row"
         alignItems="center"
@@ -136,7 +89,7 @@ export default function RotaToolbar({
         columnGap={1.5}
         sx={{ px: 2.5, py: 1.5, width: 1 }}
       >
-        {/* Left: My Rota / My Team(s) switch + Managed Teams dropdown */}
+        {/* Left: Scope pills + Managed Teams dropdown */}
         <Stack direction="row" alignItems="center" flexWrap="wrap" rowGap={1} spacing={1.5}>
           {scopeOptions.length > 1 && (
             <ToggleButtonGroup
@@ -207,101 +160,50 @@ export default function RotaToolbar({
           )}
         </Stack>
 
-        {/* Right: Date range navigation + Period dropdown */}
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={1}
-          sx={{
-            p: 0.5,
-            borderRadius: 1.25,
-            border: (theme) => `1px solid ${alpha(theme.palette.grey[500], 0.16)}`,
-            bgcolor: (theme) => alpha(theme.palette.grey[500], 0.04),
-            flexShrink: 0,
-          }}
-        >
-          <IconButton size="small" onClick={onPrev}>
-            <Iconify icon="solar:alt-arrow-left-linear" width={18} />
-          </IconButton>
-
-          <Typography variant="subtitle2" sx={{ minWidth: 120, textAlign: 'center', fontWeight: 600 }}>
-            {rangeLabel}
-          </Typography>
-
-          <IconButton size="small" onClick={onNext}>
-            <Iconify icon="solar:alt-arrow-right-linear" width={18} />
-          </IconButton>
-
-          <TextField
-            select
-            size="small"
-            value={period}
-            onChange={(event) => onPeriodChange(event.target.value)}
+        {/* Right: Date navigation + Period dropdown + Lock / Refresh actions */}
+        <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" rowGap={1}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
             sx={{
-              width: 120,
-              '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-              '& .MuiSelect-select': { py: 0.5, typography: 'subtitle2', fontWeight: 600 },
+              p: 0.5,
+              borderRadius: 1.25,
+              border: (theme) => `1px solid ${alpha(theme.palette.grey[500], 0.16)}`,
+              bgcolor: (theme) => alpha(theme.palette.grey[500], 0.04),
+              flexShrink: 0,
             }}
           >
-            {PERIOD_OPTIONS.map((option) => (
-              <MenuItem key={option} value={option}>
-                {option}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
-      </Stack>
+            <IconButton size="small" onClick={onPrev}>
+              <Iconify icon="solar:alt-arrow-left-linear" width={18} />
+            </IconButton>
 
-      {/* Row 2: Current/All + Shown count (left) / Group By + Actions (right) */}
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        flexWrap="wrap"
-        rowGap={1}
-        columnGap={1.5}
-        sx={{
-          px: 2.5,
-          py: 1,
-          width: 1,
-          borderTop: '1px solid',
-          borderColor: (theme) => alpha(theme.palette.grey[500], 0.12),
-        }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" rowGap={1}>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={filter}
-            onChange={(event, value) => value && onFilterChange(value)}
-            sx={pillGroupSx}
-          >
-            {CURRENCY_OPTIONS.map((option) => (
-              <ToggleButton key={option.value} value={option.value} sx={{ whiteSpace: 'nowrap' }}>
-                {option.label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+            <Typography variant="subtitle2" sx={{ minWidth: 120, textAlign: 'center', fontWeight: 600 }}>
+              {rangeLabel}
+            </Typography>
 
-          <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap', fontWeight: 600 }}>
-            {shownLabel}
-          </Typography>
-        </Stack>
+            <IconButton size="small" onClick={onNext}>
+              <Iconify icon="solar:alt-arrow-right-linear" width={18} />
+            </IconButton>
 
-        <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" rowGap={1}>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={groupBy}
-            onChange={(event, value) => value && onGroupByChange(value)}
-            sx={pillGroupSx}
-          >
-            {GROUP_BY_OPTIONS.map((option) => (
-              <ToggleButton sx={{ whiteSpace: 'nowrap' }} key={option.value} value={option.value}>
-                {option.label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+            <TextField
+              select
+              size="small"
+              value={period}
+              onChange={(event) => onPeriodChange(event.target.value)}
+              sx={{
+                width: 120,
+                '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
+                '& .MuiSelect-select': { py: 0.5, typography: 'subtitle2', fontWeight: 600 },
+              }}
+            >
+              {PERIOD_OPTIONS.map((option) => (
+                <MenuItem key={option} value={option}>
+                  {option}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
 
           <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <GenericTableRowActions actions={actions} />

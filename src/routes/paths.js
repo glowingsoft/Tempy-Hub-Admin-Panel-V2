@@ -303,6 +303,7 @@ export const paths = {
     kiosk: `${ROOTS.SITE_MANAGER}/kiosk`,
     kioskDetail: (id) => `${ROOTS.SITE_MANAGER}/kiosk/${id}`,
     feedback: `${ROOTS.SITE_MANAGER}/feedback`,
+    feedbackDetail: (id) => `${ROOTS.SITE_MANAGER}/feedback/${id}`,
     fireDrills: `${ROOTS.SITE_MANAGER}/fire-drills`,
     PEEPandFloorPlan: `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan`,
     peepAndFloorPlans: {
@@ -465,6 +466,7 @@ export const paths = {
     requirementDetail: (id) => `${ROOTS.LINE_MANAGER}/requirements/${id}`,
     photoApproval: `${ROOTS.LINE_MANAGER}/photo-approval`,
     feedback: `${ROOTS.LINE_MANAGER}/feedback`,
+    feedbackDetail: (id) => `${ROOTS.LINE_MANAGER}/feedback/${id}`,
     messages: `${ROOTS.LINE_MANAGER}/messages`,
     fireDrills: `${ROOTS.LINE_MANAGER}/fire-drills`,
     residents: `${ROOTS.LINE_MANAGER}/residents`,

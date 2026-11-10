@@ -10,15 +10,33 @@ import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
+export function formatMinutes(totalMinutes) {
+  if (totalMinutes == null || Number.isNaN(Number(totalMinutes))) return '0h';
+  const total = Math.max(0, Math.round(Number(totalMinutes)));
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  if (hours > 0 && mins > 0) {
+    return `${hours}h ${mins}m`;
+  }
+  if (hours > 0) {
+    return `${hours}h`;
+  }
+  return `${mins}m`;
+}
+
 export default function RotaSummaryBar({
-  totalHours = 0,
+  staffCount = 0,
+  totalMinutes = 0,
   totalShifts = 0,
-  totalCost = 0,
-  showTotalCost = false,
+  unassignedCount = 0,
   earnings = null,
+  scope = 'personal',
+  showUnassigned = true,
   sx,
   ...other
 }) {
+  const formattedDuration = formatMinutes(totalMinutes);
+
   return (
     <Box
       sx={{
@@ -30,12 +48,12 @@ export default function RotaSummaryBar({
         display: 'flex',
         alignItems: 'center',
         flexWrap: 'wrap',
-        gap: { xs: 1.5, sm: 3 },
+        gap: { xs: 1.5, sm: 2.5 },
         ...sx,
       }}
       {...other}
     >
-      {/* Total Hours */}
+      {/* Total Staff */}
       <Stack direction="row" alignItems="center" spacing={1}>
         <Box
           sx={{
@@ -49,14 +67,42 @@ export default function RotaSummaryBar({
             color: 'primary.main',
           }}
         >
+          <Iconify icon="solar:users-group-rounded-bold" width={16} />
+        </Box>
+        <Stack direction="row" alignItems="baseline" spacing={0.75}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+            Total Staff:
+          </Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            {staffCount}
+          </Typography>
+        </Stack>
+      </Stack>
+
+      <Divider orientation="vertical" flexItem sx={{ height: 18, my: 'auto' }} />
+
+      {/* Total Time (exact hours & minutes) */}
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <Box
+          sx={{
+            width: 28,
+            height: 28,
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
+            color: 'success.main',
+          }}
+        >
           <Iconify icon="solar:clock-circle-bold" width={16} />
         </Box>
         <Stack direction="row" alignItems="baseline" spacing={0.75}>
           <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-            Total Hours:
+            Total Time:
           </Typography>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-            {totalHours}h
+            {formattedDuration}
           </Typography>
         </Stack>
       </Stack>
@@ -89,39 +135,8 @@ export default function RotaSummaryBar({
         </Stack>
       </Stack>
 
-      {/* Money Earnt (Personal scope only) */}
-      {earnings != null && (
-        <>
-          <Divider orientation="vertical" flexItem sx={{ height: 18, my: 'auto' }} />
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Box
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
-                color: 'success.main',
-              }}
-            >
-              <Iconify icon="solar:wallet-bold" width={16} />
-            </Box>
-            <Stack direction="row" alignItems="baseline" spacing={0.75}>
-              <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                Money Earnt:
-              </Typography>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'success.main' }}>
-                {fCurrency(earnings, { code: 'en-GB', currency: 'GBP' })}
-              </Typography>
-            </Stack>
-          </Stack>
-        </>
-      )}
-
-      {/* Total Cost (All Teams / Owner only) */}
-      {showTotalCost && (
+      {/* Unassigned Shifts Count */}
+      {showUnassigned && (
         <>
           <Divider orientation="vertical" flexItem sx={{ height: 18, my: 'auto' }} />
           <Stack direction="row" alignItems="center" spacing={1}>
@@ -137,14 +152,45 @@ export default function RotaSummaryBar({
                 color: 'warning.main',
               }}
             >
-              <Iconify icon="solar:bill-list-bold" width={16} />
+              <Iconify icon="solar:shield-warning-bold" width={16} />
             </Box>
             <Stack direction="row" alignItems="baseline" spacing={0.75}>
               <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                Total Cost:
+                Unassigned:
               </Typography>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                {fCurrency(totalCost, { code: 'en-GB', currency: 'GBP' })}
+                {unassignedCount}
+              </Typography>
+            </Stack>
+          </Stack>
+        </>
+      )}
+
+      {/* Money Earnt (Personal scope only) */}
+      {scope === 'personal' && earnings != null && (
+        <>
+          <Divider orientation="vertical" flexItem sx={{ height: 18, my: 'auto' }} />
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
+                color: 'secondary.main',
+              }}
+            >
+              <Iconify icon="solar:wallet-bold" width={16} />
+            </Box>
+            <Stack direction="row" alignItems="baseline" spacing={0.75}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                Money Earnt:
+              </Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'secondary.main' }}>
+                {fCurrency(earnings, { code: 'en-GB', currency: 'GBP' })}
               </Typography>
             </Stack>
           </Stack>
@@ -155,10 +201,12 @@ export default function RotaSummaryBar({
 }
 
 RotaSummaryBar.propTypes = {
-  totalHours: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  staffCount: PropTypes.number,
+  totalMinutes: PropTypes.number,
   totalShifts: PropTypes.number,
-  totalCost: PropTypes.number,
-  showTotalCost: PropTypes.bool,
+  unassignedCount: PropTypes.number,
   earnings: PropTypes.number,
+  scope: PropTypes.string,
+  showUnassigned: PropTypes.bool,
   sx: PropTypes.object,
 };

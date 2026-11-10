@@ -24,13 +24,20 @@ export default function RotaShiftChip({ shift, onClick }) {
   const isSleepover = type === 'sleepover';
   const isLeave = type === 'leave';
   const isOnCall = type === 'on-call';
+  const isOpen = type === 'open';
 
   let sxStyle = {
     bgcolor: (theme) => alpha(theme.palette.grey[500], 0.16),
     color: 'text.primary',
   };
 
-  if (isSleepover) {
+  if (isOpen) {
+    sxStyle = {
+      border: (theme) => `1px dashed ${theme.palette.info.main}`,
+      bgcolor: (theme) => alpha(theme.palette.info.main, 0.16),
+      color: 'info.darker',
+    };
+  } else if (isSleepover) {
     sxStyle = {
       border: (theme) => `1px dashed ${theme.palette.secondary.main}`,
       bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.08),
@@ -65,7 +72,11 @@ export default function RotaShiftChip({ shift, onClick }) {
         '&:hover': { boxShadow: (theme) => theme.customShadows?.z8 ?? theme.shadows[8] },
       }}
     >
-      {isSleepover ? (
+      {isOpen ? (
+        <Typography variant="caption" sx={{ fontWeight: 600 }}>
+          {label || (start && end ? `Open ${start}–${end}` : 'Open')}
+        </Typography>
+      ) : isSleepover ? (
         <Typography variant="caption" sx={{ fontWeight: 600 }}>
           Sleepover
         </Typography>

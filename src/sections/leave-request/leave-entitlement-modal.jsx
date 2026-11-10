@@ -38,23 +38,37 @@ const LeaveEntitlementSchema = zod.object({
 
 // `organizationId` comes from the authenticated owner (set on the user at login),
 // not from a form field.
-export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess }) {
+export function LeaveEntitlementModal({ open, onClose, organizationId, initialStaffId, onSuccess }) {
   const [setLeaveEntitlement, { isLoading: isSubmittingEntitlement }] = useSetLeaveEntitlementMutation();
 
   const { data: staffData } = useGetStaffProfilesQuery(
     { organizationId, limit: 100 },
-    { skip: !organizationId }
+    { skip: !organizationId || !open }
   );
 
   const staffProfiles = useMemo(() => staffData?.data || [], [staffData]);
+
+  const resolvedStaffId = useMemo(() => {
+    if (!initialStaffId) return '';
+    const match = staffProfiles.find(
+      (p) =>
+        p._id === initialStaffId ||
+        p.userId?._id === initialStaffId ||
+        p.user?._id === initialStaffId ||
+        p.staffId === initialStaffId
+    );
+    return match ? match._id : initialStaffId;
+  }, [initialStaffId, staffProfiles]);
 
   const staffOptions = useMemo(
     () =>
       staffProfiles.map((p) => {
         const name = p.userId?.name || p.user?.name || p.employeeCode || p._id;
-        const email = p.userId?.email || p.user?.email;
+        const email = p.userId?.email || p.user?.email || '';
         return {
           value: p._id,
+          name,
+          email,
           label: email ? `${name} (${email})` : name,
         };
       }),
@@ -63,12 +77,12 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
 
   const defaultValues = useMemo(
     () => ({
-      staffId: '',
+      staffId: resolvedStaffId || '',
       year: LEAVE_ENTITLEMENT_YEAR_OPTIONS[1]?.value || LEAVE_ENTITLEMENT_YEAR_OPTIONS[0]?.value || '',
       leaveType: LEAVE_TYPE_OPTIONS[0]?.value || 'annual',
       entitlementDays: 24,
     }),
-    []
+    [resolvedStaffId]
   );
 
   const methods = useForm({
@@ -78,9 +92,12 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
 
   useEffect(() => {
     if (open) {
-      methods.reset(defaultValues);
+      methods.reset({
+        ...defaultValues,
+        staffId: resolvedStaffId || '',
+      });
     }
-  }, [open, defaultValues, methods]);
+  }, [open, defaultValues, resolvedStaffId, methods]);
 
   const handleClose = () => {
     onClose();
@@ -115,22 +132,48 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
         <DialogTitle sx={{ pb: 0 }}>Set Leave Entitlement</DialogTitle>
 
         <DialogContent>
-          <Box sx={{ mt: 3, gap: 2, display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)' }}>
-            <Field.Select name="staffId" label="Staff">
-              {staffOptions.map((option) => {
-                const [name, email] = option.label.split(' (');
-                return (
-                  <MenuItem key={option.value} value={option.value}>
-                    <Box component="span" sx={{ textTransform: 'capitalize' }}>
-                      {name}
+          <Box sx={{ mt: 3, display: 'flex', flexDirection: 'column', gap: 2.5, width: 1 }}>
+            {/* 1. Staff (Disabled when pre-selected from Rota, original uncapitalized email) */}
+            <Field.Select
+              name="staffId"
+              label="Staff"
+              fullWidth
+              disabled={Boolean(initialStaffId)}
+              SelectProps={{
+                renderValue: (selectedId) => {
+                  const opt = staffOptions.find((o) => o.value === selectedId);
+                  if (!opt) return '';
+                  return (
+                    <Box component="span">
+                      <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                        {opt.name}
+                      </Box>
+                      {opt.email ? (
+                        <Box component="span" sx={{ textTransform: 'none', color: 'text.secondary' }}>
+                          {` (${opt.email})`}
+                        </Box>
+                      ) : null}
                     </Box>
-                    {email ? ` (${email.replace(/\)$/, '').toLowerCase()})` : ''}
-                  </MenuItem>
-                );
-              })}
+                  );
+                },
+              }}
+            >
+              {staffOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                    {option.name}
+                  </Box>
+                  {option.email ? (
+                    <Box component="span" sx={{ textTransform: 'none', color: 'text.secondary' }}>
+                      {` (${option.email})`}
+                    </Box>
+                  ) : null}
+                </MenuItem>
+              ))}
             </Field.Select>
 
-            <Field.Select name="year" label="Year">
+            {/* 2. Year (100% width) */}
+            <Field.Select name="year" label="Year" fullWidth>
               {LEAVE_ENTITLEMENT_YEAR_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
@@ -138,7 +181,8 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
               ))}
             </Field.Select>
 
-            <Field.Select name="leaveType" label="Leave Type">
+            {/* 3. Leave Type (100% width) */}
+            <Field.Select name="leaveType" label="Leave Type" fullWidth>
               {LEAVE_TYPE_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
@@ -146,7 +190,8 @@ export function LeaveEntitlementModal({ open, onClose, organizationId, onSuccess
               ))}
             </Field.Select>
 
-            <Field.Text name="entitlementDays" label="Entitlement Days" type="number" />
+            {/* 4. Entitlement Days (100% width) */}
+            <Field.Text name="entitlementDays" label="Entitlement Days" type="number" fullWidth />
           </Box>
         </DialogContent>
 

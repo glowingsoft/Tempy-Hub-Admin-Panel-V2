@@ -1,224 +1,393 @@
 import PropTypes from 'prop-types';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { z as zod } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import dayjs from 'dayjs';
 
-import Avatar from '@mui/material/Avatar';
+import LoadingButton from '@mui/lab/LoadingButton';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import FormHelperText from '@mui/material/FormHelperText';
 import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 
-import { Iconify } from 'src/components/iconify';
+import { Field, Form } from 'src/components/hook-form';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 
 // ----------------------------------------------------------------------
 
-const SHIFT_TYPES = [
-  { value: 'default', label: 'Regular Shift', icon: 'solar:clock-circle-bold' },
-  { value: 'sleepover', label: 'Sleepover', icon: 'solar:moon-bold' },
-  { value: 'on-call', label: 'On Call', icon: 'solar:phone-calling-bold' },
-];
+export const ShiftSchema = zod
+  .object({
+    branchId: zod.string().min(1, { message: 'Site is required!' }),
+    staffId: zod.string().optional(),
+    startsAt: zod
+      .union([zod.string(), zod.null()])
+      .refine((value) => Boolean(value && dayjs(value).isValid()), {
+        message: 'Start date and time is required!',
+      }),
+    endsAt: zod
+      .union([zod.string(), zod.null()])
+      .refine((value) => Boolean(value && dayjs(value).isValid()), {
+        message: 'End date and time is required!',
+      }),
+  })
+  .refine(
+    (values) => {
+      if (!values.startsAt || !values.endsAt) return true;
+      const start = dayjs(values.startsAt);
+      const end = dayjs(values.endsAt);
+      return start.isValid() && end.isValid() && end.isAfter(start);
+    },
+    { path: ['endsAt'], message: 'End date and time must be after the start!' }
+  );
 
-const TIME_SLOTS = [
-  '06:00', '07:00', '08:00', '08:30', '09:00', '09:30', '10:00',
-  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00',
-  '19:00', '20:00', '21:00', '22:00', '23:00',
-];
+// ----------------------------------------------------------------------
 
-function formatTimeDisplay(timeStr) {
-  if (!timeStr) return '';
-  const [hours, mins] = timeStr.split(':').map(Number);
-  const period = hours >= 12 ? 'p' : 'a';
-  const displayHours = hours % 12 || 12;
-  const displayMins = mins ? `:${mins < 10 ? '0' : ''}${mins}` : '';
-  return `${displayHours}${displayMins}${period}`;
+function parseShiftInterval(shift, dateStr) {
+  let start = null;
+  let end = null;
+
+  if (shift?.raw?.startsAt && dayjs(shift.raw.startsAt).isValid()) {
+    start = dayjs(shift.raw.startsAt);
+  } else if (shift?.startsAt && dayjs(shift.startsAt).isValid()) {
+    start = dayjs(shift.startsAt);
+  }
+
+  if (shift?.raw?.endsAt && dayjs(shift.raw.endsAt).isValid()) {
+    end = dayjs(shift.raw.endsAt);
+  } else if (shift?.endsAt && dayjs(shift.endsAt).isValid()) {
+    end = dayjs(shift.endsAt);
+  }
+
+  if (!start && shift?.start) {
+    const s = dayjs(`${dateStr} ${shift.start}`);
+    if (s.isValid()) start = s;
+  }
+  if (!end && shift?.end) {
+    const e = dayjs(`${dateStr} ${shift.end}`);
+    if (e.isValid()) end = e;
+  }
+
+  return {
+    start,
+    end,
+    label: shift?.label || `${shift?.start || ''} – ${shift?.end || ''}`.trim(),
+  };
 }
+
+// ----------------------------------------------------------------------
 
 export default function RotaBookShiftDialog({
   open,
   onClose,
   cellData,
+  organizationId,
+  branchId: activeBranchId,
+  selectedBranch,
   onSubmit,
 }) {
   const staff = cellData?.staff;
   const day = cellData?.day;
 
-  const [shiftType, setShiftType] = useState('default');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('17:00');
-  const [note, setNote] = useState('');
-  const [error, setError] = useState('');
+  // Use selected branch directly from Rota view without making extra branches/job-titles/departments API calls
+  const branchOptions = useMemo(() => {
+    if (selectedBranch?.value) {
+      return [selectedBranch];
+    }
+    if (activeBranchId) {
+      return [{ value: activeBranchId, label: 'Current Site' }];
+    }
+    return [];
+  }, [selectedBranch, activeBranchId]);
+
+  // Only fetch staff profiles if modal is opened
+  const { data: staffData } = useGetStaffProfilesQuery(
+    { organizationId, limit: 100 },
+    { skip: !organizationId || !open }
+  );
+
+  const staffProfiles = useMemo(() => staffData?.data || [], [staffData]);
+
+  const staffOptions = useMemo(() => {
+    const list = staffProfiles.map((p) => {
+      const name = p.userId?.name || p.user?.name || p.employeeCode || p._id;
+      const email = p.userId?.email || p.user?.email || '';
+      return {
+        value: p._id,
+        name,
+        email,
+        label: email ? `${name} (${email})` : name,
+      };
+    });
+
+    if (staff) {
+      const match = list.find(
+        (o) =>
+          o.value === staff.id ||
+          o.value === staff.staffId
+      );
+      if (!match) {
+        list.unshift({
+          value: staff.id || staff.staffId,
+          name: staff.name,
+          email: staff.email || '',
+          label: staff.email ? `${staff.name} (${staff.email})` : staff.name,
+        });
+      }
+    }
+
+    return list;
+  }, [staffProfiles, staff]);
+
+  const resolvedStaffId = useMemo(() => {
+    if (!staff) return '';
+    const match = staffProfiles.find(
+      (p) =>
+        p._id === staff.id ||
+        p._id === staff.staffId ||
+        p.userId?._id === staff.id ||
+        p.user?._id === staff.id ||
+        p.staffId === staff.id
+    );
+    return match ? match._id : (staff.id || staff.staffId || '');
+  }, [staff, staffProfiles]);
+
+  const cellDate = useMemo(() => {
+    if (day?.date && dayjs(day.date).isValid()) {
+      return dayjs(day.date).format('YYYY-MM-DD');
+    }
+    return dayjs().format('YYYY-MM-DD');
+  }, [day]);
+
+  const existingShifts = useMemo(() => {
+    return cellData?.shifts || (staff?.shifts?.[cellDate]) || [];
+  }, [cellData?.shifts, staff, cellDate]);
+
+  // Determine non-overlapping initial default start/end times on cellDate
+  const defaultTimes = useMemo(() => {
+    if (!existingShifts.length) {
+      return {
+        startsAt: dayjs(`${cellDate}T09:00:00`).format(),
+        endsAt: dayjs(`${cellDate}T17:00:00`).format(),
+      };
+    }
+
+    let latestEnd = null;
+    existingShifts.forEach((s) => {
+      const { end } = parseShiftInterval(s, cellDate);
+      if (end && (!latestEnd || end.isAfter(latestEnd))) {
+        latestEnd = end;
+      }
+    });
+
+    if (latestEnd && latestEnd.isValid()) {
+      const nextStart = latestEnd.add(1, 'hour');
+      const nextEnd = nextStart.add(4, 'hour');
+      if (nextStart.isSame(dayjs(cellDate), 'day')) {
+        return {
+          startsAt: nextStart.format(),
+          endsAt: (nextEnd.isSame(dayjs(cellDate), 'day') ? nextEnd : dayjs(`${cellDate}T23:59:00`)).format(),
+        };
+      }
+    }
+
+    return {
+      startsAt: dayjs(`${cellDate}T09:00:00`).format(),
+      endsAt: dayjs(`${cellDate}T17:00:00`).format(),
+    };
+  }, [existingShifts, cellDate]);
+
+  // Determine minDate so it doesn't flag clicked past cells as invalid, while preventing selection of dates before cell
+  const minAllowedDate = useMemo(() => {
+    if (cellDate && dayjs(cellDate).isValid() && dayjs(cellDate).isBefore(dayjs().startOf('day'))) {
+      return dayjs(cellDate).startOf('day');
+    }
+    return dayjs().startOf('day');
+  }, [cellDate]);
+
+  const defaultValues = useMemo(() => {
+    return {
+      branchId: activeBranchId || branchOptions[0]?.value || '',
+      staffId: resolvedStaffId || '',
+      startsAt: defaultTimes.startsAt,
+      endsAt: defaultTimes.endsAt,
+    };
+  }, [activeBranchId, branchOptions, resolvedStaffId, defaultTimes]);
+
+  const methods = useForm({
+    mode: 'onSubmit',
+    resolver: zodResolver(ShiftSchema),
+    defaultValues,
+  });
+
+  const startsAtValue = methods.watch('startsAt');
 
   useEffect(() => {
     if (open) {
-      setShiftType('default');
-      setStartTime('09:00');
-      setEndTime('17:00');
-      setNote('');
-      setError('');
+      methods.reset({
+        branchId: activeBranchId || branchOptions[0]?.value || '',
+        staffId: resolvedStaffId || '',
+        startsAt: defaultTimes.startsAt,
+        endsAt: defaultTimes.endsAt,
+      });
     }
-  }, [open]);
+  }, [open, activeBranchId, branchOptions, resolvedStaffId, defaultTimes, methods]);
 
-  const handleSubmit = () => {
-    if (shiftType !== 'sleepover') {
-      if (!startTime || !endTime) {
-        setError('Start time and end time are required.');
+  const handleClose = () => {
+    onClose();
+    methods.reset(defaultValues);
+  };
+
+  const onFormSubmit = methods.handleSubmit(async (data) => {
+    const start = dayjs(data.startsAt);
+    const end = dayjs(data.endsAt);
+
+    // Overlap validation for the same staff member
+    if (existingShifts.length > 0) {
+      const conflict = existingShifts.find((s) => {
+        const { start: existStart, end: existEnd } = parseShiftInterval(s, cellDate);
+        if (!existStart || !existEnd) return false;
+        return start.isBefore(existEnd) && end.isAfter(existStart);
+      });
+
+      if (conflict) {
+        const { label } = parseShiftInterval(conflict, cellDate);
+        methods.setError('endsAt', {
+          type: 'manual',
+          message: `Shift time overlaps with an existing shift (${label || 'scheduled'}) for this staff member.`,
+        });
         return;
       }
     }
 
-    const formattedStart = formatTimeDisplay(startTime);
-    const formattedEnd = formatTimeDisplay(endTime);
-
-    // Calculate approximate duration in hours
-    let hoursDiff = 8;
-    if (startTime && endTime) {
-      const [sh, sm] = startTime.split(':').map(Number);
-      const [eh, em] = endTime.split(':').map(Number);
-      const totalMinutes = (eh * 60 + em) - (sh * 60 + sm);
-      if (totalMinutes > 0) {
-        hoursDiff = Math.round((totalMinutes / 60) * 10) / 10;
-      }
-    }
-
-    const shiftPayload = {
-      type: shiftType,
-      start: formattedStart,
-      end: formattedEnd,
-      hours: hoursDiff,
-      note: note.trim(),
+    const payload = {
+      branchId: data.branchId,
+      startsAt: start.toISOString(),
+      endsAt: end.toISOString(),
+      ...(data.staffId ? { staffId: data.staffId } : {}),
     };
 
-    onSubmit({
-      staffId: staff?.id,
-      date: day?.date,
-      shift: shiftPayload,
-    });
-    onClose();
-  };
+    await onSubmit(payload);
+    handleClose();
+  });
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle sx={{ pb: 1 }}>Book Shift</DialogTitle>
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <Form methods={methods} onSubmit={onFormSubmit}>
+        <DialogTitle sx={{ pb: 0 }}>Shift details</DialogTitle>
 
-      <DialogContent>
-        <Stack spacing={2.5} sx={{ pt: 1 }}>
-          {/* Staff Info Banner */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1.5}
+        <DialogContent>
+          {/* 4 Inputs stacked 100% width each */}
+          <Box
             sx={{
-              p: 1.5,
-              borderRadius: 1.25,
-              bgcolor: (theme) => `${theme.palette.grey[500]}12`,
+              mt: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2.5,
+              width: 1,
             }}
           >
-            <Avatar sx={{ bgcolor: 'primary.lighter', color: 'primary.darker', fontWeight: 700, width: 36, height: 36 }}>
-              {staff?.name
-                ? staff.name
-                    .split(' ')
-                    .map((p) => p[0])
-                    .slice(0, 2)
-                    .join('')
-                    .toUpperCase()
-                : 'S'}
-            </Avatar>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600 }}>
-                {staff?.name}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {day?.label || day?.date}
-              </Typography>
-            </Box>
-          </Stack>
+            {/* 1. Site (100% width) */}
+            <Field.Select
+              name="branchId"
+              label="Site"
+              fullWidth
+              SelectProps={{ sx: { textTransform: 'capitalize' } }}
+            >
+              {branchOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'capitalize' }}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Field.Select>
 
-          {/* Shift Type */}
-          <TextField
-            select
-            label="Shift Type"
-            value={shiftType}
-            onChange={(e) => setShiftType(e.target.value)}
-            fullWidth
-            size="small"
+            {/* 2. Staff (100% width, required, disabled when adding shift for selected staff, exact email casing) */}
+            <Field.Select
+              name="staffId"
+              label="Staff"
+              fullWidth
+              disabled={Boolean(staff)}
+              SelectProps={{
+                renderValue: (selectedId) => {
+                  const opt = staffOptions.find((o) => o.value === selectedId);
+                  if (!opt) return '';
+                  return (
+                    <Box component="span">
+                      <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                        {opt.name}
+                      </Box>
+                      {opt.email ? (
+                        <Box component="span" sx={{ textTransform: 'none', color: 'text.secondary' }}>
+                          {` (${opt.email})`}
+                        </Box>
+                      ) : null}
+                    </Box>
+                  );
+                },
+              }}
+            >
+              {staffOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                    {option.name}
+                  </Box>
+                  {option.email ? (
+                    <Box component="span" sx={{ textTransform: 'none', color: 'text.secondary' }}>
+                      {` (${option.email})`}
+                    </Box>
+                  ) : null}
+                </MenuItem>
+              ))}
+            </Field.Select>
+
+            {/* 3. Start date & time (100% width, clean without disablePast so morning hours do not turn red) */}
+            <Field.MobileDateTimePicker
+              name="startsAt"
+              label="Start date & time"
+              minDate={minAllowedDate}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                },
+              }}
+            />
+
+            {/* 4. End date & time (100% width) */}
+            <Field.MobileDateTimePicker
+              name="endsAt"
+              label="End date & time"
+              minDate={
+                startsAtValue && dayjs(startsAtValue).isValid()
+                  ? dayjs(startsAtValue)
+                  : minAllowedDate
+              }
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                },
+              }}
+            />
+          </Box>
+        </DialogContent>
+
+        <DialogActions>
+          <Button variant="outlined" color="primary" onClick={handleClose}>
+            Cancel
+          </Button>
+
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            color="primary"
+            loading={methods.formState.isSubmitting}
           >
-            {SHIFT_TYPES.map((type) => (
-              <MenuItem key={type.value} value={type.value} sx={{ display: 'flex', gap: 1.25 }}>
-                <Iconify icon={type.icon} width={18} />
-                {type.label}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          {/* Times */}
-          {shiftType !== 'sleepover' && (
-            <Stack direction="row" spacing={2}>
-              <TextField
-                select
-                label="Start Time"
-                value={startTime}
-                onChange={(e) => {
-                  setStartTime(e.target.value);
-                  setError('');
-                }}
-                fullWidth
-                size="small"
-              >
-                {TIME_SLOTS.map((time) => (
-                  <MenuItem key={time} value={time}>
-                    {time} ({formatTimeDisplay(time)})
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                select
-                label="End Time"
-                value={endTime}
-                onChange={(e) => {
-                  setEndTime(e.target.value);
-                  setError('');
-                }}
-                fullWidth
-                size="small"
-              >
-                {TIME_SLOTS.map((time) => (
-                  <MenuItem key={time} value={time}>
-                    {time} ({formatTimeDisplay(time)})
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Stack>
-          )}
-
-          {/* Optional Note */}
-          <TextField
-            label="Notes / Role (optional)"
-            placeholder="e.g. Care floor, Kitchen"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            fullWidth
-            size="small"
-          />
-
-          {error && <FormHelperText error>{error}</FormHelperText>}
-        </Stack>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button variant="outlined" color="inherit" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button variant="contained" onClick={handleSubmit} startIcon={<Iconify icon="solar:calendar-add-bold" />}>
-          Book Shift
-        </Button>
-      </DialogActions>
+            Create Shift
+          </LoadingButton>
+        </DialogActions>
+      </Form>
     </Dialog>
   );
 }
@@ -227,5 +396,8 @@ RotaBookShiftDialog.propTypes = {
   open: PropTypes.bool,
   onClose: PropTypes.func,
   cellData: PropTypes.object,
+  organizationId: PropTypes.string,
+  branchId: PropTypes.string,
+  selectedBranch: PropTypes.object,
   onSubmit: PropTypes.func,
 };

@@ -2,10 +2,11 @@ import { alpha } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { EmptyContent } from 'src/components/empty-content';
+import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar'; // minimals.cc reusable scrollbar wrapper
 
 import RotaTeamSection, { COL_WIDTH, NAME_COL_WIDTH } from './rota-team-section';
-import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -71,26 +72,56 @@ function DateHeaderRow({ days }) {
   );
 }
 
-export default function RotaScheduleGrid({ teams, days, selectedStaffId, onSelectStaff, onCellClick }) {
-  return (
-    <Scrollbar sx={{ height: 1 }}>
-      <Box sx={{ minWidth: NAME_COL_WIDTH + days.length * COL_WIDTH }}>
-        <DateHeaderRow days={days} />
+export default function RotaScheduleGrid({ teams, days, onCellClick }) {
+  const hasTeams = Boolean(teams && teams.length > 0);
 
-        <Stack divider={<Box sx={{ height: 8 }} />}>
-          {teams.map((team) => (
-            <RotaTeamSection
-              key={team.id}
-              team={team}
-              days={days}
-              selectedStaffId={selectedStaffId}
-              onSelectStaff={onSelectStaff}
-              onCellClick={onCellClick}
+  return (
+    <Box sx={{ height: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <Scrollbar sx={{ height: 1 }}>
+        <Box sx={{ minWidth: NAME_COL_WIDTH + days.length * COL_WIDTH }}>
+          <DateHeaderRow days={days} />
+
+          {hasTeams && (
+            <Stack divider={<Box sx={{ height: 8 }} />}>
+              {teams.map((team) => (
+                <RotaTeamSection
+                  key={team.id}
+                  team={team}
+                  days={days}
+                  onCellClick={onCellClick}
+                />
+              ))}
+            </Stack>
+          )}
+        </Box>
+      </Scrollbar>
+
+      {!hasTeams && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 54,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        >
+          <Box sx={{ pointerEvents: 'auto' }}>
+            <EmptyContent
+              filled={false}
+              sx={{ bgcolor: 'transparent' }}
+              title="No rota records found"
+              description="There are no scheduled shifts or teams found for this period."
             />
-          ))}
-        </Stack>
-      </Box>
-    </Scrollbar>
+          </Box>
+        </Box>
+      )}
+    </Box>
   );
 }
 

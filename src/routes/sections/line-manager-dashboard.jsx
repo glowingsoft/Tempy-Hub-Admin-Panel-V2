@@ -45,8 +45,9 @@ const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/traini
 const RequirementsPage = lazy(() => import('src/pages/dashboard/active-routes/requirements'));
 const RequirementDetailPage = lazy(() => import('src/pages/dashboard/active-routes/requirements/detail'));
 
-//client feedback
-const FeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/feedback'));
+//visitor feedback
+const VisitorFeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/visitor-feedback'));
+const VisitorFeedbackDetailPage = lazy(() => import('src/pages/dashboard/active-routes/visitor-feedback/detail'));
 
 //fire drills
 const FireDrillsPage = lazy(() => import('src/pages/dashboard/active-routes/fire-drills/line-manager'));
@@ -102,7 +103,7 @@ export const lineManagerDashboardRoutes = [
         children: [
             { element: <LineManagerDashboardPage />, index: true },
 
-            { path: 'team-rota', element: <RotaPage showTempyConnect /> },
+            { path: 'team-rota', element: <RotaPage /> },
 
             { path: "leave-approval", element: <LeaveApprovalPage /> },
 
@@ -138,7 +139,13 @@ export const lineManagerDashboardRoutes = [
 
             { path: "requirements/:id", element: <RequirementDetailPage /> },
 
-            { path: "feedback", element: <FeedbackPage /> },
+            {
+              path: 'feedback',
+              children: [
+                { index: true, element: <VisitorFeedbackPage /> },
+                { path: ':id', element: <VisitorFeedbackDetailPage /> },
+              ],
+            },
 
             { path: "messages", element: <MessagesPage /> },
 
