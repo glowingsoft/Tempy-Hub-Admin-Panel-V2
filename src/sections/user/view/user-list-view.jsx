@@ -10,6 +10,8 @@ import Tab from '@mui/material/Tab';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import Tabs from '@mui/material/Tabs';
+import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -40,9 +42,11 @@ import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { API_ROUTES } from 'src/store/apiRoutes';
 import { downloadCsvFromApi } from 'src/utils/export-helper';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import {
   useExportExternalPeopleCsvMutation,
   useGetExternalPeopleQuery,
+  useUpdateUserAccountStatusMutation,
 } from 'src/store/Reducer/general-directory-api';
 import { downloadBlob } from 'src/utils/export-helper';
 import { toast } from 'src/components/snackbar';
@@ -172,6 +176,8 @@ export function UserListView() {
   const openModal = useBoolean();
   const openNewInvitationModal = useBoolean();
   const openInviteAppModal = useBoolean();
+  const [userToLock, setUserToLock] = useState(null);
+  const lockConfirm = useBoolean();
 
   const keyword = useDebounce(filters.state.search, 500);
   const trimmedKeyword = keyword.trim();
@@ -206,6 +212,8 @@ export function UserListView() {
 
   const [exportExternalPeopleCsv, { isLoading: isExportingCsv }] =
     useExportExternalPeopleCsvMutation();
+  const [updateUserAccountStatus, { isLoading: isTogglingAccountStatus }] =
+    useUpdateUserAccountStatusMutation();
 
   const apiUsers = data?.data || [];
   const meta = data?.meta || {};
@@ -222,24 +230,43 @@ export function UserListView() {
     [departmentOptions]
   );
 
-  const tableData = apiUsers.map((user) => ({
-    id: user._id,
-    image: user.photoUrl || user.image,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    carRegistration: user.carRegistration || '',
-    status: user.status,
-    userStatus: user.status,
-    departmentId: user.departmentId || user.department?._id || '',
-    type: user.type || '',
-    role: user.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : '—',
-    department: user.department?.name || '—',
-    branchId: user.branchId,
-    branch: user.branch?.name || getBranchName(user),
-    status: SITE_STATUS_LABEL[user.siteStatus] || user.siteStatus || '—',
-    siteStatus: user.siteStatus,
-  }));
+  const tableData = apiUsers.map((user) => {
+    const hasAccount = Boolean(user.hasAccount || user.userId || user.user);
+    const resolvedUserId =
+      user.user?._id ||
+      (typeof user.userId === 'object' ? user.userId?._id : user.userId) ||
+      user._id;
+    const isLocked =
+      user.user?.status === 'inactive' ||
+      user.user?.active === false ||
+      user.status === 'inactive' ||
+      user.userStatus === 'inactive' ||
+      user.accountState?.status === 'inactive' ||
+      user.accountState?.status === false ||
+      Boolean(user.isLocked);
+
+    return {
+      id: user._id,
+      userId: resolvedUserId,
+      hasAccount,
+      image: user.photoUrl || user.image,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      carRegistration: user.carRegistration || '',
+      userStatus: user.status,
+      departmentId: user.departmentId || user.department?._id || '',
+      type: user.type || '',
+      role: user.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : '—',
+      department: user.department?.name || '—',
+      branchId: user.branchId,
+      branch: user.branch?.name || getBranchName(user),
+      status: SITE_STATUS_LABEL[user.siteStatus] || user.siteStatus || '—',
+      siteStatus: user.siteStatus,
+      isLocked,
+      user: user.user,
+    };
+  });
 
   const getStatusCount = useCallback(
     (status) => {
@@ -286,6 +313,39 @@ export function UserListView() {
     openStatusChangeModal.onFalse();
     setCurrentUser(null);
   }, [openStatusChangeModal]);
+
+  const handleLockRow = useCallback(
+    (row) => {
+      setUserToLock(row);
+      lockConfirm.onTrue();
+    },
+    [lockConfirm]
+  );
+
+  const handleConfirmLockToggle = useCallback(async () => {
+    if (!userToLock) return;
+
+    const targetUserId = userToLock.userId || userToLock.id;
+    const nextStatus = userToLock.isLocked ? 'active' : 'inactive';
+
+    try {
+      await updateUserAccountStatus({
+        organizationId,
+        userId: targetUserId,
+        status: nextStatus,
+      }).unwrap();
+
+      toast.success(
+        userToLock.isLocked
+          ? 'User account activated successfully'
+          : 'User account deactivated successfully'
+      );
+      lockConfirm.onFalse();
+      setUserToLock(null);
+    } catch (error) {
+      toast.error(error?.data?.message || error?.message || 'Failed to update account status');
+    }
+  }, [userToLock, organizationId, updateUserAccountStatus, lockConfirm]);
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -510,6 +570,7 @@ export function UserListView() {
                             serialNumber={table.page * table.rowsPerPage + index + 1}
                             selected={table.selected.includes(row.id)}
                             onEditRow={() => handleEditRow(row)}
+                            onLockRow={() => handleLockRow(row)}
                           />
                         ))}
 
@@ -526,6 +587,35 @@ export function UserListView() {
               onClose={handleCloseStatusChangeModal}
               currentUser={currentUser}
             />
+
+            {userToLock && (
+              <ConfirmDialog
+                open={lockConfirm.value}
+                onClose={() => {
+                  lockConfirm.onFalse();
+                  setUserToLock(null);
+                }}
+                title={userToLock.isLocked ? 'Activate User Account' : 'Deactivate User Account'}
+                content={
+                  <Typography variant="body2" color="text.secondary">
+                    Are you sure you want to{' '}
+                    <strong>{userToLock.isLocked ? 'activate' : 'deactivate'}</strong> user account (
+                    <strong>{userToLock.name || 'User'}</strong>
+                    )?
+                  </Typography>
+                }
+                action={
+                  <LoadingButton
+                    variant="contained"
+                    color={userToLock.isLocked ? 'success' : 'error'}
+                    loading={isTogglingAccountStatus}
+                    onClick={handleConfirmLockToggle}
+                  >
+                    {userToLock.isLocked ? 'Activate' : 'Deactivate'}
+                  </LoadingButton>
+                }
+              />
+            )}
 
             <TablePaginationCustom
               page={table.page}

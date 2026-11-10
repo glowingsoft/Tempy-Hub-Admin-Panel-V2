@@ -6,23 +6,25 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 
 import { useLocation } from 'react-router-dom';
 import { useBoolean } from 'src/hooks/use-boolean';
 
-import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
+import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
+export function UserTableRow({ row, selected, onEditRow, onLockRow, serialNumber }) {
 
   const view = useBoolean();
 
@@ -32,17 +34,16 @@ export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
     ? paths.owner.directory
     : paths.siteManager.directory;
 
-  const actions = [
-    {
-      key: 'edit',
-      icon: 'solar:pen-bold',
-      tooltip: 'Edit',
-      onClick: (e) => {
-        e.stopPropagation();
-        onEditRow();
-      },
-    },
-  ]
+  const hasAccount = Boolean(row.hasAccount);
+
+  const isLocked =
+    row.isLocked ??
+    (row.user?.status === 'inactive' ||
+      row.user?.active === false ||
+      row.userStatus === 'inactive' ||
+      row.status === 'inactive' ||
+      row.accountState?.status === 'inactive' ||
+      row.accountState?.status === false);
 
   return (
     <>
@@ -119,10 +120,40 @@ export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
           </Label>
         </TableCell>
         {/* Actions */}
-        <TableCell align="center">
-          <Box onClick={(event) => event.stopPropagation()}>
-            <GenericTableRowActions actions={actions} />
-          </Box>
+        <TableCell align="center" sx={{ width: 100 }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="center"
+            spacing={0.5}
+            onClick={(event) => event.stopPropagation()}
+            sx={{ width: 84, mx: 'auto' }}
+          >
+            <Tooltip title="Edit" placement="top" arrow>
+              <IconButton color="default" onClick={onEditRow}>
+                <Iconify icon="solar:pen-bold" />
+              </IconButton>
+            </Tooltip>
+
+            {hasAccount ? (
+              <Tooltip
+                title={isLocked ? 'Activate account' : 'Deactivate account'}
+                placement="top"
+                arrow
+              >
+                <IconButton
+                  color={isLocked ? 'success' : 'error'}
+                  onClick={onLockRow}
+                >
+                  <Iconify
+                    icon={isLocked ? 'solar:user-check-bold' : 'solar:user-block-bold'}
+                  />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Box sx={{ width: 40, height: 40 }} />
+            )}
+          </Stack>
         </TableCell>
       </TableRow>
       <Dialog

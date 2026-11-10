@@ -137,6 +137,8 @@ export const API_ROUTES = {
     ORGANIZATION_EXTERNAL_PEOPLE: (organizationId) =>
         `/admin/organizations/${organizationId}/external-people`,
     EXTERNAL_PERSON_BY_ID: (externalPersonId) => `/admin/external-people/${externalPersonId}`,
+    ORGANIZATION_USER_ACCOUNT: (organizationId, userId) =>
+        `/admin/organizations/${organizationId}/users/${userId}/account`,
 
     // Visitor Invitations
     ORGANIZATION_VISITOR_INVITATIONS: (organizationId) =>

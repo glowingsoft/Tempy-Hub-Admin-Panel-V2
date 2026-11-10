@@ -65,6 +65,7 @@ export function OwnerSettingsView() {
         organization?.settings?.defaultSupervisionIntervalMonths ?? 3,
       defaultAppraisalIntervalMonths:
         organization?.settings?.defaultAppraisalIntervalMonths ?? 12,
+      defaultAnnualLeaveDays: String(organization?.settings?.defaultAnnualLeaveDays ?? ''),
     }),
     [organization]
   );
@@ -81,12 +82,20 @@ export function OwnerSettingsView() {
       Number(settings.defaultSupervisionIntervalMonths) !==
       Number(initialSettings.defaultSupervisionIntervalMonths) ||
       Number(settings.defaultAppraisalIntervalMonths) !==
-      Number(initialSettings.defaultAppraisalIntervalMonths),
+      Number(initialSettings.defaultAppraisalIntervalMonths) ||
+      settings.defaultAnnualLeaveDays !== initialSettings.defaultAnnualLeaveDays,
     [settings, initialSettings]
   );
 
+  const annualLeaveDays = Number(settings.defaultAnnualLeaveDays);
+  const isAnnualLeaveDaysValid =
+    settings.defaultAnnualLeaveDays === ''
+      ? initialSettings.defaultAnnualLeaveDays === ''
+      : Number.isSafeInteger(annualLeaveDays) && annualLeaveDays >= 0;
+
   const handleSave = async () => {
     if (!organizationId) return;
+    if (!isAnnualLeaveDaysValid) return;
 
     try {
       const res = await updateOrganization({
@@ -95,12 +104,16 @@ export function OwnerSettingsView() {
           emergencyNotifyOffsite: settings.emergencyNotifyOffsite,
           defaultSupervisionIntervalMonths: Number(settings.defaultSupervisionIntervalMonths),
           defaultAppraisalIntervalMonths: Number(settings.defaultAppraisalIntervalMonths),
+          ...(settings.defaultAnnualLeaveDays !== ''
+            ? { defaultAnnualLeaveDays: annualLeaveDays }
+            : {}),
         },
       }).unwrap();
 
       toast.success(res?.message || res?.msg || 'Settings updated successfully!');
     } catch (error) {
       console.error('Update organization settings error:', error);
+      toast.error(error?.data?.message || error?.message || 'Failed to update settings.');
     }
   };
 
@@ -114,6 +127,10 @@ export function OwnerSettingsView() {
 
   const handleChangeAppraisal = (value) => {
     setSettings((prev) => ({ ...prev, defaultAppraisalIntervalMonths: Number(value) }));
+  };
+
+  const handleChangeAnnualLeaveDays = (event) => {
+    setSettings((prev) => ({ ...prev, defaultAnnualLeaveDays: event.target.value }));
   };
 
   if (isLoading) {
@@ -163,7 +180,7 @@ export function OwnerSettingsView() {
               variant="contained"
               color="primary"
               loading={isUpdating}
-              disabled={!isDirty}
+              disabled={!isDirty || !isAnnualLeaveDaysValid}
               onClick={handleSave}
             >
               Save changes
@@ -247,6 +264,41 @@ export function OwnerSettingsView() {
                 </MenuItem>
               ))}
             </TextField>
+          </Box>
+
+          {/* Annual Leave Setting */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: { xs: 'flex-start', md: 'center' },
+              justifyContent: 'space-between',
+              gap: 2,
+              p: 2.5,
+              borderRadius: 1.5,
+              bgcolor: (theme) => (theme.palette.mode === 'light' ? 'grey.50' : 'grey.900'),
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Stack spacing={0.5}>
+              <Typography variant="subtitle1">Default Annual Leave Days</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Default annual leave entitlement for staff. Enter a whole number of days.
+              </Typography>
+            </Stack>
+
+            <TextField
+              type="number"
+              size="small"
+              label="Days"
+              value={settings.defaultAnnualLeaveDays}
+              onChange={handleChangeAnnualLeaveDays}
+              disabled={isUpdating}
+              error={!isAnnualLeaveDaysValid}
+              helperText={!isAnnualLeaveDaysValid ? 'Enter a whole number of 0 or more.' : ''}
+              inputProps={{ min: 0, step: 1 }}
+              sx={{ minWidth: 200, width: { xs: '100%', md: 'auto' } }}
+            />
           </Box>
 
           {/* Appraisal Interval Setting */}

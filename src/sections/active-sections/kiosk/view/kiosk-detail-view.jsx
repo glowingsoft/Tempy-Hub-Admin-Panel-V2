@@ -122,8 +122,14 @@ export function KioskDetailView({ ownerDashboard = false }) {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
-          <Button onClick={handleBack} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-            Back to Kiosks
+          <Button
+            variant="text"
+            color="primary"
+            onClick={handleBack}
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+            sx={{ px: 0, fontWeight: 600 }}
+          >
+            Back
           </Button>
         </Box>
         <EmptyContent
@@ -156,8 +162,14 @@ export function KioskDetailView({ ownerDashboard = false }) {
     <DashboardContent>
       {/* Back button */}
       <Box sx={{ mb: 2 }}>
-        <Button onClick={handleBack} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-          Back to Kiosks
+        <Button
+          variant="text"
+          color="primary"
+          onClick={handleBack}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          sx={{ px: 0, fontWeight: 600 }}
+        >
+          Back
         </Button>
       </Box>
 

@@ -143,6 +143,20 @@ export const generalDirectoryApi = createApi({
         ...(organizationId ? [listTag(organizationId)] : []),
       ],
     }),
+
+    updateUserAccountStatus: builder.mutation({
+      query: ({ organizationId, userId, status, ...body }) => ({
+        url: API_ROUTES.ORGANIZATION_USER_ACCOUNT(organizationId, userId),
+        method: 'PATCH',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body: { status, ...body },
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { organizationId, userId }) => [
+        listTag(organizationId),
+        ...(userId ? [{ type: 'ExternalPerson', id: userId }] : []),
+      ],
+    }),
   }),
 });
 
@@ -152,4 +166,5 @@ export const {
   useGetExternalPersonQuery,
   useCreateExternalPersonMutation,
   useUpdateExternalPersonMutation,
+  useUpdateUserAccountStatusMutation,
 } = generalDirectoryApi;
