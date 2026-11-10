@@ -20,6 +20,8 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //         "active": true,
 //         "organizationId": "string",
 //         "organization": { "_id": "string", "name": "string" },
+//         "branchId"?: null | "string",
+//         "branch"?: null | { "_id": "string", "name": "string" },
 //         "createdAt": "ISO",
 //         "updatedAt": "ISO"
 //       }
@@ -125,6 +127,7 @@ export const departmentsApi = createApi({
 
 export const {
   useGetDepartmentsQuery,
+  useLazyGetDepartmentsQuery,
   useGetDepartmentQuery,
   useCreateDepartmentMutation,
   useUpdateDepartmentMutation,

@@ -93,6 +93,11 @@ function lookupName(value, fallback) {
   return fallback || '';
 }
 
+function getDepartmentBranchId(department) {
+  const branch = department?.branchId || department?.branch;
+  return typeof branch === 'object' ? branch?._id || branch?.id || '' : branch || '';
+}
+
 // ----------------------------------------------------------------------
 
 export function MembershipNewEditForm({ organizationId, currentMembership }) {
@@ -116,6 +121,11 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       { organizationId: resolvedOrganizationId },
       { skip: !resolvedOrganizationId }
     );
+
+  const { data: departmentsData, isLoading: isLoadingDepartments } = useGetDepartmentsQuery(
+    { organizationId: resolvedOrganizationId, page: 1, limit: 1000, status: 'active' },
+    { skip: !resolvedOrganizationId }
+  );
 
   const permissionTokens = useMemo(() => {
     const options = [...(grantablePermissions?.options ?? [])];
@@ -187,6 +197,25 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const hideDepartment = role === 'siteManager' || role === 'lineManager';
   const hideStartDate = role === 'siteManager';
   const hidePermissions = role === 'staff';
+  const watchedBranch = watch('branchId');
+  const selectedBranchId = lookupId(watchedBranch);
+  const staffDepartmentOptions = useMemo(() => {
+    const departments = Array.isArray(departmentsData?.data) ? departmentsData.data : [];
+
+    return departments
+      .filter((department) => {
+        if (department.active === false) return false;
+
+        const departmentBranchId = getDepartmentBranchId(department);
+        return !departmentBranchId || departmentBranchId === selectedBranchId;
+      })
+      .map(mapLookupOption);
+  }, [departmentsData?.data, selectedBranchId]);
+
+  const eligibleStaffDepartmentIds = useMemo(
+    () => new Set(staffDepartmentOptions.map((option) => option.value)),
+    [staffDepartmentOptions]
+  );
 
   const permissionOptions = useMemo(() => {
     if (!allPermissionIds.length) return [];
@@ -206,6 +235,19 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       methods.setValue('permissions', []);
     }
   }, [role, isEdit, methods]);
+
+  useEffect(() => {
+    if (role !== 'staff' || isEdit) return;
+
+    const selectedDepartments = methods.getValues('departmentIds') || [];
+    const validDepartments = selectedDepartments.filter((department) =>
+      eligibleStaffDepartmentIds.has(department.value)
+    );
+
+    if (validDepartments.length !== selectedDepartments.length) {
+      methods.setValue('departmentIds', validDepartments, { shouldValidate: true });
+    }
+  }, [eligibleStaffDepartmentIds, isEdit, methods, role]);
 
   const isAllSelected = useMemo(
     () =>
@@ -229,6 +271,10 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
         return;
       }
 
+      const departmentIds = (data.departmentIds || [])
+        .map((item) => item.value)
+        .filter(Boolean);
+
       let invitationId = currentMembership?._id;
 
       if (isEdit) {
@@ -247,7 +293,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
           branchId: data.branchId?.value,
           permissions: data.permissions,
           jobTitleId: data.jobTitleId?.value,
-          departmentIds: (data.departmentIds || []).map((item) => item.value).filter(Boolean),
+          departmentIds,
           startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
         };
 
@@ -437,17 +483,17 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             )}
 
             {!hideDepartment && (
-              <Field.InfiniteAutocomplete
+              <Field.Autocomplete
                 multiple
                 disableCloseOnSelect
                 name="departmentIds"
                 label="Departments"
-                placeholder="Search departments"
-                useQuery={useGetDepartmentsQuery}
-                queryArgs={lookupQueryArgs}
-                mapOption={mapLookupOption}
-                enabled={!!resolvedOrganizationId}
-                disabled={isEdit}
+                placeholder={selectedBranchId ? 'Search departments' : 'Select a site first'}
+                loading={isLoadingDepartments}
+                options={staffDepartmentOptions}
+                disabled={!resolvedOrganizationId || !selectedBranchId || isLoadingDepartments || isEdit}
+                isOptionEqualToValue={(option, value) => option.value === value.value}
+                getOptionLabel={(option) => option.label || ''}
                 renderTags={(selected, getTagProps) =>
                   selected.map((option, index) => (
                     <Chip

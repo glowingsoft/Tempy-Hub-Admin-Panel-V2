@@ -4,7 +4,6 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import IconButton from '@mui/material/IconButton';
 import Skeleton from '@mui/material/Skeleton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -65,7 +64,6 @@ export function ResidentDetailView() {
 
     const securityDialog = useBoolean();
     const editDialog = useBoolean();
-    const [showPassword, setShowPassword] = useState(false);
 
     const [mockResident, setMockResident] = useState(() => getMockResidentById(id));
     const [localResident, setLocalResident] = useState(null);
@@ -236,11 +234,8 @@ export function ResidentDetailView() {
                             value={
                                 <Stack direction="row" spacing={0.25} alignItems="center">
                                     <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                                        {showPassword ? (resident.visitorPasscode || resident.securityPassword || '—') : '••••••••'}
+                                        ••••••••
                                     </Typography>
-                                    <IconButton size="small" onClick={() => setShowPassword((prev) => !prev)}>
-                                        <Iconify icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'} width={16} />
-                                    </IconButton>
                                 </Stack>
                             }
                         />
