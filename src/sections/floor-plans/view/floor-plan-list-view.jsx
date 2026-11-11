@@ -38,6 +38,7 @@ import {
     useUpdateFloorPlanMutation,
 } from 'src/store/Reducer/floor-plans-api';
 import { useUploadFileMutation } from 'src/store/Reducer/upload-api';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { UploadFloorPlanDialog } from 'src/sections/active-sections/peen-floor-plan/upload-floor-plan-dialog';
 import { setFloorPlanFile } from 'src/sections/active-sections/peen-floor-plan/mocks/data';
 
@@ -214,16 +215,14 @@ export function FloorPlanListView({ ownerDashboard = true }) {
 
     const getStatusCount = useCallback(
         (status) => {
-            if (filteredApiFloors) {
-                return status === 'all'
-                    ? filteredApiFloors.length
-                    : filteredApiFloors.filter((floor) => floor.status === status).length;
+            if (apiData) {
+                return getListStatusTabCount(apiData?.meta?.counts, status, totalCount);
             }
             return status === 'all'
                 ? allMockFloors.length
                 : allMockFloors.filter((floor) => floor.status === status).length;
         },
-        [filteredApiFloors, allMockFloors]
+        [apiData, totalCount, allMockFloors]
     );
 
     const notFound = !isLoading && !records.length;

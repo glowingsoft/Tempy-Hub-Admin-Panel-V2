@@ -34,6 +34,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 import { UserTableFiltersResult } from 'src/sections/user/user-table-filters-result';
 import { getUserBranchId } from 'src/utils/organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useDownloadAllFamilyGazettesMutation,
@@ -167,7 +168,7 @@ export function GazettesView() {
 
   const getStatusCount = useCallback(
     (status) => {
-      if (status === 'all') return totalRecords;
+      if (status === 'all') return getListStatusTabCount(statusCounts, 'all', totalRecords);
       const option = GAZETTE_STATUS_OPTIONS.find((item) => item.value === status);
       return statusCounts[option?.countKey] ?? 0;
     },

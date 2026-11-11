@@ -40,6 +40,7 @@ import {
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useGetVisitorAccountInvitationsQuery,
@@ -279,11 +280,11 @@ export function AppAccountsView({
   const getStatusCount = useCallback(
     (statusValue) => {
       if (statusValue === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
+        return getListStatusTabCount(
+          statusCounts,
+          'all',
+          accountMeta?.totalRecords || accountMeta?.total || accountList.length
         );
-        return totalFromCounts || accountMeta?.totalRecords || accountMeta?.total || accountList.length;
       }
 
       if (statusCounts[statusValue] !== undefined) {

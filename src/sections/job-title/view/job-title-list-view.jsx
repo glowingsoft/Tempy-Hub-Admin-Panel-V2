@@ -29,6 +29,7 @@ import {
   useTable,
 } from 'src/components/table';
 
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { JobTitleCreateEditModal } from '../job-title-create-edit-modal';
@@ -99,17 +100,7 @@ export function JobTitleListView() {
   );
 
   const getStatusCount = useCallback(
-    (status) => {
-      if (status === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[status] ?? 0;
-    },
+    (status) => getListStatusTabCount(statusCounts, status, totalRecords),
     [statusCounts, totalRecords]
   );
 

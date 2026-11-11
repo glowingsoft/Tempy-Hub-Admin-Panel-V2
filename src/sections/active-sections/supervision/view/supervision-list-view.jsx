@@ -33,6 +33,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter, usePathname } from 'src/routes/hooks';
 import { API_ROUTES } from 'src/store/apiRoutes';
 import { downloadCsvFromApi } from 'src/utils/export-helper';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import {
   useGetAppSupervisionsQuery,
@@ -265,11 +266,7 @@ function SupervisionListView({
     if (isStaffView) return Number(totalRecords) || filteredRows.length;
 
     if (filters.state.status === 'all') {
-      const sumFromCounts = countableStatusOptions.reduce(
-        (sum, opt) => sum + (Number(counts[opt.value]) || 0),
-        0
-      );
-      return sumFromCounts || totalRecords;
+      return getListStatusTabCount(counts, 'all', totalRecords);
     }
     return typeof counts[filters.state.status] === 'number'
       ? counts[filters.state.status]
@@ -280,21 +277,11 @@ function SupervisionListView({
     counts,
     totalRecords,
     filteredRows.length,
-    countableStatusOptions,
   ]);
 
   const getStatusCount = useCallback(
-    (statusValue) => {
-      if (statusValue === 'all') {
-        const sumFromCounts = countableStatusOptions.reduce(
-          (sum, opt) => sum + (Number(counts[opt.value]) || 0),
-          0
-        );
-        return sumFromCounts || totalRecords;
-      }
-      return counts[statusValue] ?? 0;
-    },
-    [counts, totalRecords, countableStatusOptions]
+    (statusValue) => getListStatusTabCount(counts, statusValue, totalRecords),
+    [counts, totalRecords]
   );
 
   const canReset = !!filters.state.name || filters.state.status !== 'all';

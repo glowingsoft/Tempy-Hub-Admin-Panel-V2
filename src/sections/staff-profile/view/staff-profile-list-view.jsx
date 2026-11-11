@@ -27,6 +27,7 @@ import {
 } from 'src/components/table';
 
 import { MEMBERSHIP_ROLE_OPTIONS } from 'src/sections/membership/mocks/data';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 import { StaffProfileTableRow } from '../staff-profile-table-row';
 
@@ -116,17 +117,7 @@ export function StaffProfileListView({
   const roleCounts = data?.meta?.counts ?? {};
 
   const getRoleCount = useCallback(
-    (role) => {
-      if (role === 'all') {
-        const totalFromCounts = Object.values(roleCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return roleCounts[role] ?? 0;
-    },
+    (role) => getListStatusTabCount(roleCounts, role, totalRecords),
     [roleCounts, totalRecords]
   );
 

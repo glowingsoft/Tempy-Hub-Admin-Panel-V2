@@ -29,6 +29,7 @@ import {
 } from 'src/components/table';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetShiftsQuery } from 'src/store/Reducer/shifts-api';
 import { SHIFT_STATUS_OPTIONS } from '../mocks/data';
 import { ShiftTableRow } from '../shift-table-row';
@@ -98,17 +99,7 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
   const totalRecords = meta.totalRecords ?? shifts.length;
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[tabStatus] ?? 0;
-    },
+    (tabStatus) => getListStatusTabCount(statusCounts, tabStatus, totalRecords),
     [statusCounts, totalRecords]
   );
 

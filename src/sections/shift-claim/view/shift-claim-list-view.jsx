@@ -26,6 +26,7 @@ import {
   useTable,
 } from 'src/components/table';
 
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useTempyConnection } from 'src/sections/tempy-connection/use-tempy-connection';
 import { useGetShiftClaimsQuery } from 'src/store/Reducer/shift-claims-api';
 
@@ -121,17 +122,7 @@ export function ShiftClaimListView() {
   const totalRecords = meta.totalRecords ?? claims.length;
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[tabStatus] ?? 0;
-    },
+    (tabStatus) => getListStatusTabCount(statusCounts, tabStatus, totalRecords),
     [statusCounts, totalRecords]
   );
 

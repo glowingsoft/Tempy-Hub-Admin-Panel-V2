@@ -10,6 +10,8 @@ export function AttendanceStatusChip({ status }) {
   let color = 'success';
   if (lowerStatus.includes('absent')) {
     color = 'error';
+  } else if (lowerStatus.includes('unscheduled')) {
+    color = 'info';
   } else if (lowerStatus.includes('sick')) {
     color = 'info';
   } else if (lowerStatus.includes('late')) {

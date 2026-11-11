@@ -23,6 +23,7 @@ import {
   useTable,
 } from 'src/components/table';
 import { toast } from 'src/components/snackbar';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -446,10 +447,11 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
 
       if (counts && typeof counts === 'object') {
         if (status === 'all') {
-          if (counts.active != null || counts.closed != null) {
-            return Object.values(counts).reduce((sum, n) => sum + (Number(n) || 0), 0);
-          }
-          return meta.total ?? meta.totalRecords ?? meta.totalDocs ?? totalCount;
+          return getListStatusTabCount(
+            counts,
+            'all',
+            meta.total ?? meta.totalRecords ?? meta.totalDocs ?? totalCount
+          );
         }
         if (counts[status] != null) {
           return counts[status];

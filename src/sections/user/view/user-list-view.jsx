@@ -41,6 +41,7 @@ import {
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { API_ROUTES } from 'src/store/apiRoutes';
 import { downloadCsvFromApi } from 'src/utils/export-helper';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import {
@@ -269,17 +270,7 @@ export function UserListView() {
   });
 
   const getStatusCount = useCallback(
-    (status) => {
-      if (status === 'all') {
-        const totalFromCounts = Object.values(siteStatusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return siteStatusCounts[status] ?? 0;
-    },
+    (status) => getListStatusTabCount(siteStatusCounts, status, totalRecords),
     [siteStatusCounts, totalRecords]
   );
 

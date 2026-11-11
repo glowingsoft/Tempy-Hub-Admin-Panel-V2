@@ -27,6 +27,7 @@ import {
 } from 'src/components/table';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
 import { useGetLeaveRequestsQuery } from 'src/store/Reducer/leave-requests-api';
 import { LeaveEntitlementModal } from '../leave-entitlement-modal';
@@ -132,17 +133,7 @@ export function LeaveRequestListView({
   );
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[tabStatus] ?? 0;
-    },
+    (tabStatus) => getListStatusTabCount(statusCounts, tabStatus, totalRecords),
     [statusCounts, totalRecords]
   );
 

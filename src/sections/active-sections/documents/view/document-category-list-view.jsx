@@ -30,6 +30,7 @@ import {
 } from 'src/components/table';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 
 import {
   useGetDocumentCategoriesQuery,
@@ -148,7 +149,7 @@ export function DocumentCategoryListView({ ownerDashboard = false }) {
 
   const getStatusCount = useCallback(
     (status) => {
-      if (status === 'all') return statusCounts?.all ?? totalCount;
+      if (status === 'all') return getListStatusTabCount(statusCounts, 'all', totalCount);
       if (status === 'active') return statusCounts?.active ?? categories.filter((c) => c.active).length;
       if (status === 'inactive') return statusCounts?.inactive ?? categories.filter((c) => !c.active).length;
       return 0;

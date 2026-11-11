@@ -11,6 +11,7 @@ export const PUNCTUALITY_STATUS_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
   { value: 'onTime', label: 'On time', color: 'success' },
   { value: 'late', label: 'Late', color: 'warning' },
+  { value: 'unscheduled', label: 'Unscheduled', color: 'info' },
 ];
 
 export const TABLE_HEAD = [

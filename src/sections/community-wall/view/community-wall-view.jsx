@@ -32,6 +32,7 @@ import { useDebounce } from 'src/hooks/use-debounce';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 import { getUserBranchId } from 'src/utils/organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useGetFamilyPostAuthorsQuery,
@@ -176,7 +177,10 @@ export function CommunityWallView() {
   const showFeedLoading = isFilterLoading || isSearchPending;
 
   const getTabCount = useCallback(
-    (tab) => statusCounts[tab.countKey] ?? 0,
+    (tab) =>
+      tab.value === 'all'
+        ? getListStatusTabCount(statusCounts, 'all', statusCounts[tab.countKey] ?? 0)
+        : statusCounts[tab.countKey] ?? 0,
     [statusCounts]
   );
 

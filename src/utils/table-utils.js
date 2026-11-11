@@ -76,3 +76,27 @@ export const getStatusColor = (status) => {
     };
     return statusColorMap[status] || 'default';
 };
+
+/**
+ * Tab counts from list `meta.counts`.
+ * Prefer `counts.all` for the All tab — do not sum keys (that double-counts `all`).
+ * Pass `{ keepTotal: true }` when the API still exposes `counts.total` (family uploads/groups).
+ */
+export const getListStatusTabCount = (counts = {}, status, fallback = 0, { keepTotal = false } = {}) => {
+    const source = counts && typeof counts === 'object' ? counts : {};
+
+    if (status === 'all') {
+        const allCount = Number(source.all);
+        if (Number.isFinite(allCount)) return allCount;
+
+        if (keepTotal) {
+            const totalCount = Number(source.total);
+            if (Number.isFinite(totalCount)) return totalCount;
+        }
+
+        return Number(fallback) || 0;
+    }
+
+    const statusCount = Number(source[status]);
+    return Number.isFinite(statusCount) ? statusCount : 0;
+};

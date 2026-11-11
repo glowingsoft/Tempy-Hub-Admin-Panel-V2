@@ -37,6 +37,7 @@ import { paths } from 'src/routes/paths';
 import { usePathname, useRouter } from 'src/routes/hooks';
 import { API_ROUTES } from 'src/store/apiRoutes';
 import { downloadCsvFromApi } from 'src/utils/export-helper';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { DataUsageSummaryCard } from 'src/sections/data-usage/data-usage-summary-card';
 import {
   useGetAppStaffAppraisalsQuery,
@@ -250,11 +251,7 @@ export function AppraisalListView({
     if (isStaffView) return Number(totalRecords) || filteredRows.length;
 
     if (filters.state.status === 'all') {
-      const sumFromCounts = APPRAISAL_STATUS_OPTIONS.reduce(
-        (sum, opt) => sum + (Number(counts[opt.value]) || 0),
-        0
-      );
-      return sumFromCounts || totalRecords;
+      return getListStatusTabCount(counts, 'all', totalRecords);
     }
     return typeof counts[filters.state.status] === 'number'
       ? counts[filters.state.status]
@@ -262,17 +259,8 @@ export function AppraisalListView({
   }, [isStaffView, filters.state.status, counts, totalRecords, filteredRows.length]);
 
   const getStatusCount = useCallback(
-    (statusValue) => {
-      if (statusValue === 'all') {
-        const sumFromCounts = (isStaffView ? STAFF_APPRAISAL_STATUS_OPTIONS : APPRAISAL_STATUS_OPTIONS).reduce(
-          (sum, opt) => sum + (Number(counts[opt.value]) || 0),
-          0
-        );
-        return sumFromCounts || totalRecords;
-      }
-      return counts[statusValue] ?? 0;
-    },
-    [counts, totalRecords, isStaffView]
+    (statusValue) => getListStatusTabCount(counts, statusValue, totalRecords),
+    [counts, totalRecords]
   );
 
   const canReset = !!filters.state.name || filters.state.status !== 'all';

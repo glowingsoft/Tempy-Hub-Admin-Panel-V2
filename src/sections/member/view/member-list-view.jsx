@@ -13,6 +13,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetMembersQuery } from 'src/store/Reducer/members-api';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -100,17 +101,7 @@ export function MemberListView() {
   );
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[tabStatus] ?? 0;
-    },
+    (tabStatus) => getListStatusTabCount(statusCounts, tabStatus, totalRecords),
     [statusCounts, totalRecords]
   );
 

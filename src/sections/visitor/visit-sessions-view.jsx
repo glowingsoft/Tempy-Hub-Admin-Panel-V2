@@ -32,6 +32,7 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { fDateTime } from 'src/utils/format-time';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 
 import {
   useGetVisitSessionsQuery,
@@ -206,11 +207,11 @@ export function VisitSessionsView() {
   const getStatusCount = useCallback(
     (statusValue) => {
       if (statusValue === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
+        return getListStatusTabCount(
+          statusCounts,
+          'all',
+          sessionMeta?.totalRecords || sessionMeta?.total || sessionList.length
         );
-        return totalFromCounts || sessionMeta?.totalRecords || sessionMeta?.total || sessionList.length;
       }
 
       if (statusCounts[statusValue] !== undefined) {
