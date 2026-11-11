@@ -38,6 +38,8 @@ export const DEFAULT_BRANCH_SETTINGS = {
   allowPhoneCheckIn: false,
   breaksPaid: false,
   breakRules: DEFAULT_BREAK_RULES,
+  autoClockOutHoursAfterShiftEnd: 3,
+  autoClockOutHoursAfterClockIn: 10,
 };
 
 const orgRef = (id) => {

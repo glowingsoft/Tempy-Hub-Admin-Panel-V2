@@ -101,6 +101,8 @@ export const API_ROUTES = {
     STAFF_LEAVE_REQUESTS: '/app/leave-requests',
     ORGANIZATION_LEAVE_REQUESTS: (organizationId) =>
         `/admin/organizations/${organizationId}/leave-requests`,
+    ORGANIZATION_RECORD_LEAVE_REQUEST: (organizationId) =>
+        `/admin/organizations/${organizationId}/leave-requests/record`,
     LEAVE_REQUEST_BY_ID: (leaveRequestId) => `/admin/leave-requests/${leaveRequestId}`,
     ORGANIZATION_LEAVE_ENTITLEMENTS: (organizationId) =>
         `/admin/organizations/${organizationId}/leave-entitlements`,

@@ -5,7 +5,6 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { fCurrency } from 'src/utils/format-number';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
@@ -29,7 +28,6 @@ export default function RotaSummaryBar({
   totalMinutes = 0,
   totalShifts = 0,
   unassignedCount = 0,
-  earnings = null,
   scope = 'personal',
   showUnassigned = true,
   sx,
@@ -165,37 +163,6 @@ export default function RotaSummaryBar({
           </Stack>
         </>
       )}
-
-      {/* Money Earnt (Personal scope only) */}
-      {scope === 'personal' && earnings != null && (
-        <>
-          <Divider orientation="vertical" flexItem sx={{ height: 18, my: 'auto' }} />
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Box
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
-                color: 'secondary.main',
-              }}
-            >
-              <Iconify icon="solar:wallet-bold" width={16} />
-            </Box>
-            <Stack direction="row" alignItems="baseline" spacing={0.75}>
-              <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                Money Earnt:
-              </Typography>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'secondary.main' }}>
-                {fCurrency(earnings, { code: 'en-GB', currency: 'GBP' })}
-              </Typography>
-            </Stack>
-          </Stack>
-        </>
-      )}
     </Box>
   );
 }
@@ -205,7 +172,6 @@ RotaSummaryBar.propTypes = {
   totalMinutes: PropTypes.number,
   totalShifts: PropTypes.number,
   unassignedCount: PropTypes.number,
-  earnings: PropTypes.number,
   scope: PropTypes.string,
   showUnassigned: PropTypes.bool,
   sx: PropTypes.object,

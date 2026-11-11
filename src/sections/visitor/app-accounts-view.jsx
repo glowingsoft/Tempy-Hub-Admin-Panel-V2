@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -576,7 +576,7 @@ export function AppAccountsView({
 
 // ----------------------------------------------------------------------
 
-function InviteToAppDialog({ open, onClose, organizationId }) {
+export function InviteToAppDialog({ open, onClose, organizationId, initialData }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [selectedBranch, setSelectedBranch] = useState(null);
@@ -585,11 +585,29 @@ function InviteToAppDialog({ open, onClose, organizationId }) {
   const [createAccountInvite, { isLoading: isSubmitting }] =
     useCreateVisitorAccountInvitationMutation();
 
+  const resetForm = useCallback(() => {
+    setName(initialData?.name || '');
+    setEmail(initialData?.email || '');
+    const branchVal =
+      (typeof initialData?.branchId === 'object' ? initialData?.branchId?._id : initialData?.branchId) ||
+      initialData?.branch?._id ||
+      '';
+    const branchLabel =
+      initialData?.branch?.name ||
+      (typeof initialData?.branch === 'string' ? initialData.branch : '') ||
+      '';
+    setSelectedBranch(branchVal ? { value: branchVal, label: branchLabel } : null);
+    setType(initialData?.type || 'contractor');
+  }, [initialData]);
+
+  useEffect(() => {
+    if (open) {
+      resetForm();
+    }
+  }, [open, resetForm]);
+
   const handleClose = () => {
-    setName('');
-    setEmail('');
-    setSelectedBranch(null);
-    setType('contractor');
+    resetForm();
     onClose();
   };
 

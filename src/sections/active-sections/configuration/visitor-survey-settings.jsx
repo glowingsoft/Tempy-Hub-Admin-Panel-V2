@@ -6,22 +6,14 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import Divider from '@mui/material/Divider';
-import InputAdornment from '@mui/material/InputAdornment';
 import Stack from '@mui/material/Stack';
 
 import { Iconify } from 'src/components/iconify';
-import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { toast } from 'src/components/snackbar';
-import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   EMPTY_VISITOR_SURVEY_SETTINGS,
   resetQuestionsToSystemDefaults,
 } from './visitor-survey-mappers';
-import {
-  ALL_SITES_OPTION,
-  mapVisitorBranchOption,
-} from './visitor-survey/visitor-survey-constants';
-import { useVisitorFeedbackForm } from './visitor-survey/use-visitor-feedback-form';
 import { VisitorSurveyNotificationsCard } from './visitor-survey/visitor-survey-notifications';
 import { VisitorSurveyQuestionBuilder } from './visitor-survey/visitor-survey-question-builder';
 import { VisitorSurveyFeedbackForm } from './visitor-survey/visitor-survey-feedback-form';
@@ -38,10 +30,8 @@ function VisitorSurveySettings({
   canEdit = true,
   saving,
   savingQuestions,
-  submittingFeedback,
   onSave,
   onSaveQuestions,
-  onSubmitFeedback: onSubmitFeedbackProp,
   onRetry,
 }) {
   const [state, setState] = useState(() => settings || EMPTY_VISITOR_SURVEY_SETTINGS);
@@ -197,13 +187,6 @@ function VisitorSurveySettings({
   const visibleQuestions = questions.filter((q) => q.active !== false);
   const formQuestions = builderMode ? questions : visibleQuestions;
 
-  // Feedback form controller hook
-  const formController = useVisitorFeedbackForm({
-    questions,
-    formQuestions,
-    onSubmitFeedbackProp,
-  });
-
   if (loading) {
     return <VisitorSurveySkeleton />;
   }
@@ -231,68 +214,29 @@ function VisitorSurveySettings({
         onSave={handleSaveSettings}
       />
 
-      {/* 2. Log Visitor Feedback & Survey Question Builder Card */}
+      {/* 2. Visitor Survey Questions Card */}
       <Card>
         <CardHeader
-          title="Log visitor feedback"
+          title="Visitor survey questions"
           subheader={
             builderMode
               ? 'Customize questions, create custom MCQs with options, and configure answer types'
-              : 'Manually record feedback shared by a visitor after checkout'
+              : 'Questions presented to visitors during checkout'
           }
           action={
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }}>
-              {formController.isApiSubmission && formController.isOwner && (
-                <InfiniteAutocomplete
-                  value={formController.selectedOwnerSite}
-                  onChange={(site) => {
-                    const nextSite = site || ALL_SITES_OPTION;
-                    formController.setSelectedOwnerSite(nextSite);
-                    formController.setSelectedHostStaff(null);
-                    formController.clearFormError('branchId');
-                    formController.clearFormError('hostStaffId');
-                  }}
-                  useQuery={useGetBranchesQuery}
-                  queryArgs={{ organizationId: formController.organizationId }}
-                  mapOption={mapVisitorBranchOption}
-                  extraOptions={[ALL_SITES_OPTION]}
-                  label="Site"
-                  placeholder="All sites"
-                  disabled={!formController.organizationId}
-                  disableClearable
-                  size="small"
-                  sx={{ minWidth: { xs: 220, sm: 200 } }}
-                  error={Boolean(formController.formErrors.branchId)}
-                  helperText={formController.formErrors.branchId}
-                  textFieldProps={{
-                    InputProps: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Iconify
-                            icon="solar:buildings-bold-duotone"
-                            width={20}
-                            sx={{ color: 'primary.main' }}
-                          />
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
+            <Button
+              variant={builderMode ? 'contained' : 'outlined'}
+              color="primary"
+              size="small"
+              startIcon={
+                <Iconify
+                  icon={builderMode ? 'solar:clipboard-check-bold' : 'solar:pen-new-square-bold'}
                 />
-              )}
-              <Button
-                variant={builderMode ? 'contained' : 'outlined'}
-                color="primary"
-                size="small"
-                startIcon={
-                  <Iconify
-                    icon={builderMode ? 'solar:clipboard-check-bold' : 'solar:pen-new-square-bold'}
-                  />
-                }
-                onClick={() => setBuilderMode((prev) => !prev)}
-              >
-                {builderMode ? 'View & Log Feedback' : `Customize Questions (${questions.length})`}
-              </Button>
-            </Stack>
+              }
+              onClick={() => setBuilderMode((prev) => !prev)}
+            >
+              {builderMode ? 'View Questions' : `Customize Questions (${questions.length})`}
+            </Button>
           }
           sx={{ pb: 1.5 }}
         />
@@ -313,9 +257,7 @@ function VisitorSurveySettings({
           />
         ) : (
           <VisitorSurveyFeedbackForm
-            formController={formController}
             formQuestions={formQuestions}
-            submittingFeedback={submittingFeedback}
             onSwitchToBuilder={() => setBuilderMode(true)}
           />
         )}
@@ -342,11 +284,9 @@ VisitorSurveySettings.propTypes = {
   canEdit: PropTypes.bool,
   onSave: PropTypes.func,
   onSaveQuestions: PropTypes.func,
-  onSubmitFeedback: PropTypes.func,
   onRetry: PropTypes.func,
   saving: PropTypes.bool,
   savingQuestions: PropTypes.bool,
-  submittingFeedback: PropTypes.bool,
 };
 
 export default VisitorSurveySettings;

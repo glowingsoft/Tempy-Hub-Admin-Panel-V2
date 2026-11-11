@@ -24,7 +24,15 @@ import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-export function UserTableRow({ row, selected, onEditRow, onLockRow, serialNumber }) {
+export function UserTableRow({
+  row,
+  selected,
+  onEditRow,
+  onLockRow,
+  onNewVisitInvite,
+  onInviteToApp,
+  serialNumber,
+}) {
 
   const view = useBoolean();
 
@@ -120,20 +128,28 @@ export function UserTableRow({ row, selected, onEditRow, onLockRow, serialNumber
           </Label>
         </TableCell>
         {/* Actions */}
-        <TableCell align="center" sx={{ width: 100 }}>
+        <TableCell align="right" sx={{ width: 140 }}>
           <Stack
             direction="row"
             alignItems="center"
-            justifyContent="center"
+            justifyContent="flex-end"
             spacing={0.5}
             onClick={(event) => event.stopPropagation()}
-            sx={{ width: 84, mx: 'auto' }}
+            sx={{ minWidth: 120, ml: 'auto' }}
           >
             <Tooltip title="Edit" placement="top" arrow>
               <IconButton color="default" onClick={onEditRow}>
                 <Iconify icon="solar:pen-bold" />
               </IconButton>
             </Tooltip>
+
+            {onNewVisitInvite && (
+              <Tooltip title="New visit invitation" placement="top" arrow>
+                <IconButton color="primary" onClick={() => onNewVisitInvite(row)}>
+                  <Iconify icon="solar:calendar-add-bold" />
+                </IconButton>
+              </Tooltip>
+            )}
 
             {hasAccount ? (
               <Tooltip
@@ -151,7 +167,16 @@ export function UserTableRow({ row, selected, onEditRow, onLockRow, serialNumber
                 </IconButton>
               </Tooltip>
             ) : (
-              <Box sx={{ width: 40, height: 40 }} />
+              onInviteToApp && (
+                <Tooltip title="Invite to app" placement="top" arrow>
+                  <IconButton
+                    color="primary"
+                    onClick={() => onInviteToApp(row)}
+                  >
+                    <Iconify icon="solar:user-plus-bold" />
+                  </IconButton>
+                </Tooltip>
+              )
             )}
           </Stack>
         </TableCell>

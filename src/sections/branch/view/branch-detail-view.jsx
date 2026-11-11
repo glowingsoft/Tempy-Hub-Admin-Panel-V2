@@ -165,8 +165,27 @@ export function BranchDetailView() {
               )}
             </>
           )}
-          <DetailItem label="Late grace minutes" value={settings.lateGraceMinutes ?? '—'} />
+          <DetailItem label="Late grace minutes" value={settings.lateGraceMinutes !== undefined && settings.lateGraceMinutes !== null ? `${settings.lateGraceMinutes} mins` : '—'} />
+          <DetailItem
+            label="Auto clock-out after shift end"
+            value={
+              settings.autoClockOutHoursAfterShiftEnd !== undefined &&
+              settings.autoClockOutHoursAfterShiftEnd !== null
+                ? `${settings.autoClockOutHoursAfterShiftEnd} hrs`
+                : '3 hrs'
+            }
+          />
+          <DetailItem
+            label="Auto clock-out after clock-in (unscheduled)"
+            value={
+              settings.autoClockOutHoursAfterClockIn !== undefined &&
+              settings.autoClockOutHoursAfterClockIn !== null
+                ? `${settings.autoClockOutHoursAfterClockIn} hrs`
+                : '10 hrs'
+            }
+          />
           <DetailItem label="Allow phone check-in" value={yesNo(settings.allowPhoneCheckIn)} />
+          <DetailItem label="Enable leave requests" value={yesNo(settings.enableLeaveRequests)} />
         </DetailCard>
 
         <DetailCard title="Activation">

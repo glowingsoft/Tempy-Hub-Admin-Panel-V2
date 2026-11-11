@@ -15,6 +15,7 @@ import { fDateTime } from 'src/utils/format-time';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
+import { LoadingScreen } from 'src/components/loading-screen';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBillingUsageByOrgQuery } from 'src/store/Reducer/billing-api';
 
@@ -77,10 +78,10 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
     ? branches.find((item) => String(item.branchId) === String(branchId)) || null
     : null;
 
-  if (isLoading || isFetching) {
+  if (isLoading || (!data && isFetching)) {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
-        <EmptyContent title="Loading usage details..." sx={{ py: 10 }} />
+        <LoadingScreen sx={{ py: 10 }} />
       </Box>
     );
   }
@@ -89,6 +90,7 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
     return (
       <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3 }}>
         <Button
+          color="primary"
           onClick={() => router.push(resolvedPaths.root)}
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           sx={{ mb: 2 }}
@@ -132,8 +134,14 @@ export function DataUsageDetailView({ pathsConfig } = {}) {
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
+      {isFetching && !isLoading && <LoadingScreen sx={{ py: 2 }} />}
+
       <Box sx={{ mb: 2 }}>
-        <Button onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+        <Button
+          color="primary"
+          onClick={router.back}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+        >
           Back
         </Button>
       </Box>

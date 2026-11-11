@@ -15,6 +15,7 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { LeaveEntitlementModal } from 'src/sections/leave-request/leave-entitlement-modal';
 import { TempyConnectCard } from 'src/sections/tempy-connection/tempy-connect-card';
@@ -56,42 +57,53 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
   const user = useSelector(selectUser);
   const { organizationId, isOwner: orgIsOwner } = useCurrentOrganization();
 
+  const pathname = usePathname();
+  const isStaffRoute = Boolean(pathname?.startsWith('/staff') || pathname?.includes('/staff'));
+
   // Role detection: Owner, Site Manager (sm), Line Manager (lm), Staff
   const isOwner =
-    ownerDashboard ||
-    orgIsOwner ||
-    user?.role === 'owner' ||
-    user?.role === 'Organization Owner' ||
-    user?.permission === 1 ||
-    user?.permission === 4;
+    !isStaffRoute &&
+    (ownerDashboard ||
+      orgIsOwner ||
+      user?.role === 'owner' ||
+      user?.role === 'Organization Owner' ||
+      user?.permission === 1 ||
+      user?.permission === 4);
 
   const isSiteManager =
+    !isStaffRoute &&
     !isOwner &&
     (user?.permission === 2 || user?.role === 'site-manager' || user?.role === 'Site Manager');
 
   const isLineManager =
+    !isStaffRoute &&
     !isOwner &&
     !isSiteManager &&
     (user?.permission === 3 || user?.role === 'line-manager' || user?.role === 'Line Manager');
 
   const isStaff =
-    !isOwner &&
-    !isSiteManager &&
-    !isLineManager &&
-    (user?.permission === 5 || user?.accountState?.userType === 'staff' || user?.role === 'staff');
+    isStaffRoute ||
+    (!isOwner &&
+      !isSiteManager &&
+      !isLineManager &&
+      (user?.permission === 5 ||
+        user?.accountState?.userType === 'staff' ||
+        user?.role?.toLowerCase() === 'staff'));
 
   // Role-specific scope configuration
   const scopeOptions = useMemo(() => {
+    if (isStaff) return []; // Staff is locked to personal
     if (isOwner || isSiteManager) return ALL_SCOPE_OPTIONS;
     if (isLineManager) return LM_SCOPE_OPTIONS;
-    return []; // Staff is locked to personal
-  }, [isOwner, isSiteManager, isLineManager]);
+    return [];
+  }, [isStaff, isOwner, isSiteManager, isLineManager]);
 
   const initialScope = useMemo(() => {
+    if (isStaff) return 'personal';
     if (isOwner || isSiteManager) return 'all';
     if (isLineManager) return 'managed';
     return 'personal';
-  }, [isOwner, isSiteManager, isLineManager]);
+  }, [isStaff, isOwner, isSiteManager, isLineManager]);
 
   const [scope, setScope] = useState(initialScope);
   const [selectedTeamId, setSelectedTeamId] = useState('all');
@@ -207,18 +219,25 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
 
   // Effective permissions from API or role rules
   const effectivePermissions = useMemo(() => {
+    if (locked.value) {
+      return {
+        canBookShift: false,
+        canRecordLeave: false,
+      };
+    }
     return {
       canBookShift: Boolean(
         mappedBoard.permissions?.canBookShift ?? !isStaff
       ),
       canRecordLeave: Boolean(mappedBoard.permissions?.canRecordLeave ?? !isStaff),
     };
-  }, [mappedBoard.permissions, isStaff]);
+  }, [mappedBoard.permissions, isStaff, locked.value]);
 
   // Available managed teams for the team dropdown filter
   const managedTeams = useMemo(() => {
+    if (scope !== 'managed') return [];
     return teamsData.filter((team) => team.id !== 'team-unassigned');
-  }, [teamsData]);
+  }, [teamsData, scope]);
 
   // Filtered visible teams based on active scope & team dropdown
   const visibleTeams = useMemo(() => {
@@ -328,13 +347,6 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     );
   }, [mappedBoard.summary?.unassignedCount, selectedTeamId, scope, teamsData]);
 
-  // Money Earnt for personal view (only when in personal scope and rate is set)
-  const ownStaff = scope === 'personal' ? visibleTeams[0]?.staff[0] : null;
-  const personalEarnings =
-    scope === 'personal' && ownStaff?.hourlyRate
-      ? (parseFloat(ownStaff.totalHours) || 0) * ownStaff.hourlyRate
-      : null;
-
   // Date cell interactive selection states
   const [cellPopoverAnchor, setCellPopoverAnchor] = useState(null);
   const [selectedCellData, setSelectedCellData] = useState(null);
@@ -367,8 +379,8 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
   // Cell Click: respect role permissions
   const handleCellClick = useCallback(
     (arg1, arg2) => {
-      if (isStaff) {
-        // View-only for staff
+      if (isStaff || locked.value) {
+        // View-only for staff or when locked
         return;
       }
 
@@ -383,7 +395,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         team: data.team,
       });
     },
-    [isStaff]
+    [isStaff, locked.value]
   );
 
   const handleOpenBookShift = useCallback((data) => {
@@ -528,6 +540,14 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     mappedBoard.days?.length ||
     (state.period.toLowerCase() === 'week' ? 7 : state.period.toLowerCase() === 'month' ? 30 : 14);
 
+  const handleToggleLock = useCallback(() => {
+    locked.onToggle();
+    setCellPopoverAnchor(null);
+    setBookShiftOpen(false);
+    setCreateLeaveOpen(false);
+    setEntitlementOpen(false);
+  }, [locked]);
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -581,7 +601,8 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
           rangeLabel={rangeLabel}
           period={state.period}
           locked={locked.value}
-          onToggleLock={locked.onToggle}
+          onToggleLock={handleToggleLock}
+          canLock={!isStaff}
           scope={scope}
           scopeOptions={scopeOptions}
           onScopeChange={(value) => {
@@ -606,7 +627,6 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
           unassignedCount={summaryUnassignedCount}
           showUnassigned={scope !== 'personal'}
           scope={scope}
-          earnings={scope === 'personal' ? personalEarnings : null}
         />
 
         {/* Schedule grid or Skeleton loader */}
@@ -617,23 +637,27 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
             <RotaScheduleGrid
               teams={visibleTeams}
               days={mappedBoard.days}
-              onCellClick={handleCellClick}
+              onCellClick={isStaff ? undefined : handleCellClick}
+              locked={locked.value}
+              readOnly={isStaff}
             />
           )}
         </Box>
       </Card>
 
       {/* Date Cell Contextual Popover */}
-      <RotaCellActionPopover
-        open={Boolean(cellPopoverAnchor)}
-        anchorEl={cellPopoverAnchor}
-        onClose={() => setCellPopoverAnchor(null)}
-        cellData={selectedCellData}
-        onBookShift={handleOpenBookShift}
-        onSetEntitlement={handleOpenSetEntitlement}
-        canBookShift={effectivePermissions.canBookShift}
-        canSetEntitlement={!isStaff}
-      />
+      {!isStaff && (
+        <RotaCellActionPopover
+          open={Boolean(cellPopoverAnchor)}
+          anchorEl={cellPopoverAnchor}
+          onClose={() => setCellPopoverAnchor(null)}
+          cellData={selectedCellData}
+          onBookShift={handleOpenBookShift}
+          onSetEntitlement={handleOpenSetEntitlement}
+          canBookShift={effectivePermissions.canBookShift}
+          canSetEntitlement={!isStaff}
+        />
+      )}
 
       {/* Book Shift Dialog */}
       <RotaBookShiftDialog

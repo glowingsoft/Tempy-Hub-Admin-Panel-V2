@@ -389,7 +389,7 @@ export function VisitInvitationsView({
 
 // ----------------------------------------------------------------------
 
-function NewVisitInvitationDialog({ open, onClose, organizationId }) {
+export function NewVisitInvitationDialog({ open, onClose, organizationId, initialData }) {
   const [selectedBranch, setSelectedBranch] = useState(null);
   const [visitorName, setVisitorName] = useState('');
   const [visitorEmail, setVisitorEmail] = useState('');
@@ -402,14 +402,22 @@ function NewVisitInvitationDialog({ open, onClose, organizationId }) {
 
   const resetForm = useCallback(() => {
     const now = dayjs();
-    setVisitorName('');
-    setVisitorEmail('');
-    setSelectedBranch(null);
-    setBadgeType('visitor');
+    setVisitorName(initialData?.name || '');
+    setVisitorEmail(initialData?.email || '');
+    const branchVal =
+      (typeof initialData?.branchId === 'object' ? initialData?.branchId?._id : initialData?.branchId) ||
+      initialData?.branch?._id ||
+      '';
+    const branchLabel =
+      initialData?.branch?.name ||
+      (typeof initialData?.branch === 'string' ? initialData.branch : '') ||
+      '';
+    setSelectedBranch(branchVal ? { value: branchVal, label: branchLabel } : null);
+    setBadgeType(initialData?.type === 'contractor' ? 'contractor' : 'visitor');
     setArrivalAt(now);
     setVisitingUntil(now.add(9, 'hour'));
-    setHostName('Reception');
-  }, []);
+    setHostName(initialData?.hostName || 'Reception');
+  }, [initialData]);
 
   useEffect(() => {
     if (open) {

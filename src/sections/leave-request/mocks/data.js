@@ -30,8 +30,6 @@ export const getLeaveRequestStatusMeta = (value) =>
 // TODO: confirm the real leave-type enum (sample only showed "annual").
 export const LEAVE_TYPE_OPTIONS = [
   { value: 'annual', label: 'Annual Leave (Holiday)' },
-  { value: 'sick', label: 'Sickness' },
-  { value: 'timeoff', label: 'Time Off (Absent)' },
 ];
 
 export const getLeaveTypeLabel = (value) => {
