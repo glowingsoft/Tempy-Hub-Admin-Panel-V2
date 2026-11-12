@@ -19,7 +19,14 @@ import {
     RESIDENT_ADMISSION_STATUS_OPTIONS,
 } from './mocks/data';
 
-export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) {
+export function ResidentTableRow({
+    row,
+    serialNumber,
+    onEditSecurity,
+    onEdit,
+    onRestriction,
+    onOut,
+}) {
     const router = useRouter();
     const pathname = usePathname();
     const statusValue = row.admissionStatus || row.status;
@@ -38,6 +45,9 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             ? paths.lineManager.residentsDetail(row._id)
             : paths.siteManager.residents.detail(row._id);
 
+    const isRestricted = Boolean(row.restricted);
+    const isOut = Boolean(row.out);
+
     const actions = [
         {
             key: 'view',
@@ -53,6 +63,24 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             color: 'default',
             onClick: () => onEdit?.(row),
         },
+        {
+            key: 'restriction',
+            icon: 'solar:user-block-bold',
+            tooltip: isRestricted
+                ? `Restricted: ${row.restrictionReason || row.reason || 'Active'}`
+                : 'Restrict Resident',
+            color: isRestricted ? 'error' : 'default',
+            onClick: () => onRestriction?.(row),
+        },
+        {
+            key: 'out',
+            icon: 'solar:logout-2-bold',
+            tooltip: isOut
+                ? `Out of facility: ${row.destination || 'Active'}`
+                : 'Mark Out of Home',
+            color: isOut ? 'warning' : 'default',
+            onClick: () => onOut?.(row),
+        },
     ];
 
     return (
@@ -64,7 +92,23 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
                 <Stack direction="row" spacing={2} alignItems="center">
                     <Avatar alt={row.name} src={row.image} sx={{ width: 36, height: 36, fontSize: 16, textTransform: 'capitalize' }}>{row.name?.charAt(0)}</Avatar>
                     <Stack sx={{ typography: 'body2', minWidth: 0 }}>
-                        <Box sx={{ fontWeight: 600, textTransform: 'capitalize' }}>{row.name || '—'}</Box>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                            <Box sx={{ fontWeight: 600, textTransform: 'capitalize' }}>{row.name || '—'}</Box>
+                            {isRestricted && (
+                                <Tooltip title={row.restrictionReason || row.reason || 'Restricted'}>
+                                    <Label variant="soft" color="error" sx={{ height: 20, px: 0.75, fontSize: '0.675rem' }}>
+                                        Restricted
+                                    </Label>
+                                </Tooltip>
+                            )}
+                            {isOut && (
+                                <Tooltip title={row.destination ? `Out: ${row.destination}` : 'Out of facility'}>
+                                    <Label variant="soft" color="warning" sx={{ height: 20, px: 0.75, fontSize: '0.675rem' }}>
+                                        Out
+                                    </Label>
+                                </Tooltip>
+                            )}
+                        </Stack>
                         <Box sx={{ color: 'text.secondary', typography: 'caption' }}>{row.email || '—'}</Box>
                     </Stack>
                 </Stack>

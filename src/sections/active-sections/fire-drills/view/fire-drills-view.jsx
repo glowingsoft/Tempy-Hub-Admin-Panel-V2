@@ -261,7 +261,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     }
   );
 
-  // Live Active Evacuation Query (active drills are site-specific)
+  // Live Active Evacuation Query (active drills are site-specific or org-wide)
   const {
     data: activeEvacuationApiData,
     isLoading: isActiveEvacuationLoading,
@@ -272,7 +272,21 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       branchId: queryBranchId,
     },
     {
-      skip: !organizationId || !queryBranchId,
+      skip: shouldSkipSummary,
+    }
+  );
+
+  // Dedicated active evacuation query (guarantees active card persists across table pagination/filtering)
+  const { data: activeListApiData } = useGetEvacuationsQuery(
+    {
+      organizationId,
+      branchId: queryBranchId,
+      status: 'active',
+      page: 1,
+      limit: 1,
+    },
+    {
+      skip: shouldSkipSummary,
     }
   );
 
@@ -342,6 +356,10 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const activeEvent = useMemo(() => {
     let raw = activeEvacuationApiData?._id ? activeEvacuationApiData : null;
 
+    if (!raw && activeListApiData?.data?.[0]?._id) {
+      raw = activeListApiData.data[0];
+    }
+
     if (!raw && rawEvacuationsList) {
       raw = rawEvacuationsList.find((row) => row.status === 'active') || null;
     }
@@ -365,7 +383,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       rollcall: rollcallData,
       stats: rollcallData,
     };
-  }, [activeEvacuationApiData, rawEvacuationsList, scopedBranchId, membersMap, user, reloadKey, allowMockFallback]);
+  }, [activeEvacuationApiData, activeListApiData, rawEvacuationsList, scopedBranchId, membersMap, user, reloadKey, allowMockFallback]);
 
   const evacuations = useMemo(() => {
     let rows;

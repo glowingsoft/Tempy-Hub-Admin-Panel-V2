@@ -121,6 +121,46 @@ export const residentsApi = createApi({
         headers: organizationId ? { 'x-org-id': organizationId } : undefined,
       }),
     }),
+
+    updateResidentRestriction: builder.mutation({
+      query: ({ residentId, organizationId, restricted, reason }) => ({
+        url: API_ROUTES.RESIDENT_RESTRICTION(residentId),
+        method: 'PUT',
+        body: {
+          restricted,
+          ...(restricted ? { reason } : {}),
+        },
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { residentId, organizationId } = {}) => [
+        { type: 'Resident', id: residentId },
+        listTag(organizationId),
+      ],
+    }),
+
+    updateResidentOut: builder.mutation({
+      query: ({ residentId, organizationId, out, destination, note, expectedReturnAt }) => ({
+        url: API_ROUTES.RESIDENT_OUT(residentId),
+        method: 'PUT',
+        body: {
+          out,
+          ...(out
+            ? {
+                destination,
+                note,
+                expectedReturnAt,
+              }
+            : {}),
+        },
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { residentId, organizationId } = {}) => [
+        { type: 'Resident', id: residentId },
+        listTag(organizationId),
+      ],
+    }),
   }),
 });
 
@@ -131,4 +171,6 @@ export const {
   useUpdateResidentMutation,
   useUpdateResidentVisitorPasscodeMutation,
   useVerifyResidentPasscodeMutation,
+  useUpdateResidentRestrictionMutation,
+  useUpdateResidentOutMutation,
 } = residentsApi;

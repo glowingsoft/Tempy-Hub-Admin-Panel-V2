@@ -36,6 +36,8 @@ import { ResidentTableRow } from '../resident-table-row';
 import { ResidentImportDialog } from '../resident-import-dialog';
 import { ResidentSecurityDialog } from '../resident-security-dialog';
 import { ResidentAddEditDialog } from '../resident-add-edit-dialog';
+import { ResidentRestrictionDialog } from '../resident-restriction-dialog';
+import { ResidentOutDialog } from '../resident-out-dialog';
 
 const TABLE_HEAD = [
     { id: 'sr', label: 'Sr#', width: 50 },
@@ -75,6 +77,8 @@ export function ResidentListView({ ownerDashboard = false }) {
     const importDialog = useBoolean();
     const securityDialog = useBoolean();
     const addEditDialog = useBoolean();
+    const restrictionDialog = useBoolean();
+    const outDialog = useBoolean();
 
     const [selectedResident, setSelectedResident] = useState(null);
     const [selectedResidentForEdit, setSelectedResidentForEdit] = useState(null);
@@ -158,6 +162,16 @@ export function ResidentListView({ ownerDashboard = false }) {
         setSelectedResidentForEdit(resident);
         addEditDialog.onTrue();
     }, [addEditDialog]);
+
+    const handleOpenRestriction = useCallback((resident) => {
+        setSelectedResident(resident);
+        restrictionDialog.onTrue();
+    }, [restrictionDialog]);
+
+    const handleOpenOut = useCallback((resident) => {
+        setSelectedResident(resident);
+        outDialog.onTrue();
+    }, [outDialog]);
 
     const handleSaveResident = useCallback(() => {
         table.onResetPage();
@@ -251,6 +265,8 @@ export function ResidentListView({ ownerDashboard = false }) {
                                                 serialNumber={table.page * table.rowsPerPage + index + 1}
                                                 onEditSecurity={handleOpenSecurity}
                                                 onEdit={handleOpenEdit}
+                                                onRestriction={handleOpenRestriction}
+                                                onOut={handleOpenOut}
                                             />
                                         ))}
                                         <TableNoData notFound={notFound} title="No residents found" />
@@ -288,6 +304,22 @@ export function ResidentListView({ ownerDashboard = false }) {
                 onClose={addEditDialog.onFalse}
                 onSave={handleSaveResident}
                 ownerDashboard={ownerDashboard}
+                organizationId={organizationId}
+            />
+
+            <ResidentRestrictionDialog
+                open={restrictionDialog.value}
+                resident={selectedResident}
+                onClose={restrictionDialog.onFalse}
+                onSave={handleSaveResident}
+                organizationId={organizationId}
+            />
+
+            <ResidentOutDialog
+                open={outDialog.value}
+                resident={selectedResident}
+                onClose={outDialog.onFalse}
+                onSave={handleSaveResident}
                 organizationId={organizationId}
             />
         </DashboardContent>
