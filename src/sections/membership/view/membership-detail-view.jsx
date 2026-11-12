@@ -95,6 +95,15 @@ export function MembershipDetailView() {
   if (!invitation) {
     return (
       <DashboardContent>
+        <Box sx={{ mb: 2 }}>
+          <Button
+            color="primary"
+            onClick={() => router.push(paths.owner.memberships.invitations.root)}
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          >
+            Back
+          </Button>
+        </Box>
         <EmptyContent filled title="Invitation not found" sx={{ py: 10 }} />
       </DashboardContent>
     );
@@ -113,6 +122,12 @@ export function MembershipDetailView() {
 
   return (
     <DashboardContent>
+      <Box sx={{ mb: 2 }}>
+        <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+          Back
+        </Button>
+      </Box>
+
       <CustomBreadcrumbs
         heading={name}
         links={[

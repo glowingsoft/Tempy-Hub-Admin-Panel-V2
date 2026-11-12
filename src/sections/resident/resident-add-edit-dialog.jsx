@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z as zod } from 'zod';
+import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import { LoadingButton } from '@mui/lab';
 import Button from '@mui/material/Button';
@@ -40,7 +41,12 @@ const getResidentSchema = (isEdit) =>
             .refine((value) => !value || zod.string().email().safeParse(value).success, {
                 message: 'Email must be a valid email address',
             }),
-        phone: zod.string(),
+        phone: zod
+            .string()
+            .optional()
+            .refine((value) => !value || isValidPhoneNumber(value), {
+                message: 'Invalid phone number',
+            }),
         roomNumber: zod.string().trim().min(1, { message: 'Room number is required' }),
         careLevel: zod.string().min(1, { message: 'Care level is required' }),
         branchId: lookupOptionSchema.nullable().refine((value) => Boolean(value?.value), {
@@ -183,7 +189,7 @@ export function ResidentAddEditDialog({
                 roomNumber: data.roomNumber.trim(),
                 branchId: data.branchId.value,
                 email: data.email.trim().toLowerCase(),
-                phone: data.phone.trim(),
+                phone: (data.phone || '').trim(),
                 careLevel: data.careLevel,
                 admissionStatus: data.admissionStatus || 'admitted',
                 visitorPasscode: data.visitorPasscode.trim(),
@@ -233,10 +239,9 @@ export function ResidentAddEditDialog({
 
                         {!isEdit && (
                             <Grid xs={12} sm={6}>
-                                <Field.Text
+                                <Field.Phone
                                     name="phone"
-                                    label="Phone Number"
-                                    placeholder="e.g. +447700900001"
+                                    label="Phone number"
                                 />
                             </Grid>
                         )}

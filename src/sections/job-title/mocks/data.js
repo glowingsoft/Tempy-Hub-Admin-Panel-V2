@@ -13,17 +13,25 @@ export const JOB_TITLE_STATUS_OPTIONS = [
   { value: 'inactive', label: 'Inactive', color: 'error' },
 ];
 
-// `level` slugs (see the API sample: "siteManagement"). Placeholder set —
-// align with the backend enum when known.
+export const JobTitleLevel = {
+  ORGANIZATIONAL: 'organizational',
+  SITE_MANAGEMENT: 'siteManagement',
+  LINE_MANAGEMENT: 'lineManagement',
+  STAFF: 'staff',
+};
+
+// `level` slugs matching the backend JobTitleLevel enum.
 export const JOB_TITLE_LEVEL_OPTIONS = [
-  { value: 'organizationManagement', label: 'Organization Management' },
-  { value: 'siteManagement', label: 'Site Management' },
-  { value: 'lineManagement', label: 'Line Management' },
-  { value: 'staff', label: 'Staff' },
+  { value: JobTitleLevel.ORGANIZATIONAL, label: 'Organizational' },
+  { value: JobTitleLevel.SITE_MANAGEMENT, label: 'Site Management' },
+  { value: JobTitleLevel.LINE_MANAGEMENT, label: 'Line Management' },
+  { value: JobTitleLevel.STAFF, label: 'Staff' },
 ];
 
 export const getJobTitleLevelLabel = (value) =>
-  JOB_TITLE_LEVEL_OPTIONS.find((option) => option.value === value)?.label || value || '—';
+  JOB_TITLE_LEVEL_OPTIONS.find((option) => option.value === value)?.label ||
+  (value === 'organizationManagement' ? 'Organizational' : value) ||
+  '—';
 
 const orgRef = (id) => {
   const org = mockOrganizations.find((o) => o._id === id);
@@ -95,7 +103,7 @@ export const mockJobTitlesResponse = {
       organizationId: ORG_B,
       branchId: null,
       name: 'Operations Director',
-      level: 'organizationManagement',
+      level: JobTitleLevel.ORGANIZATIONAL,
       active: true,
       nameKey: 'operations director',
       createdAt: '2026-09-01T12:00:00.000Z',

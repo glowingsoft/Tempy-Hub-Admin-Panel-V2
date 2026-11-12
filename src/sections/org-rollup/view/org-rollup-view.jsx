@@ -458,6 +458,22 @@ export function OrgRollupView({ ownerDashboard = true }) {
                             component={RouterLink}
                             href={
                                 branchId && branchId !== ALL_BRANCHES_VALUE
+                                    ? base.peepAndFloorPlans.records.bySite(branchId)
+                                    : !ownerDashboard && assignedBranchId
+                                      ? base.peepAndFloorPlans.records.bySite(assignedBranchId)
+                                      : base.peepAndFloorPlans.records.root
+                            }
+                            variant="outlined"
+                            color="primary"
+                            startIcon={<Iconify icon="solar:users-group-rounded-bold" />}
+                        >
+                            View PEEP Records
+                        </Button>
+
+                        <Button
+                            component={RouterLink}
+                            href={
+                                branchId && branchId !== ALL_BRANCHES_VALUE
                                     ? base.peepAndFloorPlans.floorPlans.bySite(branchId)
                                     : !ownerDashboard && assignedBranchId
                                       ? base.peepAndFloorPlans.floorPlans.bySite(assignedBranchId)

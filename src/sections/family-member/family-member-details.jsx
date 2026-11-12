@@ -98,6 +98,15 @@ export function FamilyMemberDetailView() {
   if (!member || isError) {
     return (
       <DashboardContent maxWidth="xl">
+        <Box sx={{ mb: 2 }}>
+          <Button
+            color="primary"
+            onClick={() => (listPath ? router.push(listPath) : router.back())}
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          >
+            Back
+          </Button>
+        </Box>
         <EmptyContent filled title="Family member not found" sx={{ py: 10 }} />
       </DashboardContent>
     );
@@ -113,6 +122,12 @@ export function FamilyMemberDetailView() {
 
   return (
     <DashboardContent maxWidth="xl">
+      <Box sx={{ mb: 2 }}>
+        <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+          Back
+        </Button>
+      </Box>
+
       <CustomBreadcrumbs
         heading={member.name}
         links={[

@@ -22,7 +22,9 @@ import {
   useUpdateJobTitleMutation,
 } from 'src/store/Reducer/job-titles-api';
 
-import { JOB_TITLE_LEVEL_OPTIONS } from './mocks/data';
+import { JOB_TITLE_LEVEL_OPTIONS, JobTitleLevel } from './mocks/data';
+
+export { JobTitleLevel };
 
 // ----------------------------------------------------------------------
 
