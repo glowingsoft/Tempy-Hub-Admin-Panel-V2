@@ -20,6 +20,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { LeaveEntitlementModal } from 'src/sections/leave-request/leave-entitlement-modal';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { TempyConnectCard } from 'src/sections/tempy-connection/tempy-connect-card';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
@@ -113,26 +114,66 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
   const [scope, setScope] = useState(initialScope);
   const [selectedTeamId, setSelectedTeamId] = useState('all');
 
-  // Site / Branch selection (Only enabled for Owner via InfiniteAutocomplete)
+  // Site / Branch selection (Enabled for Owner via InfiniteAutocomplete, auto-scoped for Site Manager)
   const [selectedBranchOption, setSelectedBranchOption] = useState(null);
   const branchId = selectedBranchOption?.value;
 
-  const { data: branchesResponse } = useGetBranchesQuery(
-    { organizationId, page: 1, limit: 100 },
-    { skip: !organizationId || !isOwner }
+  const assignedBranch = useMemo(
+    () => (!isOwner ? getAssignedBranch(user, organizationId) : null),
+    [isOwner, user, organizationId]
   );
 
-  // Auto-select first/top site when branches load for owner
+  const { data: branchesResponse } = useGetBranchesQuery(
+    { organizationId, page: 1, limit: 100 },
+    { skip: !organizationId }
+  );
+
+  // Auto-select or sync site when branches load:
+  // - For Owner: auto-select first/top site if none is selected
+  // - For Site Manager / Line Manager: match assigned branch or pick accessible branch
   useEffect(() => {
-    if (isOwner && branchesResponse?.data?.length > 0 && (!selectedBranchOption || selectedBranchOption.value === 'all')) {
-      const topSite = branchesResponse.data[0];
-      setSelectedBranchOption({
-        value: topSite._id || topSite.id,
-        label: topSite.name,
-        timezone: topSite.timezone || 'Europe/London',
-      });
+    const branches = branchesResponse?.data || [];
+
+    if (isOwner) {
+      if (branches.length > 0 && (!selectedBranchOption || selectedBranchOption.value === 'all')) {
+        const topSite = branches[0];
+        setSelectedBranchOption({
+          value: topSite._id || topSite.id,
+          label: topSite.name,
+          timezone: topSite.timezone || 'Europe/London',
+        });
+      }
+    } else {
+      const branchIdToMatch = assignedBranch?.id || selectedBranchOption?.value;
+      const matched = branchIdToMatch
+        ? branches.find((b) => (b._id || b.id) === branchIdToMatch)
+        : null;
+      const effectiveSite = matched || branches[0];
+
+      if (effectiveSite) {
+        const nextId = effectiveSite._id || effectiveSite.id;
+        if (
+          selectedBranchOption?.value !== nextId ||
+          selectedBranchOption?.label !== effectiveSite.name
+        ) {
+          setSelectedBranchOption({
+            value: nextId,
+            label: effectiveSite.name,
+            timezone: effectiveSite.timezone || 'Europe/London',
+          });
+        }
+      } else if (
+        assignedBranch?.id &&
+        (!selectedBranchOption || selectedBranchOption.value !== assignedBranch.id)
+      ) {
+        setSelectedBranchOption({
+          value: assignedBranch.id,
+          label: assignedBranch.name || 'Site',
+          timezone: 'Europe/London',
+        });
+      }
     }
-  }, [isOwner, branchesResponse, selectedBranchOption]);
+  }, [isOwner, branchesResponse, selectedBranchOption, assignedBranch]);
 
   const facilityTimezone = useMemo(() => {
     return selectedBranchOption?.timezone || 'Europe/London';
@@ -198,6 +239,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     data: apiRotaData,
     isLoading: isRotaLoading,
     isFetching: isRotaFetching,
+    isSuccess: isRotaSuccess,
     refetch: refetchRota,
   } = useGetRotaBoardQuery(queryArgs, {
     skip: !organizationId || (isOwner && !branchId),
@@ -217,10 +259,14 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
 
   // Working state for teams (allows optimistic local updates)
   const [teamsData, setTeamsData] = useState([]);
+  const [hasInitializedRotaData, setHasInitializedRotaData] = useState(false);
 
   useEffect(() => {
     setTeamsData(mappedBoard.teams || []);
-  }, [mappedBoard.teams]);
+    if (isRotaSuccess) {
+      setHasInitializedRotaData(true);
+    }
+  }, [mappedBoard.teams, isRotaSuccess]);
 
   // Effective permissions from API or role rules
   const effectivePermissions = useMemo(() => {
@@ -429,7 +475,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         if (organizationId) {
           await bookRotaShift({
             organizationId,
-            branchId: payload.branchId || (isOwner ? branchId : undefined),
+            branchId: payload.branchId || branchId,
             startsAt: payload.startsAt,
             endsAt: payload.endsAt,
             ...(payload.staffId ? { staffId: payload.staffId } : {}),
@@ -443,7 +489,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         toast.error(err?.data?.message || err?.message || 'Failed to create shift');
       }
     },
-    [organizationId, isOwner, branchId, bookRotaShift, refetchRota]
+    [organizationId, branchId, bookRotaShift, refetchRota]
   );
 
   // Record Leave action handler
@@ -541,6 +587,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
   const isInitialLoading =
     isRotaLoading ||
     (!apiRotaData && isRotaFetching) ||
+    (isRotaSuccess && !hasInitializedRotaData) ||
     (isOwner && !selectedBranchOption);
 
   const daysCount =
@@ -674,6 +721,8 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         organizationId={organizationId}
         branchId={branchId}
         selectedBranch={selectedBranchOption}
+        branches={branchesResponse?.data || []}
+        disabledSite={isOwner || isSiteManager}
         onSubmit={handleBookShiftSubmit}
       />
 

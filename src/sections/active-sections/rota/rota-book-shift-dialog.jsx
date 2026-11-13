@@ -15,6 +15,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 
 import { Field, Form } from 'src/components/hook-form';
+import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 
 // ----------------------------------------------------------------------
@@ -87,13 +88,58 @@ export default function RotaBookShiftDialog({
   organizationId,
   branchId: activeBranchId,
   selectedBranch,
+  branches = [],
+  disabledSite = false,
   onSubmit,
 }) {
   const staff = cellData?.staff;
   const day = cellData?.day;
 
-  // Use selected branch directly from Rota view without making extra branches/job-titles/departments API calls
+  // Fallback branches query if neither valid selectedBranch nor branches are provided
+  const shouldSkipBranchesQuery =
+    !organizationId ||
+    !open ||
+    Boolean(
+      (Array.isArray(branches) && branches.length > 0) ||
+        (selectedBranch?.label &&
+          selectedBranch.label !== 'Current Site' &&
+          selectedBranch.label !== 'Site')
+    );
+
+  const { data: fallbackBranchesData } = useGetBranchesQuery(
+    { organizationId, page: 1, limit: 100 },
+    { skip: shouldSkipBranchesQuery }
+  );
+
+  const availableBranches = useMemo(() => {
+    if (Array.isArray(branches) && branches.length > 0) {
+      return branches;
+    }
+    if (Array.isArray(fallbackBranchesData?.data) && fallbackBranchesData.data.length > 0) {
+      return fallbackBranchesData.data;
+    }
+    return [];
+  }, [branches, fallbackBranchesData]);
+
+  // Use selected branch or full branches list to populate site options
   const branchOptions = useMemo(() => {
+    if (disabledSite) {
+      if (selectedBranch?.value) {
+        return [selectedBranch];
+      }
+      if (activeBranchId) {
+        const match = availableBranches.find((b) => (b._id || b.id) === activeBranchId);
+        return [{ value: activeBranchId, label: match?.name || 'Current Site' }];
+      }
+      return [];
+    }
+
+    if (availableBranches.length > 0) {
+      return availableBranches.map((b) => ({
+        value: b._id || b.id,
+        label: b.name,
+      }));
+    }
     if (selectedBranch?.value) {
       return [selectedBranch];
     }
@@ -101,7 +147,7 @@ export default function RotaBookShiftDialog({
       return [{ value: activeBranchId, label: 'Current Site' }];
     }
     return [];
-  }, [selectedBranch, activeBranchId]);
+  }, [disabledSite, availableBranches, selectedBranch, activeBranchId]);
 
   // Only fetch staff profiles if modal is opened
   const { data: staffData } = useGetStaffProfilesQuery(
@@ -208,14 +254,27 @@ export default function RotaBookShiftDialog({
     return dayjs().startOf('day');
   }, [cellDate]);
 
+  const resolvedBranchId = useMemo(() => {
+    if (selectedBranch?.value) {
+      return selectedBranch.value;
+    }
+    if (activeBranchId) {
+      return activeBranchId;
+    }
+    if (branchOptions.length > 0) {
+      return branchOptions[0].value;
+    }
+    return '';
+  }, [selectedBranch, activeBranchId, branchOptions]);
+
   const defaultValues = useMemo(() => {
     return {
-      branchId: activeBranchId || branchOptions[0]?.value || '',
+      branchId: resolvedBranchId,
       staffId: resolvedStaffId || '',
       startsAt: defaultTimes.startsAt,
       endsAt: defaultTimes.endsAt,
     };
-  }, [activeBranchId, branchOptions, resolvedStaffId, defaultTimes]);
+  }, [resolvedBranchId, resolvedStaffId, defaultTimes]);
 
   const methods = useForm({
     mode: 'onSubmit',
@@ -228,13 +287,23 @@ export default function RotaBookShiftDialog({
   useEffect(() => {
     if (open) {
       methods.reset({
-        branchId: activeBranchId || branchOptions[0]?.value || '',
+        branchId: resolvedBranchId,
         staffId: resolvedStaffId || '',
         startsAt: defaultTimes.startsAt,
         endsAt: defaultTimes.endsAt,
       });
     }
-  }, [open, activeBranchId, branchOptions, resolvedStaffId, defaultTimes, methods]);
+  }, [open, resolvedBranchId, resolvedStaffId, defaultTimes, methods]);
+
+  // Keep branchId field synced if site options finish loading while dialog is open
+  const currentBranchValue = methods.watch('branchId');
+  useEffect(() => {
+    if (open && (!currentBranchValue || !branchOptions.some((o) => o.value === currentBranchValue))) {
+      if (resolvedBranchId) {
+        methods.setValue('branchId', resolvedBranchId, { shouldValidate: true });
+      }
+    }
+  }, [open, currentBranchValue, branchOptions, resolvedBranchId, methods]);
 
   const handleClose = () => {
     onClose();
@@ -290,11 +359,12 @@ export default function RotaBookShiftDialog({
               width: 1,
             }}
           >
-            {/* 1. Site (100% width) */}
+            {/* 1. Site (100% width, disabled for owner and site manager rotas) */}
             <Field.Select
               name="branchId"
               label="Site"
               fullWidth
+              disabled={disabledSite}
               SelectProps={{ sx: { textTransform: 'capitalize' } }}
             >
               {branchOptions.map((option) => (
@@ -399,5 +469,7 @@ RotaBookShiftDialog.propTypes = {
   organizationId: PropTypes.string,
   branchId: PropTypes.string,
   selectedBranch: PropTypes.object,
+  branches: PropTypes.array,
+  disabledSite: PropTypes.bool,
   onSubmit: PropTypes.func,
 };
