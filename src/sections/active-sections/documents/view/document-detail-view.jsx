@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
@@ -15,8 +14,6 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
-
-import { SignaturePad } from 'src/sections/staff/documents/signature-pad';
 
 import { useParams, useRouter, usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
@@ -210,22 +207,6 @@ export function DocumentDetailView({ ownerDashboard = false, basePath, isStaff: 
     }
     return mockDoc;
   }, [apiDoc, mockDoc]);
-
-  const [staffSignature, setStaffSignature] = useState(null);
-  const [isStaffSigned, setIsStaffSigned] = useState(false);
-
-  useEffect(() => {
-    if (document_?.signature) {
-      setStaffSignature(document_.signature);
-      setIsStaffSigned(true);
-    }
-  }, [document_?.signature]);
-
-  const handleSaveSignature = (dataUrl) => {
-    setStaffSignature(dataUrl);
-    setIsStaffSigned(true);
-    toast.success('Document signed successfully!');
-  };
 
   const replaceModal = useBoolean();
   const deleteModal = useBoolean();
@@ -426,69 +407,6 @@ export function DocumentDetailView({ ownerDashboard = false, basePath, isStaff: 
               />
             </Card>
           )}
-
-          {/* Staff Signature Card: only shown to staff when signature is required */}
-          {isStaff && (document_.requiresSignature || document_.actionType === 'sign') && (
-            <Card>
-              <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-                {isStaffSigned && staffSignature ? (
-                  <Stack spacing={2} alignItems="center" sx={{ py: 2 }}>
-                    <Box
-                      sx={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: '50%',
-                        bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'success.main',
-                      }}
-                    >
-                      <Iconify icon="solar:check-circle-bold" width={32} />
-                    </Box>
-                    <Typography variant="h6" textAlign="center">
-                      Document signed and acknowledged
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" textAlign="center">
-                      Your signature and acknowledgment have been recorded. Thank you.
-                    </Typography>
-                    <Box
-                      sx={{
-                        border: (theme) => `1px solid ${theme.palette.divider}`,
-                        borderRadius: 1,
-                        p: 1,
-                        bgcolor: 'background.neutral',
-                        width: 1,
-                        maxWidth: 400,
-                      }}
-                    >
-                      <Typography variant="caption" color="text.disabled" display="block" sx={{ mb: 0.5 }}>
-                        Your signature
-                      </Typography>
-                      <Box
-                        component="img"
-                        src={staffSignature}
-                        alt="Signature"
-                        sx={{ width: 1, height: 80, objectFit: 'contain' }}
-                      />
-                    </Box>
-                  </Stack>
-                ) : (
-                  <Stack spacing={2.5}>
-                    <Stack spacing={0.5}>
-                      <Typography variant="subtitle1">Sign document</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Please read the document above carefully, then draw your signature below to confirm you have read and agree to its contents.
-                      </Typography>
-                    </Stack>
-                    <Divider />
-                    <SignaturePad onSign={handleSaveSignature} />
-                  </Stack>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </Stack>
 
         {/* Right Column: Metadata Panel */}
@@ -519,13 +437,15 @@ export function DocumentDetailView({ ownerDashboard = false, basePath, isStaff: 
                 </Label>
               </MetaRow>
 
-              <MetaRow icon={actionMeta.icon} label="Required action">
-                <Label variant="soft" color={actionMeta.color}>
-                  {actionMeta.label}
-                </Label>
-              </MetaRow>
+              {!isStaff && (
+                <MetaRow icon={actionMeta.icon} label="Required action">
+                  <Label variant="soft" color={actionMeta.color}>
+                    {actionMeta.label}
+                  </Label>
+                </MetaRow>
+              )}
 
-              {document_.actionType === 'sign' && (
+              {!isStaff && document_.actionType === 'sign' && (
                 <MetaRow icon={isSigned ? 'solar:check-circle-bold' : 'solar:clock-circle-bold'} label="Signature status">
                   {isSigned ? (
                     <Label variant="soft" color="success">

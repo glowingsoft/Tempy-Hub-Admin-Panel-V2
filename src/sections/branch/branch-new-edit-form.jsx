@@ -50,6 +50,22 @@ export const BranchSchema = zod.object({
     .int('Must be a whole number')
     .min(0, 'Cannot be negative'),
   allowPhoneCheckIn: zod.boolean(),
+  autoClockOutHoursAfterShiftEnd: zod.coerce
+    .number({ invalid_type_error: 'Must be a number' })
+    .min(0, 'Cannot be negative')
+    .max(24, 'Cannot be more than 24 hours'),
+  autoClockOutHoursAfterClockIn: zod.coerce
+    .number({ invalid_type_error: 'Must be a number' })
+    .min(0, 'Cannot be negative')
+    .max(24, 'Cannot be more than 24 hours'),
+  visitorAutoCheckoutHoursAfterVisitUntil: zod.coerce
+    .number({ invalid_type_error: 'Must be a number' })
+    .min(0, 'Cannot be negative')
+    .max(24, 'Cannot be more than 24 hours'),
+  visitorAutoCheckoutHoursAfterCheckIn: zod.coerce
+    .number({ invalid_type_error: 'Must be a number' })
+    .min(0, 'Cannot be negative')
+    .max(24, 'Cannot be more than 24 hours'),
   // Break rules — only relevant while enableBreaks is on.
   breaksPaid: zod.boolean(),
   breakRules: zod.array(
@@ -87,7 +103,22 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
         currentBranch?.settings?.lateGraceMinutes ?? DEFAULT_BRANCH_SETTINGS.lateGraceMinutes,
       allowPhoneCheckIn:
         currentBranch?.settings?.allowPhoneCheckIn ?? DEFAULT_BRANCH_SETTINGS.allowPhoneCheckIn,
-      breaksPaid: currentBranch?.settings?.breaksPaid ?? DEFAULT_BRANCH_SETTINGS.breaksPaid,
+      autoClockOutHoursAfterShiftEnd:
+        currentBranch?.settings?.autoClockOutHoursAfterShiftEnd ??
+        DEFAULT_BRANCH_SETTINGS.autoClockOutHoursAfterShiftEnd,
+      autoClockOutHoursAfterClockIn:
+        currentBranch?.settings?.autoClockOutHoursAfterClockIn ??
+        DEFAULT_BRANCH_SETTINGS.autoClockOutHoursAfterClockIn,
+      visitorAutoCheckoutHoursAfterVisitUntil:
+        currentBranch?.settings?.visitorAutoCheckoutHoursAfterVisitUntil ??
+        DEFAULT_BRANCH_SETTINGS.visitorAutoCheckoutHoursAfterVisitUntil,
+      visitorAutoCheckoutHoursAfterCheckIn:
+        currentBranch?.settings?.visitorAutoCheckoutHoursAfterCheckIn ??
+        DEFAULT_BRANCH_SETTINGS.visitorAutoCheckoutHoursAfterCheckIn,
+      breaksPaid:
+        currentBranch?.settings?.breaksPaid ??
+        currentBranch?.settings?.paidBreaks ??
+        DEFAULT_BRANCH_SETTINGS.breaksPaid,
       breakRules: currentBranch?.settings?.breakRules?.length
         ? currentBranch.settings.breakRules
         : DEFAULT_BRANCH_SETTINGS.breakRules,
@@ -122,10 +153,15 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
         enableLeaveRequests: data.enableLeaveRequests,
         lateGraceMinutes: data.lateGraceMinutes,
         allowPhoneCheckIn: data.allowPhoneCheckIn,
+        autoClockOutHoursAfterShiftEnd: data.autoClockOutHoursAfterShiftEnd,
+        autoClockOutHoursAfterClockIn: data.autoClockOutHoursAfterClockIn,
+        visitorAutoCheckoutHoursAfterVisitUntil: data.visitorAutoCheckoutHoursAfterVisitUntil,
+        visitorAutoCheckoutHoursAfterCheckIn: data.visitorAutoCheckoutHoursAfterCheckIn,
         // Only meaningful while enableBreaks is on, but always sent as-is —
         // simplest to reason about, and harmless to keep around if breaks
         // get switched back on later.
         breaksPaid: data.breaksPaid,
+        paidBreaks: data.breaksPaid,
         breakRules: data.breakRules,
       };
 
@@ -378,13 +414,98 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
                 type="number"
                 size="small"
                 sx={{ minWidth: 160, maxWidth: { sm: 200 } }}
+                inputProps={{ min: 0 }}
                 InputProps={{
                   endAdornment: <InputAdornment position="end">mins</InputAdornment>,
                 }}
               />
             </Box>
 
-            {/* 3. Allow Phone Check-in */}
+            {/* 3. Auto Clock-out After Shift End */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Auto clock-out after shift end</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Hours after scheduled shift end before an open session is automatically closed (max 24h)
+                </Typography>
+              </Box>
+              <Field.Text
+                name="autoClockOutHoursAfterShiftEnd"
+                label="Hours after shift end"
+                type="number"
+                size="small"
+                sx={{ minWidth: 160, maxWidth: { sm: 200 } }}
+                inputProps={{ min: 0, max: 24, step: 'any' }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">hrs</InputAdornment>,
+                }}
+              />
+            </Box>
+
+            {/* 4. Auto Clock-out After Clock-in (Unscheduled) */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Auto clock-out after clock-in (unscheduled)</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Hours after clock-in before an unscheduled open session is closed (max 24h)
+                </Typography>
+              </Box>
+              <Field.Text
+                name="autoClockOutHoursAfterClockIn"
+                label="Hours after clock-in"
+                type="number"
+                size="small"
+                sx={{ minWidth: 160, maxWidth: { sm: 200 } }}
+                inputProps={{ min: 0, max: 24, step: 'any' }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">hrs</InputAdornment>,
+                }}
+              />
+            </Box>
+
+            {/* 5. Visitor Auto Check-out After Visit Until */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Visitor auto check-out after expected visit end</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Hours after scheduled visit end before an open visitor session is automatically checked out (max 24h)
+                </Typography>
+              </Box>
+              <Field.Text
+                name="visitorAutoCheckoutHoursAfterVisitUntil"
+                label="Hours after visit end"
+                type="number"
+                size="small"
+                sx={{ minWidth: 160, maxWidth: { sm: 200 } }}
+                inputProps={{ min: 0, max: 24, step: 'any' }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">hrs</InputAdornment>,
+                }}
+              />
+            </Box>
+
+            {/* 6. Visitor Auto Check-out After Check-in */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Visitor auto check-out after check-in</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Hours after visitor check-in before an active visitor session is automatically checked out (max 24h)
+                </Typography>
+              </Box>
+              <Field.Text
+                name="visitorAutoCheckoutHoursAfterCheckIn"
+                label="Hours after check-in"
+                type="number"
+                size="small"
+                sx={{ minWidth: 160, maxWidth: { sm: 200 } }}
+                inputProps={{ min: 0, max: 24, step: 'any' }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">hrs</InputAdornment>,
+                }}
+              />
+            </Box>
+
+            {/* 7. Allow Phone Check-in */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Allow mobile phone check-in</Typography>
@@ -395,7 +516,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               <Field.Switch name="allowPhoneCheckIn" label="" sx={{ m: 0 }} />
             </Box>
 
-            {/* 4. Enable Leave Requests */}
+            {/* 8. Enable Leave Requests */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Enable leave requests</Typography>

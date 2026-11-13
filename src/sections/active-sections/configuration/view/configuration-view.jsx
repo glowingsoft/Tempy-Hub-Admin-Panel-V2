@@ -16,7 +16,6 @@ import {
     useGetVisitorSurveySettingsQuery,
     useUpdateVisitorSurveyQuestionsMutation,
     useUpdateVisitorSurveySettingsMutation,
-    useSubmitVisitorFeedbackMutation,
 } from 'src/store/Reducer/visitor-survey-api';
 import Categories from '../categories';
 import KioskBranding from '../kiosk-branding';
@@ -74,8 +73,6 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
         useUpdateVisitorSurveySettingsMutation();
     const [updateVisitorSurveyQuestions, { isLoading: savingQuestions }] =
         useUpdateVisitorSurveyQuestionsMutation();
-    const [submitVisitorFeedback, { isLoading: submittingFeedback }] =
-        useSubmitVisitorFeedbackMutation();
 
     const [surveyWriteBlocked, setSurveyWriteBlocked] = useState(false);
 
@@ -128,33 +125,6 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
                 setSurveyWriteBlocked(true);
             }
             toast.error(mutationErrorMessage(error, 'Failed to save survey questions'));
-            return false;
-        }
-    };
-
-    const handleSubmitVisitorFeedback = async (payload) => {
-        if (!organizationId) {
-            toast.error('No organization selected');
-            return false;
-        }
-        const resolvedBranchId = isOwner
-            ? payload.branchId
-            : getAssignedBranch(user, organizationId)?.id;
-
-        if (!resolvedBranchId) {
-            toast.error('A branch is required to log visitor feedback');
-            return false;
-        }
-
-        try {
-            await submitVisitorFeedback({
-                ...payload,
-                organizationId,
-                branchId: resolvedBranchId,
-            }).unwrap();
-            return true;
-        } catch (error) {
-            toast.error(mutationErrorMessage(error, 'Failed to log visitor feedback'));
             return false;
         }
     };
@@ -223,10 +193,8 @@ const ConfigurationView = ({ ownerDashboard = false }) => {
                     canEdit={canEditSurvey && !surveyWriteBlocked}
                     saving={savingSettings}
                     savingQuestions={savingQuestions}
-                    submittingFeedback={submittingFeedback}
                     onSave={handleSaveVisitorSurveySettings}
                     onSaveQuestions={handleSaveVisitorSurveyQuestions}
-                    onSubmitFeedback={handleSubmitVisitorFeedback}
                     onRetry={() => {
                         refetchSettings();
                         refetchQuestions();

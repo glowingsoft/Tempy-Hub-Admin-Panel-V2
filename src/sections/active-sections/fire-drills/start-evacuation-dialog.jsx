@@ -20,7 +20,7 @@ import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 
-import { EVACUATION_TYPE_OPTIONS } from './mocks/data';
+import { EVACUATION_TYPE_OPTIONS } from './view/fire-drills-view';
 
 // ----------------------------------------------------------------------
 

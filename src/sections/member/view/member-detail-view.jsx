@@ -7,7 +7,7 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { useParams } from 'src/routes/hooks';
+import { useParams, useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 
@@ -47,6 +47,7 @@ function getInitials(name) {
 
 export function MemberDetailView() {
   const { id } = useParams();
+  const router = useRouter();
   const { organizationId } = useCurrentOrganization();
 
   const { askDeactivate, confirmProps } = useMemberActions({ organizationId });
@@ -63,6 +64,15 @@ export function MemberDetailView() {
   if (!member) {
     return (
       <DashboardContent>
+        <Box sx={{ mb: 2 }}>
+          <Button
+            color="primary"
+            onClick={() => router.push(paths.owner.memberships.members.root)}
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          >
+            Back
+          </Button>
+        </Box>
         <EmptyContent filled title="Member not found" sx={{ py: 10 }} />
       </DashboardContent>
     );
@@ -85,6 +95,12 @@ export function MemberDetailView() {
 
   return (
     <DashboardContent>
+      <Box sx={{ mb: 2 }}>
+        <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+          Back
+        </Button>
+      </Box>
+
       <CustomBreadcrumbs
         heading={name}
         links={[

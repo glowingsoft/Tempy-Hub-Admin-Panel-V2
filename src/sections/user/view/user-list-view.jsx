@@ -53,7 +53,13 @@ import {
 } from 'src/store/Reducer/general-directory-api';
 import { downloadBlob } from 'src/utils/export-helper';
 import { toast } from 'src/components/snackbar';
-import { VisitInvitationsView, VisitSessionsView, AppAccountsView } from 'src/sections/visitor';
+import {
+  VisitInvitationsView,
+  VisitSessionsView,
+  AppAccountsView,
+  NewVisitInvitationDialog,
+  InviteToAppDialog,
+} from 'src/sections/visitor';
 import QuickAddUserModal from '../quick-add-user-modal';
 import QuickStatusChangeModal from '../user-status-dialog';
 import { UserTableRow } from '../user-table-row';
@@ -89,7 +95,7 @@ const TABLE_HEAD = [
   { id: 'role', label: 'Role', minWidth: 180 },
   { id: 'department', label: 'Department', minWidth: 160 },
   { id: 'status', label: 'Site Status', width: 120, align: 'center' },
-  { id: 'actions', label: 'Actions', width: 100, align: 'center' },
+  { id: 'actions', label: 'Actions', width: 140, align: 'right' },
 ];
 
 const FILTER_FIELDS = [
@@ -183,6 +189,36 @@ export function UserListView() {
   const [userToLock, setUserToLock] = useState(null);
   const lockConfirm = useBoolean();
 
+  const [selectedPersonForInvite, setSelectedPersonForInvite] = useState(null);
+  const openPersonVisitInviteModal = useBoolean();
+  const openPersonAppInviteModal = useBoolean();
+
+  const handleNewVisitInvite = useCallback(
+    (person) => {
+      setSelectedPersonForInvite(person);
+      openPersonVisitInviteModal.onTrue();
+    },
+    [openPersonVisitInviteModal]
+  );
+
+  const handleClosePersonVisitInviteModal = useCallback(() => {
+    openPersonVisitInviteModal.onFalse();
+    setSelectedPersonForInvite(null);
+  }, [openPersonVisitInviteModal]);
+
+  const handleInviteToApp = useCallback(
+    (person) => {
+      setSelectedPersonForInvite(person);
+      openPersonAppInviteModal.onTrue();
+    },
+    [openPersonAppInviteModal]
+  );
+
+  const handleClosePersonAppInviteModal = useCallback(() => {
+    openPersonAppInviteModal.onFalse();
+    setSelectedPersonForInvite(null);
+  }, [openPersonAppInviteModal]);
+
   const keyword = useDebounce(filters.state.search, 500);
   const trimmedKeyword = keyword.trim();
 
@@ -263,7 +299,11 @@ export function UserListView() {
       type: user.type || '',
       role: user.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : '—',
       department: user.department?.name || '—',
-      branchId: user.branchId,
+      branchId:
+        (typeof user.branchId === 'object' ? user.branchId?._id : user.branchId) ||
+        user.branch?._id ||
+        user.branch?.id ||
+        '',
       branch: user.branch?.name || getBranchName(user),
       status: SITE_STATUS_LABEL[user.siteStatus] || user.siteStatus || '—',
       siteStatus: user.siteStatus,
@@ -431,7 +471,7 @@ export function UserListView() {
                 onClick={openModal.onTrue}
                 startIcon={<Iconify icon="mingcute:add-line" />}
               >
-                Add Employee
+                Add People
               </Button>
             </Stack>
           ) : currentTab === 'sessions' ? null : (
@@ -565,6 +605,8 @@ export function UserListView() {
                             selected={table.selected.includes(row.id)}
                             onEditRow={() => handleEditRow(row)}
                             onLockRow={() => handleLockRow(row)}
+                            onNewVisitInvite={handleNewVisitInvite}
+                            onInviteToApp={handleInviteToApp}
                           />
                         ))}
 
@@ -623,6 +665,20 @@ export function UserListView() {
           </Card>
 
           <QuickAddUserModal open={openModal.value} onClose={openModal.onFalse} currentUser={{}} />
+
+          <NewVisitInvitationDialog
+            open={openPersonVisitInviteModal.value}
+            onClose={handleClosePersonVisitInviteModal}
+            organizationId={organizationId}
+            initialData={selectedPersonForInvite}
+          />
+
+          <InviteToAppDialog
+            open={openPersonAppInviteModal.value}
+            onClose={handleClosePersonAppInviteModal}
+            organizationId={organizationId}
+            initialData={selectedPersonForInvite}
+          />
         </>
       )}
 

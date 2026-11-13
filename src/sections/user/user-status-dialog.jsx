@@ -97,7 +97,7 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
     return (
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
             <Form methods={methods} onSubmit={methods.handleSubmit(onSubmit)}>
-                <DialogTitle sx={{ pb: 0 }}>Quick Status Change </DialogTitle>
+                <DialogTitle sx={{ pb: 0 }}>Edit People Details </DialogTitle>
                 <DialogContent>
                     <Field.Text name="name" label="Name" sx={{ mt: 2 }} />
 
@@ -127,7 +127,7 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
                 <DialogActions>
 
                     <Button variant="outlined" color="primary" onClick={handleClose}>
-                      Cancel
+                        Cancel
                     </Button>
 
                     <LoadingButton

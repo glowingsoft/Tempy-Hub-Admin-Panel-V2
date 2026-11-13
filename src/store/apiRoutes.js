@@ -102,6 +102,8 @@ export const API_ROUTES = {
     STAFF_LEAVE_REQUESTS: '/app/leave-requests',
     ORGANIZATION_LEAVE_REQUESTS: (organizationId) =>
         `/admin/organizations/${organizationId}/leave-requests`,
+    ORGANIZATION_RECORD_LEAVE_REQUEST: (organizationId) =>
+        `/admin/organizations/${organizationId}/leave-requests/record`,
     LEAVE_REQUEST_BY_ID: (leaveRequestId) => `/admin/leave-requests/${leaveRequestId}`,
     ORGANIZATION_LEAVE_ENTITLEMENTS: (organizationId) =>
         `/admin/organizations/${organizationId}/leave-entitlements`,
@@ -133,6 +135,8 @@ export const API_ROUTES = {
     RESIDENT_BY_ID: (residentId) => `/admin/residents/${residentId}`,
     RESIDENT_VISITOR_PASSCODE: (residentId) => `/admin/residents/${residentId}/visitor-passcode`,
     RESIDENT_VERIFY_PASSCODE: (residentId) => `/admin/residents/${residentId}/verify-passcode`,
+    RESIDENT_RESTRICTION: (residentId) => `/admin/residents/${residentId}/restriction`,
+    RESIDENT_OUT: (residentId) => `/admin/residents/${residentId}/out`,
 
     // External people (visitors / contractors / professionals) — General Directory.
     ORGANIZATION_EXTERNAL_PEOPLE: (organizationId) =>

@@ -32,6 +32,8 @@ import {
 } from '../mocks/data';
 import { ResidentAddEditDialog } from '../resident-add-edit-dialog';
 import { ResidentSecurityDialog } from '../resident-security-dialog';
+import { ResidentRestrictionDialog } from '../resident-restriction-dialog';
+import { ResidentOutDialog, isResidentOut } from '../resident-out-dialog';
 
 export function ResidentDetailView() {
     const { id } = useParams();
@@ -47,6 +49,7 @@ export function ResidentDetailView() {
         data: apiResident,
         isLoading,
         isFetching,
+        refetch: refetchResident,
     } = useGetResidentQuery(
         { residentId: id, organizationId },
         { skip: !organizationId || !id }
@@ -64,11 +67,15 @@ export function ResidentDetailView() {
 
     const securityDialog = useBoolean();
     const editDialog = useBoolean();
+    const restrictionDialog = useBoolean();
+    const outDialog = useBoolean();
 
     const [mockResident, setMockResident] = useState(() => getMockResidentById(id));
     const [localResident, setLocalResident] = useState(null);
 
     const resident = localResident || apiResident || mockResident;
+
+    const isOut = isResidentOut(resident);
 
     const peepRecordId =
         resident?.peepRecordId ||
@@ -173,7 +180,23 @@ export function ResidentDetailView() {
                     { name: resident.name },
                 ]}
                 action={
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} flexWrap="wrap" useFlexGap>
+                        <Button
+                            variant={resident?.restricted ? 'contained' : 'outlined'}
+                            color={resident?.restricted ? 'error' : 'primary'}
+                            startIcon={<Iconify icon="solar:user-block-bold" />}
+                            onClick={restrictionDialog.onTrue}
+                        >
+                            {resident?.restricted ? 'Restricted' : 'Restrict Resident'}
+                        </Button>
+                        <Button
+                            variant={isOut ? 'contained' : 'outlined'}
+                            color={isOut ? 'error' : 'primary'}
+                            startIcon={<Iconify icon={isOut ? 'solar:login-2-bold' : 'solar:logout-2-bold'} />}
+                            onClick={outDialog.onTrue}
+                        >
+                            {isOut ? 'Mark In' : 'Mark Out'}
+                        </Button>
                         <Button
                             variant="outlined"
                             color="primary"
@@ -229,6 +252,26 @@ export function ResidentDetailView() {
                             }
                         />
                         <InfoItem label="Status" value={<Label variant="soft" color={status?.color || 'default'}>{status?.label || '—'}</Label>} />
+                        {resident.restricted && (
+                            <InfoItem
+                                label="Restriction"
+                                value={
+                                    <Label variant="soft" color="error">
+                                        Restricted
+                                    </Label>
+                                }
+                            />
+                        )}
+                        {isOut && (
+                            <InfoItem
+                                label="Location"
+                                value={
+                                    <Label variant="soft" color="error">
+                                        Out of facility
+                                    </Label>
+                                }
+                            />
+                        )}
                         <InfoItem
                             label="Security password"
                             value={
@@ -364,6 +407,25 @@ export function ResidentDetailView() {
                 onClose={editDialog.onFalse}
                 onSave={setLocalResident}
                 ownerDashboard={isOwner}
+                organizationId={organizationId}
+            />
+
+            <ResidentRestrictionDialog
+                open={restrictionDialog.value}
+                resident={resident}
+                onClose={restrictionDialog.onFalse}
+                onSave={setLocalResident}
+                organizationId={organizationId}
+            />
+
+            <ResidentOutDialog
+                open={outDialog.value}
+                resident={resident}
+                onClose={outDialog.onFalse}
+                onSave={(updated) => {
+                    setLocalResident(updated);
+                    refetchResident?.();
+                }}
                 organizationId={organizationId}
             />
         </DashboardContent>

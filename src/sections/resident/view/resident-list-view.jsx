@@ -38,6 +38,8 @@ import { ResidentTableRow } from '../resident-table-row';
 import { ResidentImportDialog } from '../resident-import-dialog';
 import { ResidentSecurityDialog } from '../resident-security-dialog';
 import { ResidentAddEditDialog } from '../resident-add-edit-dialog';
+import { ResidentRestrictionDialog } from '../resident-restriction-dialog';
+import { ResidentOutDialog } from '../resident-out-dialog';
 
 const TABLE_HEAD = [
     { id: 'sr', label: 'Sr#', width: 50 },
@@ -78,9 +80,12 @@ export function ResidentListView({ ownerDashboard = false }) {
     const importDialog = useBoolean();
     const securityDialog = useBoolean();
     const addEditDialog = useBoolean();
+    const restrictionDialog = useBoolean();
+    const outDialog = useBoolean();
 
     const [selectedResident, setSelectedResident] = useState(null);
     const [selectedResidentForEdit, setSelectedResidentForEdit] = useState(null);
+    const [residentOverrides, setResidentOverrides] = useState({});
 
     const [createResident] = useCreateResidentMutation();
 
@@ -95,6 +100,7 @@ export function ResidentListView({ ownerDashboard = false }) {
         isFetching: isLiveFetching,
         isError: isLiveError,
         error: liveError,
+        refetch,
     } = useGetResidentsQuery(
         {
             organizationId,
@@ -162,11 +168,36 @@ export function ResidentListView({ ownerDashboard = false }) {
         addEditDialog.onTrue();
     }, [addEditDialog]);
 
-    const handleSaveResident = useCallback(() => {
-        table.onResetPage();
-    }, [table]);
+    const handleOpenRestriction = useCallback((resident) => {
+        setSelectedResident(resident);
+        restrictionDialog.onTrue();
+    }, [restrictionDialog]);
 
-    const displayResidents = sourceResidents;
+    const handleOpenOut = useCallback((resident) => {
+        const merged = residentOverrides[resident._id]
+            ? { ...resident, ...residentOverrides[resident._id] }
+            : resident;
+        setSelectedResident(merged);
+        outDialog.onTrue();
+    }, [residentOverrides, outDialog]);
+
+    const handleSaveResident = useCallback((updatedResident) => {
+        if (updatedResident?._id) {
+            setResidentOverrides((prev) => ({
+                ...prev,
+                [updatedResident._id]: updatedResident,
+            }));
+            setSelectedResident(updatedResident);
+        }
+        refetch?.();
+    }, [refetch]);
+
+    const displayResidents = useMemo(() => {
+        return sourceResidents.map((r) => {
+            const override = residentOverrides[r._id];
+            return override ? { ...r, ...override } : r;
+        });
+    }, [sourceResidents, residentOverrides]);
     const meta = liveData?.meta ?? {};
     const admittedCount = Number(meta.admitted) || 0;
     const dischargedCount = Number(meta.discharged) || 0;
@@ -256,6 +287,10 @@ export function ResidentListView({ ownerDashboard = false }) {
                                                 serialNumber={table.page * table.rowsPerPage + index + 1}
                                                 onEditSecurity={canManageResidents ? handleOpenSecurity : undefined}
                                                 onEdit={canManageResidents ? handleOpenEdit : undefined}
+                                                // onEditSecurity={handleOpenSecurity}
+                                                // onEdit={handleOpenEdit}
+                                                onRestriction={handleOpenRestriction}
+                                                onOut={handleOpenOut}
                                             />
                                         ))}
                                         <TableNoData notFound={notFound} title="No residents found" />
@@ -293,6 +328,22 @@ export function ResidentListView({ ownerDashboard = false }) {
                 onClose={addEditDialog.onFalse}
                 onSave={handleSaveResident}
                 ownerDashboard={ownerDashboard}
+                organizationId={organizationId}
+            />
+
+            <ResidentRestrictionDialog
+                open={restrictionDialog.value}
+                resident={selectedResident}
+                onClose={restrictionDialog.onFalse}
+                onSave={handleSaveResident}
+                organizationId={organizationId}
+            />
+
+            <ResidentOutDialog
+                open={outDialog.value}
+                resident={selectedResident}
+                onClose={outDialog.onFalse}
+                onSave={handleSaveResident}
                 organizationId={organizationId}
             />
         </DashboardContent>

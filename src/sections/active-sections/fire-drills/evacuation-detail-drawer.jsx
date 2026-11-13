@@ -19,7 +19,7 @@ import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { varAlpha } from 'src/theme/styles';
 
-import { EVAC_CHECK_STATUS, getEvacuationTypeMeta } from './mocks/data';
+import { EVAC_CHECK_STATUS, getEvacuationTypeMeta } from './view/fire-drills-view';
 
 // ----------------------------------------------------------------------
 
