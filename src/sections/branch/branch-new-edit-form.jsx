@@ -45,6 +45,15 @@ export const BranchSchema = zod.object({
   // Settings
   enableBreaks: zod.boolean(),
   enableLeaveRequests: zod.boolean(),
+  maxShiftHours: zod.coerce
+    .number({ invalid_type_error: 'Maximum shift hours must be a number' })
+    .min(0, 'Cannot be negative')
+    .max(12, 'Cannot be more than 12 hours'),
+  earlyClockInMinutes: zod.coerce
+    .number({ invalid_type_error: 'Early clock-in minutes must be a number' })
+    .int('Must be a whole number')
+    .min(0, 'Cannot be negative')
+    .max(60, 'Cannot be more than 60 minutes'),
   lateGraceMinutes: zod.coerce
     .number({ invalid_type_error: 'Late grace minutes must be a number' })
     .int('Must be a whole number')
@@ -99,6 +108,10 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
       enableBreaks: currentBranch?.settings?.enableBreaks ?? DEFAULT_BRANCH_SETTINGS.enableBreaks,
       enableLeaveRequests:
         currentBranch?.settings?.enableLeaveRequests ?? DEFAULT_BRANCH_SETTINGS.enableLeaveRequests,
+      maxShiftHours:
+        currentBranch?.settings?.maxShiftHours ?? DEFAULT_BRANCH_SETTINGS.maxShiftHours,
+      earlyClockInMinutes:
+        currentBranch?.settings?.earlyClockInMinutes ?? DEFAULT_BRANCH_SETTINGS.earlyClockInMinutes,
       lateGraceMinutes:
         currentBranch?.settings?.lateGraceMinutes ?? DEFAULT_BRANCH_SETTINGS.lateGraceMinutes,
       allowPhoneCheckIn:
@@ -151,6 +164,8 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
       const settings = {
         enableBreaks: data.enableBreaks,
         enableLeaveRequests: data.enableLeaveRequests,
+        maxShiftHours: data.maxShiftHours,
+        earlyClockInMinutes: data.earlyClockInMinutes,
         lateGraceMinutes: data.lateGraceMinutes,
         allowPhoneCheckIn: data.allowPhoneCheckIn,
         autoClockOutHoursAfterShiftEnd: data.autoClockOutHoursAfterShiftEnd,
@@ -400,7 +415,49 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               )}
             </Stack>
 
-            {/* 2. Late Grace Period */}
+            {/* 2. Maximum Shift Duration */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Maximum shift duration</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Maximum shift length at this site (up to 12 hours)
+                </Typography>
+              </Box>
+              <Field.Text
+                name="maxShiftHours"
+                label="Maximum shift"
+                type="number"
+                size="small"
+                sx={{ minWidth: 160, maxWidth: { sm: 200 } }}
+                inputProps={{ min: 0, max: 12, step: 'any' }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">hrs</InputAdornment>,
+                }}
+              />
+            </Box>
+
+            {/* 3. Early Clock-in Window */}
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Early clock-in window</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Minutes before shift start staff may clock in (up to 60 minutes)
+                </Typography>
+              </Box>
+              <Field.Text
+                name="earlyClockInMinutes"
+                label="Early clock-in"
+                type="number"
+                size="small"
+                sx={{ minWidth: 160, maxWidth: { sm: 200 } }}
+                inputProps={{ min: 0, max: 60, step: 1 }}
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">mins</InputAdornment>,
+                }}
+              />
+            </Box>
+
+            {/* 4. Late Grace Period */}
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Late grace period</Typography>
@@ -421,7 +478,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               />
             </Box>
 
-            {/* 3. Auto Clock-out After Shift End */}
+            {/* 5. Auto Clock-out After Shift End */}
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Auto clock-out after shift end</Typography>
@@ -442,7 +499,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               />
             </Box>
 
-            {/* 4. Auto Clock-out After Clock-in (Unscheduled) */}
+            {/* 6. Auto Clock-out After Clock-in (Unscheduled) */}
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Auto clock-out after clock-in (unscheduled)</Typography>
@@ -463,7 +520,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               />
             </Box>
 
-            {/* 5. Visitor Auto Check-out After Visit Until */}
+            {/* 7. Visitor Auto Check-out After Visit Until */}
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Visitor auto check-out after expected visit end</Typography>
@@ -484,7 +541,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               />
             </Box>
 
-            {/* 6. Visitor Auto Check-out After Check-in */}
+            {/* 8. Visitor Auto Check-out After Check-in */}
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Visitor auto check-out after check-in</Typography>
@@ -505,7 +562,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               />
             </Box>
 
-            {/* 7. Allow Phone Check-in */}
+            {/* 9. Allow Phone Check-in */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Allow mobile phone check-in</Typography>
@@ -516,7 +573,7 @@ export function BranchNewEditForm({ organizationId, currentBranch }) {
               <Field.Switch name="allowPhoneCheckIn" label="" sx={{ m: 0 }} />
             </Box>
 
-            {/* 8. Enable Leave Requests */}
+            {/* 10. Enable Leave Requests */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Enable leave requests</Typography>

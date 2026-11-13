@@ -87,6 +87,7 @@ export function OrganizationListView() {
   const configureModulesDialog = useBoolean();
   const [selectedOrganization, setSelectedOrganization] = useState(null);
   const [createdOrganization, setCreatedOrganization] = useState(null);
+  const [createdOwnerInvitation, setCreatedOwnerInvitation] = useState(null);
 
   // --- Data source ---------------------------------------------------------
   const { data, isLoading, isFetching } = useGetOrganizationsQuery({
@@ -150,6 +151,12 @@ export function OrganizationListView() {
     (response) => {
       const organization = response?._id ? response : createMockOrganization(response);
       setCreatedOrganization(organization);
+      const acceptUrl = response?.ownerInvitation?.acceptUrl;
+      setCreatedOwnerInvitation(
+        typeof acceptUrl === 'string' && acceptUrl
+          ? { organizationId: organization._id, acceptUrl }
+          : null
+      );
       configureModulesDialog.onTrue();
     },
     [configureModulesDialog]
@@ -230,6 +237,11 @@ export function OrganizationListView() {
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         canEdit={canEdit}
+                        ownerInvitationUrl={
+                          createdOwnerInvitation?.organizationId === (row._id || row.id)
+                            ? createdOwnerInvitation.acceptUrl
+                            : undefined
+                        }
                         onEditRow={() => handleOpenEdit(row)}
                       />
                     ))}

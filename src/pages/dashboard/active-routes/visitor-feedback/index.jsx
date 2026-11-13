@@ -7,14 +7,14 @@ import VisitorFeedbackListView from 'src/sections/active-sections/visitor-feedba
 
 const metadata = { title: `Visitor Feedback | Dashboard - ${CONFIG.site.name}` };
 
-export default function Page() {
+export default function Page({ ownerDashboard = false }) {
   return (
     <>
       <Helmet>
         <title> {metadata.title}</title>
       </Helmet>
 
-      <VisitorFeedbackListView />
+      <VisitorFeedbackListView ownerDashboard={ownerDashboard} />
     </>
   );
 }

@@ -646,6 +646,8 @@ export const paths = {
     requirements: `${ROOTS.OWNER_DASHBOARD}/requirements`,
     requirementDetail: (id) => `${ROOTS.OWNER_DASHBOARD}/requirements/${id}`,
     reports: `${ROOTS.OWNER_DASHBOARD}/reports`,
+    feedback: `${ROOTS.OWNER_DASHBOARD}/feedback`,
+    feedbackDetail: (id) => `${ROOTS.OWNER_DASHBOARD}/feedback/${id}`,
     messages: `${ROOTS.OWNER_DASHBOARD}/messages`,
     acknowledgements: (id) => `${ROOTS.OWNER_DASHBOARD}/documents/${id}/acknowledgements`,
     statistics: `${ROOTS.OWNER_DASHBOARD}/statistics`,

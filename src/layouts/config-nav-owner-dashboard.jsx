@@ -16,6 +16,7 @@ const ICONS = {
   directory: icon('ic-users'),
   rota: icon('ic-rota'),
   reports: icon('ic-reports'),
+  feedback: icon('ic-feedback'),
   folder: icon('ic-folder'),
   label: icon('ic-label'),
   booking: icon('ic-booking'),
@@ -51,6 +52,7 @@ export const navDataOwner = [
       { title: 'General Directory', path: paths.owner.directory.root, icon: ICONS.directory },
       { title: 'Residents', path: paths.owner.residents.root, icon: ICONS.user, moduleSlug: ModuleSlug.RESIDENTS },
       { title: 'Reports', path: paths.owner.reports, icon: ICONS.document },
+      { title: 'Visitor Feedback', path: paths.owner.feedback, icon: ICONS.feedback },
 
       {
         title: 'Rota Management',

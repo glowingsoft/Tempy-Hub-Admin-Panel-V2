@@ -7,6 +7,7 @@ import TableRow from '@mui/material/TableRow';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
+import { useCopyToClipboard } from 'src/hooks/use-copy-to-clipboard';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
@@ -14,6 +15,7 @@ import { fDate } from 'src/utils/format-time';
 
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 
 import { ORGANIZATION_STATUS_OPTIONS } from './mocks/data';
 
@@ -31,8 +33,15 @@ const STATUS_LABEL = ORGANIZATION_STATUS_OPTIONS.reduce((acc, option) => {
 
 // ----------------------------------------------------------------------
 
-export function OrganizationTableRow({ row, serialNumber, canEdit, onEditRow }) {
+export function OrganizationTableRow({
+  row,
+  serialNumber,
+  canEdit,
+  ownerInvitationUrl,
+  onEditRow,
+}) {
   const router = useRouter();
+  const { copy } = useCopyToClipboard();
 
   const detailPath = paths.dashboard.organizations.detail(row._id);
 
@@ -54,6 +63,21 @@ export function OrganizationTableRow({ row, serialNumber, canEdit, onEditRow }) 
       onClick: (event) => {
         event.stopPropagation();
         onEditRow();
+      },
+    },
+    {
+      key: 'copy-owner-invitation',
+      icon: 'solar:copy-bold',
+      tooltip: 'Copy owner invitation link',
+      hidden: !ownerInvitationUrl,
+      onClick: async (event) => {
+        event.stopPropagation();
+        const copied = await copy(ownerInvitationUrl);
+        if (copied) {
+          toast.success('Owner invitation link copied!');
+        } else {
+          toast.error('Could not copy the owner invitation link.');
+        }
       },
     },
   ];
