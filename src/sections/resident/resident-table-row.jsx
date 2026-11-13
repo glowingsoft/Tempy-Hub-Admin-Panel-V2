@@ -46,13 +46,17 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
             color: 'default',
             onClick: () => router.push(detailPath),
         },
-        {
-            key: 'edit',
-            icon: 'solar:pen-bold',
-            tooltip: 'Edit Resident',
-            color: 'default',
-            onClick: () => onEdit?.(row),
-        },
+        ...(onEdit
+            ? [
+                {
+                    key: 'edit',
+                    icon: 'solar:pen-bold',
+                    tooltip: 'Edit Resident',
+                    color: 'default',
+                    onClick: () => onEdit?.(row),
+                },
+            ]
+            : []),
     ];
 
     return (
@@ -89,11 +93,13 @@ export function ResidentTableRow({ row, serialNumber, onEditSecurity, onEdit }) 
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
                         ••••••••
                     </Typography>
-                    <Tooltip title="Edit Security Password">
-                        <IconButton size="small" color="primary" onClick={() => onEditSecurity?.(row)}>
-                            <Iconify icon="solar:shield-keyhole-bold" width={16} />
-                        </IconButton>
-                    </Tooltip>
+                    {onEditSecurity && (
+                        <Tooltip title="Edit Security Password">
+                            <IconButton size="small" color="primary" onClick={() => onEditSecurity?.(row)}>
+                                <Iconify icon="solar:shield-keyhole-bold" width={16} />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                 </Stack>
             </TableCell>
 

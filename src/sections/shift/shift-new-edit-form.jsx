@@ -146,6 +146,7 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
       reset(defaultValues);
     }
   }, [currentShift, reset, defaultValues]);
+  // site is selected in site mananger
 
   useEffect(() => {
     const currentStaffId = methods.getValues('staffId');

@@ -9,6 +9,8 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 import { useParams, useRouter } from 'src/routes/hooks';
 
@@ -79,6 +81,7 @@ const BASE_FILTER_FIELDS = [
 ];
 
 export function FloorPlanListView({ ownerDashboard = true }) {
+    const canManagePeep = useCanManage(ModuleSlug.PEEP_FLOOR_PLAN);
     const router = useRouter();
     const table = useTable({ defaultOrderBy: 'name', defaultDense: true });
 
@@ -364,14 +367,16 @@ export function FloorPlanListView({ ownerDashboard = true }) {
                                 }}
                             />
                         )}
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={createOpen.onTrue}
-                            startIcon={<Iconify icon="mingcute:add-line" />}
-                        >
-                            Add Floor
-                        </Button>
+                        {canManagePeep && (
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={createOpen.onTrue}
+                                startIcon={<Iconify icon="mingcute:add-line" />}
+                            >
+                                Add Floor
+                            </Button>
+                        )}
                     </Stack>
                 }
                 sx={{ mb: { xs: 3, md: 5 } }}
@@ -411,7 +416,7 @@ export function FloorPlanListView({ ownerDashboard = true }) {
                                                 key={row.id}
                                                 row={row}
                                                 serialNumber={table.page * table.rowsPerPage + index + 1}
-                                                onUpload={setUploadTarget}
+                                                onUpload={canManagePeep ? setUploadTarget : undefined}
                                                 ownerDashboard={ownerDashboard}
                                                 clickable
                                             />

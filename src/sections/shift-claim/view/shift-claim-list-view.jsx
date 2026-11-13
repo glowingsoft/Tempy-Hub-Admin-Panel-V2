@@ -5,6 +5,8 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanApprove } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
@@ -63,6 +65,7 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function ShiftClaimListView() {
+  const canApproveClaims = useCanApprove(ModuleSlug.ROTA_SCHEDULING);
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
@@ -193,7 +196,7 @@ export function ShiftClaimListView() {
                         key={row._id}
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
-                        onApprove={askApprove}
+                        onApprove={canApproveClaims ? askApprove : undefined}
                         onSendToTempy={handleSendToTempy}
                         tempyConnected={tempyConnected}
                       />

@@ -30,6 +30,7 @@ import {
 import { MemberDetailSkeleton } from '../member-detail-skeleton';
 import { useMemberActions } from '../use-member-actions';
 import { MemberActionDialog } from '../member-action-dialog';
+import { canEditMember } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -67,7 +68,9 @@ export function MemberDetailView() {
     );
   }
 
-  const name = member.name || member.user?.name || '—';
+  const rawName = member.name || member.user?.name || '—';
+  const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
   const email = member.email || member.user?.email || '';
   const status = getMemberStatusMeta(member.status);
   const permissionLabels = getMemberPermissionLabels(member.permissions);
@@ -78,6 +81,7 @@ export function MemberDetailView() {
     (member.departments || []).map((department) => department.name).filter(Boolean).join(', ') || '—';
   const employeeCode = member.staffProfile?.employeeCode || '';
   const isActive = member.status === 'active';
+  const showEdit = canEditMember(member);
 
   return (
     <DashboardContent>
@@ -101,15 +105,17 @@ export function MemberDetailView() {
               </Button>
             )}
 
-            <Button
-              component={RouterLink}
-              href={paths.owner.memberships.members.edit(member._id)}
-              variant="contained"
-              color="primary"
-              startIcon={<Iconify icon="solar:pen-bold" />}
-            >
-              Edit
-            </Button>
+            {showEdit && (
+              <Button
+                component={RouterLink}
+                href={paths.owner.memberships.members.edit(member._id)}
+                variant="contained"
+                color="primary"
+                startIcon={<Iconify icon="solar:pen-bold" />}
+              >
+                Edit
+              </Button>
+            )}
           </Stack>
         }
         sx={{ mb: 3 }}

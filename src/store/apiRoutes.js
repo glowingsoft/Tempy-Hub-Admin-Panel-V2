@@ -3,6 +3,7 @@ export const API_ROUTES = {
     UPLOAD_S3: '/upload/s3',
     AUTH: {
         LOGIN: '/auth/login',
+        ME: '/auth/me',
         ADMIN_LOGIN: 'admin/login',
         RESEND_OTP_EMAIL: '/auth/resend-otp/email',
         VERIFY_OTP_EMAIL: '/auth/verify-otp/email',

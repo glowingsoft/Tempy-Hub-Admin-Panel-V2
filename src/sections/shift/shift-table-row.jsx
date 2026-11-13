@@ -2,6 +2,8 @@ import Box from '@mui/material/Box';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
@@ -17,6 +19,7 @@ import { getShiftStatusMeta, getShiftVisibilityLabel } from './mocks/data';
 
 export function ShiftTableRow({ row, serialNumber }) {
   const router = useRouter();
+  const canManageShifts = useCanManage(ModuleSlug.ROTA_SCHEDULING);
 
   const rowOrgId = row?.organizationId?._id || row?.organizationId || '';
   const detailPath = rowOrgId
@@ -39,7 +42,7 @@ export function ShiftTableRow({ row, serialNumber }) {
       key: 'edit',
       icon: 'solar:pen-bold',
       tooltip: 'Edit',
-      hidden: row.status === 'cancelled',
+      hidden: !canManageShifts || row.status === 'cancelled',
       onClick: (event) => {
         event.stopPropagation();
         router.push(editPath);

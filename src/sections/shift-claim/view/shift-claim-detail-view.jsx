@@ -8,6 +8,8 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { useCanApprove } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 import { useParams } from 'src/routes/hooks';
 
@@ -59,6 +61,7 @@ function displayEmail(user) {
 // ----------------------------------------------------------------------
 
 export function ShiftClaimDetailView() {
+  const canApproveClaims = useCanApprove(ModuleSlug.ROTA_SCHEDULING);
   const { id } = useParams();
   const { organizationId } = useCurrentOrganization();
 
@@ -107,7 +110,7 @@ export function ShiftClaimDetailView() {
           { name: staffName },
         ]}
         action={
-          canApprove && (
+          canApproveClaims && canApprove && (
             <Button
               color="success"
               variant="contained"

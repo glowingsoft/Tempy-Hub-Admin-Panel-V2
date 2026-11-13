@@ -6,6 +6,8 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanApprove, useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -76,7 +78,9 @@ export function LeaveRequestListView({
   ownerDashboard = variant === 'owner',
 }) {
   const ctx = useMemo(() => getLeaveRequestContext(variant), [variant]);
-  const showEntitlement = canSetEntitlement ?? ctx.defaultCanSetEntitlement;
+  const canManageLeave = useCanManage(ModuleSlug.LEAVE);
+  const canApproveLeave = useCanApprove(ModuleSlug.LEAVE);
+  const showEntitlement = (canSetEntitlement ?? ctx.defaultCanSetEntitlement) && canManageLeave;
 
   const table = useTable({
     defaultDense: true,
@@ -231,8 +235,8 @@ export function LeaveRequestListView({
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         detailHref={detailHref}
-                        onApprove={askApprove}
-                        onReject={askReject}
+                        onApprove={canApproveLeave ? askApprove : undefined}
+                        onReject={canApproveLeave ? askReject : undefined}
                       />
                     ))}
 

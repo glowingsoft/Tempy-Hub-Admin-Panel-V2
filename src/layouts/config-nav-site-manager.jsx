@@ -1,3 +1,4 @@
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/config-global';
@@ -65,15 +66,20 @@ export const navDataSiteManager = [
       { title: 'Dashboard', path: paths.siteManager.root, icon: ICONS.dashboard },
       { title: 'Statistics', path: paths.siteManager.statistics, icon: ICONS.analytics },
       { title: 'General Directory', path: paths.siteManager.directory.root, icon: ICONS.directory },
-      { title: 'Residents', path: paths.siteManager.residents.root, icon: ICONS.user },
+      { title: 'Residents', path: paths.siteManager.residents.root, icon: ICONS.user, moduleSlug: ModuleSlug.RESIDENTS },
       { title: 'Reports', path: paths.siteManager.reports, icon: ICONS.reports },
-      { title: 'Rota', path: paths.siteManager.rota, icon: ICONS.rota },
+      { title: 'Rota', path: paths.siteManager.rota, icon: ICONS.rota, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
       { title: 'Invitations', path: paths.siteManager.invitaions.root, icon: ICONS.invitations },
-      { title: "Kiosks", path: paths.siteManager.kiosk, icon: ICONS.course },
+      {
+        title: "Kiosks",
+        path: paths.siteManager.kiosk,
+        icon: ICONS.course,
+        moduleSlugs: [ModuleSlug.SIGN_IN_ATTENDANCE, ModuleSlug.FIRE_DRILL_EVACUATION],
+      },
       { title: 'Visitor Feedback', path: paths.siteManager.feedback, icon: ICONS.feedback },
-      { title: 'Fire Drills', path: paths.siteManager.fireDrills, icon: ICONS.compliance },
-      { title: 'PEEP & Floor Plan', path: paths.siteManager.PEEPandFloorPlan, icon: ICONS.plan },
-      { title: 'Documents', path: paths.siteManager.documents.root, icon: ICONS.document },
+      { title: 'Fire Drills', path: paths.siteManager.fireDrills, icon: ICONS.compliance, moduleSlug: ModuleSlug.FIRE_DRILL_EVACUATION },
+      { title: 'PEEP & Floor Plan', path: paths.siteManager.PEEPandFloorPlan, icon: ICONS.plan, moduleSlug: ModuleSlug.PEEP_FLOOR_PLAN },
+      { title: 'Documents', path: paths.siteManager.documents.root, icon: ICONS.document, moduleSlug: ModuleSlug.DOCUMENTS_ESIGN },
 
       {
         title: 'Supervision & Appraisal',
@@ -86,6 +92,7 @@ export const navDataSiteManager = [
           paths.siteManager.requirements,
         ],
         icon: ICONS.supervision,
+        moduleSlug: ModuleSlug.COMPETENCY_SUPERVISION_APPRAISAL,
         children: [
           { title: 'Supervision', path: paths.siteManager.supervision },
           { title: 'Appraisal', path: paths.siteManager.appraisal },
@@ -95,7 +102,7 @@ export const navDataSiteManager = [
         ],
       },
       { title: 'Configuration', path: paths.siteManager.configuration, icon: ICONS.settings },
-      { title: 'Leave Requests', path: paths.siteManager.leaveRequests.root, icon: ICONS.calendar },
+      { title: 'Leave Requests', path: paths.siteManager.leaveRequests.root, icon: ICONS.calendar, moduleSlug: ModuleSlug.LEAVE },
       { title: 'Job Titles', path: paths.siteManager.jobTitles.root, icon: ICONS.label },
     ],
   },
@@ -105,22 +112,23 @@ export const navDataSiteManager = [
   {
     subheader: 'FAMILY ENGAGEMENT',
     items: [
-      { title: 'Overview', path: paths.siteManager.familyEngagement.overview, icon: ICONS.directory },
-      { title: 'Moderation', path: paths.siteManager.familyEngagement.moderation, icon: ICONS.pendingApproval },
-      { title: 'Community Wall', path: paths.siteManager.familyEngagement.communityWall, icon: ICONS.blog },
-      { title: 'Newsletters', path: paths.siteManager.familyEngagement.newsletters, icon: ICONS.mail },
-      { title: 'Gazettes', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document },
-      { title: 'Family Groups', path: paths.siteManager.familyEngagement.familyGroups, icon: ICONS.user },
+      { title: 'Overview', path: paths.siteManager.familyEngagement.overview, icon: ICONS.directory, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Moderation', path: paths.siteManager.familyEngagement.moderation, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Community Wall', path: paths.siteManager.familyEngagement.communityWall, icon: ICONS.blog, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Newsletters', path: paths.siteManager.familyEngagement.newsletters, icon: ICONS.mail, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Gazettes', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Family Groups', path: paths.siteManager.familyEngagement.familyGroups, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       {
         title: 'Memberships',
         path: paths.siteManager.familyEngagement.memberships.root,
         icon: ICONS.invitations,
+        moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT,
         children: [
           { title: 'Invitations', path: paths.siteManager.familyEngagement.memberships.invitations.root },
           { title: 'Members', path: paths.siteManager.familyEngagement.memberships.members.root },
         ],
       },
-      { title: 'Messages', path: paths.siteManager.messages, icon: ICONS.chat },
+      { title: 'Messages', path: paths.siteManager.messages, icon: ICONS.chat, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
     ],
   },
 ];

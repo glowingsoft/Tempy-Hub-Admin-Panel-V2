@@ -7,6 +7,8 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { useCanApprove } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useParams } from 'src/routes/hooks';
 
 import { fDate, fDateTime } from 'src/utils/format-time';
@@ -54,6 +56,7 @@ function displayEmail(user) {
 // ----------------------------------------------------------------------
 
 export function LeaveRequestDetailView({ variant = 'owner' }) {
+  const canApproveLeave = useCanApprove(ModuleSlug.LEAVE);
   const { id } = useParams();
   const ctx = getLeaveRequestContext(variant);
   const { organizationId } = useCurrentOrganization();
@@ -106,7 +109,7 @@ export function LeaveRequestDetailView({ variant = 'owner' }) {
           { name: staffName },
         ]}
         action={
-          isPending && (
+          canApproveLeave && isPending && (
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Button
                 color="error"

@@ -1,3 +1,4 @@
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/config-global';
@@ -24,11 +25,11 @@ export const navDataStaff = [
     subheader: '',
     items: [
       { title: 'Dashboard', path: paths.staff.dashboard, icon: ICONS.dashboard },
-      { title: 'Rota', path: paths.staff.rota, icon: ICONS.rota },
-      { title: 'Attendance', path: paths.staff.attendance, icon: ICONS.clock },
-      { title: 'Leave Requests', path: paths.staff.leaveRequests, icon: ICONS.calendar },
-      { title: 'My Shifts', path: paths.staff.shifts, icon: ICONS.shifts },
-      { title: 'Shift Claim', path: paths.staff.shiftClaims, icon: ICONS.check },
+      { title: 'Rota', path: paths.staff.rota, icon: ICONS.rota, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+      { title: 'Attendance', path: paths.staff.attendance, icon: ICONS.clock, moduleSlug: ModuleSlug.SIGN_IN_ATTENDANCE },
+      { title: 'Leave Requests', path: paths.staff.leaveRequests, icon: ICONS.calendar, moduleSlug: ModuleSlug.LEAVE },
+      { title: 'My Shifts', path: paths.staff.shifts, icon: ICONS.shifts, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+      { title: 'Shift Claim', path: paths.staff.shiftClaims, icon: ICONS.check, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
       {
         title: 'Supervision & Appraisal',
         path: paths.staff.supervision,
@@ -39,6 +40,7 @@ export const navDataStaff = [
           paths.staff.training,
         ],
         icon: ICONS.supervision,
+        moduleSlug: ModuleSlug.COMPETENCY_SUPERVISION_APPRAISAL,
         children: [
           { title: 'Supervision', path: paths.staff.supervision },
           { title: 'Appraisal', path: paths.staff.appraisal },
@@ -46,16 +48,16 @@ export const navDataStaff = [
           { title: 'Training Record', path: paths.staff.training },
         ],
       },
-      { title: 'Documents', path: paths.staff.documents.root, icon: ICONS.document },
+      { title: 'Documents', path: paths.staff.documents.root, icon: ICONS.document, moduleSlug: ModuleSlug.DOCUMENTS_ESIGN },
     ],
   },
   {
     subheader: 'FAMILY ENGAGEMENT',
     items: [
-      { title: 'My Residents', path: paths.staff.familyEngagement.myResidents, icon: ICONS.user },
-      { title: 'Photo Upload', path: paths.staff.familyEngagement.photoUploads, icon: ICONS.check },
-      { title: 'Community Wall', path: paths.staff.familyEngagement.communityWall, icon: ICONS.blog },
-      { title: 'Gazettes', path: paths.staff.familyEngagement.gazettes, icon: ICONS.document },
+      { title: 'My Residents', path: paths.staff.familyEngagement.myResidents, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Photo Upload', path: paths.staff.familyEngagement.photoUploads, icon: ICONS.check, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Community Wall', path: paths.staff.familyEngagement.communityWall, icon: ICONS.blog, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Gazettes', path: paths.staff.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
     ],
   },
 ];

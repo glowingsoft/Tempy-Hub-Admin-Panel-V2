@@ -1,4 +1,5 @@
 
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/config-global';
@@ -63,11 +64,11 @@ export const navDataLineManager = [
     items: [
       { title: 'Dashboard', path: paths.lineManager.root, icon: ICONS.dashboard },
 
-      { title: 'Rota', path: paths.lineManager.teamRota, icon: ICONS.rota },
+      { title: 'Rota', path: paths.lineManager.teamRota, icon: ICONS.rota, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
 
-      { title: "Leave Requests", path: paths.lineManager.leaveApproval.root, icon: ICONS.pendingApproval },
+      { title: "Leave Requests", path: paths.lineManager.leaveApproval.root, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.LEAVE },
 
-      { title: 'Team Attendance', path: paths.lineManager.teamAttendance, icon: ICONS.invitations },
+      { title: 'Team Attendance', path: paths.lineManager.teamAttendance, icon: ICONS.invitations, moduleSlug: ModuleSlug.SIGN_IN_ATTENDANCE },
 
       {
         title: 'Supervision & Appraisal',
@@ -80,6 +81,7 @@ export const navDataLineManager = [
           paths.lineManager.requirements,
         ],
         icon: ICONS.directory,
+        moduleSlug: ModuleSlug.COMPETENCY_SUPERVISION_APPRAISAL,
         children: [
           { title: 'Supervision', path: paths.lineManager.supervision },
           { title: 'Appraisal', path: paths.lineManager.appraisal },
@@ -93,11 +95,11 @@ export const navDataLineManager = [
 
       { title: 'Visitor Feedback', path: paths.lineManager.feedback, icon: ICONS.feedback },
 
-      { title: 'Fire Drills', path: paths.lineManager.fireDrills, icon: ICONS.compliance },
+      { title: 'Fire Drills', path: paths.lineManager.fireDrills, icon: ICONS.compliance, moduleSlug: ModuleSlug.FIRE_DRILL_EVACUATION },
 
-      { title: 'Residents', path: paths.lineManager.residents, icon: ICONS.user },
+      { title: 'Residents', path: paths.lineManager.residents, icon: ICONS.user, moduleSlug: ModuleSlug.RESIDENTS },
 
-      { title: 'Documents', path: paths.lineManager.documents.root, icon: ICONS.document },
+      { title: 'Documents', path: paths.lineManager.documents.root, icon: ICONS.document, moduleSlug: ModuleSlug.DOCUMENTS_ESIGN },
 
       { title: 'Connect to Tempy', path: paths.lineManager.tempyConnection, icon: ICONS.external },
     ],
@@ -108,18 +110,19 @@ export const navDataLineManager = [
   {
     subheader: 'FAMILY ENGAGEMENT',
     items: [
-      { title: 'Moderation', path: paths.lineManager.familyEngagement.moderation, icon: ICONS.pendingApproval },
-      { title: 'Community Wall', path: paths.lineManager.familyEngagement.communityWall, icon: ICONS.blog },
+      { title: 'Moderation', path: paths.lineManager.familyEngagement.moderation, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Community Wall', path: paths.lineManager.familyEngagement.communityWall, icon: ICONS.blog, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       {
         title: 'Memberships',
         path: paths.lineManager.familyEngagement.memberships.root,
         icon: ICONS.invitations,
+        moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT,
         children: [
           { title: 'Invitations', path: paths.lineManager.familyEngagement.memberships.invitations.root },
           { title: 'Members', path: paths.lineManager.familyEngagement.memberships.members.root },
         ],
       },
-      { title: 'Messages', path: paths.lineManager.messages, icon: ICONS.chat },
+      { title: 'Messages', path: paths.lineManager.messages, icon: ICONS.chat, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
     ],
   },
 ];

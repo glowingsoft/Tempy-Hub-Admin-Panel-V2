@@ -28,6 +28,8 @@ import {
   useTable,
 } from 'src/components/table';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetShiftsQuery } from 'src/store/Reducer/shifts-api';
@@ -63,6 +65,7 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
     defaultRowsPerPage: 10,
   });
 
+  const canManageShifts = useCanManage(ModuleSlug.ROTA_SCHEDULING);
   const { organizationId: resolvedOrgId, organizationName: resolvedOrgName } =
     useCurrentOrganization(propOrgId);
   const organizationId = propOrgId || resolvedOrgId;
@@ -136,15 +139,17 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
           ...(orgName ? [{ name: orgName }] : []),
         ]}
         action={
-          <Button
-            component={RouterLink}
-            href={newShiftHref}
-            variant="contained"
-            color="primary"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-          >
-            New Shift
-          </Button>
+          canManageShifts ? (
+            <Button
+              component={RouterLink}
+              href={newShiftHref}
+              variant="contained"
+              color="primary"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              New Shift
+            </Button>
+          ) : null
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />

@@ -8,6 +8,8 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { toast } from 'src/components/snackbar';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
@@ -65,6 +67,7 @@ const FILTER_FIELDS = [
 ];
 
 export function ResidentListView({ ownerDashboard = false }) {
+    const canManageResidents = useCanManage(ModuleSlug.RESIDENTS);
     const table = useTable({
         defaultDense: true,
         defaultRowsPerPage: 10,
@@ -208,14 +211,16 @@ export function ResidentListView({ ownerDashboard = false }) {
                 action={
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
                         <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleOpenAdd}
-                            startIcon={<Iconify icon="mingcute:add-line" />}
-                        >
-                            Add Resident
-                        </Button>
+                        {canManageResidents && (
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={handleOpenAdd}
+                                startIcon={<Iconify icon="mingcute:add-line" />}
+                            >
+                                Add Resident
+                            </Button>
+                        )}
                     </Stack>
                 }
                 sx={{ mb: { xs: 3, md: 5 } }}
@@ -249,8 +254,8 @@ export function ResidentListView({ ownerDashboard = false }) {
                                                 key={row._id}
                                                 row={row}
                                                 serialNumber={table.page * table.rowsPerPage + index + 1}
-                                                onEditSecurity={handleOpenSecurity}
-                                                onEdit={handleOpenEdit}
+                                                onEditSecurity={canManageResidents ? handleOpenSecurity : undefined}
+                                                onEdit={canManageResidents ? handleOpenEdit : undefined}
                                             />
                                         ))}
                                         <TableNoData notFound={notFound} title="No residents found" />

@@ -12,6 +12,8 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import LoadingButton from '@mui/lab/LoadingButton';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
 import { useDebounce } from 'src/hooks/use-debounce';
@@ -100,6 +102,7 @@ function formatMethod(method) {
 // ----------------------------------------------------------------------
 
 export function VisitSessionsView() {
+  const canManageVisitors = useCanManage(ModuleSlug.FIRE_DRILL_EVACUATION);
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
@@ -402,7 +405,7 @@ export function VisitSessionsView() {
                               justifyContent="center"
                               spacing={0.5}
                             >
-                              {awaiting ? (
+                              {canManageVisitors && awaiting ? (
                                 <>
                                   <Tooltip title="Approve" placement="top" arrow>
                                     <IconButton

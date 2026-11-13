@@ -399,9 +399,11 @@ export function CommunityWallPostCard({
                 />
               )}
 
-              <IconButton size="small" onClick={handleOpenMenu} sx={{ color: 'text.secondary' }}>
-                <Iconify icon="eva:more-horizontal-fill" width={20} />
-              </IconButton>
+              {(onEdit || onPin || onRemove) && (
+                <IconButton size="small" onClick={handleOpenMenu} sx={{ color: 'text.secondary' }}>
+                  <Iconify icon="eva:more-horizontal-fill" width={20} />
+                </IconButton>
+              )}
             </Stack>
           </Stack>
 

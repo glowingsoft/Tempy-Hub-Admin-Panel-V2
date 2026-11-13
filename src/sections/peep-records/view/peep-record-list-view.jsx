@@ -9,6 +9,8 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useParams, useRouter } from 'src/routes/hooks';
@@ -63,6 +65,7 @@ const FILTER_FIELDS = [
 ];
 
 export function PeepRecordListView({ ownerDashboard = true }) {
+    const canManagePeep = useCanManage(ModuleSlug.PEEP_FLOOR_PLAN);
     const router = useRouter();
     const table = useTable({ defaultOrderBy: 'name', defaultDense: true });
 
@@ -289,7 +292,7 @@ export function PeepRecordListView({ ownerDashboard = true }) {
                                 }}
                             />
                         )}
-                        {(ownerDashboard || (assignedBranchId && siteManagerSiteAllowed)) && (
+                        {canManagePeep && (ownerDashboard || (assignedBranchId && siteManagerSiteAllowed)) && (
                             <Button
                                 component={RouterLink}
                                 href={base.peepAndFloorPlans.records.new}

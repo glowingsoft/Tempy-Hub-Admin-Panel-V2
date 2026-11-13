@@ -9,6 +9,8 @@ import TableBody from '@mui/material/TableBody';
 import Stack from '@mui/material/Stack';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
@@ -176,6 +178,7 @@ const mapBranchOption = (item) => ({
 const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
 
 export function FireDrillsView({ rootPath, showSiteFilter = false }) {
+  const canManageFire = useCanManage(ModuleSlug.FIRE_DRILL_EVACUATION);
   const table = useTable({ defaultDense: true });
   const startDialog = useBoolean();
   const detailDrawer = useBoolean();

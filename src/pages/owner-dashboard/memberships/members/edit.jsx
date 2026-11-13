@@ -10,7 +10,9 @@ import { CONFIG } from 'src/config-global';
 import { LoadingScreen } from 'src/components/loading-screen';
 import { EmptyContent } from 'src/components/empty-content';
 
+import { RoleBasedGuard } from 'src/auth/guard';
 import { MemberEditView } from 'src/sections/member/view';
+import { canEditMember } from 'src/sections/member/utils';
 import { useGetMemberQuery } from 'src/store/Reducer/members-api';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
@@ -49,6 +51,10 @@ export default function Page() {
 
   if (!currentMember) {
     return <EmptyContent filled title="Member not found" sx={{ py: 10 }} />;
+  }
+
+  if (!canEditMember(currentMember)) {
+    return <RoleBasedGuard hasContent currentRole="none" acceptRoles={[]} />;
   }
 
   return (

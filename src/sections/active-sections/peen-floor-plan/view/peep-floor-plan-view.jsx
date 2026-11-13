@@ -5,6 +5,8 @@ import Alert from '@mui/material/Alert';
 import LoadingButton from '@mui/lab/LoadingButton';
 import Stack from '@mui/material/Stack';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import {
@@ -35,6 +37,7 @@ import { ResidentPeepDrawer } from '../resident-peep-drawer';
 import { UploadFloorPlanDialog } from '../upload-floor-plan-dialog';
 
 export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard = false }) {
+  const canManagePeep = useCanManage(ModuleSlug.PEEP_FLOOR_PLAN);
   // Owner and Site Manager both reach this screen with the site id in the
   // URL (Org Rollup -> site -> map) and share the same routed flow. A bare
   // dashboard (e.g. admin) mounts this without a site-scoped route at all.
@@ -300,11 +303,11 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
           }}
           onPlanClick={handlePlanClick}
           onPinClick={handlePinClick}
-          onDeletePin={setPinToDelete}
+          onDeletePin={canManagePeep ? setPinToDelete : undefined}
           isDeletingPin={isDeletingPin}
           loading={Boolean(floorPlanId) && isFloorPlanLoading}
           showEmptyWhenMissing
-          pinPlacementDisabled={!visibleFloorPlan || isCreatingPin}
+          pinPlacementDisabled={!canManagePeep || !visibleFloorPlan || isCreatingPin}
           pinPlacementBusy={isCreatingPin}
         />
       </Stack>

@@ -36,7 +36,7 @@ export function LeaveRequestTableRow({ row, serialNumber, detailHref, onApprove,
       icon: 'solar:check-circle-bold',
       tooltip: 'Approve',
       color: 'success',
-      hidden: !isPending,
+      hidden: !isPending || !onApprove,
       onClick: (event) => {
         event.stopPropagation();
         onApprove(row);
@@ -47,7 +47,7 @@ export function LeaveRequestTableRow({ row, serialNumber, detailHref, onApprove,
       icon: 'solar:close-circle-bold',
       tooltip: 'Reject',
       color: 'error',
-      hidden: !isPending,
+      hidden: !isPending || !onReject,
       onClick: (event) => {
         event.stopPropagation();
         onReject(row);

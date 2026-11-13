@@ -8,6 +8,8 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -72,6 +74,7 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function DocumentCategoryListView({ ownerDashboard = false }) {
+  const canManageDocuments = useCanManage(ModuleSlug.DOCUMENTS_ESIGN);
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
@@ -260,14 +263,16 @@ export function DocumentCategoryListView({ ownerDashboard = false }) {
           { name: 'Categories' },
         ]}
         action={
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleOpenCreate}
-            startIcon={<Iconify icon="mingcute:add-line" />}
-          >
-            Create Category
-          </Button>
+          canManageDocuments ? (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleOpenCreate}
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              Create Category
+            </Button>
+          ) : null
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -310,8 +315,8 @@ export function DocumentCategoryListView({ ownerDashboard = false }) {
                       key={row._id || row.id || index}
                       row={row}
                       serialNumber={table.page * table.rowsPerPage + index + 1}
-                      onEdit={handleOpenEdit}
-                      onDelete={handleOpenDelete}
+                      onEdit={canManageDocuments ? handleOpenEdit : undefined}
+                      onDelete={canManageDocuments ? handleOpenDelete : undefined}
                     />
                   ))
                 ) : (

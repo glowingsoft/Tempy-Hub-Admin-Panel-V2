@@ -13,6 +13,8 @@ import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
@@ -115,6 +117,7 @@ const SITE_STATUS_LABEL = {
 // ----------------------------------------------------------------------
 
 export function UserListView() {
+  const canManageVisitors = useCanManage(ModuleSlug.FIRE_DRILL_EVACUATION);
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
@@ -466,7 +469,7 @@ export function UserListView() {
                 />
               )}
 
-              {currentTab === 'visits' && (
+              {currentTab === 'visits' && canManageVisitors && (
                 <Button
                   variant="contained"
                   color="primary"

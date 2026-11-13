@@ -21,6 +21,8 @@ import Tooltip from '@mui/material/Tooltip';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { MobileDateTimePicker } from '@mui/x-date-pickers/MobileDateTimePicker';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -104,6 +106,7 @@ export function VisitInvitationsView({
   openModal: externalOpenModal,
   branchId: propBranchId,
 }) {
+  const canManageVisitors = useCanManage(ModuleSlug.FIRE_DRILL_EVACUATION);
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
@@ -332,7 +335,7 @@ export function VisitInvitationsView({
                           </TableCell>
 
                           <TableCell align="center">
-                            {isPending && (
+                            {canManageVisitors && isPending && (
                               <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
                                 <Tooltip title="Resend code" placement="top" arrow>
                                   <IconButton

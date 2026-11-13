@@ -7,6 +7,8 @@ import Card from '@mui/material/Card';
 import InputAdornment from '@mui/material/InputAdornment';
 import LinearProgress from '@mui/material/LinearProgress';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
@@ -79,6 +81,9 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     !isSiteManager &&
     !isLineManager &&
     (user?.permission === 5 || user?.accountState?.userType === 'staff' || user?.role === 'staff');
+
+  const canManageRota = useCanManage(ModuleSlug.ROTA_SCHEDULING);
+  const canManageLeave = useCanManage(ModuleSlug.LEAVE);
 
   // Role-specific scope configuration
   const scopeOptions = useMemo(() => {
@@ -192,11 +197,11 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
       from,
       to,
       defaultPermissions: {
-        canBookShift: !isStaff,
-        canRecordLeave: !isStaff,
+        canBookShift: !isStaff && canManageRota,
+        canRecordLeave: !isStaff && canManageLeave,
       },
     });
-  }, [apiRotaData, from, to, isStaff]);
+  }, [apiRotaData, from, to, isStaff, canManageRota, canManageLeave]);
 
   // Working state for teams (allows optimistic local updates)
   const [teamsData, setTeamsData] = useState([]);
@@ -209,11 +214,13 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
   const effectivePermissions = useMemo(() => {
     return {
       canBookShift: Boolean(
-        mappedBoard.permissions?.canBookShift ?? !isStaff
+        (mappedBoard.permissions?.canBookShift ?? !isStaff) && canManageRota
       ),
-      canRecordLeave: Boolean(mappedBoard.permissions?.canRecordLeave ?? !isStaff),
+      canRecordLeave: Boolean(
+        (mappedBoard.permissions?.canRecordLeave ?? !isStaff) && canManageLeave
+      ),
     };
-  }, [mappedBoard.permissions, isStaff]);
+  }, [mappedBoard.permissions, isStaff, canManageRota, canManageLeave]);
 
   // Available managed teams for the team dropdown filter
   const managedTeams = useMemo(() => {
@@ -632,7 +639,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         onBookShift={handleOpenBookShift}
         onSetEntitlement={handleOpenSetEntitlement}
         canBookShift={effectivePermissions.canBookShift}
-        canSetEntitlement={!isStaff}
+        canSetEntitlement={!isStaff && canManageLeave}
       />
 
       {/* Book Shift Dialog */}

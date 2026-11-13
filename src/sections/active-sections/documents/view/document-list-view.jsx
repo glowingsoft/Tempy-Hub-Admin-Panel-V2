@@ -8,6 +8,8 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -86,6 +88,7 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function DocumentListView({ ownerDashboard = false, isStaff: isStaffProp = false }) {
+  const canManageDocuments = useCanManage(ModuleSlug.DOCUMENTS_ESIGN);
   const table = useTable({ defaultDense: true });
   const router = useRouter();
   const pathname = usePathname();
@@ -329,14 +332,16 @@ export function DocumentListView({ ownerDashboard = false, isStaff: isStaffProp 
       >
         Categories
       </Button>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={openUploadModal.onTrue}
-        startIcon={<Iconify icon="mingcute:add-line" />}
-      >
-        Upload document
-      </Button>
+      {canManageDocuments && (
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={openUploadModal.onTrue}
+          startIcon={<Iconify icon="mingcute:add-line" />}
+        >
+          Upload document
+        </Button>
+      )}
     </Stack>
   );
 
@@ -434,10 +439,10 @@ export function DocumentListView({ ownerDashboard = false, isStaff: isStaffProp 
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         detailPath={`${pathname.replace(/\/$/, '')}/${row.id || row._id}`}
-                        isStaff={isStaff}
-                        onEdit={() => handleEdit(row)}
-                        onReplace={() => handleReplace(row)}
-                        onDelete={() => handleDelete(row)}
+                        isStaff={isStaff || !canManageDocuments}
+                        onEdit={canManageDocuments ? () => handleEdit(row) : undefined}
+                        onReplace={canManageDocuments ? () => handleReplace(row) : undefined}
+                        onDelete={canManageDocuments ? () => handleDelete(row) : undefined}
                       />
                     ))}
 

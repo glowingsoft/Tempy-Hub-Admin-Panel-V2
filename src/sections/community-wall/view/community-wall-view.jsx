@@ -19,6 +19,8 @@ import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
 import { InfiniteAutocomplete } from 'src/components/infinite-autocomplete';
@@ -64,6 +66,7 @@ const mapAuthorOption = (author) => ({
 });
 
 export function CommunityWallView() {
+  const canManageFamily = useCanManage(ModuleSlug.FAMILY_ENGAGEMENT);
   const familyPaths = useFamilyEngagementPaths();
   const { organizationId, isOwner, user } = useCurrentOrganization();
 
@@ -279,15 +282,17 @@ export function CommunityWallView() {
                   ))}
                 </TextField>
               )}
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<Iconify icon="solar:pen-new-square-bold" />}
-                onClick={newPostDialog.onTrue}
-                disabled={!branchId}
-              >
-                Create post
-              </Button>
+              {canManageFamily && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<Iconify icon="solar:pen-new-square-bold" />}
+                  onClick={newPostDialog.onTrue}
+                  disabled={!branchId}
+                >
+                  Create post
+                </Button>
+              )}
             </Stack>
           }
           sx={{ mb: { xs: 2.5, md: 3 } }}
@@ -542,15 +547,23 @@ export function CommunityWallView() {
                   <CommunityWallPostCard
                     key={getPostId(post)}
                     post={post}
-                    onPin={handleTogglePin}
-                    onEdit={(item) => {
-                      setEditingPost(item);
-                      editDialog.onTrue();
-                    }}
-                    onRemove={(item) => {
-                      setDeleteTarget(item);
-                      deleteDialog.onTrue();
-                    }}
+                    onPin={canManageFamily ? handleTogglePin : undefined}
+                    onEdit={
+                      canManageFamily
+                        ? (item) => {
+                            setEditingPost(item);
+                            editDialog.onTrue();
+                          }
+                        : undefined
+                    }
+                    onRemove={
+                      canManageFamily
+                        ? (item) => {
+                            setDeleteTarget(item);
+                            deleteDialog.onTrue();
+                          }
+                        : undefined
+                    }
                     onPreviewPhoto={handlePreviewPhoto}
                   />
                 ))}

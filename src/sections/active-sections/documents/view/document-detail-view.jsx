@@ -39,6 +39,8 @@ import {
 } from 'src/store/Reducer/documents-api';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { ConfirmDialog } from 'src/components/custom-dialog';
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { toast } from 'src/components/snackbar';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { fDateTime } from 'src/utils/format-time';
@@ -155,6 +157,7 @@ function MetaRow({ icon, label, children }) {
 // ----------------------------------------------------------------------
 
 export function DocumentDetailView({ ownerDashboard = false, basePath, isStaff: isStaffProp = false }) {
+  const canManageDocuments = useCanManage(ModuleSlug.DOCUMENTS_ESIGN);
   const { id } = useParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -318,7 +321,7 @@ export function DocumentDetailView({ ownerDashboard = false, basePath, isStaff: 
           { name: document_.name },
         ]}
         action={
-          !isStaff ? (
+          !isStaff && canManageDocuments ? (
             <Stack direction="row" spacing={1}>
               <Tooltip title="Replace document">
                 <Button

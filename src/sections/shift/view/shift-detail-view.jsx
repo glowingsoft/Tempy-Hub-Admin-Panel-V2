@@ -8,6 +8,8 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { RouterLink } from 'src/routes/components';
 import { useParams } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
@@ -54,6 +56,7 @@ function getInitials(name) {
 // ----------------------------------------------------------------------
 
 export function ShiftDetailView() {
+  const canManageShifts = useCanManage(ModuleSlug.ROTA_SCHEDULING);
   const { id } = useParams();
   const { organizationId } = useCurrentOrganization();
 
@@ -103,7 +106,7 @@ export function ShiftDetailView() {
           { name: staffName },
         ]}
         action={
-          !isCancelled && (
+          canManageShifts && !isCancelled && (
             <Button
               component={RouterLink}
               href={editHref}

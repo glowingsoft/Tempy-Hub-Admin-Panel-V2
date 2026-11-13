@@ -14,8 +14,8 @@ export function DocumentCategoryTableRow({ row, serialNumber, onEdit, onDelete }
   const docCount = Number(row.documentCount ?? row.count ?? 0);
 
   const actions = [
-    { key: 'edit', icon: 'solar:pen-bold', tooltip: 'Edit', onClick: () => onEdit(row) },
-    ...(docCount === 0
+    ...(onEdit ? [{ key: 'edit', icon: 'solar:pen-bold', tooltip: 'Edit', onClick: () => onEdit(row) }] : []),
+    ...(docCount === 0 && onDelete
       ? [
           {
             key: 'delete',
