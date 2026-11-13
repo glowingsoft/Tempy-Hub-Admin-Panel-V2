@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
 import { z as zod } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import dayjs from 'dayjs';
 
 import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -22,6 +22,55 @@ import { toast } from 'src/components/snackbar';
 import { useUpdateResidentOutMutation } from 'src/store/Reducer/residents-api';
 
 // ----------------------------------------------------------------------
+
+export const isResidentOut = (resident) => {
+  if (!resident) return false;
+  if (
+    resident.out === true ||
+    resident.isOut === true ||
+    resident.outOfFacility === true ||
+    resident.outOfHome === true ||
+    resident.isOutOfHome === true ||
+    resident.outStatus === 'out' ||
+    resident.status === 'out'
+  ) {
+    return true;
+  }
+  if (typeof resident.out === 'object' && resident.out !== null) {
+    return Boolean(resident.out.out || resident.out.isOut || resident.out.destination);
+  }
+  return Boolean(resident.destination || resident.outDestination);
+};
+
+export const getResidentDestination = (resident) =>
+  resident?.destination ||
+  resident?.outDestination ||
+  resident?.out?.destination ||
+  resident?.out?.outDestination ||
+  resident?.outDetails?.destination ||
+  '';
+
+export const getResidentNote = (resident) =>
+  resident?.note ||
+  resident?.outNote ||
+  resident?.notes ||
+  resident?.out?.note ||
+  resident?.out?.notes ||
+  resident?.outDetails?.note ||
+  '';
+
+export const getResidentReturnDate = (resident) => {
+  const raw =
+    resident?.expectedReturnAt ||
+    resident?.outExpectedReturnAt ||
+    resident?.expectedReturn ||
+    resident?.out?.expectedReturnAt ||
+    resident?.out?.expectedReturn ||
+    resident?.outDetails?.expectedReturnAt;
+  if (!raw) return null;
+  const parsed = dayjs(raw);
+  return parsed.isValid() ? parsed : null;
+};
 
 const getErrorMessage = (error) =>
   error?.data?.message ||
@@ -49,21 +98,6 @@ const OutSchema = zod
       message: 'Destination is required when resident is out of facility.',
       path: ['destination'],
     }
-  )
-  .refine(
-    (data) => {
-      if (data.out && data.expectedReturnAt) {
-        const selected = dayjs(data.expectedReturnAt);
-        if (selected.isValid()) {
-          return selected.isAfter(dayjs().subtract(1, 'minute'));
-        }
-      }
-      return true;
-    },
-    {
-      message: 'Expected return date and time cannot be in the past.',
-      path: ['expectedReturnAt'],
-    }
   );
 
 // ----------------------------------------------------------------------
@@ -78,19 +112,13 @@ export function ResidentOutDialog({
   const [updateResidentOut, { isLoading }] = useUpdateResidentOutMutation();
 
   const defaultValues = useMemo(() => {
-    const existingDate = resident?.expectedReturnAt
-      ? dayjs(resident.expectedReturnAt)
-      : null;
-    const initialDate =
-      existingDate && existingDate.isValid() && existingDate.isAfter(dayjs())
-        ? existingDate
-        : dayjs().add(2, 'hour');
-
+    const isCurrentlyOut = isResidentOut(resident);
+    const existingReturnDate = getResidentReturnDate(resident);
     return {
-      out: Boolean(resident?.out),
-      destination: resident?.destination || resident?.outDestination || '',
-      note: resident?.note || resident?.outNote || '',
-      expectedReturnAt: initialDate,
+      out: isCurrentlyOut,
+      destination: getResidentDestination(resident),
+      note: getResidentNote(resident),
+      expectedReturnAt: existingReturnDate || dayjs().add(2, 'hour'),
     };
   }, [resident]);
 
@@ -100,51 +128,55 @@ export function ResidentOutDialog({
     defaultValues,
   });
 
-  const { watch, setValue } = methods;
+  const { watch, setValue, reset, handleSubmit } = methods;
   const isOutValue = watch('out');
 
   useEffect(() => {
-    if (open) {
-      methods.reset(defaultValues);
+    if (open && resident) {
+      reset(defaultValues);
     }
-  }, [open, defaultValues, methods]);
+  }, [open, resident?._id, defaultValues, reset]);
 
   if (!resident) return null;
 
   const handleClose = () => {
     onClose();
-    methods.reset(defaultValues);
+    reset(defaultValues);
   };
 
-  const onSubmit = methods.handleSubmit(async (data) => {
+  const onSubmit = handleSubmit(async (data) => {
     try {
-      let isoReturn = null;
-      if (data.out && data.expectedReturnAt) {
-        const parsed = dayjs(data.expectedReturnAt);
-        if (parsed.isValid()) {
-          isoReturn = parsed.toISOString();
-        }
-      }
+      const parsedDate = data.out && data.expectedReturnAt ? dayjs(data.expectedReturnAt) : null;
+      const isoReturn = parsedDate?.isValid() ? parsedDate.toISOString() : undefined;
+      const dest = data.out ? (data.destination || '').trim() : undefined;
+      const note = data.out ? (data.note || '').trim() : undefined;
 
       const payload = {
         residentId: resident._id,
         organizationId,
         out: data.out,
-        destination: data.out ? data.destination?.trim() : undefined,
-        note: data.out ? data.note?.trim() : undefined,
-        expectedReturnAt: data.out ? isoReturn : undefined,
+        destination: dest,
+        note,
+        expectedReturnAt: isoReturn,
       };
 
       const result = await updateResidentOut(payload).unwrap();
 
-      onSave?.({
+      const updatedResident = {
         ...resident,
-        ...result,
+        ...(result || {}),
         out: data.out,
-        destination: data.out ? data.destination?.trim() : '',
-        note: data.out ? data.note?.trim() : '',
-        expectedReturnAt: data.out ? isoReturn : null,
-      });
+        isOut: data.out,
+        outOfFacility: data.out,
+        outOfHome: data.out,
+        destination: dest || '',
+        outDestination: dest || '',
+        note: note || '',
+        outNote: note || '',
+        expectedReturnAt: isoReturn || null,
+      };
+
+      onSave?.(updatedResident);
 
       toast.success(
         data.out
@@ -206,8 +238,6 @@ export function ResidentOutDialog({
                 <Field.MobileDateTimePicker
                   name="expectedReturnAt"
                   label="Expected Return Date & Time"
-                  disablePast
-                  minDateTime={dayjs()}
                 />
 
                 <Field.Text
@@ -223,12 +253,17 @@ export function ResidentOutDialog({
           </Stack>
         </DialogContent>
 
-        <DialogActions>
-          <Button variant="outlined" color="inherit" onClick={handleClose} disabled={isLoading}>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" color="primary" onClick={handleClose} disabled={isLoading}>
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" loading={isLoading}>
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            color="primary"
+            loading={isLoading}
+          >
             Save
           </LoadingButton>
         </DialogActions>
@@ -236,3 +271,11 @@ export function ResidentOutDialog({
     </Dialog>
   );
 }
+
+ResidentOutDialog.propTypes = {
+  open: PropTypes.bool,
+  resident: PropTypes.object,
+  onClose: PropTypes.func,
+  onSave: PropTypes.func,
+  organizationId: PropTypes.string,
+};

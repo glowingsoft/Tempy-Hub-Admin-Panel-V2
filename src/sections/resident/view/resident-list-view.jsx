@@ -82,6 +82,7 @@ export function ResidentListView({ ownerDashboard = false }) {
 
     const [selectedResident, setSelectedResident] = useState(null);
     const [selectedResidentForEdit, setSelectedResidentForEdit] = useState(null);
+    const [residentOverrides, setResidentOverrides] = useState({});
 
     const [createResident] = useCreateResidentMutation();
 
@@ -96,6 +97,7 @@ export function ResidentListView({ ownerDashboard = false }) {
         isFetching: isLiveFetching,
         isError: isLiveError,
         error: liveError,
+        refetch,
     } = useGetResidentsQuery(
         {
             organizationId,
@@ -169,15 +171,30 @@ export function ResidentListView({ ownerDashboard = false }) {
     }, [restrictionDialog]);
 
     const handleOpenOut = useCallback((resident) => {
-        setSelectedResident(resident);
+        const merged = residentOverrides[resident._id]
+            ? { ...resident, ...residentOverrides[resident._id] }
+            : resident;
+        setSelectedResident(merged);
         outDialog.onTrue();
-    }, [outDialog]);
+    }, [residentOverrides, outDialog]);
 
-    const handleSaveResident = useCallback(() => {
-        table.onResetPage();
-    }, [table]);
+    const handleSaveResident = useCallback((updatedResident) => {
+        if (updatedResident?._id) {
+            setResidentOverrides((prev) => ({
+                ...prev,
+                [updatedResident._id]: updatedResident,
+            }));
+            setSelectedResident(updatedResident);
+        }
+        refetch?.();
+    }, [refetch]);
 
-    const displayResidents = sourceResidents;
+    const displayResidents = useMemo(() => {
+        return sourceResidents.map((r) => {
+            const override = residentOverrides[r._id];
+            return override ? { ...r, ...override } : r;
+        });
+    }, [sourceResidents, residentOverrides]);
     const meta = liveData?.meta ?? {};
     const admittedCount = Number(meta.admitted) || 0;
     const dischargedCount = Number(meta.discharged) || 0;

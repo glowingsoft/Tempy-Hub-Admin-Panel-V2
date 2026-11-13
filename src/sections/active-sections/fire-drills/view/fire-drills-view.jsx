@@ -30,6 +30,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { ALL_BRANCHES_VALUE } from 'src/sections/branch/owner-branch-select';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { getUserBranchId } from 'src/utils/organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useGetOnSiteSummaryQuery,
@@ -44,24 +45,34 @@ import {
 import { ActiveEvacuationBanner } from '../active-evacuation-banner';
 import { EvacuationDetailDrawer } from '../evacuation-detail-drawer';
 import EvacuationTableRow from '../evacuation-table-row';
-import {
-  EVACUATION_STATUS_OPTIONS,
-  getMockActiveEvacuation,
-  getMockEvacuations,
-  getMockOnSiteSummary,
-  mockCloseEvacuation,
-  mockEvacChecksByEventId,
-  mockStartEvacuation,
-  mockUpsertEvacCheck,
-} from '../mocks/data';
 import { OnSiteSummary } from '../on-site-summary';
 import { StartEvacuationDialog } from '../start-evacuation-dialog';
 
 // ----------------------------------------------------------------------
-// Mock UI aligned to fireDrillEvacuation APIs. See mocks/api-endpoints.js.
-// Replace mock* helpers with real GET/POST when wiring:
-//   onSiteSummary | active | list | start | close | listChecks | upsertCheck
-// ----------------------------------------------------------------------
+
+export const EVACUATION_TYPE_OPTIONS = [
+  { value: 'mock', label: 'Mock drill', color: 'info' },
+  { value: 'real', label: 'Real emergency', color: 'error' },
+];
+
+export const EVACUATION_STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active', color: 'success' },
+  { value: 'closed', label: 'Closed', color: 'error' },
+];
+
+export const EVAC_CHECK_STATUS = {
+  safe: { label: 'Safe', color: 'success' },
+  missing: { label: 'Missing', color: 'error' },
+  unknown: { label: 'Not yet', color: 'warning' },
+};
+
+export const getEvacuationTypeMeta = (type) =>
+  EVACUATION_TYPE_OPTIONS.find((o) => o.value === type) || {
+    value: type,
+    label: type || '—',
+    color: 'default',
+  };
 
 const STATUS_OPTIONS = EVACUATION_STATUS_OPTIONS;
 
@@ -180,7 +191,6 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const detailDrawer = useBoolean();
   const [selectedEvent, setSelectedEvent] = useState(null);
   const filters = useSetState({ name: '', status: 'all' });
-  const [reloadKey, setReloadKey] = useState(0);
 
   const { organizationId, user } = useCurrentOrganization();
   const [branchId, setBranchId] = useState(ALL_BRANCHES_VALUE);
@@ -217,13 +227,13 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
 
   const userAssignedBranchId = useMemo(
     () =>
+      getUserBranchId(user, organizationId) ||
       user?.branchId ||
       (typeof user?.branch === 'object' ? user?.branch?._id : user?.branch) ||
       user?.access?.memberships?.[0]?.branchId ||
       null,
-    [user]
+    [user, organizationId]
   );
-
 
   // Branch resolution logic:
   // - Line Manager / Site Manager (showSiteFilter = false):
@@ -240,10 +250,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     return userAssignedBranchId || undefined;
   }, [showSiteFilter, scopedBranchId, userAssignedBranchId]);
 
-  // Skip condition:
-  // - Always skip if no organizationId
-  // - For Site/Line Manager: skip if user's assigned branch is not yet resolved
-  const shouldSkipSummary = !organizationId || (!showSiteFilter && !userAssignedBranchId);
+  const shouldSkipSummary = !organizationId;
 
   // Real-time On-Site Headcount Query
   const {
@@ -317,10 +324,8 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     activeEvacuationApiError,
     evacuationsApiError,
   ].some(isPermissionDenied);
-  const allowMockFallback = !organizationId && !hasPermissionDenied;
-  const onSiteSummary =
-    onSiteSummaryApiData ||
-    (allowMockFallback ? getMockOnSiteSummary(queryBranchId) : null);
+
+  const onSiteSummary = onSiteSummaryApiData || null;
   const isSummaryLoading =
     (isOnSiteSummaryLoading || isOnSiteSummaryFetching) && !onSiteSummaryApiData;
 
@@ -360,12 +365,8 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       raw = activeListApiData.data[0];
     }
 
-    if (!raw && rawEvacuationsList) {
+    if (!raw && Array.isArray(rawEvacuationsList)) {
       raw = rawEvacuationsList.find((row) => row.status === 'active') || null;
-    }
-
-    if (!raw && allowMockFallback) {
-      raw = getMockActiveEvacuation(scopedBranchId || undefined);
     }
 
     if (!raw || !raw._id) return null;
@@ -379,47 +380,29 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       assemblyPoint: raw.branch?.assemblyPoint || raw.assemblyPoint || '',
       startedByUserId: raw.startedByUserId || null,
       startedByName: resolveStartedByName(raw, membersMap, user),
-      stats: raw.rollcallStats || raw.rollcall || raw.stats || { total: 0, safe: 0, missing: 0, unknown: 0 },
-      rollcall: rollcallData,
       stats: rollcallData,
+      rollcall: rollcallData,
     };
-  }, [activeEvacuationApiData, activeListApiData, rawEvacuationsList, scopedBranchId, membersMap, user, reloadKey, allowMockFallback]);
+  }, [activeEvacuationApiData, activeListApiData, rawEvacuationsList, membersMap, user]);
 
   const evacuations = useMemo(() => {
-    let rows;
-    if (rawEvacuationsList) {
-      rows = rawEvacuationsList.map((row) => {
-        const rollcallData =
-          row.rollcall || row.rollcallStats || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
-        return {
-          ...row,
-          branchName: row.branch?.name || row.branchName || '—',
-          assemblyPoint: row.branch?.assemblyPoint || row.assemblyPoint || '',
-          startedByUserId: row.startedByUserId || null,
-          startedByName: resolveStartedByName(row, membersMap, user),
-          rollcall: rollcallData,
-          stats: rollcallData,
-        };
-      });
-    } else if (allowMockFallback) {
-      rows = getMockEvacuations({
-        branchId: scopedBranchId || undefined,
-        status: filters.state.status,
-      }).map((row) => {
-        const rollcallData =
-          row.rollcall || row.rollcallStats || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
-        return {
-          ...row,
-          branchName: row.branch?.name || row.branchName || '—',
-          startedByUserId: row.startedByUserId || null,
-          startedByName: resolveStartedByName(row, membersMap, user),
-          rollcall: rollcallData,
-          stats: rollcallData,
-        };
-      });
-    } else {
-      rows = [];
+    if (!rawEvacuationsList) {
+      return [];
     }
+
+    const rows = rawEvacuationsList.map((row) => {
+      const rollcallData =
+        row.rollcall || row.rollcallStats || row.stats || { total: 0, safe: 0, missing: 0, unknown: 0 };
+      return {
+        ...row,
+        branchName: row.branch?.name || row.branchName || '—',
+        assemblyPoint: row.branch?.assemblyPoint || row.assemblyPoint || '',
+        startedByUserId: row.startedByUserId || null,
+        startedByName: resolveStartedByName(row, membersMap, user),
+        rollcall: rollcallData,
+        stats: rollcallData,
+      };
+    });
 
     const search = filters.state.name.trim().toLowerCase();
     if (!search) return rows;
@@ -428,16 +411,11 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         row.branchName?.toLowerCase().includes(search) ||
         row.startedByName?.toLowerCase().includes(search)
     );
-
   }, [
     rawEvacuationsList,
-    scopedBranchId,
-    filters.state.status,
     filters.state.name,
-    reloadKey,
     membersMap,
     user,
-    allowMockFallback,
   ]);
 
   const totalCount = useMemo(() => {
@@ -481,16 +459,10 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         return evacuations.filter((row) => row.status === status).length;
       }
 
-      if (!allowMockFallback) return 0;
-
-      const base = getMockEvacuations({ branchId: scopedBranchId || undefined, status: 'all' });
-      if (status === 'all') return base.length;
-      return base.filter((row) => row.status === status).length;
+      return 0;
     },
-    [evacuationsApiData, rawEvacuationsList, totalCount, evacuations, scopedBranchId, allowMockFallback]
+    [evacuationsApiData, rawEvacuationsList, totalCount, evacuations]
   );
-
-  const bump = () => setReloadKey((k) => k + 1);
 
   const handleFilterChange = useCallback(
     (key, value) => {
@@ -517,23 +489,18 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       return false;
     }
 
-    try {
-      if (organizationId) {
-        await startEvacuationMutation({
-          organizationId,
-          branchId: targetBranchId,
-          type,
-        }).unwrap();
-        toast.success('Evacuation started successfully');
-        return true;
-      }
+    if (!organizationId) {
+      toast.error('Organization ID is missing');
+      return false;
+    }
 
-      mockStartEvacuation({
+    try {
+      await startEvacuationMutation({
+        organizationId,
         branchId: targetBranchId,
         type,
-      });
-      bump();
-      toast.success('Evacuation started (mock)');
+      }).unwrap();
+      toast.success('Evacuation started successfully');
       return true;
     } catch (err) {
       console.error('Failed to start evacuation', err);
@@ -567,22 +534,20 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   /** POST /admin/evacuations/:id/close */
   const handleCloseEvacuation = async (event) => {
     if (!event?._id) return;
+    if (!organizationId) {
+      toast.error('Organization ID is missing');
+      return;
+    }
     try {
-      if (organizationId) {
-        await closeEvacuationMutation({
-          evacuationEventId: event._id,
-          organizationId,
-        }).unwrap();
-        toast.success('Evacuation closed successfully');
-      } else {
-        mockCloseEvacuation(event._id);
-        toast.success('Evacuation closed (mock)');
-      }
+      await closeEvacuationMutation({
+        evacuationEventId: event._id,
+        organizationId,
+      }).unwrap();
+      toast.success('Evacuation closed successfully');
       if (selectedEvent?._id === event._id) {
         setSelectedEvent(null);
         detailDrawer.onFalse();
       }
-      bump();
     } catch (err) {
       console.error('Failed to close evacuation', err);
       toast.error(err?.data?.message || err?.message || 'Failed to close evacuation');
@@ -595,10 +560,8 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       if (Array.isArray(checksApiData.data)) return checksApiData.data;
       if (Array.isArray(checksApiData)) return checksApiData;
     }
-    return !hasPermissionDenied && !isPermissionDenied(checksApiError) && selectedEvent
-      ? mockEvacChecksByEventId[selectedEvent._id] || []
-      : [];
-  }, [checksApiData, checksApiError, hasPermissionDenied, selectedEvent]);
+    return [];
+  }, [checksApiData]);
 
   const detailStats = useMemo(() => {
     if (hasPermissionDenied || isPermissionDenied(checksApiError)) return null;
@@ -616,22 +579,20 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const handleUpdateCheck = useCallback(
     async (event, payload) => {
       if (!event?._id) return;
+      if (!organizationId) {
+        toast.error('Organization ID is missing');
+        return;
+      }
       try {
-        if (organizationId) {
-          await upsertEvacuationCheckMutation({
-            evacuationEventId: event._id,
-            organizationId,
-            personKind: payload.personKind,
-            personId: payload.personId,
-            status: payload.status,
-            locationLabel: payload.locationLabel,
-          }).unwrap();
-          toast.success('Rollcall status updated');
-        } else {
-          mockUpsertEvacCheck(event._id, payload);
-          toast.success('Rollcall status updated (mock)');
-        }
-        bump();
+        await upsertEvacuationCheckMutation({
+          evacuationEventId: event._id,
+          organizationId,
+          personKind: payload.personKind,
+          personId: payload.personId,
+          status: payload.status,
+          locationLabel: payload.locationLabel,
+        }).unwrap();
+        toast.success('Rollcall status updated');
       } catch (err) {
         console.error('Failed to update rollcall check', err);
         toast.error(err?.data?.message || err?.message || 'Failed to update rollcall check');

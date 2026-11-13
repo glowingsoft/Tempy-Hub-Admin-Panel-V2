@@ -9,7 +9,7 @@ import { fDateTime } from 'src/utils/format-time';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 
-import { getEvacuationTypeMeta } from './mocks/data';
+import { getEvacuationTypeMeta } from './view/fire-drills-view';
 
 // ----------------------------------------------------------------------
 

@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import PropTypes from 'prop-types';
+
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -18,6 +21,7 @@ import {
     RESIDENT_STATUS_OPTIONS,
     RESIDENT_ADMISSION_STATUS_OPTIONS,
 } from './mocks/data';
+import { isResidentOut, getResidentDestination } from './resident-out-dialog';
 
 export function ResidentTableRow({
     row,
@@ -35,6 +39,7 @@ export function ResidentTableRow({
         RESIDENT_STATUS_OPTIONS.find((option) => option.value === statusValue);
     const careLevel = RESIDENT_CARE_LEVEL_OPTIONS.find((option) => option.value === row.careLevel);
     const branchName = row.branch?.name || row.branchName || row.branch || '—';
+
     // Shared across the site manager, line manager and owner dashboards, so
     // the detail route is resolved from the current URL rather than a prop.
     const isOwner = pathname.startsWith(paths.owner.root);
@@ -46,9 +51,10 @@ export function ResidentTableRow({
             : paths.siteManager.residents.detail(row._id);
 
     const isRestricted = Boolean(row.restricted);
-    const isOut = Boolean(row.out);
+    const isOut = isResidentOut(row);
+    const outDestination = getResidentDestination(row);
 
-    const actions = [
+    const actions = useMemo(() => [
         {
             key: 'view',
             icon: 'solar:eye-bold',
@@ -74,14 +80,15 @@ export function ResidentTableRow({
         },
         {
             key: 'out',
-            icon: 'solar:logout-2-bold',
+            icon: isOut ? 'solar:login-2-bold' : 'solar:logout-2-bold',
             tooltip: isOut
-                ? `Out of facility: ${row.destination || 'Active'}`
+                ? (outDestination ? `Mark In of Home (Out: ${outDestination})` : 'Mark In of Home')
                 : 'Mark Out of Home',
-            color: isOut ? 'warning' : 'default',
+            color: isOut ? 'error' : 'default',
+            sx: isOut ? { color: 'error.main' } : undefined,
             onClick: () => onOut?.(row),
         },
-    ];
+    ], [detailPath, isOut, isRestricted, onEdit, onOut, onRestriction, outDestination, router, row]);
 
     return (
         <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => router.push(detailPath)}>
@@ -90,7 +97,9 @@ export function ResidentTableRow({
             {/* Resident Info */}
             <TableCell>
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Avatar alt={row.name} src={row.image} sx={{ width: 36, height: 36, fontSize: 16, textTransform: 'capitalize' }}>{row.name?.charAt(0)}</Avatar>
+                    <Avatar alt={row.name} src={row.image} sx={{ width: 36, height: 36, fontSize: 16, textTransform: 'capitalize' }}>
+                        {row.name?.charAt(0)}
+                    </Avatar>
                     <Stack sx={{ typography: 'body2', minWidth: 0 }}>
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                             <Box sx={{ fontWeight: 600, textTransform: 'capitalize' }}>{row.name || '—'}</Box>
@@ -102,8 +111,8 @@ export function ResidentTableRow({
                                 </Tooltip>
                             )}
                             {isOut && (
-                                <Tooltip title={row.destination ? `Out: ${row.destination}` : 'Out of facility'}>
-                                    <Label variant="soft" color="warning" sx={{ height: 20, px: 0.75, fontSize: '0.675rem' }}>
+                                <Tooltip title={outDestination ? `Out: ${outDestination}` : 'Out of facility'}>
+                                    <Label variant="soft" color="error" sx={{ height: 20, px: 0.75, fontSize: '0.675rem' }}>
                                         Out
                                     </Label>
                                 </Tooltip>
@@ -155,3 +164,12 @@ export function ResidentTableRow({
         </TableRow>
     );
 }
+
+ResidentTableRow.propTypes = {
+    row: PropTypes.object.isRequired,
+    serialNumber: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    onEditSecurity: PropTypes.func,
+    onEdit: PropTypes.func,
+    onRestriction: PropTypes.func,
+    onOut: PropTypes.func,
+};

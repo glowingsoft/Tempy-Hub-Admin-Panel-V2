@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 
 import Avatar from '@mui/material/Avatar';
-import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -34,7 +33,7 @@ import {
 import { ResidentAddEditDialog } from '../resident-add-edit-dialog';
 import { ResidentSecurityDialog } from '../resident-security-dialog';
 import { ResidentRestrictionDialog } from '../resident-restriction-dialog';
-import { ResidentOutDialog } from '../resident-out-dialog';
+import { ResidentOutDialog, isResidentOut } from '../resident-out-dialog';
 
 export function ResidentDetailView() {
     const { id } = useParams();
@@ -50,6 +49,7 @@ export function ResidentDetailView() {
         data: apiResident,
         isLoading,
         isFetching,
+        refetch: refetchResident,
     } = useGetResidentQuery(
         { residentId: id, organizationId },
         { skip: !organizationId || !id }
@@ -74,6 +74,8 @@ export function ResidentDetailView() {
     const [localResident, setLocalResident] = useState(null);
 
     const resident = localResident || apiResident || mockResident;
+
+    const isOut = isResidentOut(resident);
 
     const peepRecordId =
         resident?.peepRecordId ||
@@ -188,12 +190,12 @@ export function ResidentDetailView() {
                             {resident?.restricted ? 'Restricted' : 'Restrict Resident'}
                         </Button>
                         <Button
-                            variant={resident?.out ? 'contained' : 'outlined'}
-                            color={resident?.out ? 'warning' : 'primary'}
-                            startIcon={<Iconify icon="solar:logout-2-bold" />}
+                            variant={isOut ? 'contained' : 'outlined'}
+                            color={isOut ? 'error' : 'primary'}
+                            startIcon={<Iconify icon={isOut ? 'solar:login-2-bold' : 'solar:logout-2-bold'} />}
                             onClick={outDialog.onTrue}
                         >
-                            {resident?.out ? 'Out of Facility' : 'Mark Out'}
+                            {isOut ? 'Mark In' : 'Mark Out'}
                         </Button>
                         <Button
                             variant="outlined"
@@ -215,40 +217,6 @@ export function ResidentDetailView() {
                 }
                 sx={{ mb: 3 }}
             />
-
-            {resident.restricted && (
-                <Alert
-                    severity="error"
-                    icon={<Iconify icon="solar:user-block-bold" />}
-                    action={
-                        <Button color="inherit" size="small" onClick={restrictionDialog.onTrue}>
-                            Manage
-                        </Button>
-                    }
-                    sx={{ mb: 2 }}
-                >
-                    <strong>Resident Restricted:</strong>{' '}
-                    {resident.restrictionReason || resident.reason || 'Active restriction in place.'}
-                </Alert>
-            )}
-
-            {resident.out && (
-                <Alert
-                    severity="warning"
-                    icon={<Iconify icon="solar:logout-2-bold" />}
-                    action={
-                        <Button color="inherit" size="small" onClick={outDialog.onTrue}>
-                            Manage
-                        </Button>
-                    }
-                    sx={{ mb: 2 }}
-                >
-                    <strong>Resident is Out of the Facility:</strong>{' '}
-                    {resident.destination ? `Destination: ${resident.destination}` : 'Outside the facility'}
-                    {resident.expectedReturnAt ? ` · Expected return: ${fDateTime(resident.expectedReturnAt)}` : ''}
-                    {resident.note ? ` · Note: ${resident.note}` : ''}
-                </Alert>
-            )}
 
             <Card sx={{ p: 3, mb: 3 }}>
                 <Stack
@@ -294,11 +262,11 @@ export function ResidentDetailView() {
                                 }
                             />
                         )}
-                        {resident.out && (
+                        {isOut && (
                             <InfoItem
                                 label="Location"
                                 value={
-                                    <Label variant="soft" color="warning">
+                                    <Label variant="soft" color="error">
                                         Out of facility
                                     </Label>
                                 }
@@ -454,7 +422,10 @@ export function ResidentDetailView() {
                 open={outDialog.value}
                 resident={resident}
                 onClose={outDialog.onFalse}
-                onSave={setLocalResident}
+                onSave={(updated) => {
+                    setLocalResident(updated);
+                    refetchResident?.();
+                }}
                 organizationId={organizationId}
             />
         </DashboardContent>
