@@ -24,6 +24,7 @@ import { Lightbox } from 'src/components/lightbox';
 import { Scrollbar } from 'src/components/scrollbar';
 import { toast } from 'src/components/snackbar';
 import { getUserBranchId } from 'src/utils/organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import {
   TableBodySkeleton,
   TableHeadCustom,
@@ -157,12 +158,7 @@ export function FamilyModerationView({
   );
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') {
-        return statusCounts.total ?? totalRecords;
-      }
-      return statusCounts[tabStatus] ?? 0;
-    },
+    (tabStatus) => getListStatusTabCount(statusCounts, tabStatus, totalRecords, { keepTotal: true }),
     [statusCounts, totalRecords]
   );
 

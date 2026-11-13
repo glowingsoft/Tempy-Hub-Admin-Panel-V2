@@ -8,6 +8,8 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { toast } from 'src/components/snackbar';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
@@ -36,6 +38,8 @@ import { ResidentTableRow } from '../resident-table-row';
 import { ResidentImportDialog } from '../resident-import-dialog';
 import { ResidentSecurityDialog } from '../resident-security-dialog';
 import { ResidentAddEditDialog } from '../resident-add-edit-dialog';
+import { ResidentRestrictionDialog } from '../resident-restriction-dialog';
+import { ResidentOutDialog } from '../resident-out-dialog';
 
 const TABLE_HEAD = [
     { id: 'sr', label: 'Sr#', width: 50 },
@@ -65,6 +69,7 @@ const FILTER_FIELDS = [
 ];
 
 export function ResidentListView({ ownerDashboard = false }) {
+    const canManageResidents = useCanManage(ModuleSlug.RESIDENTS);
     const table = useTable({
         defaultDense: true,
         defaultRowsPerPage: 10,
@@ -75,9 +80,12 @@ export function ResidentListView({ ownerDashboard = false }) {
     const importDialog = useBoolean();
     const securityDialog = useBoolean();
     const addEditDialog = useBoolean();
+    const restrictionDialog = useBoolean();
+    const outDialog = useBoolean();
 
     const [selectedResident, setSelectedResident] = useState(null);
     const [selectedResidentForEdit, setSelectedResidentForEdit] = useState(null);
+    const [residentOverrides, setResidentOverrides] = useState({});
 
     const [createResident] = useCreateResidentMutation();
 
@@ -92,6 +100,7 @@ export function ResidentListView({ ownerDashboard = false }) {
         isFetching: isLiveFetching,
         isError: isLiveError,
         error: liveError,
+        refetch,
     } = useGetResidentsQuery(
         {
             organizationId,
@@ -159,11 +168,36 @@ export function ResidentListView({ ownerDashboard = false }) {
         addEditDialog.onTrue();
     }, [addEditDialog]);
 
-    const handleSaveResident = useCallback(() => {
-        table.onResetPage();
-    }, [table]);
+    const handleOpenRestriction = useCallback((resident) => {
+        setSelectedResident(resident);
+        restrictionDialog.onTrue();
+    }, [restrictionDialog]);
 
-    const displayResidents = sourceResidents;
+    const handleOpenOut = useCallback((resident) => {
+        const merged = residentOverrides[resident._id]
+            ? { ...resident, ...residentOverrides[resident._id] }
+            : resident;
+        setSelectedResident(merged);
+        outDialog.onTrue();
+    }, [residentOverrides, outDialog]);
+
+    const handleSaveResident = useCallback((updatedResident) => {
+        if (updatedResident?._id) {
+            setResidentOverrides((prev) => ({
+                ...prev,
+                [updatedResident._id]: updatedResident,
+            }));
+            setSelectedResident(updatedResident);
+        }
+        refetch?.();
+    }, [refetch]);
+
+    const displayResidents = useMemo(() => {
+        return sourceResidents.map((r) => {
+            const override = residentOverrides[r._id];
+            return override ? { ...r, ...override } : r;
+        });
+    }, [sourceResidents, residentOverrides]);
     const meta = liveData?.meta ?? {};
     const admittedCount = Number(meta.admitted) || 0;
     const dischargedCount = Number(meta.discharged) || 0;
@@ -208,14 +242,16 @@ export function ResidentListView({ ownerDashboard = false }) {
                 action={
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
                         <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleOpenAdd}
-                            startIcon={<Iconify icon="mingcute:add-line" />}
-                        >
-                            Add Resident
-                        </Button>
+                        {canManageResidents && (
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={handleOpenAdd}
+                                startIcon={<Iconify icon="mingcute:add-line" />}
+                            >
+                                Add Resident
+                            </Button>
+                        )}
                     </Stack>
                 }
                 sx={{ mb: { xs: 3, md: 5 } }}
@@ -249,8 +285,12 @@ export function ResidentListView({ ownerDashboard = false }) {
                                                 key={row._id}
                                                 row={row}
                                                 serialNumber={table.page * table.rowsPerPage + index + 1}
-                                                onEditSecurity={handleOpenSecurity}
-                                                onEdit={handleOpenEdit}
+                                                onEditSecurity={canManageResidents ? handleOpenSecurity : undefined}
+                                                onEdit={canManageResidents ? handleOpenEdit : undefined}
+                                                // onEditSecurity={handleOpenSecurity}
+                                                // onEdit={handleOpenEdit}
+                                                onRestriction={handleOpenRestriction}
+                                                onOut={handleOpenOut}
                                             />
                                         ))}
                                         <TableNoData notFound={notFound} title="No residents found" />
@@ -288,6 +328,22 @@ export function ResidentListView({ ownerDashboard = false }) {
                 onClose={addEditDialog.onFalse}
                 onSave={handleSaveResident}
                 ownerDashboard={ownerDashboard}
+                organizationId={organizationId}
+            />
+
+            <ResidentRestrictionDialog
+                open={restrictionDialog.value}
+                resident={selectedResident}
+                onClose={restrictionDialog.onFalse}
+                onSave={handleSaveResident}
+                organizationId={organizationId}
+            />
+
+            <ResidentOutDialog
+                open={outDialog.value}
+                resident={selectedResident}
+                onClose={outDialog.onFalse}
+                onSave={handleSaveResident}
                 organizationId={organizationId}
             />
         </DashboardContent>

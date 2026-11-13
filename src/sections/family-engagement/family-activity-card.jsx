@@ -37,6 +37,7 @@ export function FamilyActivityCard({
   periodLabel = 'LAST 7 DAYS',
   onOpenModeration,
   onOpenNewPost,
+  canCreatePost = true,
   sx,
   ...other
 }) {
@@ -144,15 +145,17 @@ export function FamilyActivityCard({
             Go to moderation
           </Button>
 
-          <Button
-            variant="outlined"
-            color="inherit"
-            size="medium"
-            onClick={onOpenNewPost}
-            sx={{ fontWeight: 600, px: 2.5 }}
-          >
-            New wall post
-          </Button>
+          {canCreatePost && (
+            <Button
+              variant="outlined"
+              color="inherit"
+              size="medium"
+              onClick={onOpenNewPost}
+              sx={{ fontWeight: 600, px: 2.5 }}
+            >
+              New wall post
+            </Button>
+          )}
         </Stack>
       </Box>
     </Card>
@@ -164,5 +167,6 @@ FamilyActivityCard.propTypes = {
   periodLabel: PropTypes.string,
   onOpenModeration: PropTypes.func,
   onOpenNewPost: PropTypes.func,
+  canCreatePost: PropTypes.bool,
   sx: PropTypes.object,
 };

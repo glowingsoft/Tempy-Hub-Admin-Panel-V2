@@ -16,6 +16,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
@@ -193,6 +195,7 @@ StaffShiftClaimDialog.propTypes = {
 // ----------------------------------------------------------------------
 
 export function StaffShiftListView({ claimable = false } = {}) {
+  const canManageRota = useCanManage(ModuleSlug.ROTA_SCHEDULING);
   const table = useTable({ defaultDense: true, defaultRowsPerPage: 10 });
   const { organizationId } = useCurrentOrganization();
   const [claimedShiftIds, setClaimedShiftIds] = useState([]);
@@ -268,9 +271,10 @@ export function StaffShiftListView({ claimable = false } = {}) {
     setClaimedShiftIds((current) => (current.includes(shiftId) ? current : [...current, shiftId]));
   }, []);
 
-  const tableHead = claimable
-    ? [...TABLE_HEAD, { id: 'actions', label: 'Action', width: 140, align: 'center' }]
-    : TABLE_HEAD;
+  const tableHead =
+    claimable && canManageRota
+      ? [...TABLE_HEAD, { id: 'actions', label: 'Action', width: 140, align: 'center' }]
+      : TABLE_HEAD;
 
   return (
     <DashboardContent>
@@ -320,7 +324,7 @@ export function StaffShiftListView({ claimable = false } = {}) {
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         claimed={claimedShiftIds.includes(row._id) || Boolean(row.filledByClaimId)}
-                        showClaimAction={claimable}
+                        showClaimAction={claimable && canManageRota}
                         onClaim={claimable ? handleOpenClaimDialog : undefined}
                       />
                     ))}

@@ -3,9 +3,12 @@ import { useCallback, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanApprove, useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -27,9 +30,12 @@ import {
 } from 'src/components/table';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { useGetLeaveRequestsQuery } from 'src/store/Reducer/leave-requests-api';
 import { LeaveEntitlementModal } from '../leave-entitlement-modal';
+import { RecordLeaveModal } from '../record-leave-modal';
 import { LeaveRequestActionDialog } from '../leave-request-action-dialog';
 import { LeaveRequestTableRow } from '../leave-request-table-row';
 import { LEAVE_REQUEST_STATUS_OPTIONS } from '../mocks/data';
@@ -75,15 +81,24 @@ export function LeaveRequestListView({
   ownerDashboard = variant === 'owner',
 }) {
   const ctx = useMemo(() => getLeaveRequestContext(variant), [variant]);
-  const showEntitlement = canSetEntitlement ?? ctx.defaultCanSetEntitlement;
+  const canManageLeave = useCanManage(ModuleSlug.LEAVE);
+  const canApproveLeave = useCanApprove(ModuleSlug.LEAVE);
+  const showEntitlement = (canSetEntitlement ?? ctx.defaultCanSetEntitlement) && canManageLeave;
 
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
   });
 
-  const { organizationId, organizationName: orgName } = useCurrentOrganization();
+  const { organizationId, organizationName: orgName, user } = useCurrentOrganization();
   const { branchId, onBranchChange } = useOwnerBranchFilter();
+
+  const assignedBranch = useMemo(
+    () => (!ownerDashboard ? getAssignedBranch(user, organizationId) : null),
+    [ownerDashboard, user, organizationId]
+  );
+  const defaultBranchId = assignedBranch?.id || '';
+  const defaultBranchName = assignedBranch?.name || '';
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
@@ -91,6 +106,7 @@ export function LeaveRequestListView({
   const { status } = filters.state;
 
   const entitlementModal = useBoolean();
+  const recordLeaveModal = useBoolean();
 
   const { data, isLoading, isFetching, refetch } = useGetLeaveRequestsQuery(
     {
@@ -132,17 +148,7 @@ export function LeaveRequestListView({
   );
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[tabStatus] ?? 0;
-    },
+    (tabStatus) => getListStatusTabCount(statusCounts, tabStatus, totalRecords),
     [statusCounts, totalRecords]
   );
 
@@ -178,7 +184,7 @@ export function LeaveRequestListView({
             <OwnerBranchFilterActions value={branchId} onChange={onBranchChange}>
               {showEntitlement && (
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   color="primary"
                   onClick={entitlementModal.onTrue}
                   startIcon={<Iconify icon="solar:calendar-mark-bold" />}
@@ -186,18 +192,36 @@ export function LeaveRequestListView({
                   Set Entitlement
                 </Button>
               )}
-            </OwnerBranchFilterActions>
-          ) : (
-            showEntitlement && (
               <Button
                 variant="contained"
                 color="primary"
-                onClick={entitlementModal.onTrue}
-                startIcon={<Iconify icon="solar:calendar-mark-bold" />}
+                onClick={recordLeaveModal.onTrue}
+                startIcon={<Iconify icon="solar:document-add-bold" />}
               >
-                Set Entitlement
+                Add Leave
               </Button>
-            )
+            </OwnerBranchFilterActions>
+          ) : (
+            <Stack direction="row" spacing={1} alignItems="center">
+              {showEntitlement && (
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={entitlementModal.onTrue}
+                  startIcon={<Iconify icon="solar:calendar-mark-bold" />}
+                >
+                  Set Entitlement
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={recordLeaveModal.onTrue}
+                startIcon={<Iconify icon="solar:document-add-bold" />}
+              >
+                Add Leave
+              </Button>
+            </Stack>
           )
         }
         sx={{ mb: { xs: 3, md: 5 } }}
@@ -240,8 +264,8 @@ export function LeaveRequestListView({
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         detailHref={detailHref}
-                        onApprove={askApprove}
-                        onReject={askReject}
+                        onApprove={canApproveLeave ? askApprove : undefined}
+                        onReject={canApproveLeave ? askReject : undefined}
                       />
                     ))}
 
@@ -271,6 +295,16 @@ export function LeaveRequestListView({
           organizationId={organizationId}
         />
       )}
+
+      <RecordLeaveModal
+        open={recordLeaveModal.value}
+        onClose={recordLeaveModal.onFalse}
+        organizationId={organizationId}
+        defaultBranchId={defaultBranchId}
+        defaultBranchName={defaultBranchName}
+        ownerDashboard={ownerDashboard}
+        onSuccess={refetch}
+      />
 
       <LeaveRequestActionDialog {...dialogProps} />
     </DashboardContent>

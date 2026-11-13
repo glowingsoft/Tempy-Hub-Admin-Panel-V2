@@ -12,6 +12,7 @@ import {
   InputAdornment,
 } from '@mui/material';
 
+import { useCanManageKiosk } from 'src/auth/hooks';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
@@ -159,6 +160,7 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function KioskListView({ ownerDashboard = false }) {
+  const canManageKiosk = useCanManageKiosk();
   const router = useRouter();
   const table = useTable({ defaultDense: true });
   const { organizationId, isOwner, user } = useCurrentOrganization();
@@ -456,14 +458,16 @@ export function KioskListView({ ownerDashboard = false }) {
               />
             )}
 
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleRegisterKiosk}
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Register Device
-            </Button>
+            {canManageKiosk && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleRegisterKiosk}
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Register Device
+              </Button>
+            )}
           </Stack>
         }
         sx={{
@@ -638,14 +642,14 @@ export function KioskListView({ ownerDashboard = false }) {
                         selected={table.selected.includes(
                           row.id
                         )}
-                        onEditRow={() =>
-                          handleEditKiosk(row)
+                        onEditRow={
+                          canManageKiosk ? () => handleEditKiosk(row) : undefined
                         }
                         onViewRow={() =>
                           handleViewKiosk(row)
                         }
-                        onLockRow={() =>
-                          handleLockKiosk(row)
+                        onLockRow={
+                          canManageKiosk ? () => handleLockKiosk(row) : undefined
                         }
                         onSettings={() =>
                           handleKioskSettings(row)

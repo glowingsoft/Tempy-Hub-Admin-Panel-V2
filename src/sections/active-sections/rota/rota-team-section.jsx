@@ -78,7 +78,7 @@ function StatBadge({ icon, value }) {
   );
 }
 
-function StaffRow({ staff, days, team, onCellClick }) {
+function StaffRow({ staff, days, team, onCellClick, locked = false, readOnly = false }) {
   return (
     <Stack direction="row" alignItems="stretch" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
       <Box
@@ -115,7 +115,7 @@ function StaffRow({ staff, days, team, onCellClick }) {
 
       {days.map((day) => {
         const shiftsForDay = staff.shifts?.[day.date] ?? [];
-        const isInteractive = !staff.vacant && Boolean(onCellClick);
+        const isInteractive = !readOnly && !staff.vacant && Boolean(onCellClick) && !locked;
 
         return (
           <Stack
@@ -153,7 +153,7 @@ function StaffRow({ staff, days, team, onCellClick }) {
           >
             {shiftsForDay.length > 0 ? (
               shiftsForDay.map((shift, index) => (
-                <RotaShiftChip key={index} shift={shift} />
+                <RotaShiftChip key={index} shift={shift} readOnly={readOnly || !isInteractive} />
               ))
             ) : isInteractive ? (
               <Box
@@ -187,7 +187,7 @@ function StaffRow({ staff, days, team, onCellClick }) {
   );
 }
 
-export default function RotaTeamSection({ team, days, onCellClick }) {
+export default function RotaTeamSection({ team, days, onCellClick, locked = false, readOnly = false }) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -201,7 +201,9 @@ export default function RotaTeamSection({ team, days, onCellClick }) {
             staff={staff}
             days={days}
             team={team}
-            onCellClick={onCellClick}
+            onCellClick={readOnly ? undefined : onCellClick}
+            locked={locked}
+            readOnly={readOnly}
           />
         ))}
       </Collapse>

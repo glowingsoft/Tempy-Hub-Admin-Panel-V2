@@ -8,7 +8,7 @@ import { fDateTime } from 'src/utils/format-time';
 import { Label } from 'src/components/label';
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 
-import { getEvacuationTypeMeta } from './mocks/data';
+import { getEvacuationTypeMeta } from './view/fire-drills-view';
 
 // ----------------------------------------------------------------------
 

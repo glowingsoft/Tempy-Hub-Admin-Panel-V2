@@ -1,3 +1,4 @@
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/config-global';
@@ -48,27 +49,34 @@ export const navDataOwner = [
       { title: 'Billing & Usage', path: paths.owner.dataUsage.root, icon: ICONS.folder },
       { title: 'Statistics', path: paths.owner.statistics, icon: ICONS.analytics },
       { title: 'General Directory', path: paths.owner.directory.root, icon: ICONS.directory },
-      { title: 'Residents', path: paths.owner.residents.root, icon: ICONS.user },
+      { title: 'Residents', path: paths.owner.residents.root, icon: ICONS.user, moduleSlug: ModuleSlug.RESIDENTS },
       { title: 'Reports', path: paths.owner.reports, icon: ICONS.document },
 
       {
         title: 'Rota Management',
         path: paths.owner.rotaManagement.root,
         icon: ICONS.rota,
+        moduleSlug: ModuleSlug.ROTA_SCHEDULING,
       },
-      { title: 'Shifts', path: paths.owner.shifts.root, icon: ICONS.calendar },
-      { title: 'Shift Claims', path: paths.owner.shiftClaims.root, icon: ICONS.check },
+      { title: 'Shifts', path: paths.owner.shifts.root, icon: ICONS.calendar, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+      { title: 'Shift Claims', path: paths.owner.shiftClaims.root, icon: ICONS.check, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
 
-      { title: 'Kiosk', path: paths.owner.kiosk, icon: ICONS.folder },
+      {
+        title: 'Kiosk',
+        path: paths.owner.kiosk,
+        icon: ICONS.folder,
+        moduleSlugs: [ModuleSlug.SIGN_IN_ATTENDANCE, ModuleSlug.FIRE_DRILL_EVACUATION],
+      },
       {
         title: 'PEEP & Floor Plans',
         path: paths.owner.peepAndFloorPlans.root,
         icon: ICONS.plan,
+        moduleSlug: ModuleSlug.PEEP_FLOOR_PLAN,
       },
-      { title: 'Fire Drills', path: paths.owner.fireDrills, icon: ICONS.compliance },
-      { title: 'Documents', path: paths.owner.documents.root, icon: ICONS.document },
-      { title: 'Leave Requests', path: paths.owner.leaveRequests.root, icon: ICONS.calendar },
-      { title: 'Attendance', path: paths.owner.attendance.root, icon: ICONS.clock },
+      { title: 'Fire Drills', path: paths.owner.fireDrills, icon: ICONS.compliance, moduleSlug: ModuleSlug.FIRE_DRILL_EVACUATION },
+      { title: 'Documents', path: paths.owner.documents.root, icon: ICONS.document, moduleSlug: ModuleSlug.DOCUMENTS_ESIGN },
+      { title: 'Leave Requests', path: paths.owner.leaveRequests.root, icon: ICONS.calendar, moduleSlug: ModuleSlug.LEAVE },
+      { title: 'Attendance', path: paths.owner.attendance.root, icon: ICONS.clock, moduleSlug: ModuleSlug.SIGN_IN_ATTENDANCE },
 
       {
         title: 'Supervision & Appraisal',
@@ -81,6 +89,7 @@ export const navDataOwner = [
           paths.owner.requirements,
         ],
         icon: ICONS.supervision,
+        moduleSlug: ModuleSlug.COMPETENCY_SUPERVISION_APPRAISAL,
         children: [
           { title: 'Supervision', path: paths.owner.supervision },
           { title: 'Appraisal', path: paths.owner.appraisal },
@@ -125,23 +134,24 @@ export const navDataOwner = [
   {
     subheader: 'FAMILY ENGAGEMENT',
     items: [
-      { title: 'Overview', path: paths.owner.familyEngagement.overview, icon: ICONS.directory },
-      { title: 'Moderation', path: paths.owner.familyEngagement.moderation, icon: ICONS.pendingApproval },
-      { title: 'Community Wall', path: paths.owner.familyEngagement.communityWall, icon: ICONS.blog },
-      { title: 'Newsletters', path: paths.owner.familyEngagement.newsletters, icon: ICONS.mail },
-      { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document },
-      { title: 'Family Groups', path: paths.owner.familyEngagement.familyGroups, icon: ICONS.user },
+      { title: 'Overview', path: paths.owner.familyEngagement.overview, icon: ICONS.directory, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Moderation', path: paths.owner.familyEngagement.moderation, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Community Wall', path: paths.owner.familyEngagement.communityWall, icon: ICONS.blog, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Newsletters', path: paths.owner.familyEngagement.newsletters, icon: ICONS.mail, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Family Groups', path: paths.owner.familyEngagement.familyGroups, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       {
         title: 'Family Memberships',
         path: paths.owner.familyEngagement.memberships.root,
         icon: ICONS.invitations,
+        moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT,
         children: [
           { title: 'Invitations', path: paths.owner.familyEngagement.memberships.invitations.root },
           { title: 'Members', path: paths.owner.familyEngagement.memberships.members.root },
         ],
       },
-      { title: 'Messages', path: paths.owner.messages, icon: ICONS.chat },
-      { title: 'Settings', path: paths.owner.familyEngagement.settings, icon: ICONS.settings },
+      { title: 'Messages', path: paths.owner.messages, icon: ICONS.chat, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Settings', path: paths.owner.familyEngagement.settings, icon: ICONS.settings, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
     ],
   },
 ];

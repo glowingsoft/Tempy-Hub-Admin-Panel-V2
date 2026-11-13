@@ -30,6 +30,7 @@ import {
 } from 'src/components/table';
 
 import { Iconify } from 'src/components/iconify';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { BranchActivationCodeModal } from '../branch-activation-code-modal';
 import { BranchEmergencyPinModal } from '../branch-emergency-pin-modal';
@@ -99,17 +100,7 @@ export function BranchListView() {
   );
 
   const getStatusCount = useCallback(
-    (status) => {
-      if (status === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[status] ?? 0;
-    },
+    (status) => getListStatusTabCount(statusCounts, status, totalRecords),
     [statusCounts, totalRecords]
   );
 

@@ -18,6 +18,7 @@ import {
   useTable,
 } from 'src/components/table';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -84,6 +85,7 @@ export function FamilyMemberListView() {
   const members = data?.data ?? [];
   const statusCounts = data?.meta?.counts ?? {};
   const totalRecords = data?.meta?.totalRecords ?? members.length;
+  const allCount = Number(statusCounts.all ?? totalRecords) || 0;
   const loading = isLoading || isFetching;
 
   const { askDeactivate, askDelete, confirmProps } = useFamilyMemberActions({
@@ -116,17 +118,11 @@ export function FamilyMemberListView() {
   );
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-      return statusCounts[tabStatus] ?? 0;
-    },
-    [statusCounts, totalRecords]
+    (tabStatus) =>
+      tabStatus === 'all'
+        ? allCount
+        : getListStatusTabCount(statusCounts, tabStatus),
+    [allCount, statusCounts]
   );
 
   return (

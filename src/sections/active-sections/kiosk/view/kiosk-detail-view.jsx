@@ -17,6 +17,7 @@ import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 
+import { useCanManageKiosk } from 'src/auth/hooks';
 import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -77,6 +78,7 @@ DetailRow.propTypes = {
 // ----------------------------------------------------------------------
 
 export function KioskDetailView({ ownerDashboard = false }) {
+  const canManageKiosk = useCanManageKiosk();
   const { id } = useParams();
   const router = useRouter();
   const { organizationId } = useCurrentOrganization();
@@ -122,8 +124,14 @@ export function KioskDetailView({ ownerDashboard = false }) {
     return (
       <DashboardContent>
         <Box sx={{ mb: 2 }}>
-          <Button onClick={handleBack} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-            Back to Kiosks
+          <Button
+            variant="text"
+            color="primary"
+            onClick={handleBack}
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+            sx={{ px: 0, fontWeight: 600 }}
+          >
+            Back
           </Button>
         </Box>
         <EmptyContent
@@ -156,8 +164,14 @@ export function KioskDetailView({ ownerDashboard = false }) {
     <DashboardContent>
       {/* Back button */}
       <Box sx={{ mb: 2 }}>
-        <Button onClick={handleBack} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-          Back to Kiosks
+        <Button
+          variant="text"
+          color="primary"
+          onClick={handleBack}
+          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          sx={{ px: 0, fontWeight: 600 }}
+        >
+          Back
         </Button>
       </Box>
 
@@ -170,25 +184,27 @@ export function KioskDetailView({ ownerDashboard = false }) {
           { name: headingTitle },
         ]}
         action={
-          <Stack direction="row" spacing={1.5}>
-            <Button
-              variant="outlined"
-              color={isLocked ? 'error' : 'inherit'}
-              startIcon={<Iconify icon={isLocked ? 'solar:lock-bold' : 'solar:lock-unlocked-bold'} />}
-              onClick={confirmLock.onTrue}
-            >
-              {isLocked ? 'Unlock Device' : 'Lock Device'}
-            </Button>
+          canManageKiosk ? (
+            <Stack direction="row" spacing={1.5}>
+              <Button
+                variant="outlined"
+                color={isLocked ? 'error' : 'inherit'}
+                startIcon={<Iconify icon={isLocked ? 'solar:lock-bold' : 'solar:lock-unlocked-bold'} />}
+                onClick={confirmLock.onTrue}
+              >
+                {isLocked ? 'Unlock Device' : 'Lock Device'}
+              </Button>
 
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<Iconify icon="solar:pen-bold" />}
-              onClick={editModal.onTrue}
-            >
-              Edit Kiosk
-            </Button>
-          </Stack>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Iconify icon="solar:pen-bold" />}
+                onClick={editModal.onTrue}
+              >
+                Edit Kiosk
+              </Button>
+            </Stack>
+          ) : null
         }
         sx={{ mb: 3 }}
       />

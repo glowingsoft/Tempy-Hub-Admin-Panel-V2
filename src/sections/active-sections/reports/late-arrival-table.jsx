@@ -28,6 +28,7 @@ import {
     TableNoData,
 } from 'src/components/table';
 import { TableInfo } from 'src/sections/user/attendance-table';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 
 // ----------------------------------------------------------------------
 
@@ -126,12 +127,7 @@ export function LateArrivalTable({
     );
 
     const getStatusCount = useCallback(
-        (statusValue) => {
-            if (statusValue === 'all') {
-                return meta?.totalRecords || 0;
-            }
-            return meta?.counts?.[statusValue] || 0;
-        },
+        (statusValue) => getListStatusTabCount(meta?.counts, statusValue, meta?.totalRecords || 0),
         [meta]
     );
 

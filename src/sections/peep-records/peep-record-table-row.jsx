@@ -5,6 +5,8 @@ import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
@@ -15,6 +17,7 @@ import { Label } from 'src/components/label';
 import { getPeepFloorLabel, getPeepLevelMeta } from './mocks/data';
 
 export function PeepRecordTableRow({ row, serialNumber, ownerDashboard = true }) {
+    const canManagePeep = useCanManage(ModuleSlug.PEEP_FLOOR_PLAN);
     const router = useRouter();
     const base = ownerDashboard ? paths.owner : paths.siteManager;
     const detailPath = base.peepAndFloorPlans.records.detail(row.id);
@@ -47,11 +50,13 @@ export function PeepRecordTableRow({ row, serialNumber, ownerDashboard = true })
                 <Label color={levelMeta.color}>{levelMeta.label}</Label>
             </TableCell>
             <TableCell sx={{ width: 90 }} align="center">
-                <Box onClick={(event) => event.stopPropagation()} sx={{ display: 'flex', justifyContent: 'center' }}>
-                    <GenericTableRowActions
-                        actions={[{ key: 'edit', icon: 'solar:pen-bold', tooltip: 'Edit', onClick: () => router.push(editPath) }]}
-                    />
-                </Box>
+                {canManagePeep ? (
+                    <Box onClick={(event) => event.stopPropagation()} sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <GenericTableRowActions
+                            actions={[{ key: 'edit', icon: 'solar:pen-bold', tooltip: 'Edit', onClick: () => router.push(editPath) }]}
+                        />
+                    </Box>
+                ) : null}
             </TableCell>
         </TableRow>
     );

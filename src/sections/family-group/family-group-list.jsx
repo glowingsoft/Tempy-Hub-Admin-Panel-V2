@@ -13,6 +13,7 @@ import { CONFIG } from 'src/config-global';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useFamilyEngagementPaths } from 'src/sections/family-engagement/hooks/use-family-engagement-paths';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -96,10 +97,7 @@ export function FamilyGroupList({ onView, onInvite }) {
   );
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') return statusCounts.total ?? totalRecords;
-      return statusCounts[tabStatus] ?? 0;
-    },
+    (tabStatus) => getListStatusTabCount(statusCounts, tabStatus, totalRecords, { keepTotal: true }),
     [statusCounts, totalRecords]
   );
 

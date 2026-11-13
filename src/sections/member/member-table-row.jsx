@@ -15,6 +15,7 @@ import { Label } from 'src/components/label';
 import { TableCellWithTooltip } from 'src/components/table';
 
 import { getMemberRoleLabel, getMemberStatusMeta } from './mocks/data';
+import { canEditMember } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -27,6 +28,7 @@ export function MemberTableRow({ row, serialNumber, onDeactivate }) {
   const status = getMemberStatusMeta(row.status);
   const departmentNames = (row.departments || []).map((dep) => dep.name).join(', ');
   const isActive = row.status === 'active';
+  const showEdit = canEditMember(row);
 
   const actions = [
     {
@@ -39,6 +41,7 @@ export function MemberTableRow({ row, serialNumber, onDeactivate }) {
       key: 'edit',
       icon: 'solar:pen-bold',
       tooltip: 'Edit',
+      hidden: !showEdit,
       onClick: (event) => {
         event.stopPropagation();
         router.push(editPath);

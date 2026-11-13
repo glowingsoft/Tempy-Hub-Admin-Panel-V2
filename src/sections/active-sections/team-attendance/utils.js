@@ -4,6 +4,7 @@
 
 export function getPunctualityLabel(status) {
   if (status === 'onTime') return 'On time';
+  if (status === 'unscheduled') return 'Unscheduled';
   if (!status) return 'Unknown';
   return status.charAt(0).toUpperCase() + status.slice(1);
 }

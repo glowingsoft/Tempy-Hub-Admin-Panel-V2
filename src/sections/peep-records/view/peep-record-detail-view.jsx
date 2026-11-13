@@ -8,6 +8,8 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
@@ -24,6 +26,7 @@ import { useParams, useRouter } from 'src/routes/hooks';
 import { getPeepLevelMeta, getPeepRecordById } from '../mocks/data';
 
 export function PeepRecordDetailView({ ownerDashboard = true }) {
+  const canManagePeep = useCanManage(ModuleSlug.PEEP_FLOOR_PLAN);
   const { id } = useParams();
   const router = useRouter();
   const { user: reduxUser } = useSelector((state) => state.user);
@@ -117,14 +120,16 @@ export function PeepRecordDetailView({ ownerDashboard = true }) {
           { name: residentName },
         ]}
         action={
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => router.push(base.peepAndFloorPlans.records.edit(id))}
-            startIcon={<Iconify icon="solar:pen-bold" />}
-          >
-            Edit
-          </Button>
+          canManagePeep ? (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => router.push(base.peepAndFloorPlans.records.edit(id))}
+              startIcon={<Iconify icon="solar:pen-bold" />}
+            >
+              Edit
+            </Button>
+          ) : null
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />

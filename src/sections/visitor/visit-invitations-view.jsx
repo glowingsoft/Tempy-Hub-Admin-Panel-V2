@@ -21,6 +21,8 @@ import Tooltip from '@mui/material/Tooltip';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { MobileDateTimePicker } from '@mui/x-date-pickers/MobileDateTimePicker';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -41,6 +43,7 @@ import { createFilterField } from 'src/components/generic-table/table-filter-fie
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { fDateTime } from 'src/utils/format-time';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import {
   useGetVisitorInvitationsQuery,
@@ -103,6 +106,7 @@ export function VisitInvitationsView({
   openModal: externalOpenModal,
   branchId: propBranchId,
 }) {
+  const canManageVisitors = useCanManage(ModuleSlug.FIRE_DRILL_EVACUATION);
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
@@ -197,16 +201,7 @@ export function VisitInvitationsView({
   );
 
   const getStatusCount = useCallback(
-    (status) => {
-      if (status === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-      return statusCounts[status] ?? 0;
-    },
+    (status) => getListStatusTabCount(statusCounts, status, totalRecords),
     [statusCounts, totalRecords]
   );
 
@@ -340,7 +335,7 @@ export function VisitInvitationsView({
                           </TableCell>
 
                           <TableCell align="center">
-                            {isPending && (
+                            {canManageVisitors && isPending && (
                               <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
                                 <Tooltip title="Resend code" placement="top" arrow>
                                   <IconButton
@@ -389,7 +384,7 @@ export function VisitInvitationsView({
 
 // ----------------------------------------------------------------------
 
-function NewVisitInvitationDialog({ open, onClose, organizationId }) {
+export function NewVisitInvitationDialog({ open, onClose, organizationId, initialData }) {
   const [selectedBranch, setSelectedBranch] = useState(null);
   const [visitorName, setVisitorName] = useState('');
   const [visitorEmail, setVisitorEmail] = useState('');
@@ -402,14 +397,22 @@ function NewVisitInvitationDialog({ open, onClose, organizationId }) {
 
   const resetForm = useCallback(() => {
     const now = dayjs();
-    setVisitorName('');
-    setVisitorEmail('');
-    setSelectedBranch(null);
-    setBadgeType('visitor');
+    setVisitorName(initialData?.name || '');
+    setVisitorEmail(initialData?.email || '');
+    const branchVal =
+      (typeof initialData?.branchId === 'object' ? initialData?.branchId?._id : initialData?.branchId) ||
+      initialData?.branch?._id ||
+      '';
+    const branchLabel =
+      initialData?.branch?.name ||
+      (typeof initialData?.branch === 'string' ? initialData.branch : '') ||
+      '';
+    setSelectedBranch(branchVal ? { value: branchVal, label: branchLabel } : null);
+    setBadgeType(initialData?.type === 'contractor' ? 'contractor' : 'visitor');
     setArrivalAt(now);
     setVisitingUntil(now.add(9, 'hour'));
-    setHostName('Reception');
-  }, []);
+    setHostName(initialData?.hostName || 'Reception');
+  }, [initialData]);
 
   useEffect(() => {
     if (open) {

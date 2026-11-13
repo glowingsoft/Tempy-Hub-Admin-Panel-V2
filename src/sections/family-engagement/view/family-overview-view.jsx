@@ -9,6 +9,8 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Unstable_Grid2';
 import { useTheme } from '@mui/material/styles';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { EmptyContent } from 'src/components/empty-content';
 import { LoadingScreen } from 'src/components/loading-screen';
 import { CONFIG } from 'src/config-global';
@@ -83,6 +85,7 @@ function mapChecklist(items = [], issueNumber) {
 // ----------------------------------------------------------------------
 
 export function FamilyOverviewView() {
+  const canManageFamily = useCanManage(ModuleSlug.FAMILY_ENGAGEMENT);
   const theme = useTheme();
   const router = useRouter();
   const familyPaths = useFamilyEngagementPaths();
@@ -255,6 +258,7 @@ export function FamilyOverviewView() {
                   periodLabel={selectedPeriod.heading}
                   onOpenModeration={() => router.push(familyPaths.moderation)}
                   onOpenNewPost={() => router.push(familyPaths.communityWall)}
+                  canCreatePost={canManageFamily}
                 />
               </Grid>
             </Grid>

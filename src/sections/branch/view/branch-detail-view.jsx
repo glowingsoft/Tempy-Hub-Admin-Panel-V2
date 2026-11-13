@@ -1,8 +1,13 @@
+import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 
 import { useParams, useRouter } from 'src/routes/hooks';
@@ -17,11 +22,38 @@ import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { LoadingScreen } from 'src/components/loading-screen';
+import { Scrollbar } from 'src/components/scrollbar';
+import { TableHeadCustom } from 'src/components/table';
 
 import { useGetBranchQuery } from 'src/store/Reducer/branches-api';
 import { getBranchStatusMeta } from '../mocks/data';
 
 // ----------------------------------------------------------------------
+
+const MANAGER_TABLE_HEAD = [
+  { id: 'sr', label: 'Sr#', width: 60 },
+  { id: 'name', label: 'Manager Name', minWidth: 220 },
+  { id: 'email', label: 'Email', minWidth: 220 },
+  { id: 'role', label: 'Role', minWidth: 160 },
+];
+
+function getInitials(name) {
+  return String(name || '')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
+function formatRole(role) {
+  if (!role) return 'Site Manager';
+  if (role === 'siteManager') return 'Site Manager';
+  if (role === 'lineManager') return 'Line Manager';
+  if (role === 'orgAdmin') return 'Org Admin';
+  return role.replace(/([A-Z])/g, ' $1').trim();
+}
 
 const yesNo = (value) => (value ? 'Yes' : 'No');
 
@@ -49,6 +81,11 @@ export function BranchDetailView() {
           ? { activatedAt: response.activatedAt, activatedBy: response.activatedBy }
           : null),
       manager: response.manager ?? response.managerInvitation ?? null,
+      managers: Array.isArray(response.managers) && response.managers.length > 0
+        ? response.managers
+        : response.manager
+          ? [response.manager]
+          : [],
     }
     : null;
 
@@ -96,7 +133,7 @@ export function BranchDetailView() {
   }
 
   const status = getBranchStatusMeta(branch.status);
-  const { settings = {}, activation, manager } = branch;
+  const { settings = {}, activation, managers = [] } = branch;
 
   return (
     <Box sx={{ px: { xs: 2, md: 6 }, pb: 5, pt: 3, display: 'flex', flexDirection: 'column' }}>
@@ -165,8 +202,45 @@ export function BranchDetailView() {
               )}
             </>
           )}
-          <DetailItem label="Late grace minutes" value={settings.lateGraceMinutes ?? '—'} />
+          <DetailItem label="Late grace minutes" value={settings.lateGraceMinutes !== undefined && settings.lateGraceMinutes !== null ? `${settings.lateGraceMinutes} mins` : '—'} />
+          <DetailItem
+            label="Auto clock-out after shift end"
+            value={
+              settings.autoClockOutHoursAfterShiftEnd !== undefined &&
+                settings.autoClockOutHoursAfterShiftEnd !== null
+                ? `${settings.autoClockOutHoursAfterShiftEnd} hrs`
+                : '3 hrs'
+            }
+          />
+          <DetailItem
+            label="Auto clock-out after clock-in (unscheduled)"
+            value={
+              settings.autoClockOutHoursAfterClockIn !== undefined &&
+                settings.autoClockOutHoursAfterClockIn !== null
+                ? `${settings.autoClockOutHoursAfterClockIn} hrs`
+                : '10 hrs'
+            }
+          />
+          <DetailItem
+            label="Visitor auto check-out after visit end"
+            value={
+              settings.visitorAutoCheckoutHoursAfterVisitUntil !== undefined &&
+                settings.visitorAutoCheckoutHoursAfterVisitUntil !== null
+                ? `${settings.visitorAutoCheckoutHoursAfterVisitUntil} hrs`
+                : '1 hr'
+            }
+          />
+          <DetailItem
+            label="Visitor auto check-out after check-in"
+            value={
+              settings.visitorAutoCheckoutHoursAfterCheckIn !== undefined &&
+                settings.visitorAutoCheckoutHoursAfterCheckIn !== null
+                ? `${settings.visitorAutoCheckoutHoursAfterCheckIn} hrs`
+                : '10 hrs'
+            }
+          />
           <DetailItem label="Allow phone check-in" value={yesNo(settings.allowPhoneCheckIn)} />
+          <DetailItem label="Enable leave requests" value={yesNo(settings.enableLeaveRequests)} />
         </DetailCard>
 
         <DetailCard title="Activation">
@@ -182,21 +256,77 @@ export function BranchDetailView() {
           )}
         </DetailCard>
 
-        <DetailCard title="Site manager">
-          {manager ? (
-            <>
-              <DetailItem label="Name" value={manager.name || '—'} />
-              <DetailItem label="Email" value={manager.email || '—'} />
-              <DetailItem label="Job title" value={manager.jobTitle?.name || '—'} />
-              <DetailItem label="Department" value={manager.department?.name || '—'} />
-              <DetailItem label="Start date" value={fDateTime(manager.startDate)} />
-            </>
-          ) : (
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              No manager assigned.
+        <Card>
+          <Box sx={{ p: 3, pb: 2 }}>
+            <Typography variant="h6">Site managers</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+              Managers assigned to oversee operations and staff at this site.
             </Typography>
-          )}
-        </DetailCard>
+          </Box>
+
+          <Divider sx={{ mb: 1.5 }} />
+
+          <Scrollbar>
+            <Table sx={{ minWidth: 600 }}>
+              <TableHeadCustom headLabel={MANAGER_TABLE_HEAD} />
+
+              <TableBody>
+                {managers.length > 0 ? (
+                  managers.map((mgr, index) => (
+                    <TableRow key={mgr.membershipId || mgr.userId || mgr._id || index} hover>
+                      <TableCell sx={{ color: 'text.secondary', width: 60 }}>{index + 1}</TableCell>
+
+                      <TableCell>
+                        <Stack direction="row" alignItems="center" spacing={1.5}>
+                          <Avatar
+                            alt={mgr.name}
+                            src={mgr.image || mgr.profileIcon || undefined}
+                            sx={{
+                              width: 36,
+                              height: 36,
+                              bgcolor: 'primary.lighter',
+                              color: 'primary.main',
+                              fontWeight: 600,
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {getInitials(mgr.name)}
+                          </Avatar>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }} noWrap>
+                              {mgr.name || '—'}
+                            </Typography>
+                            {mgr.isDesignatedSiteManager && (
+                              <Label variant="soft" color="info" sx={{ mt: 0.5, height: 20, fontSize: '0.65rem' }}>
+                                Designated
+                              </Label>
+                            )}
+                          </Box>
+                        </Stack>
+                      </TableCell>
+
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {mgr.email || '—'}
+                      </TableCell>
+
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        <Label variant="soft" color="primary">
+                          {formatRole(mgr.role || mgr.jobTitle?.name)}
+                        </Label>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4}>
+                      <EmptyContent filled title="No managers assigned" sx={{ py: 6 }} />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </Scrollbar>
+        </Card>
       </Stack>
     </Box>
   );

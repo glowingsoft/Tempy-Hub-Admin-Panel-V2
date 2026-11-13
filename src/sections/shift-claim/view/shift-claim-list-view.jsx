@@ -5,6 +5,8 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { useCanApprove } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
@@ -26,6 +28,7 @@ import {
   useTable,
 } from 'src/components/table';
 
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useTempyConnection } from 'src/sections/tempy-connection/use-tempy-connection';
 import { useGetShiftClaimsQuery } from 'src/store/Reducer/shift-claims-api';
 
@@ -62,6 +65,7 @@ const FILTER_FIELDS = [
 // ----------------------------------------------------------------------
 
 export function ShiftClaimListView() {
+  const canApproveClaims = useCanApprove(ModuleSlug.ROTA_SCHEDULING);
   const table = useTable({
     defaultDense: true,
     defaultRowsPerPage: 10,
@@ -121,17 +125,7 @@ export function ShiftClaimListView() {
   const totalRecords = meta.totalRecords ?? claims.length;
 
   const getStatusCount = useCallback(
-    (tabStatus) => {
-      if (tabStatus === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[tabStatus] ?? 0;
-    },
+    (tabStatus) => getListStatusTabCount(statusCounts, tabStatus, totalRecords),
     [statusCounts, totalRecords]
   );
 
@@ -202,7 +196,7 @@ export function ShiftClaimListView() {
                         key={row._id}
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
-                        onApprove={askApprove}
+                        onApprove={canApproveClaims ? askApprove : undefined}
                         onSendToTempy={handleSendToTempy}
                         tempyConnected={tempyConnected}
                       />

@@ -14,6 +14,7 @@ import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { AttendanceStatusChip } from 'src/sections/user/attendance-status-chip';
+import { getPunctualityLabel } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -27,8 +28,7 @@ export function AttendanceDetailDrawer({ open, onClose, record }) {
   const breaks = Array.isArray(record?.breaks) ? record.breaks : [];
   const workedHours = record?.totalHours || '—';
 
-  const punctualityStatus =
-    record?.punctualityStatus === 'onTime' ? 'On time' : record?.punctualityStatus || 'Unknown';
+  const punctualityStatus = getPunctualityLabel(record?.punctualityStatus);
   const presenceStatus = record?.presenceStatus || '—';
 
   return (

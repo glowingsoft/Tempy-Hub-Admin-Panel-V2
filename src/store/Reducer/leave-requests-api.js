@@ -171,6 +171,17 @@ export const leaveRequestsApi = createApi({
         ...(organizationId ? [listTag(organizationId)] : []),
       ],
     }),
+
+    recordLeaveRequest: builder.mutation({
+      query: ({ organizationId, ...body }) => ({
+        url: API_ROUTES.ORGANIZATION_RECORD_LEAVE_REQUEST(organizationId),
+        method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body,
+      }),
+      invalidatesTags: (result, error, { organizationId }) =>
+        organizationId ? [listTag(organizationId)] : [],
+    }),
   }),
 });
 
@@ -182,4 +193,5 @@ export const {
   useSetLeaveEntitlementMutation,
   useApproveLeaveRequestMutation,
   useRejectLeaveRequestMutation,
+  useRecordLeaveRequestMutation,
 } = leaveRequestsApi;

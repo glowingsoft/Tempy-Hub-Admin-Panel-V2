@@ -35,6 +35,7 @@ import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { fDate } from 'src/utils/format-time';
+import { getListStatusTabCount } from 'src/utils/table-utils';
 
 import {
     useGetInvitationsQuery,
@@ -128,6 +129,7 @@ export function InvitationListView() {
 
     const rawInvitations = useMemo(() => apiResponse?.data ?? [], [apiResponse?.data]);
     const totalRecords = apiResponse?.meta?.totalRecords ?? rawInvitations.length;
+    const statusCounts = apiResponse?.meta?.counts ?? {};
 
     const tableData = useMemo(
         () =>
@@ -236,11 +238,8 @@ export function InvitationListView() {
     );
 
     const getStatusCount = useCallback(
-        (status) => {
-            if (status === 'all') return totalRecords;
-            return rawInvitations.filter((row) => row.status === status).length;
-        },
-        [totalRecords, rawInvitations]
+        (status) => getListStatusTabCount(statusCounts, status, totalRecords),
+        [statusCounts, totalRecords]
     );
 
     const handleFilterStatus = useCallback(

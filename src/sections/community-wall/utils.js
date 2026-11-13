@@ -26,7 +26,7 @@ export const FAMILY_POST_AUDIENCE_OPTIONS = [
 ];
 
 export const FAMILY_POST_TAB_OPTIONS = [
-  { value: 'all', label: 'All posts', color: 'default', countKey: 'published' },
+  { value: 'all', label: 'All posts', color: 'default', countKey: 'all' },
   { value: 'pinned', label: 'Pin', color: 'info', countKey: 'pinned' },
   { value: 'photos', label: 'Photos', color: 'primary', countKey: 'photos' },
   { value: 'scheduled', label: 'Scheduled', color: 'warning', countKey: 'scheduled' },

@@ -7,10 +7,10 @@ import { Iconify } from 'src/components/iconify';
 
 export const GenericTableRowActions = memo(({ actions }) => (
     <Stack direction="row" alignItems="center" spacing={0.5}>
-        {actions.map(({ key, icon, tooltip, color = 'default', onClick, hidden = false }) =>
+        {actions.map(({ key, icon, tooltip, color = 'default', onClick, hidden = false, sx }) =>
             !hidden && (
                 <Tooltip key={key} title={tooltip} placement="top" arrow>
-                    <IconButton color={color} onClick={onClick}>
+                    <IconButton color={color} onClick={onClick} sx={sx}>
                         <Iconify icon={icon} />
                     </IconButton>
                 </Tooltip>
@@ -28,6 +28,7 @@ GenericTableRowActions.propTypes = {
             color: PropTypes.string,
             onClick: PropTypes.func.isRequired,
             hidden: PropTypes.bool,
+            sx: PropTypes.object,
         })
     ).isRequired,
 };

@@ -6,23 +6,33 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 
 import { useLocation } from 'react-router-dom';
 import { useBoolean } from 'src/hooks/use-boolean';
 
-import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
+import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
+export function UserTableRow({
+  row,
+  selected,
+  onEditRow,
+  onLockRow,
+  onNewVisitInvite,
+  onInviteToApp,
+  serialNumber,
+}) {
 
   const view = useBoolean();
 
@@ -32,17 +42,16 @@ export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
     ? paths.owner.directory
     : paths.siteManager.directory;
 
-  const actions = [
-    {
-      key: 'edit',
-      icon: 'solar:pen-bold',
-      tooltip: 'Edit',
-      onClick: (e) => {
-        e.stopPropagation();
-        onEditRow();
-      },
-    },
-  ]
+  const hasAccount = Boolean(row.hasAccount);
+
+  const isLocked =
+    row.isLocked ??
+    (row.user?.status === 'inactive' ||
+      row.user?.active === false ||
+      row.userStatus === 'inactive' ||
+      row.status === 'inactive' ||
+      row.accountState?.status === 'inactive' ||
+      row.accountState?.status === false);
 
   return (
     <>
@@ -119,10 +128,57 @@ export function UserTableRow({ row, selected, onEditRow, serialNumber }) {
           </Label>
         </TableCell>
         {/* Actions */}
-        <TableCell align="center">
-          <Box onClick={(event) => event.stopPropagation()}>
-            <GenericTableRowActions actions={actions} />
-          </Box>
+        <TableCell align="right" sx={{ width: 140 }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="flex-end"
+            spacing={0.5}
+            onClick={(event) => event.stopPropagation()}
+            sx={{ minWidth: 120, ml: 'auto' }}
+          >
+            <Tooltip title="Edit" placement="top" arrow>
+              <IconButton color="default" onClick={onEditRow}>
+                <Iconify icon="solar:pen-bold" />
+              </IconButton>
+            </Tooltip>
+
+            {onNewVisitInvite && (
+              <Tooltip title="New visit invitation" placement="top" arrow>
+                <IconButton color="primary" onClick={() => onNewVisitInvite(row)}>
+                  <Iconify icon="solar:calendar-add-bold" />
+                </IconButton>
+              </Tooltip>
+            )}
+
+            {hasAccount ? (
+              <Tooltip
+                title={isLocked ? 'Activate account' : 'Deactivate account'}
+                placement="top"
+                arrow
+              >
+                <IconButton
+                  color={isLocked ? 'success' : 'error'}
+                  onClick={onLockRow}
+                >
+                  <Iconify
+                    icon={isLocked ? 'solar:user-check-bold' : 'solar:user-block-bold'}
+                  />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              onInviteToApp && (
+                <Tooltip title="Invite to app" placement="top" arrow>
+                  <IconButton
+                    color="primary"
+                    onClick={() => onInviteToApp(row)}
+                  >
+                    <Iconify icon="solar:user-plus-bold" />
+                  </IconButton>
+                </Tooltip>
+              )
+            )}
+          </Stack>
         </TableCell>
       </TableRow>
       <Dialog

@@ -39,6 +39,14 @@ function extractUserOrganizationId(targetUser) {
     if (id) return id;
   }
 
+  if (target?.access?.organizationId) {
+    const id =
+      typeof target.access.organizationId === 'object'
+        ? target.access.organizationId._id
+        : target.access.organizationId;
+    if (id) return id;
+  }
+
   // 2. Direct organization field (string or populated object)
   if (target?.organization) {
     const id = typeof target.organization === 'string' ? target.organization : target.organization?._id;

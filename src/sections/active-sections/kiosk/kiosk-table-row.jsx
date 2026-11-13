@@ -34,25 +34,33 @@ export function KioskTableRow({ row, serialNumber, onEditRow, onViewRow, onLockR
   const isLocked = isKioskLocked(row);
 
   const actions = [
-    {
-      key: 'lock',
-      icon: isLocked ? 'solar:lock-bold' : 'solar:lock-unlocked-bold',
-      tooltip: isLocked ? 'Unlock device' : 'Lock device',
-      color: isLocked ? 'error' : 'default',
-      onClick: onLockRow,
-    },
+    ...(onLockRow
+      ? [
+          {
+            key: 'lock',
+            icon: isLocked ? 'solar:lock-bold' : 'solar:lock-unlocked-bold',
+            tooltip: isLocked ? 'Unlock device' : 'Lock device',
+            color: isLocked ? 'error' : 'default',
+            onClick: onLockRow,
+          },
+        ]
+      : []),
     {
       key: 'view',
       icon: 'solar:eye-bold',
       tooltip: 'View details',
       onClick: onViewRow,
     },
-    {
-      key: 'edit',
-      icon: 'solar:pen-bold',
-      tooltip: 'Edit',
-      onClick: onEditRow,
-    },
+    ...(onEditRow
+      ? [
+          {
+            key: 'edit',
+            icon: 'solar:pen-bold',
+            tooltip: 'Edit',
+            onClick: onEditRow,
+          },
+        ]
+      : []),
   ];
 
   const kioskTitle = row.name || row.locationLabel || row.receptionIdentifier || row.deviceId || 'Kiosk';

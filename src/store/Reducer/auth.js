@@ -49,8 +49,18 @@ const ADMIN_ACCESS_TOKEN =
 export const authApi = createApi({
   reducerPath: "auth",
   baseQuery: createCustomFetchBaseQuery(),
-  tagTypes: ['profile'],
+  tagTypes: ['profile', 'Me'],
   endpoints: (builder) => ({
+    getMe: builder.query({
+      query: () => ({
+        url: API_ROUTES.AUTH.ME,
+        method: 'GET',
+      }),
+      extraOptions: { disableToast: true },
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: ['Me'],
+    }),
+
     getUserProfile: builder.query({
       query: () => ({
         url: API_ROUTES.APP_USER_PROFILE,
@@ -150,6 +160,8 @@ export const authApi = createApi({
 });
 
 export const {
+  useGetMeQuery,
+  useLazyGetMeQuery,
   useGetUserProfileQuery,
   useUpdateUserProfileMutation,
   useLoginMutation,

@@ -15,6 +15,8 @@ import { useSettingsContext } from 'src/components/settings';
 
 import { useSelector } from 'react-redux';
 
+import { filterNavByModules } from 'src/auth/permissions';
+
 import { Main } from './main';
 import { NavMobile } from './nav-mobile';
 import { layoutClasses } from '../classes';
@@ -48,26 +50,23 @@ export function DashboardLayout({ sx, children, data }) {
   // const navData = data?.nav ?? dashboardNavDataAdmin;
 
   const navData = useMemo(() => {
+    let nextNav;
     if (user?.permission === 1) {
-      return dashboardNavData;
-    }
-    // else if (user?.permission === 2) {
-    //   return dashboardNavData;
-    // }
-    else if (user?.permission === 2) {
-      return dashboardNavDataSiteManager;
-    }
-    else if (user?.permission === 3) {
-      return dashboardNavDataLineManager;
-    }
-    else if (user?.permission === 4) {
-      return dashboardNavDataOwner;
+      nextNav = dashboardNavData;
+    } else if (user?.permission === 2) {
+      nextNav = dashboardNavDataSiteManager;
+    } else if (user?.permission === 3) {
+      nextNav = dashboardNavDataLineManager;
+    } else if (user?.permission === 4) {
+      nextNav = dashboardNavDataOwner;
     } else if (user?.permission === 5) {
-      return dashboardNavDataStaff;
+      nextNav = dashboardNavDataStaff;
     } else {
-      return dashboardNavData;
+      nextNav = dashboardNavData;
     }
-  }, [user?.permission, data?.nav]);
+
+    return filterNavByModules(data?.nav ?? nextNav, user);
+  }, [user, data?.nav]);
 
   const isNavMini = settings.navLayout === 'mini';
 

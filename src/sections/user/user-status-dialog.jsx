@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LoadingButton } from '@mui/lab';
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, MenuItem } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem } from '@mui/material';
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { Field, Form } from 'src/components/hook-form';
@@ -10,13 +10,6 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
 import { useUpdateExternalPersonMutation } from 'src/store/Reducer/general-directory-api';
 import { z as zod } from 'zod';
-
-const QUICK_USER_STATUS_OPTIONS = [
-    { value: 'active', label: 'Active', color: 'success' },
-    { value: 'inactive', label: 'Inactive', color: 'error' },
-    // { value: 'onLeave', label: 'On Leave', color: 'warning' },
-    // { value: 'archived', label: 'Archived', color: 'default' },
-];
 
 const EXTERNAL_PERSON_TYPE_OPTIONS = [
     { value: 'visitor', label: 'Visitor' },
@@ -36,11 +29,6 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
     });
 
     const defaultValues = useMemo(() => ({
-        status: QUICK_USER_STATUS_OPTIONS.some(
-            (option) => option.value === (currentUser?.status || currentUser?.userStatus)
-        )
-            ? currentUser?.status || currentUser?.userStatus
-            : '',
         name: currentUser?.name || '',
         email: currentUser?.email || '',
         phone: currentUser?.phone || '',
@@ -58,10 +46,6 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
     const [updateExternalPerson] = useUpdateExternalPersonMutation();
 
     const schema = zod.object({
-        status: zod.string().refine(
-            (status) => QUICK_USER_STATUS_OPTIONS.some((option) => option.value === status),
-            'Select a valid user status'
-        ),
         name: zod.string().trim().min(1, 'Name is required'),
         email: zod.string().trim().refine(
             (email) => !email || zod.string().email().safeParse(email).success,
@@ -96,7 +80,6 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
             await updateExternalPerson({
                 externalPersonId: currentUser?.id,
                 organizationId,
-                status: data.status,
                 name: data.name.trim(),
                 email: data.email.trim(),
                 phone: data.phone,
@@ -114,20 +97,8 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
     return (
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
             <Form methods={methods} onSubmit={methods.handleSubmit(onSubmit)}>
-                <DialogTitle sx={{ pb: 0 }}>Quick Status Change </DialogTitle>
+                <DialogTitle sx={{ pb: 0 }}>Edit People Details </DialogTitle>
                 <DialogContent>
-
-                    <Field.Select name="status" label="User Status" sx={{ mt: 2 }}>
-
-                        <MenuItem value="">Select Status</MenuItem>
-                        <Divider sx={{ borderStyle: "dashed" }} />
-                        {QUICK_USER_STATUS_OPTIONS.map((option) => (
-                            <MenuItem key={option.value} value={option.value}>
-                                {option.label}
-                            </MenuItem>
-                        ))}
-                    </Field.Select>
-
                     <Field.Text name="name" label="Name" sx={{ mt: 2 }} />
 
                     <Field.Text name="email" label="Email" type="email" sx={{ mt: 2 }} />
@@ -156,7 +127,7 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
                 <DialogActions>
 
                     <Button variant="outlined" color="primary" onClick={handleClose}>
-                      Cancel
+                        Cancel
                     </Button>
 
                     <LoadingButton

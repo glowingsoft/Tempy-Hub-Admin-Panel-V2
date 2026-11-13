@@ -30,6 +30,7 @@ import {
   useTable,
 } from 'src/components/table';
 
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetOrganizationsQuery } from 'src/store/Reducer/organizations-api';
 import {
   createMockOrganization,
@@ -109,17 +110,7 @@ export function OrganizationListView() {
   );
 
   const getStatusCount = useCallback(
-    (status) => {
-      if (status === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[status] ?? 0;
-    },
+    (status) => getListStatusTabCount(statusCounts, status, totalRecords),
     [statusCounts, totalRecords]
   );
 

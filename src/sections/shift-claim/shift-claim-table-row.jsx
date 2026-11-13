@@ -35,7 +35,7 @@ export function ShiftClaimTableRow({ row, serialNumber, onApprove, onSendToTempy
       icon: 'solar:check-circle-bold',
       tooltip: 'Approve',
       color: 'success',
-      hidden: !canApprove,
+      hidden: !canApprove || !onApprove,
       onClick: (event) => {
         event.stopPropagation();
         onApprove(row);

@@ -7,7 +7,7 @@ import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { useParams } from 'src/routes/hooks';
+import { useParams, useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 import { paths } from 'src/routes/paths';
 
@@ -30,6 +30,7 @@ import {
 import { MemberDetailSkeleton } from '../member-detail-skeleton';
 import { useMemberActions } from '../use-member-actions';
 import { MemberActionDialog } from '../member-action-dialog';
+import { canEditMember } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -46,6 +47,7 @@ function getInitials(name) {
 
 export function MemberDetailView() {
   const { id } = useParams();
+  const router = useRouter();
   const { organizationId } = useCurrentOrganization();
 
   const { askDeactivate, confirmProps } = useMemberActions({ organizationId });
@@ -62,12 +64,23 @@ export function MemberDetailView() {
   if (!member) {
     return (
       <DashboardContent>
+        <Box sx={{ mb: 2 }}>
+          <Button
+            color="primary"
+            onClick={() => router.push(paths.owner.memberships.members.root)}
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          >
+            Back
+          </Button>
+        </Box>
         <EmptyContent filled title="Member not found" sx={{ py: 10 }} />
       </DashboardContent>
     );
   }
 
-  const name = member.name || member.user?.name || '—';
+  const rawName = member.name || member.user?.name || '—';
+  const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
   const email = member.email || member.user?.email || '';
   const status = getMemberStatusMeta(member.status);
   const permissionLabels = getMemberPermissionLabels(member.permissions);
@@ -78,9 +91,16 @@ export function MemberDetailView() {
     (member.departments || []).map((department) => department.name).filter(Boolean).join(', ') || '—';
   const employeeCode = member.staffProfile?.employeeCode || '';
   const isActive = member.status === 'active';
+  const showEdit = canEditMember(member);
 
   return (
     <DashboardContent>
+      <Box sx={{ mb: 2 }}>
+        <Button color="primary" onClick={router.back} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+          Back
+        </Button>
+      </Box>
+
       <CustomBreadcrumbs
         heading={name}
         links={[
@@ -101,15 +121,17 @@ export function MemberDetailView() {
               </Button>
             )}
 
-            <Button
-              component={RouterLink}
-              href={paths.owner.memberships.members.edit(member._id)}
-              variant="contained"
-              color="primary"
-              startIcon={<Iconify icon="solar:pen-bold" />}
-            >
-              Edit
-            </Button>
+            {showEdit && (
+              <Button
+                component={RouterLink}
+                href={paths.owner.memberships.members.edit(member._id)}
+                variant="contained"
+                color="primary"
+                startIcon={<Iconify icon="solar:pen-bold" />}
+              >
+                Edit
+              </Button>
+            )}
           </Stack>
         }
         sx={{ mb: 3 }}

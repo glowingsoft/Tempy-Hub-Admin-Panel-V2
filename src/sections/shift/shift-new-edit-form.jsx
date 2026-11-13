@@ -81,34 +81,6 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
     return list;
   }, [lookupBranchOptions, currentShift]);
 
-  const { data: staffData } = useGetStaffProfilesQuery(
-    { organizationId: targetOrgId, limit: 100 },
-    { skip: !targetOrgId }
-  );
-
-  const staffProfiles = useMemo(() => staffData?.data || [], [staffData]);
-
-  const staffOptions = useMemo(() => {
-    const list = staffProfiles.map((p) => {
-      const name = p.userId?.name || p.user?.name || p.employeeCode || p._id;
-      const email = p.userId?.email || p.user?.email;
-      return {
-        value: p._id,
-        label: email ? `${name} (${String(email).toLowerCase()})` : name,
-      };
-    });
-    const curStaffId = currentShift?.staffId?._id || currentShift?.staffId || '';
-    const curStaffName =
-      currentShift?.staff?.user?.name ||
-      currentShift?.staff?.name ||
-      currentShift?.staffId?.name ||
-      '';
-    if (curStaffId && !list.some((s) => s.value === curStaffId)) {
-      list.unshift({ value: curStaffId, label: curStaffName || curStaffId });
-    }
-    return list;
-  }, [staffProfiles, currentShift]);
-
   const defaultValues = useMemo(
     () => ({
       branchId: currentShift?.branchId?._id || currentShift?.branchId || '',
@@ -128,17 +100,63 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
   const {
     watch,
     reset,
+    setValue,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
   const startsAtValue = watch('startsAt');
+  const selectedBranchId = watch('branchId');
+
+  const { data: staffData } = useGetStaffProfilesQuery(
+    { organizationId: targetOrgId, branchId: selectedBranchId, limit: 100 },
+    { skip: !targetOrgId || !selectedBranchId }
+  );
+
+  const staffProfiles = useMemo(() => staffData?.data || [], [staffData]);
+
+  const staffOptions = useMemo(() => {
+    const list = staffProfiles.map((p) => {
+      const name = p.userId?.name || p.user?.name || p.employeeCode || p._id;
+      const email = p.userId?.email || p.user?.email;
+      return {
+        value: p._id,
+        label: email ? `${name} (${String(email).toLowerCase()})` : name,
+      };
+    });
+    const curStaffId = currentShift?.staffId?._id || currentShift?.staffId || '';
+    const curStaffBranchId = currentShift?.branchId?._id || currentShift?.branchId || '';
+    const curStaffName =
+      currentShift?.staff?.user?.name ||
+      currentShift?.staff?.name ||
+      currentShift?.staffId?.name ||
+      '';
+    if (
+      curStaffId &&
+      selectedBranchId === curStaffBranchId &&
+      !list.some((s) => s.value === curStaffId)
+    ) {
+      list.unshift({ value: curStaffId, label: curStaffName || curStaffId });
+    }
+    return list;
+  }, [staffProfiles, currentShift, selectedBranchId]);
 
   useEffect(() => {
     if (currentShift) {
       reset(defaultValues);
     }
   }, [currentShift, reset, defaultValues]);
+  // site is selected in site mananger
+
+  useEffect(() => {
+    const currentStaffId = methods.getValues('staffId');
+    if (!currentStaffId) return;
+
+    const stillValid = staffOptions.some((option) => option.value === currentStaffId);
+    if (!stillValid) {
+      setValue('staffId', '');
+    }
+  }, [selectedBranchId, staffOptions, setValue, methods]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -204,12 +222,18 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
               ))}
             </Field.Select>
 
-            <Field.Select name="staffId" label="Staff (optional)">
+            <Field.Select
+              name="staffId"
+              label="Staff (optional)"
+              disabled={!selectedBranchId}
+              helperText={!selectedBranchId ? 'Select a site to load staff' : undefined}
+              SelectProps={{ sx: { textTransform: 'none' } }}
+            >
               <MenuItem value="">Open / Unassigned</MenuItem>
               {staffOptions.map((option) => {
                 const [name, email] = option.label.split(' (');
                 return (
-                  <MenuItem key={option.value} value={option.value}>
+                  <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'none' }}>
                     <Box component="span" sx={{ textTransform: 'capitalize' }}>
                       {name}
                     </Box>

@@ -11,6 +11,34 @@ const userSlice = createSlice({
       state.user = user;
     },
 
+    mergeMeProfile: (state, action) => {
+      if (!state.user) return;
+
+      const me = action.payload || {};
+      const profile = me.user && typeof me.user === 'object' ? me.user : {};
+      const nextAccess = {
+        ...(state.user.access || {}),
+        ...(me.access || {}),
+      };
+
+      state.user = {
+        ...state.user,
+        basicInfo: profile.basicInfo || state.user.basicInfo,
+        accountState: profile.accountState || state.user.accountState,
+        metadata: profile.metadata || state.user.metadata,
+        audience: me.audience ?? state.user.audience,
+        role: me.role ?? state.user.role,
+        surface: me.surface ?? state.user.surface,
+        access: nextAccess,
+        staffProfile: me.staffProfile ?? state.user.staffProfile,
+        hasDirectReports: me.hasDirectReports ?? state.user.hasDirectReports,
+        token: state.user.token,
+        permission: state.user.permission,
+        displayName:
+          profile.basicInfo?.name || state.user.displayName || state.user.basicInfo?.name,
+      };
+    },
+
     logout: (state) => {
       console.log('userSlice - Logging out');
       state.user = null;
@@ -19,7 +47,7 @@ const userSlice = createSlice({
 });
 
 // Exporting actions
-export const { setUser, logout } = userSlice.actions;
+export const { setUser, mergeMeProfile, logout } = userSlice.actions;
 export const selectUser = (state) => state.user.user;
 
 // Exporting the reducer

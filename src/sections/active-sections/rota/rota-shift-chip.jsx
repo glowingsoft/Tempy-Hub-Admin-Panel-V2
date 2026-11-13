@@ -10,7 +10,7 @@ import Typography from '@mui/material/Typography';
 //   vacant    italic placeholder text, no fill
 // ----------------------------------------------------------------------
 
-export default function RotaShiftChip({ shift, onClick }) {
+export default function RotaShiftChip({ shift, onClick, readOnly = false }) {
   const { type = 'default', start, end, label } = shift;
 
   if (type === 'vacant') {
@@ -64,12 +64,12 @@ export default function RotaShiftChip({ shift, onClick }) {
         px: 1,
         py: 0.75,
         borderRadius: 1,
-        cursor: 'pointer',
+        cursor: !readOnly && onClick ? 'pointer' : 'default',
         textAlign: 'center',
         transition: (theme) =>
           theme.transitions.create(['box-shadow', 'transform'], { duration: 120 }),
         ...sxStyle,
-        '&:hover': { boxShadow: (theme) => theme.customShadows?.z8 ?? theme.shadows[8] },
+        '&:hover': !readOnly && onClick ? { boxShadow: (theme) => theme.customShadows?.z8 ?? theme.shadows[8] } : undefined,
       }}
     >
       {isOpen ? (

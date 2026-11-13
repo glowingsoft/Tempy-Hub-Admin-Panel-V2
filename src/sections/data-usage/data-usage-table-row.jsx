@@ -85,21 +85,30 @@ export function DataUsageTableRow({ row, onViewDetail, onEdit, clickable = true 
               {name}
             </Typography>
             <Stack direction="row" alignItems="center" spacing={0.5} sx={{ minWidth: 0 }}>
-              <Typography variant="caption" noWrap sx={{ color: 'text.secondary', flexShrink: 0 }}>
-                {ownerName}
-              </Typography>
+              {ownerName && ownerName !== '—' ? (
+                <Typography variant="caption" noWrap sx={{ color: 'text.secondary', flexShrink: 0 }}>
+                  {ownerName}
+                </Typography>
+              ) : null}
               {ownerEmail ? (
                 <>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>
-                    •
-                  </Typography>
-                  <Tooltip title={ownerEmail} arrow>
+                  {ownerName && ownerName !== '—' ? (
+                    <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>
+                      •
+                    </Typography>
+                  ) : null}
+                  <Tooltip title={ownerEmail} arrow enterDelay={200}>
                     <Typography
                       variant="caption"
                       noWrap
-                      sx={{ color: 'text.secondary', minWidth: 0, flex: 1, display: 'block' }}
+                      sx={{
+                        color: 'text.secondary',
+                        minWidth: 0,
+                        flex: 1,
+                        display: 'block',
+                      }}
                     >
-                      {ownerEmail}
+                      {ownerEmail.length > 30 ? `${ownerEmail.slice(0, 30)}...` : ownerEmail}
                     </Typography>
                   </Tooltip>
                 </>

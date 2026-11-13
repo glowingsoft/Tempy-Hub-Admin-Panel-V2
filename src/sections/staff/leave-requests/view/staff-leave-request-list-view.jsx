@@ -11,6 +11,8 @@ import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 
+import { useCanManage } from 'src/auth/hooks';
+import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -69,6 +71,7 @@ const FILTER_FIELDS = [createFilterField.search({ placeholder: 'Search leave typ
 // ----------------------------------------------------------------------
 
 export function StaffLeaveRequestListView() {
+  const canManageLeave = useCanManage(ModuleSlug.LEAVE);
   const table = useTable({
     defaultDense: true,
     defaultOrderBy: 'createdAt',
@@ -148,14 +151,16 @@ export function StaffLeaveRequestListView() {
         heading="Leave Requests"
         links={[{ name: 'Dashboard', href: paths.staff.dashboard }, { name: 'Leave Requests' }]}
         action={
-          <Button
-            color="primary"
-            variant="contained"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            onClick={() => setAddDialogOpen(true)}
-          >
-            Add Leave
-          </Button>
+          canManageLeave ? (
+            <Button
+              color="primary"
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+              onClick={() => setAddDialogOpen(true)}
+            >
+              Add Leave
+            </Button>
+          ) : null
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />

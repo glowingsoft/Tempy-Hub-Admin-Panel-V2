@@ -42,6 +42,7 @@ export function FloorPlanTableRow({ row, serialNumber, onUpload, ownerDashboard 
       key: 'upload',
       icon: 'solar:pen-bold',
       tooltip: isUploaded ? 'Replace plan' : 'Upload plan',
+      hidden: !onUpload,
       onClick: () => onUpload(row),
     },
   ];

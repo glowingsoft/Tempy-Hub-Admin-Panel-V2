@@ -30,6 +30,7 @@ import {
   useTable,
 } from 'src/components/table';
 
+import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { DepartmentCreateEditModal } from '../department-create-edit-modal';
 import { DepartmentTableRow } from '../department-table-row';
@@ -99,17 +100,7 @@ export function DepartmentListView() {
   );
 
   const getStatusCount = useCallback(
-    (status) => {
-      if (status === 'all') {
-        const totalFromCounts = Object.values(statusCounts).reduce(
-          (sum, count) => sum + (Number(count) || 0),
-          0
-        );
-        return totalFromCounts || totalRecords;
-      }
-
-      return statusCounts[status] ?? 0;
-    },
+    (status) => getListStatusTabCount(statusCounts, status, totalRecords),
     [statusCounts, totalRecords]
   );
 

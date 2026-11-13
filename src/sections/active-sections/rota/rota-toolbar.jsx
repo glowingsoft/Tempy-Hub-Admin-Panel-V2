@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Iconify } from 'src/components/iconify';
+import { Label } from 'src/components/label';
 
 // ----------------------------------------------------------------------
 
@@ -30,14 +31,20 @@ export default function RotaToolbar({
   managedTeams = [],
   selectedTeamId = 'all',
   onSelectTeamId,
+  canLock = true,
 }) {
   const actions = [
-    {
-      key: 'lock',
-      icon: locked ? 'solar:lock-linear' : 'solar:lock-unlocked-linear',
-      tooltip: locked ? 'Unlock' : 'Lock',
-      onClick: onToggleLock,
-    },
+    ...(canLock
+      ? [
+          {
+            key: 'lock',
+            icon: locked ? 'solar:lock-bold' : 'solar:lock-unlocked-linear',
+            tooltip: locked ? 'Rota is Locked (Click to unlock)' : 'Lock Rota (Read-only mode)',
+            color: locked ? 'error' : 'default',
+            onClick: onToggleLock,
+          },
+        ]
+      : []),
     {
       key: 'refresh',
       icon: 'solar:refresh-bold',
@@ -122,42 +129,6 @@ export default function RotaToolbar({
               ))}
             </ToggleButtonGroup>
           )}
-
-          {scope === 'managed' && managedTeams && managedTeams.length > 0 && (
-            <TextField
-              select
-              size="small"
-              value={selectedTeamId || 'all'}
-              onChange={(event) => onSelectTeamId?.(event.target.value)}
-              sx={{
-                minWidth: 180,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.25,
-                  bgcolor: (theme) => alpha(theme.palette.grey[500], 0.04),
-                },
-                '& .MuiSelect-select': {
-                  py: 0.65,
-                  typography: 'subtitle2',
-                  fontWeight: 600,
-                },
-              }}
-            >
-              <MenuItem value="all">
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Iconify icon="solar:users-group-rounded-linear" width={16} sx={{ color: 'text.secondary' }} />
-                  <span>All My Teams</span>
-                </Stack>
-              </MenuItem>
-              {managedTeams.map((team) => (
-                <MenuItem key={team.id} value={team.id}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: team.color }} />
-                    <span>{team.name}</span>
-                  </Stack>
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
         </Stack>
 
         {/* Right: Date navigation + Period dropdown + Lock / Refresh actions */}
@@ -205,7 +176,17 @@ export default function RotaToolbar({
             </TextField>
           </Stack>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+            {locked && (
+              <Label
+                variant="soft"
+                color="error"
+                startIcon={<Iconify icon="solar:lock-bold" />}
+                sx={{ fontWeight: 600 }}
+              >
+                Locked
+              </Label>
+            )}
             <GenericTableRowActions actions={actions} />
           </Box>
         </Stack>
