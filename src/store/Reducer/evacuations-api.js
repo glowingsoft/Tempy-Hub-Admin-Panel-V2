@@ -53,11 +53,17 @@ export const evacuationsApi = createApi({
     }),
 
     startEvacuation: builder.mutation({
-      query: ({ organizationId, branchId, type }) => ({
+      query: ({ organizationId, branchId, type, locationLabel, receptionIdentifier, ...rest }) => ({
         url: API_ROUTES.ORGANIZATION_EVACUATIONS(organizationId),
         method: 'POST',
         headers: organizationId ? { 'x-org-id': organizationId } : undefined,
-        body: { branchId, type },
+        body: {
+          branchId,
+          type,
+          ...(locationLabel ? { locationLabel: locationLabel.trim() } : {}),
+          ...(receptionIdentifier ? { receptionIdentifier: receptionIdentifier.trim() } : {}),
+          ...rest,
+        },
       }),
       invalidatesTags: ['Evacuation', 'ActiveEvacuation', 'OnSiteSummary'],
     }),

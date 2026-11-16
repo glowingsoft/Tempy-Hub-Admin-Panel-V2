@@ -21,13 +21,8 @@ export function ShiftTableRow({ row, serialNumber }) {
   const router = useRouter();
   const canManageShifts = useCanManage(ModuleSlug.ROTA_SCHEDULING);
 
-  const rowOrgId = row?.organizationId?._id || row?.organizationId || '';
-  const detailPath = rowOrgId
-    ? `${paths.owner.shifts.detail(row._id)}?orgId=${rowOrgId}`
-    : paths.owner.shifts.detail(row._id);
-  const editPath = rowOrgId
-    ? `${paths.owner.shifts.edit(row._id)}?orgId=${rowOrgId}`
-    : paths.owner.shifts.edit(row._id);
+  const detailPath = paths.owner.shifts.detail(row._id);
+  const editPath = paths.owner.shifts.edit(row._id);
 
   const status = getShiftStatusMeta(row.status);
 

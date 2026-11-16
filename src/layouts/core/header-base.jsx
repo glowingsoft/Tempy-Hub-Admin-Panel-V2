@@ -146,9 +146,8 @@ export function HeaderBase({
                   Need help?
                 </Link>
               )}
-
-              {/* -- Searchbar -- */}
-              {/* {searchbar && <Searchbar data-slot="searchbar" data={data?.nav} />} */}
+                 {/* -- Searchbar -- */}
+                {searchbar && <Searchbar data-slot="searchbar" data={data?.nav} />}
 
               {/* -- Language popover -- */}
               {/* {localization && <LanguagePopover data-slot="localization" data={data?.langs} />} */}

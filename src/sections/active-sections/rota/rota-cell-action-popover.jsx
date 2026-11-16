@@ -16,11 +16,9 @@ export default function RotaCellActionPopover({
   onClose,
   cellData,
   onBookShift,
-  onSetEntitlement,
   canBookShift = true,
-  canSetEntitlement = false,
 }) {
-  if (!cellData) return null;
+  if (!cellData || !canBookShift) return null;
 
   const { staff, day } = cellData;
 
@@ -28,13 +26,6 @@ export default function RotaCellActionPopover({
     onClose();
     onBookShift(cellData);
   };
-
-  const handleSetEntitlement = () => {
-    onClose();
-    onSetEntitlement(cellData);
-  };
-
-  if (!canBookShift && !canSetEntitlement) return null;
 
   return (
     <CustomPopover
@@ -59,47 +50,24 @@ export default function RotaCellActionPopover({
       <Divider sx={{ borderStyle: 'dashed' }} />
 
       <MenuList sx={{ p: 0.75 }}>
-        {canBookShift && (
-          <MenuItem
-            onClick={handleBookShift}
-            sx={{
-              py: 1,
-              px: 1.25,
-              borderRadius: 0.75,
-              typography: 'body2',
-              fontWeight: 500,
-              gap: 1.5,
-              '&:hover': {
-                bgcolor: (theme) => `${theme.palette.primary.lighter}80`,
-                color: 'primary.darker',
-              },
-            }}
-          >
-            <Iconify icon="solar:calendar-add-bold" width={18} sx={{ color: 'primary.main' }} />
-            Create Shift
-          </MenuItem>
-        )}
-
-        {canSetEntitlement && onSetEntitlement && (
-          <MenuItem
-            onClick={handleSetEntitlement}
-            sx={{
-              py: 1,
-              px: 1.25,
-              borderRadius: 0.75,
-              typography: 'body2',
-              fontWeight: 500,
-              gap: 1.5,
-              '&:hover': {
-                bgcolor: (theme) => `${theme.palette.info.lighter}80`,
-                color: 'info.darker',
-              },
-            }}
-          >
-            <Iconify icon="solar:document-add-bold" width={18} sx={{ color: 'info.main' }} />
-            Set Entitlement
-          </MenuItem>
-        )}
+        <MenuItem
+          onClick={handleBookShift}
+          sx={{
+            py: 1,
+            px: 1.25,
+            borderRadius: 0.75,
+            typography: 'body2',
+            fontWeight: 500,
+            gap: 1.5,
+            '&:hover': {
+              bgcolor: (theme) => `${theme.palette.primary.lighter}80`,
+              color: 'primary.darker',
+            },
+          }}
+        >
+          <Iconify icon="solar:calendar-add-bold" width={18} sx={{ color: 'primary.main' }} />
+          Create Shift
+        </MenuItem>
       </MenuList>
     </CustomPopover>
   );
@@ -114,7 +82,5 @@ RotaCellActionPopover.propTypes = {
     day: PropTypes.object,
   }),
   onBookShift: PropTypes.func,
-  onSetEntitlement: PropTypes.func,
   canBookShift: PropTypes.bool,
-  canSetEntitlement: PropTypes.bool,
 };

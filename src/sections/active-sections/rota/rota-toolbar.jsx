@@ -98,7 +98,7 @@ export default function RotaToolbar({
       >
         {/* Left: Scope pills + Managed Teams dropdown */}
         <Stack direction="row" alignItems="center" flexWrap="wrap" rowGap={1} spacing={1.5}>
-          {scopeOptions.length > 1 && (
+          {scopeOptions.length > 0 && (
             <ToggleButtonGroup
               size="small"
               exclusive

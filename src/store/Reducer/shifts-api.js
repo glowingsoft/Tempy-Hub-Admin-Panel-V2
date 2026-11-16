@@ -152,14 +152,18 @@ export const shiftsApi = createApi({
                     : [staffListTag('MY', organizationId)],
         }),
         getOpenShifts: builder.query({
-            query: ({ organizationId, keyword } = {}) => {
+            query: ({ organizationId, keyword, page, limit } = {}) => {
                 const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
 
                 return {
                     url: API_ROUTES.STAFF_OPEN_SHIFTS,
                     method: 'GET',
                     headers: organizationId ? { 'x-org-id': organizationId } : undefined,
-                    params: trimmedKeyword ? { keyword: trimmedKeyword } : undefined,
+                    params: {
+                        ...(page ? { page } : {}),
+                        ...(limit ? { limit } : {}),
+                        ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
+                    },
                 };
             },
             transformResponse: (res) => ({
