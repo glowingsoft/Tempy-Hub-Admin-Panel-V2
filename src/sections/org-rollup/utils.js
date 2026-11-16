@@ -29,7 +29,10 @@ export function getAssignedBranch(user, organizationId) {
       (!getBranchId(value) || getBranchId(value) === branchId)
   );
   const name = organizationId
-    ? matchingBranch?.name || null
+    ? matchingBranch?.name ||
+      (typeof user?.branch === 'object' ? user.branch?.name : null) ||
+      user?.branchName ||
+      null
     : (typeof user?.branch === 'object' ? user.branch?.name : null) ||
       matchingBranch?.name ||
       user?.branchName ||

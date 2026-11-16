@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
 
+import { LoadingScreen } from 'src/components/loading-screen';
 import { CONFIG } from 'src/config-global';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -38,7 +39,7 @@ export function OverviewAppView() {
   const { organizationId } = useCurrentOrganization();
   const [period, setPeriod] = useState('This year');
 
-  const { data, isLoading } = useGetOrganizationSiteDashboardQuery(
+  const { data, isLoading, isFetching } = useGetOrganizationSiteDashboardQuery(
     {
       organizationId,
       period: PERIOD_TO_API[period],
@@ -100,6 +101,14 @@ export function OverviewAppView() {
       href: paths.siteManager.residents.root,
     },
   ];
+
+  if (!organizationId || isLoading || (!data && isFetching)) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <LoadingScreen sx={{ minHeight: '60vh' }} />
+      </DashboardContent>
+    );
+  }
 
   return (
     <DashboardContent maxWidth="xl">

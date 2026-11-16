@@ -51,19 +51,30 @@ function formatDuration(duration) {
 
 // ----------------------------------------------------------------------
 
-export default function VisitorFeedbackDetailView() {
+export default function VisitorFeedbackDetailView({ ownerDashboard = false }) {
   const router = useRouter();
   const pathname = usePathname();
   const location = useLocation();
   const { id } = useParams();
 
+  const isOwnerDashboard = ownerDashboard || pathname.includes('/owner-dashboard');
   const isLineManager = pathname.includes('/line-manager');
-  const dashboardRoot = isLineManager ? paths.lineManager.root : paths.siteManager.root;
-  const feedbackListRoot = isLineManager ? paths.lineManager.feedback : paths.siteManager.feedback;
+  const dashboardRoot = isOwnerDashboard
+    ? paths.owner.root
+    : isLineManager
+      ? paths.lineManager.root
+      : paths.siteManager.root;
+  const feedbackListRoot = isOwnerDashboard
+    ? paths.owner.feedback
+    : isLineManager
+      ? paths.lineManager.feedback
+      : paths.siteManager.feedback;
 
   const user = useSelector(selectUser);
   const { organizationId } = useCurrentOrganization();
-  const branchId = getUserBranchId(user, organizationId) || user?.branchId?._id || user?.branchId;
+  const userBranchId =
+    getUserBranchId(user, organizationId) || user?.branchId?._id || user?.branchId;
+  const branchId = isOwnerDashboard ? location.state?.branchId : userBranchId;
 
   // Use the same list API to get questions and responses
   const { data: responseData, isLoading } = useGetVisitorSurveyResponsesQuery(

@@ -34,6 +34,8 @@ export const DEFAULT_BREAK_RULES = [
 export const DEFAULT_BRANCH_SETTINGS = {
   enableBreaks: true,
   enableLeaveRequests: true,
+  maxShiftHours: 12,
+  earlyClockInMinutes: 60,
   lateGraceMinutes: 5,
   allowPhoneCheckIn: false,
   breaksPaid: false,

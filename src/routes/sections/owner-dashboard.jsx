@@ -59,6 +59,10 @@ const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/acti
 const DocumentCategoriesPage = lazy(() => import('src/pages/dashboard/active-routes/documents/categories'));
 //reports
 const ReportsPage = lazy(() => import('src/pages/dashboard/active-routes/reports'));
+const VisitorFeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/visitor-feedback'));
+const VisitorFeedbackDetailPage = lazy(
+  () => import('src/pages/dashboard/active-routes/visitor-feedback/detail')
+);
 const PeepFloorPlanPage = lazy(() => import('src/pages/dashboard/active-routes/floor-plan'));
 const PeepAddPinPage = lazy(() => import('src/pages/owner-dashboard/peep-and-floor-plan/add-pin.jsx'));
 const UserListPage = lazy(() => import('src/pages/dashboard/user/list'));
@@ -251,6 +255,13 @@ export const ownerDashboardRoutes = [
       { path: "documents/categories", element: <DocumentCategoriesPage ownerDashboard /> },
       { path: "documents/:id", element: <DocumentDetailPage ownerDashboard /> },
       { path: "reports", element: <ReportsPage ownerDashboard /> },
+      {
+        path: 'feedback',
+        children: [
+          { index: true, element: <VisitorFeedbackPage ownerDashboard /> },
+          { path: ':id', element: <VisitorFeedbackDetailPage ownerDashboard /> },
+        ],
+      },
       { path: "messages", element: <MessagesPage /> },
       { path: "documents/:id/acknowledgements", element: <DocumentAcknowledgementsPage /> },
       {
