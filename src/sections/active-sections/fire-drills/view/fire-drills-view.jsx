@@ -485,7 +485,12 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     [filters, table]
   );
 
-  const handleStart = async ({ branchId: chosenBranchId, type }) => {
+  const handleStart = async ({
+    branchId: chosenBranchId,
+    type,
+    locationLabel,
+    receptionIdentifier,
+  }) => {
     const targetBranchId =
       chosenBranchId || scopedBranchId || onSiteSummary?.branchId || queryBranchId;
 
@@ -504,6 +509,8 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         organizationId,
         branchId: targetBranchId,
         type,
+        locationLabel,
+        receptionIdentifier,
       }).unwrap();
       toast.success('Evacuation started successfully');
       return true;

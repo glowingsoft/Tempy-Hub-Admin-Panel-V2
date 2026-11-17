@@ -125,7 +125,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
           <Stack alignItems="center" sx={{ pt: 8, pb: 2 }}>
             {renderAvatar}
 
-            <Typography variant="subtitle1" noWrap sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" noWrap sx={{ mt: 2, textTransform: 'capitalize' }}>
               {displayName}
             </Typography>
 

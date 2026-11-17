@@ -20,9 +20,22 @@ import { useRescheduleSupervisionMutation } from 'src/store/Reducer/supervision-
 
 // ----------------------------------------------------------------------
 
+function splitActionPointText(text) {
+  if (!text || typeof text !== 'string') return [];
+  // Normalize bullet markers (•, -, *, ⁃) and numbered prefixes (1., 2), etc.)
+  const normalized = text
+    .replace(/^\s*[\u2022\u2023\u25E6\u2043\u2219\*\-]\s+/gm, '\n')
+    .replace(/^\s*\d+[\.\)]\s+/gm, '\n');
+
+  return normalized
+    .split(/\r?\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 export function CompleteSupervisionDialog({ open, row, organizationId, onClose, onSave }) {
   const [topics, setTopics] = useState('');
-  const [actionsNeeded, setActionsNeeded] = useState('');
+  const [actionPointsList, setActionPointsList] = useState(['']);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
@@ -77,16 +90,14 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
           : ''
       );
       setNotes(row?.notes || '');
-      setActionsNeeded(
-        Array.isArray(row?.actionPoints)
-          ? row.actionPoints
-              .map((ap) => (typeof ap === 'string' ? ap : ap?.text || ap?.description || ''))
-              .filter(Boolean)
-              .join('\n')
-          : typeof row?.actionPoints === 'string'
-          ? row.actionPoints
-          : ''
-      );
+      const rawPoints = Array.isArray(row?.actionPoints)
+        ? row.actionPoints
+            .map((ap) => (typeof ap === 'string' ? ap : ap?.text || ap?.description || ''))
+            .filter(Boolean)
+        : typeof row?.actionPoints === 'string'
+        ? splitActionPointText(row.actionPoints)
+        : [];
+      setActionPointsList(rawPoints.length > 0 ? rawPoints : ['']);
       setError('');
       setTouched(false);
     }
@@ -94,7 +105,7 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
 
   const handleReset = () => {
     setTopics('');
-    setActionsNeeded('');
+    setActionPointsList(['']);
     setNotes('');
     setError('');
     setTouched(false);
@@ -105,14 +116,49 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
     onClose();
   };
 
+  const handleAddActionPoint = () => {
+    setActionPointsList((prev) => [...prev, '']);
+  };
+
+  const handleRemoveActionPoint = (index) => {
+    setActionPointsList((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated.length > 0 ? updated : [''];
+    });
+  };
+
+  const handleChangeActionPoint = (index, value) => {
+    setActionPointsList((prev) => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
+  };
+
+  const handlePasteActionPoint = (index, event) => {
+    const pasteText = event.clipboardData?.getData('text');
+    if (!pasteText) return;
+
+    const lines = splitActionPointText(pasteText);
+    if (lines.length > 1) {
+      event.preventDefault();
+      setActionPointsList((prev) => {
+        const updated = [...prev];
+        updated.splice(index, 1, ...lines);
+        return updated;
+      });
+    }
+  };
+
+  const validActionPoints = actionPointsList.map((a) => a.trim()).filter(Boolean);
   const isTopicsInvalid = touched && !topics.trim();
   const isNotesInvalid = touched && !notes.trim();
-  const isActionsInvalid = touched && !actionsNeeded.trim();
+  const isActionsInvalid = touched && validActionPoints.length === 0;
 
   const handleComplete = async () => {
     setTouched(true);
 
-    if (!topics.trim() || !notes.trim() || !actionsNeeded.trim()) {
+    if (!topics.trim() || !notes.trim() || validActionPoints.length === 0) {
       return;
     }
 
@@ -132,19 +178,13 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
         .map((t) => t.trim())
         .filter(Boolean);
 
-      // Format action points into an array of strings
-      const actionPointsArray = (actionsNeeded || '')
-        .split('\n')
-        .map((a) => a.trim())
-        .filter(Boolean);
-
       const payload = {
         organizationId,
         supervisionId,
         status: 'completed',
         topics: topicsArray,
         notes: notes.trim(),
-        actionPoints: actionPointsArray,
+        actionPoints: validActionPoints,
       };
 
       const res = await updateSupervision(payload).unwrap();
@@ -234,23 +274,77 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
           />
 
           {/* Agreed Action Points */}
-          <TextField
-            required
-            fullWidth
-            multiline
-            rows={2}
-            label="Action Points"
-            placeholder="e.g. Book the next review"
-            helperText={
-              isActionsInvalid
-                ? 'Action points are required'
-                : 'Enter one action point per line'
-            }
-            error={isActionsInvalid}
-            value={actionsNeeded}
-            disabled={isSubmitting}
-            onChange={(e) => setActionsNeeded(e.target.value)}
-          />
+          <Stack spacing={1.5}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 600,
+                  color: isActionsInvalid ? 'error.main' : 'text.secondary',
+                }}
+              >
+                Action Points *
+              </Typography>
+              <Button
+                size="small"
+                color="primary"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={handleAddActionPoint}
+                disabled={isSubmitting}
+                sx={{ typography: 'caption', fontWeight: 600 }}
+              >
+                Add Action Point
+              </Button>
+            </Stack>
+
+            <Stack spacing={1}>
+              {actionPointsList.map((point, index) => (
+                <Stack key={index} direction="row" spacing={1} alignItems="center">
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder={`Action point ${index + 1}`}
+                    value={point}
+                    disabled={isSubmitting}
+                    error={isActionsInvalid && index === 0 && !point.trim()}
+                    onChange={(e) => handleChangeActionPoint(index, e.target.value)}
+                    onPaste={(e) => handlePasteActionPoint(index, e)}
+                    InputProps={{
+                      startAdornment: (
+                        <Typography
+                          variant="caption"
+                          sx={{ color: 'text.disabled', mr: 1, minWidth: 16, fontWeight: 700 }}
+                        >
+                          {index + 1}.
+                        </Typography>
+                      ),
+                    }}
+                  />
+                  {actionPointsList.length > 1 && (
+                    <IconButton
+                      size="small"
+                      color="error"
+                      disabled={isSubmitting}
+                      onClick={() => handleRemoveActionPoint(index)}
+                      sx={{ flexShrink: 0 }}
+                    >
+                      <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                    </IconButton>
+                  )}
+                </Stack>
+              ))}
+            </Stack>
+
+            {isActionsInvalid ? (
+              <Typography variant="caption" color="error">
+                At least one action point is required
+              </Typography>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                Enter each point separately, or paste a list/paragraph to auto-split
+              </Typography>
+            )}
+          </Stack>
         </Stack>
       </DialogContent>
 

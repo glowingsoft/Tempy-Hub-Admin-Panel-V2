@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
@@ -11,7 +12,7 @@ import { SvgColor } from 'src/components/svg-color';
 
 // ----------------------------------------------------------------------
 
-export function CourseWidgetSummary({ sx, icon, title, total, color = 'warning', ...other }) {
+export function CourseWidgetSummary({ sx, icon, title, total, color = 'warning', loading = false, ...other }) {
   const theme = useTheme();
 
   return (
@@ -30,7 +31,15 @@ export function CourseWidgetSummary({ sx, icon, title, total, color = 'warning',
       {...other}
     >
       <Box sx={{ flexGrow: 1 }}>
-        <Box sx={{ typography: 'h3', lineHeight: 1.2 }}>{typeof (total) === 'number' ? fNumber(total): total}</Box>
+        <Box sx={{ typography: 'h3', lineHeight: 1.2, minHeight: 36, display: 'flex', alignItems: 'center' }}>
+          {loading ? (
+            <CircularProgress size={28} thickness={5} color={color} />
+          ) : typeof total === 'number' ? (
+            fNumber(total)
+          ) : (
+            total
+          )}
+        </Box>
         <Typography variant="subtitle2" component="div" sx={{ color: 'text.secondary', lineHeight: 1.3, mt: 0.5 }}>
           {title}
         </Typography>

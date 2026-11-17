@@ -6,7 +6,10 @@ import { StaffDashboardView } from 'src/sections/staff/dashboard/view/staff-dash
 export default function Page() {
   return (
     <>
-      <Helmet><title>Staff Dashboard - {CONFIG.site.name}</title></Helmet>
+      <Helmet>
+        <title>Staff Dashboard - {CONFIG.site.name}</title>
+      </Helmet>
+
       <StaffDashboardView />
     </>
   );

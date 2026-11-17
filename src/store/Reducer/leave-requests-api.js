@@ -67,6 +67,18 @@ export const leaveRequestsApi = createApi({
         result && organizationId ? [staffListTag(organizationId)] : [],
     }),
 
+    reportStaffSickness: builder.mutation({
+      query: ({ organizationId, ...body }) => ({
+        url: API_ROUTES.STAFF_REPORT_SICKNESS,
+        method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      invalidatesTags: (result, error, { organizationId }) =>
+        result && organizationId ? [staffListTag(organizationId)] : [],
+    }),
+
     getStaffLeaveRequests: builder.query({
       query: ({ organizationId, page = 1, limit = 10, status, keyword } = {}) => ({
         url: API_ROUTES.STAFF_LEAVE_REQUESTS,
@@ -187,6 +199,7 @@ export const leaveRequestsApi = createApi({
 
 export const {
   useCreateStaffLeaveRequestMutation,
+  useReportStaffSicknessMutation,
   useGetStaffLeaveRequestsQuery,
   useGetLeaveRequestsQuery,
   useGetLeaveRequestQuery,

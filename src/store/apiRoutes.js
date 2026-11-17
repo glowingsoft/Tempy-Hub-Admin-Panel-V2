@@ -100,6 +100,7 @@ export const API_ROUTES = {
 
     // Leave requests / entitlements / approvals.
     STAFF_LEAVE_REQUESTS: '/app/leave-requests',
+    STAFF_REPORT_SICKNESS: '/app/leave-requests/report-sickness',
     ORGANIZATION_LEAVE_REQUESTS: (organizationId) =>
         `/admin/organizations/${organizationId}/leave-requests`,
     ORGANIZATION_RECORD_LEAVE_REQUEST: (organizationId) =>

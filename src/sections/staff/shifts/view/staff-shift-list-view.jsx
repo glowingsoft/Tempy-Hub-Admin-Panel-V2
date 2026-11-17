@@ -94,14 +94,14 @@ function StaffShiftClaimDialog({ open, onClose, shift, organizationId, onClaimSu
     }
 
     try {
-      await claimStaffShift({
+      const res = await claimStaffShift({
         shiftId: shift._id,
         organizationId,
         note: trimmedNote,
       }).unwrap();
 
       toast.success('Shift claim submitted successfully!');
-      onClaimSuccess(shift._id);
+      onClaimSuccess(shift._id, res);
       onClose();
     } catch (error) {
       toast.error(error?.data?.message || error?.message || 'Failed to submit shift claim.');
@@ -199,6 +199,7 @@ export function StaffShiftListView({ claimable = false } = {}) {
   const table = useTable({ defaultDense: true, defaultRowsPerPage: 10 });
   const { organizationId } = useCurrentOrganization();
   const [claimedShiftIds, setClaimedShiftIds] = useState([]);
+  const [claimedShiftMap, setClaimedShiftMap] = useState({});
   const [claimDialog, setClaimDialog] = useState({ open: false, shift: null });
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500).trim();
@@ -208,13 +209,27 @@ export function StaffShiftListView({ claimable = false } = {}) {
     { skip: !organizationId || claimable }
   );
   const openShiftsQuery = useGetOpenShiftsQuery(
-    { organizationId, keyword },
+    {
+      organizationId,
+      keyword,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+    },
     { skip: !organizationId || !claimable }
   );
   const query = claimable ? openShiftsQuery : myShiftsQuery;
   const shifts = useMemo(() => query.data?.data ?? [], [query.data]);
   const statusCounts = query.data?.meta?.counts ?? {};
-  const totalRecords = query.data?.meta?.totalRecords ?? shifts.length;
+  const totalRecords =
+    query.data?.meta?.totalRecords ??
+    query.data?.meta?.total ??
+    shifts.length;
+
+  const isServerPaginated =
+    claimable &&
+    (typeof query.data?.meta?.totalRecords === 'number' ||
+      typeof query.data?.meta?.total === 'number' ||
+      typeof query.data?.meta?.totalPages === 'number');
 
   const filteredShifts = useMemo(() => {
     const search = keyword.trim().toLowerCase();
@@ -231,9 +246,12 @@ export function StaffShiftListView({ claimable = false } = {}) {
   }, [claimable, filters.state.status, keyword, shifts]);
 
   const paginatedShifts = useMemo(() => {
+    if (isServerPaginated) {
+      return filteredShifts;
+    }
     const start = table.page * table.rowsPerPage;
     return filteredShifts.slice(start, start + table.rowsPerPage);
-  }, [filteredShifts, table.page, table.rowsPerPage]);
+  }, [filteredShifts, isServerPaginated, table.page, table.rowsPerPage]);
 
   const handleSearchChange = useCallback(
     (event) => {
@@ -267,9 +285,24 @@ export function StaffShiftListView({ claimable = false } = {}) {
     setClaimDialog({ open: false, shift: null });
   }, []);
 
-  const handleClaimSuccess = useCallback((shiftId) => {
-    setClaimedShiftIds((current) => (current.includes(shiftId) ? current : [...current, shiftId]));
-  }, []);
+  const handleClaimSuccess = useCallback(
+    (shiftId, claimResult) => {
+      const claimData =
+        claimResult?.data && typeof claimResult.data === 'object'
+          ? claimResult.data
+          : claimResult && typeof claimResult === 'object' && claimResult.status
+          ? claimResult
+          : { status: 'pending' };
+
+      setClaimedShiftMap((prev) => ({
+        ...prev,
+        [shiftId]: claimData,
+      }));
+      setClaimedShiftIds((current) => (current.includes(shiftId) ? current : [...current, shiftId]));
+      openShiftsQuery.refetch?.();
+    },
+    [openShiftsQuery]
+  );
 
   const tableHead =
     claimable && canManageRota
@@ -318,16 +351,25 @@ export function StaffShiftListView({ claimable = false } = {}) {
                   />
                 ) : (
                   <>
-                    {paginatedShifts.map((row, index) => (
-                      <StaffShiftTableRow
-                        key={row._id}
-                        row={row}
-                        serialNumber={table.page * table.rowsPerPage + index + 1}
-                        claimed={claimedShiftIds.includes(row._id) || Boolean(row.filledByClaimId)}
-                        showClaimAction={claimable && canManageRota}
-                        onClaim={claimable ? handleOpenClaimDialog : undefined}
-                      />
-                    ))}
+                    {paginatedShifts.map((row, index) => {
+                      const activeClaim = claimedShiftMap[row._id] || row.myClaim;
+                      const isClaimed =
+                        Boolean(activeClaim) ||
+                        claimedShiftIds.includes(row._id) ||
+                        Boolean(row.filledByClaimId);
+
+                      return (
+                        <StaffShiftTableRow
+                          key={row._id}
+                          row={row}
+                          claim={activeClaim}
+                          serialNumber={table.page * table.rowsPerPage + index + 1}
+                          claimed={isClaimed}
+                          showClaimAction={claimable && canManageRota}
+                          onClaim={claimable ? handleOpenClaimDialog : undefined}
+                        />
+                      );
+                    })}
 
                     <TableNoData
                       notFound={!filteredShifts.length}
@@ -349,7 +391,7 @@ export function StaffShiftListView({ claimable = false } = {}) {
         <TablePaginationCustom
           page={table.page}
           dense={table.dense}
-          count={filteredShifts.length}
+          count={isServerPaginated ? totalRecords : filteredShifts.length}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           onChangeDense={table.onChangeDense}
