@@ -89,11 +89,7 @@ export function ShiftDetailView() {
   const staffEmail = shift.staff?.email || shift.staff?.user?.email || '';
   const employeeCode = shift.staff?.employeeCode || '';
   const isUnassigned = !shift.staffId && staffName === 'Open / Unassigned';
-  const editHref =
-    shift?.organizationId?._id || shift?.organizationId || organizationId
-      ? `${paths.owner.shifts.edit(shift._id)}?orgId=${shift?.organizationId?._id || shift?.organizationId || organizationId
-      }`
-      : paths.owner.shifts.edit(shift._id);
+  const editHref = paths.owner.shifts.edit(shift._id);
 
   return (
     <DashboardContent>

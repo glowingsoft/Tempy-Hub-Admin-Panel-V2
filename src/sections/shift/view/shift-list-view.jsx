@@ -124,9 +124,7 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
     [filters, table]
   );
 
-  const newShiftHref =
-    pathsConfig?.new ||
-    (organizationId ? `${paths.owner.shifts.new}?orgId=${organizationId}` : paths.owner.shifts.new);
+  const newShiftHref = pathsConfig?.new || paths.owner.shifts.new;
 
   return (
     <DashboardContent>

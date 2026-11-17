@@ -45,9 +45,7 @@ const defaultValues = {
   period: 'Fortnight',
 };
 
-const ALL_SCOPE_OPTIONS = [
-  { value: 'personal', label: 'My Rota' },
-  { value: 'managed', label: 'My Team(s)' },
+const OWNER_SITE_SCOPE_OPTIONS = [
   { value: 'all', label: 'All Teams' },
 ];
 
@@ -98,11 +96,15 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
 
   // Role-specific scope configuration
   const scopeOptions = useMemo(() => {
-    if (isStaff) return []; // Staff is locked to personal
-    if (isOwner || isSiteManager) return ALL_SCOPE_OPTIONS;
-    if (isLineManager) return LM_SCOPE_OPTIONS;
-    return [];
-  }, [isStaff, isOwner, isSiteManager, isLineManager]);
+  if (isStaff) {
+    return [{ value: 'personal', label: 'My Rota' }];
+  }
+
+  if (isOwner || isSiteManager) return OWNER_SITE_SCOPE_OPTIONS;
+  if (isLineManager) return LM_SCOPE_OPTIONS;
+
+  return [];
+}, [isStaff, isOwner, isSiteManager, isLineManager]);
 
   const initialScope = useMemo(() => {
     if (isStaff) return 'personal';
@@ -111,73 +113,86 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     return 'personal';
   }, [isStaff, isOwner, isSiteManager, isLineManager]);
 
+  
+  useEffect(() => {
+    setScope(initialScope);
+    setSelectedTeamId('all');
+  }, [initialScope]);
+
   const [scope, setScope] = useState(initialScope);
   const [selectedTeamId, setSelectedTeamId] = useState('all');
 
-  // Site / Branch selection (Enabled for Owner via InfiniteAutocomplete, auto-scoped for Site Manager)
-  const [selectedBranchOption, setSelectedBranchOption] = useState(null);
-  const branchId = selectedBranchOption?.value;
+  // Site / Branch selection (Enabled for Owner via InfiniteAutocomplete, auto-scoped for Site Manager / Line Manager / Staff)
+  const [ownerSelectedBranchOption, setOwnerSelectedBranchOption] = useState(null);
 
   const assignedBranch = useMemo(
     () => (!isOwner ? getAssignedBranch(user, organizationId) : null),
     [isOwner, user, organizationId]
   );
 
-  const { data: branchesResponse } = useGetBranchesQuery(
+  const {
+    data: branchesResponse,
+    isLoading: isBranchesLoading,
+    isError: isBranchesError,
+  } = useGetBranchesQuery(
     { organizationId, page: 1, limit: 100 },
-    { skip: !organizationId }
+    { skip: !organizationId || !isOwner }
   );
 
-  // Auto-select or sync site when branches load:
-  // - For Owner: auto-select first/top site if none is selected
-  // - For Site Manager / Line Manager: match assigned branch or pick accessible branch
+  const branches = useMemo(() => branchesResponse?.data || [], [branchesResponse]);
+
+  // Reset owner custom branch selection on org switch
   useEffect(() => {
-    const branches = branchesResponse?.data || [];
+    setOwnerSelectedBranchOption(null);
+  }, [organizationId]);
 
-    if (isOwner) {
-      if (branches.length > 0 && (!selectedBranchOption || selectedBranchOption.value === 'all')) {
-        const topSite = branches[0];
-        setSelectedBranchOption({
-          value: topSite._id || topSite.id,
-          label: topSite.name,
-          timezone: topSite.timezone || 'Europe/London',
-        });
-      }
-    } else {
-      const branchIdToMatch = assignedBranch?.id || selectedBranchOption?.value;
-      const matched = branchIdToMatch
-        ? branches.find((b) => (b._id || b.id) === branchIdToMatch)
-        : null;
-      const effectiveSite = matched || branches[0];
-
-      if (effectiveSite) {
-        const nextId = effectiveSite._id || effectiveSite.id;
-        if (
-          selectedBranchOption?.value !== nextId ||
-          selectedBranchOption?.label !== effectiveSite.name
-        ) {
-          setSelectedBranchOption({
-            value: nextId,
-            label: effectiveSite.name,
-            timezone: effectiveSite.timezone || 'Europe/London',
-          });
-        }
-      } else if (
-        assignedBranch?.id &&
-        (!selectedBranchOption || selectedBranchOption.value !== assignedBranch.id)
-      ) {
-        setSelectedBranchOption({
+  // Auto-resolved branch for non-owner, or default first branch for owner.
+  // Only the Owner needs branchesResponse from the API (for the site-switcher dropdown).
+  // Site Manager, Line Manager, and Staff have their branch and timezone assigned on their profile.
+  const autoBranchOption = useMemo(() => {
+    if (!isOwner) {
+      if (assignedBranch?.id) {
+        return {
           value: assignedBranch.id,
           label: assignedBranch.name || 'Site',
-          timezone: 'Europe/London',
-        });
+          timezone:
+            user?.branch?.timezone ||
+            user?.accountState?.timezone ||
+            user?.timezone ||
+            Intl.DateTimeFormat().resolvedOptions().timeZone ||
+            'Europe/London',
+        };
       }
+      return null;
     }
-  }, [isOwner, branchesResponse, selectedBranchOption, assignedBranch]);
+
+    if (!branchesResponse && !isBranchesError) return null;
+
+    if (!branches.length) return null;
+    const topSite = branches[0];
+    return {
+      value: topSite._id || topSite.id,
+      label: topSite.name,
+      timezone: topSite.timezone || 'Europe/London',
+    };
+  }, [isOwner, assignedBranch, user, branchesResponse, isBranchesError, branches]);
+
+  const selectedBranchOption = isOwner
+    ? (ownerSelectedBranchOption || autoBranchOption)
+    : autoBranchOption;
+
+  const branchId = selectedBranchOption?.value;
 
   const facilityTimezone = useMemo(() => {
-    return selectedBranchOption?.timezone || 'Europe/London';
-  }, [selectedBranchOption]);
+    return (
+      selectedBranchOption?.timezone ||
+      user?.branch?.timezone ||
+      user?.accountState?.timezone ||
+      user?.timezone ||
+      Intl.DateTimeFormat().resolvedOptions().timeZone ||
+      'Europe/London'
+    );
+  }, [selectedBranchOption, user]);
 
   const handleBranchChange = useCallback((arg1, arg2) => {
     const selected =
@@ -188,7 +203,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
           : null;
 
     if (selected && selected.value !== 'all') {
-      setSelectedBranchOption(selected);
+      setOwnerSelectedBranchOption(selected);
     }
   }, []);
 
@@ -235,6 +250,10 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     };
   }, [organizationId, isOwner, branchId, isStaff, scope, state.period, from, to, facilityTimezone, selectedTeamId]);
 
+  const isBranchResolutionPending = Boolean(
+    isOwner && organizationId && !selectedBranchOption && !branchesResponse && !isBranchesError
+  );
+
   const {
     data: apiRotaData,
     isLoading: isRotaLoading,
@@ -242,7 +261,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     isSuccess: isRotaSuccess,
     refetch: refetchRota,
   } = useGetRotaBoardQuery(queryArgs, {
-    skip: !organizationId || (isOwner && !branchId),
+    skip: !organizationId || isBranchResolutionPending || (isOwner && !branchId),
   });
 
   // Map API response to UI shape (strictly without static mock data)
@@ -585,6 +604,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         : paths.staff.dashboard;
 
   const isInitialLoading =
+    isBranchResolutionPending ||
     isRotaLoading ||
     (!apiRotaData && isRotaFetching) ||
     (isRotaSuccess && !hasInitializedRotaData) ||
@@ -707,9 +727,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
           onClose={() => setCellPopoverAnchor(null)}
           cellData={selectedCellData}
           onBookShift={handleOpenBookShift}
-          onSetEntitlement={handleOpenSetEntitlement}
           canBookShift={effectivePermissions.canBookShift}
-          canSetEntitlement={!isStaff}
         />
       )}
 

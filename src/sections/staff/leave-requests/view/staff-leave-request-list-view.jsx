@@ -5,6 +5,7 @@ import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import Grid from '@mui/material/Unstable_Grid2';
 import Skeleton from '@mui/material/Skeleton';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -37,10 +38,12 @@ import { LEAVE_REQUEST_STATUS_OPTIONS } from 'src/sections/leave-request/mocks/d
 import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
 import {
   useCreateStaffLeaveRequestMutation,
+  useReportStaffSicknessMutation,
   useGetStaffLeaveRequestsQuery,
 } from 'src/store/Reducer/leave-requests-api';
 
 import { StaffAddLeaveDialog } from './staff-add-leave-dialog';
+import { StaffReportSicknessDialog } from './staff-report-sickness-dialog';
 import { StaffLeaveRequestTableRow } from './staff-leave-request-table-row';
 
 // ----------------------------------------------------------------------
@@ -80,8 +83,10 @@ export function StaffLeaveRequestListView() {
   });
   const { organizationId } = useCurrentOrganization();
   const [createStaffLeaveRequest] = useCreateStaffLeaveRequestMutation();
+  const [reportStaffSickness] = useReportStaffSicknessMutation();
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [reportSicknessOpen, setReportSicknessOpen] = useState(false);
 
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 400).trim();
@@ -143,6 +148,23 @@ export function StaffLeaveRequestListView() {
     [createStaffLeaveRequest, organizationId, table]
   );
 
+  const handleReportSickness = useCallback(
+    async (payload) => {
+      if (!organizationId) {
+        throw new Error('An organization scope is required to report sickness.');
+      }
+
+      await reportStaffSickness({
+        organizationId,
+        ...payload,
+      }).unwrap();
+
+      table.onResetPage();
+      toast.success('Sickness reported successfully.');
+    },
+    [reportStaffSickness, organizationId, table]
+  );
+
   const iconPath = `${import.meta.env.BASE_URL}assets/icons/navbar/ic-calendar.svg`;
 
   return (
@@ -152,14 +174,24 @@ export function StaffLeaveRequestListView() {
         links={[{ name: 'Dashboard', href: paths.staff.dashboard }, { name: 'Leave Requests' }]}
         action={
           canManageLeave ? (
-            <Button
-              color="primary"
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              onClick={() => setAddDialogOpen(true)}
-            >
-              Add Leave
-            </Button>
+            <Stack direction="row" spacing={1.5}>
+              <Button
+                color="error"
+                variant="outlined"
+                onClick={() => setReportSicknessOpen(true)}
+              >
+                Report Sickness
+              </Button>
+
+              <Button
+                color="primary"
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={() => setAddDialogOpen(true)}
+              >
+                Add Leave
+              </Button>
+            </Stack>
           ) : null
         }
         sx={{ mb: { xs: 3, md: 5 } }}
@@ -257,6 +289,12 @@ export function StaffLeaveRequestListView() {
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
         onSubmit={handleAddLeave}
+      />
+
+      <StaffReportSicknessDialog
+        open={reportSicknessOpen}
+        onClose={() => setReportSicknessOpen(false)}
+        onSubmit={handleReportSickness}
       />
     </DashboardContent>
   );

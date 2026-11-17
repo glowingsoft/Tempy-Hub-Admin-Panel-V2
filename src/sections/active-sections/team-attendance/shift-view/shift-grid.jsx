@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { useMemo } from 'react';
 
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -214,8 +215,16 @@ function ShiftGridSkeleton() {
 }
 
 export function AttendanceShiftGrid({ weeks = [], onViewRecord, loading = false }) {
-  const safeWeeks = Array.isArray(weeks) ? weeks : [];
-  const hasStaff = safeWeeks.some((week) => (week?.staff || []).length);
+  const sortedWeeks = useMemo(() => {
+    if (!Array.isArray(weeks)) return [];
+    return [...weeks].sort((a, b) => {
+      const timeA = a?.weekStart ? dayjs(a.weekStart).valueOf() : 0;
+      const timeB = b?.weekStart ? dayjs(b.weekStart).valueOf() : 0;
+      return timeB - timeA; // Descending: latest week on top, past week under it
+    });
+  }, [weeks]);
+
+  const hasStaff = sortedWeeks.some((week) => (week?.staff || []).length);
 
   if (loading) {
     return <ShiftGridSkeleton />;
@@ -234,9 +243,9 @@ export function AttendanceShiftGrid({ weeks = [], onViewRecord, loading = false 
 
   return (
     <Stack>
-      {safeWeeks.map((week, index) => (
+      {sortedWeeks.map((week, index) => (
         <Box key={week?.weekStart || index}>
-          {safeWeeks.length > 1 && week?.weekStart && (
+          {sortedWeeks.length > 1 && week?.weekStart && (
             <Typography variant="subtitle2" sx={{ px: 2.5, py: 1.5, color: 'text.secondary' }}>
               Week of {fDate(week.weekStart, 'DD MMM YYYY')}
             </Typography>
