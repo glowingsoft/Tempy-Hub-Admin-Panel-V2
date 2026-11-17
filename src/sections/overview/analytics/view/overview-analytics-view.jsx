@@ -9,6 +9,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { DataUsageMixedChart } from 'src/sections/data-usage/data-usage-mixed-chart';
+import { DashboardWidgetSkeleton } from 'src/sections/owner/dashboard-widget-skeleton';
 import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
 import { useGetPlatformDashboardQuery } from 'src/store/Reducer/platform-dashboard-api';
 
@@ -45,10 +46,11 @@ export function OverviewAnalyticsView() {
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [organizationId, setOrganizationId] = useState('');
 
-  const { data, isLoading } = useGetPlatformDashboardQuery({
+  const { data, isLoading, isFetching } = useGetPlatformDashboardQuery({
     year,
     organizationId: organizationId || undefined,
   });
+  const loading = isLoading || (isFetching && !data);
 
   const summary = data?.summary || {};
   const onboarding = data?.onboardingGrowth || {};
@@ -136,7 +138,7 @@ export function OverviewAnalyticsView() {
         Hi, {displayName} 👋
       </Typography>
 
-      <Grid container spacing={3} sx={{ opacity: isLoading ? 0.72 : 1 }}>
+      <Grid container spacing={3}>
         {summaryCards.map((card) => (
           <Grid key={card.title} xs={12} sm={6} md={3}>
             <CourseWidgetSummary
@@ -144,66 +146,87 @@ export function OverviewAnalyticsView() {
               total={card.total}
               color={card.color}
               icon={`${CONFIG.site.basePath}/assets/icons/navbar/${card.icon}`}
-              onClick={card.href ? () => router.push(card.href) : undefined}
-              sx={{ width: 1, cursor: card.href ? 'pointer' : 'default' }}
+              loading={loading}
+              onClick={!loading && card.href ? () => router.push(card.href) : undefined}
+              sx={{ width: 1, cursor: !loading && card.href ? 'pointer' : 'default' }}
             />
           </Grid>
         ))}
 
         <Grid xs={12}>
-          <AnalyticsWebsiteVisits
-            title="Onboarding Growth"
-            subheader={onboardingSubheader}
-            chart={{
-              categories: onboarding.months || [],
-              series: [
-                { name: 'Organizations', data: onboarding.organizations || [] },
-                { name: 'Sites', data: onboarding.sites || [] },
-              ],
-              options: {
-                tooltip: {
-                  y: {
-                    formatter: (value) => (value == null ? '—' : `${value}`),
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={180} subheaderWidth={220} variant="chart" />
+          ) : (
+            <AnalyticsWebsiteVisits
+              title="Onboarding Growth"
+              subheader={onboardingSubheader}
+              chart={{
+                categories: onboarding.months || [],
+                series: [
+                  { name: 'Organizations', data: onboarding.organizations || [] },
+                  { name: 'Sites', data: onboarding.sites || [] },
+                ],
+                options: {
+                  tooltip: {
+                    y: {
+                      formatter: (value) => (value == null ? '—' : `${value}`),
+                    },
                   },
                 },
-              },
-            }}
-            sx={{ height: 1 }}
-          />
+              }}
+              sx={{ height: 1 }}
+            />
+          )}
         </Grid>
 
         <Grid xs={12} md={6}>
-          <TopOrganizations
-            title="Top Organizations"
-            tableData={topOrganizations}
-            headLabel={ORGANIZATIONS_HEAD}
-            showViewAll={Boolean(topOrganizations.length)}
-            onClick={() => router.push(paths.dashboard.organizations.root)}
-          />
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={170} subheaderWidth={160} variant="table" />
+          ) : (
+            <TopOrganizations
+              title="Top Organizations"
+              tableData={topOrganizations}
+              headLabel={ORGANIZATIONS_HEAD}
+              showViewAll={Boolean(topOrganizations.length)}
+              onClick={() => router.push(paths.dashboard.organizations.root)}
+            />
+          )}
         </Grid>
 
         <Grid xs={12} md={6}>
-          <OrganizationalOverview
-            organizations={organizations}
-            overview={overview}
-            totals={summary}
-            selectedOrganizationId={selectedOrganizationId}
-            onOrganizationChange={setOrganizationId}
-          />
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={200} subheaderWidth={240} variant="list" />
+          ) : (
+            <OrganizationalOverview
+              organizations={organizations}
+              overview={overview}
+              totals={summary}
+              selectedOrganizationId={selectedOrganizationId}
+              onOrganizationChange={setOrganizationId}
+            />
+          )}
         </Grid>
 
         <Grid xs={12} md={6}>
-          <RevenueByOrganization data={revenueRows} />
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={200} subheaderWidth={140} variant="bars" />
+          ) : (
+            <RevenueByOrganization data={revenueRows} />
+          )}
         </Grid>
 
         <Grid xs={12} md={6}>
-          <DataUsageMixedChart
-            usage={data?.dataUsage}
-            year={year}
-            yearOptions={YEAR_OPTIONS}
-            onYearChange={setYear}
-            onViewAll={() => router.push(paths.dashboard.dataUsage.root)}
-          />
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={120} subheaderWidth={180} variant="chart" />
+          ) : (
+            <DataUsageMixedChart
+              usage={data?.dataUsage}
+              year={year}
+              yearOptions={YEAR_OPTIONS}
+              onYearChange={setYear}
+              onViewAll={() => router.push(paths.dashboard.dataUsage.root)}
+            />
+          )}
         </Grid>
       </Grid>
     </DashboardContent>

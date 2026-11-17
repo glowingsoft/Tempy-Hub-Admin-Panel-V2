@@ -4,12 +4,12 @@ import { useSelector } from 'react-redux';
 import Grid from '@mui/material/Unstable_Grid2';
 import Typography from '@mui/material/Typography';
 
-import { LoadingScreen } from 'src/components/loading-screen';
 import { CONFIG } from 'src/config-global';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+import { DashboardWidgetSkeleton } from 'src/sections/owner/dashboard-widget-skeleton';
 import { EmptyDashboardCard } from 'src/sections/owner/empty-dashboard-card';
 import { useGetOrganizationSiteDashboardQuery } from 'src/store/Reducer/organizations-api';
 
@@ -47,6 +47,7 @@ export function OverviewAppView() {
     { skip: !organizationId }
   );
 
+  const loading = !organizationId || isLoading || (isFetching && !data);
   const dashboard = useMemo(() => mapSiteDashboard(data), [data]);
   const { summary } = dashboard;
 
@@ -102,21 +103,13 @@ export function OverviewAppView() {
     },
   ];
 
-  if (!organizationId || isLoading || (!data && isFetching)) {
-    return (
-      <DashboardContent maxWidth="xl">
-        <LoadingScreen sx={{ minHeight: '60vh' }} />
-      </DashboardContent>
-    );
-  }
-
   return (
     <DashboardContent maxWidth="xl">
       <Typography variant="h4" sx={{ mb: { xs: 3, md: 5, textTransform: 'capitalize' } }}>
         Hi, {user?.basicInfo?.name || 'Manager'} 👋
       </Typography>
 
-      <Grid container spacing={3} sx={{ opacity: isLoading ? 0.72 : 1 }}>
+      <Grid container spacing={3}>
         {summaryCards.map((card) => (
           <Grid key={card.title} xs={12} sm={6} md={3}>
             <CourseWidgetSummary
@@ -124,35 +117,42 @@ export function OverviewAppView() {
               total={card.total}
               color={card.color}
               icon={`${CONFIG.site.basePath}/assets/icons/navbar/${card.icon}`}
-              onClick={() => router.push(card.href)}
-              sx={{ cursor: 'pointer', width: 1 }}
+              loading={loading}
+              onClick={loading ? undefined : () => router.push(card.href)}
+              sx={{ cursor: loading ? 'default' : 'pointer', width: 1 }}
             />
           </Grid>
         ))}
 
         <Grid xs={12} md={7.5}>
-          <PeopleOnSiteNow
-            title="People on site now"
-            subheader={
-              dashboard.peopleTotal
-                ? `${dashboard.peopleTotal} currently on site`
-                : undefined
-            }
-            tableData={dashboard.people}
-            onClick={() => router.push(paths.siteManager.directory.root)}
-            sx={{ height: 1 }}
-            headLabel={[
-              { id: 'name', label: 'Name' },
-              { id: 'type', label: 'Type', align: 'center' },
-              { id: 'checkIn', label: 'Check In' },
-              { id: 'status', label: 'Status', align: 'center' },
-              { id: 'actions', label: 'Actions', align: 'center' },
-            ]}
-          />
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={180} subheaderWidth={180} variant="table" />
+          ) : (
+            <PeopleOnSiteNow
+              title="People on site now"
+              subheader={
+                dashboard.peopleTotal
+                  ? `${dashboard.peopleTotal} currently on site`
+                  : undefined
+              }
+              tableData={dashboard.people}
+              onClick={() => router.push(paths.siteManager.directory.root)}
+              sx={{ height: 1 }}
+              headLabel={[
+                { id: 'name', label: 'Name' },
+                { id: 'type', label: 'Type', align: 'center' },
+                { id: 'checkIn', label: 'Check In' },
+                { id: 'status', label: 'Status', align: 'center' },
+                { id: 'actions', label: 'Actions', align: 'center' },
+              ]}
+            />
+          )}
         </Grid>
 
         <Grid xs={12} md={4.5}>
-          {dashboard.hasActivity ? (
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={130} subheaderWidth={120} variant="timeline" />
+          ) : dashboard.hasActivity ? (
             <AnalyticsNews title="Activity Feed" list={dashboard.activityFeed} sx={{ height: 1 }} />
           ) : (
             <EmptyDashboardCard title="Activity Feed" />
@@ -160,7 +160,9 @@ export function OverviewAppView() {
         </Grid>
 
         <Grid xs={12}>
-          {dashboard.hasVisitorActivity ? (
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={240} subheaderWidth={180} variant="chart" />
+          ) : dashboard.hasVisitorActivity ? (
             <VisitorContractorActivity
               activity={dashboard.visitorActivity}
               timeframe={period}
@@ -173,7 +175,14 @@ export function OverviewAppView() {
         </Grid>
 
         <Grid xs={12} md={6} lg={4}>
-          {dashboard.hasCompliance ? (
+          {loading ? (
+            <DashboardWidgetSkeleton
+              titleWidth={120}
+              subheaderWidth={160}
+              variant="table"
+              sx={{ height: GLANCE_CARD_HEIGHT }}
+            />
+          ) : dashboard.hasCompliance ? (
             <DashboardGlanceTable
               title="Compliance"
               subheader={`${dashboard.compliance.scoreLabel} compliant · Site team`}
@@ -191,7 +200,14 @@ export function OverviewAppView() {
         </Grid>
 
         <Grid xs={12} md={6} lg={4}>
-          {dashboard.hasTraining ? (
+          {loading ? (
+            <DashboardWidgetSkeleton
+              titleWidth={140}
+              subheaderWidth={160}
+              variant="table"
+              sx={{ height: GLANCE_CARD_HEIGHT }}
+            />
+          ) : dashboard.hasTraining ? (
             <DashboardGlanceTable
               title="Staff Training"
               subheader={`${dashboard.training.scoreLabel} compliant · Site team`}
@@ -209,7 +225,14 @@ export function OverviewAppView() {
         </Grid>
 
         <Grid xs={12} md={6} lg={4}>
-          {dashboard.hasSupervision ? (
+          {loading ? (
+            <DashboardWidgetSkeleton
+              titleWidth={200}
+              subheaderWidth={160}
+              variant="table"
+              sx={{ height: GLANCE_CARD_HEIGHT }}
+            />
+          ) : dashboard.hasSupervision ? (
             <DashboardGlanceTable
               title="Supervision & Appraisal"
               subheader={`${dashboard.supervision.scoreLabel} compliant · Site team`}
@@ -227,7 +250,14 @@ export function OverviewAppView() {
         </Grid>
 
         <Grid xs={12} md={6} lg={4}>
-          {dashboard.hasOpenShifts ? (
+          {loading ? (
+            <DashboardWidgetSkeleton
+              titleWidth={180}
+              subheaderWidth={140}
+              variant="timeline"
+              sx={{ height: GLANCE_CARD_HEIGHT }}
+            />
+          ) : dashboard.hasOpenShifts ? (
             <AnalyticsOrderTimeline
               title="Open shifts to claim"
               subheader="Site shift cover"

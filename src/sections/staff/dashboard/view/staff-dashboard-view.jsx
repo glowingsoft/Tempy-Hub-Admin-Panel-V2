@@ -16,6 +16,7 @@ import { AnalyticsOrderTimeline } from 'src/sections/overview/analytics/analytic
 import { AnalyticsWebsiteVisits } from 'src/sections/overview/analytics/analytics-website-visits';
 import { DashboardGlanceTable } from 'src/sections/overview/analytics/dashboard-glance-table';
 import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
+import { DashboardWidgetSkeleton } from 'src/sections/owner/dashboard-widget-skeleton';
 import { EmptyDashboardCard } from 'src/sections/owner/empty-dashboard-card';
 import { useGetOrganizationStaffHomeDashboardQuery } from 'src/store/Reducer/organizations-api';
 
@@ -46,9 +47,10 @@ export function StaffDashboardView() {
     const safeAtAssembly = useBoolean(false);
     const [nowTs, setNowTs] = useState(() => Date.now());
 
-    const { data, isLoading } = useGetOrganizationStaffHomeDashboardQuery(organizationId, {
+    const { data, isLoading, isFetching } = useGetOrganizationStaffHomeDashboardQuery(organizationId, {
         skip: !organizationId,
     });
+    const loading = !organizationId || isLoading || (isFetching && !data);
 
     const dashboard = useMemo(() => mapStaffDashboard(data), [data]);
     const { summary } = dashboard;
@@ -97,50 +99,64 @@ export function StaffDashboardView() {
                 Hi, {firstName} 👋
             </Typography>
 
-            <Grid container spacing={3} sx={{ opacity: isLoading ? 0.72 : 1 }}>
+            <Grid container spacing={3}>
                 {checkInActive ? (
                     <Grid xs={12}>
-                        <StaffAttendanceBar
-                            clock={clock}
-                            onClockIn={clockIn}
-                            onClockOut={clockOut}
-                            onStartBreak={startBreak}
-                            onEndBreak={endBreak}
-                            canBreak={canBreak}
-                            breakNote={breakNote}
-                        />
+                        {loading ? (
+                            <DashboardWidgetSkeleton
+                                titleWidth={180}
+                                subheaderWidth={280}
+                                variant="actionBar"
+                            />
+                        ) : (
+                            <StaffAttendanceBar
+                                clock={clock}
+                                onClockIn={clockIn}
+                                onClockOut={clockOut}
+                                onStartBreak={startBreak}
+                                onEndBreak={endBreak}
+                                canBreak={canBreak}
+                                breakNote={breakNote}
+                            />
+                        )}
                     </Grid>
                 ) : null}
                 <Grid xs={12} sm={6} md={3}>
-                    <CourseWidgetSummary title="On-site today" total={onSiteToday} color="primary" icon={icon('ic-clock')} sx={{ width: 1 }} />
+                    <CourseWidgetSummary title="On-site today" total={onSiteToday} color="primary" icon={icon('ic-clock')} loading={loading} sx={{ width: 1 }} />
                 </Grid>
 
                 <Grid xs={12} sm={6} md={3}>
-                    <CourseWidgetSummary title="Hours this week" total={summary.hoursThisWeek} color="info" icon={icon('ic-rota')} sx={{ width: 1 }} />
+                    <CourseWidgetSummary title="Hours this week" total={summary.hoursThisWeek} color="info" icon={icon('ic-rota')} loading={loading} sx={{ width: 1 }} />
                 </Grid>
 
                 {summary.hasHourlyRate ? (
                     <Grid xs={12} sm={6} md={3}>
-                        <CourseWidgetSummary title={summary.earnedThisWeekTitle} total={summary.earnedThisWeek ?? '—'} color="success" icon={icon('ic-banking')} sx={{ width: 1 }} />
+                        <CourseWidgetSummary title={summary.earnedThisWeekTitle} total={summary.earnedThisWeek ?? '—'} color="success" icon={icon('ic-banking')} loading={loading} sx={{ width: 1 }} />
                     </Grid>
                 ) : null}
 
                 {pendingLeaveVisible ? (
                     <Grid xs={12} sm={6} md={3}>
-                        <CourseWidgetSummary title="Pending leave" total={summary.pendingLeave} color="warning" icon={icon('ic-calendar')} sx={{ width: 1 }} />
+                        <CourseWidgetSummary title="Pending leave" total={summary.pendingLeave} color="warning" icon={icon('ic-calendar')} loading={loading} sx={{ width: 1 }} />
                     </Grid>
                 ) : null}
 
                 <Grid xs={12} sm={6} md={3}>
-                    <CourseWidgetSummary title="Compliance due" total={summary.complianceDue} color="error" icon={icon('ic-compliance')} sx={{ width: 1 }} />
+                    <CourseWidgetSummary title="Compliance due" total={summary.complianceDue} color="error" icon={icon('ic-compliance')} loading={loading} sx={{ width: 1 }} />
                 </Grid>
 
                 <Grid xs={12}>
-                    <StaffQuickActions counts={dashboard.quickActionCounts} />
+                    {loading ? (
+                        <DashboardWidgetSkeleton titleWidth={140} subheaderWidth={120} variant="chips" />
+                    ) : (
+                        <StaffQuickActions counts={dashboard.quickActionCounts} />
+                    )}
                 </Grid>
 
                 <Grid xs={12}>
-                    {dashboard.weeklyHours.hasData ? (
+                    {loading ? (
+                        <DashboardWidgetSkeleton titleWidth={160} subheaderWidth={220} variant="chart" />
+                    ) : dashboard.weeklyHours.hasData ? (
                         <AnalyticsWebsiteVisits
                             title="My weekly hours"
                             subheader={hoursSubheader}
@@ -155,58 +171,102 @@ export function StaffDashboardView() {
                 </Grid>
 
                 <Grid xs={12}>
-                    <StaffShiftCalendarStrip
-                        title="Next Assigned shifts"
-                        shifts={dashboard.nextShifts.calendarShifts}
-                        scheduledHours={dashboard.nextShifts.scheduledHours}
-                    />
+                    {loading ? (
+                        <DashboardWidgetSkeleton titleWidth={180} subheaderWidth={140} variant="chart" />
+                    ) : (
+                        <StaffShiftCalendarStrip
+                            title="Next Assigned shifts"
+                            shifts={dashboard.nextShifts.calendarShifts}
+                            scheduledHours={dashboard.nextShifts.scheduledHours}
+                        />
+                    )}
                 </Grid>
 
                 <Grid xs={12}>
-                    <AnalyticsNews
-                        title="Communication"
-                        subheader="Announcements, approvals and reminders"
-                        list={dashboard.communication}
-                    />
+                    {loading ? (
+                        <DashboardWidgetSkeleton titleWidth={150} subheaderWidth={260} variant="timeline" />
+                    ) : (
+                        <AnalyticsNews
+                            title="Communication"
+                            subheader="Announcements, approvals and reminders"
+                            list={dashboard.communication}
+                        />
+                    )}
                 </Grid>
 
                 <Grid xs={12} md={6} lg={4}>
-                    <DashboardGlanceTable
-                        title="Compliance"
-                        subheader={scoreLabel(dashboard.compliance.percent)}
-                        columns={dashboard.compliance.columns}
-                        rows={dashboard.compliance.rows}
-                        sx={{ height: GLANCE_CARD_HEIGHT }}
-                    />
+                    {loading ? (
+                        <DashboardWidgetSkeleton
+                            titleWidth={120}
+                            subheaderWidth={140}
+                            variant="table"
+                            sx={{ height: GLANCE_CARD_HEIGHT }}
+                        />
+                    ) : (
+                        <DashboardGlanceTable
+                            title="Compliance"
+                            subheader={scoreLabel(dashboard.compliance.percent)}
+                            columns={dashboard.compliance.columns}
+                            rows={dashboard.compliance.rows}
+                            sx={{ height: GLANCE_CARD_HEIGHT }}
+                        />
+                    )}
                 </Grid>
 
                 <Grid xs={12} md={6} lg={4}>
-                    <DashboardGlanceTable
-                        title="My Training"
-                        subheader={scoreLabel(dashboard.training.percent)}
-                        columns={dashboard.training.columns}
-                        rows={dashboard.training.rows}
-                        sx={{ height: GLANCE_CARD_HEIGHT }}
-                    />
+                    {loading ? (
+                        <DashboardWidgetSkeleton
+                            titleWidth={120}
+                            subheaderWidth={140}
+                            variant="table"
+                            sx={{ height: GLANCE_CARD_HEIGHT }}
+                        />
+                    ) : (
+                        <DashboardGlanceTable
+                            title="My Training"
+                            subheader={scoreLabel(dashboard.training.percent)}
+                            columns={dashboard.training.columns}
+                            rows={dashboard.training.rows}
+                            sx={{ height: GLANCE_CARD_HEIGHT }}
+                        />
+                    )}
                 </Grid>
 
                 <Grid xs={12} md={6} lg={4}>
-                    <DashboardGlanceTable
-                        title="Supervision & Appraisal"
-                        subheader={scoreLabel(dashboard.supervisionAppraisal.percent)}
-                        columns={dashboard.supervisionAppraisal.columns}
-                        rows={dashboard.supervisionAppraisal.rows}
-                        sx={{ height: GLANCE_CARD_HEIGHT }}
-                    />
+                    {loading ? (
+                        <DashboardWidgetSkeleton
+                            titleWidth={200}
+                            subheaderWidth={140}
+                            variant="table"
+                            sx={{ height: GLANCE_CARD_HEIGHT }}
+                        />
+                    ) : (
+                        <DashboardGlanceTable
+                            title="Supervision & Appraisal"
+                            subheader={scoreLabel(dashboard.supervisionAppraisal.percent)}
+                            columns={dashboard.supervisionAppraisal.columns}
+                            rows={dashboard.supervisionAppraisal.rows}
+                            sx={{ height: GLANCE_CARD_HEIGHT }}
+                        />
+                    )}
                 </Grid>
                 
                 {shiftBiddingActive ? (
                     <Grid xs={12} md={6} lg={4}>
-                        <AnalyticsOrderTimeline
-                            title="Open shifts to claim"
-                            list={dashboard.openShifts}
-                            sx={{ height: GLANCE_CARD_HEIGHT }}
-                        />
+                        {loading ? (
+                            <DashboardWidgetSkeleton
+                                titleWidth={180}
+                                subheaderWidth={140}
+                                variant="timeline"
+                                sx={{ height: GLANCE_CARD_HEIGHT }}
+                            />
+                        ) : (
+                            <AnalyticsOrderTimeline
+                                title="Open shifts to claim"
+                                list={dashboard.openShifts}
+                                sx={{ height: GLANCE_CARD_HEIGHT }}
+                            />
+                        )}
                     </Grid>
                 ) : null}
             </Grid>

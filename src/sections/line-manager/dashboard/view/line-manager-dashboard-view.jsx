@@ -11,6 +11,7 @@ import { useRouter } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 import { AnalyticsWebsiteVisits } from 'src/sections/overview/analytics/analytics-website-visits';
 import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
+import { DashboardWidgetSkeleton } from 'src/sections/owner/dashboard-widget-skeleton';
 import { EmptyDashboardCard } from 'src/sections/owner/empty-dashboard-card';
 import { useGetOrganizationLineDashboardQuery } from 'src/store/Reducer/organizations-api';
 import { fDate } from 'src/utils/format-time';
@@ -26,9 +27,10 @@ export function LineManagerDashboardView() {
   const { user } = useSelector((state) => state.user);
   const { organizationId } = useCurrentOrganization();
 
-  const { data, isLoading } = useGetOrganizationLineDashboardQuery(organizationId, {
+  const { data, isLoading, isFetching } = useGetOrganizationLineDashboardQuery(organizationId, {
     skip: !organizationId,
   });
+  const loading = !organizationId || isLoading || (isFetching && !data);
 
   const summary = data?.summary || {};
   const teamAttendance = data?.teamAttendance || [];
@@ -57,13 +59,14 @@ export function LineManagerDashboardView() {
         Hi, {user?.basicInfo?.name || 'Manager'} 👋
       </Typography>
 
-      <Grid container spacing={3} sx={{ mb: 3, opacity: isLoading ? 0.72 : 1 }}>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid xs={12} sm={6} md={3}>
           <CourseWidgetSummary
             title="Shifts logged"
             total={summary.shiftsLogged ?? 0}
             color="primary"
             icon={icon('ic-rota')}
+            loading={loading}
             sx={{ width: 1 }}
           />
         </Grid>
@@ -74,6 +77,7 @@ export function LineManagerDashboardView() {
             total={summary.onTime ?? 0}
             color="success"
             icon={icon('ic-check')}
+            loading={loading}
             sx={{ width: 1 }}
           />
         </Grid>
@@ -84,6 +88,7 @@ export function LineManagerDashboardView() {
             total={summary.late ?? 0}
             color="warning"
             icon={icon('ic-clock')}
+            loading={loading}
             sx={{ width: 1 }}
           />
         </Grid>
@@ -94,20 +99,22 @@ export function LineManagerDashboardView() {
             total={attendanceRate}
             color="info"
             icon={icon('ic-analytics')}
+            loading={loading}
             sx={{ width: 1 }}
           />
         </Grid>
       </Grid>
 
-      <Grid container spacing={3} sx={{ mb: 3, opacity: isLoading ? 0.72 : 1 }}>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid xs={12} sm={6} md={3}>
           <CourseWidgetSummary
             title="Family uploads waiting"
             total={summary.familyUploadsWaiting ?? 0}
             color="warning"
             icon={icon('ic-file')}
-            onClick={() => router.push(paths.lineManager.familyEngagement.moderation)}
-            sx={{ cursor: 'pointer', width: 1 }}
+            loading={loading}
+            onClick={loading ? undefined : () => router.push(paths.lineManager.familyEngagement.moderation)}
+            sx={{ cursor: loading ? 'default' : 'pointer', width: 1 }}
           />
         </Grid>
 
@@ -117,8 +124,9 @@ export function LineManagerDashboardView() {
             total={summary.wallPostsThisWeek ?? 0}
             color="primary"
             icon={icon('ic-blog')}
-            onClick={() => router.push(paths.lineManager.familyEngagement.communityWall)}
-            sx={{ cursor: 'pointer', width: 1 }}
+            loading={loading}
+            onClick={loading ? undefined : () => router.push(paths.lineManager.familyEngagement.communityWall)}
+            sx={{ cursor: loading ? 'default' : 'pointer', width: 1 }}
           />
         </Grid>
 
@@ -128,15 +136,18 @@ export function LineManagerDashboardView() {
             total={summary.messagesSent ?? 0}
             color="info"
             icon={icon('ic-chat')}
-            onClick={() => router.push(paths.lineManager.messages)}
-            sx={{ cursor: 'pointer', width: 1 }}
+            loading={loading}
+            onClick={loading ? undefined : () => router.push(paths.lineManager.messages)}
+            sx={{ cursor: loading ? 'default' : 'pointer', width: 1 }}
           />
         </Grid>
       </Grid>
 
-      <Grid container spacing={3} sx={{ mb: 3, opacity: isLoading ? 0.72 : 1 }}>
+      <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid xs={12}>
-          {hasAttendance ? (
+          {loading ? (
+            <DashboardWidgetSkeleton titleWidth={150} subheaderWidth={220} variant="chart" />
+          ) : hasAttendance ? (
             <AnalyticsWebsiteVisits
               title="Team attendance"
               subheader="On time vs late, by shift date"
