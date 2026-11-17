@@ -21,7 +21,8 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useCreateFloorMutation } from 'src/store/Reducer/floor-plans-api';
 import { useUploadFileMutation } from 'src/store/Reducer/upload-api';
-import { isAllowedFloorPlanImage } from 'src/sections/floor-plans/utils';
+import { isAllowedFloorPlanFile, isPdfFile } from 'src/sections/floor-plans/utils';
+import { convertPdfToImage } from 'src/utils/pdf-to-image';
 
 // ----------------------------------------------------------------------
 
@@ -47,6 +48,8 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
   // from the authenticated user context, not as a prop.
   const { organizationId } = useCurrentOrganization();
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [originalPdfFile, setOriginalPdfFile] = useState(null);
+  const [isConvertingPdf, setIsConvertingPdf] = useState(false);
   const [fileError, setFileError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -72,6 +75,8 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
     if (open) {
       methods.reset(defaultValues);
       setUploadedFile(null);
+      setOriginalPdfFile(null);
+      setIsConvertingPdf(false);
       setFileError('');
     }
   }, [open, defaultValues, methods]);
@@ -80,6 +85,8 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
     onClose();
     methods.reset(defaultValues);
     setUploadedFile(null);
+    setOriginalPdfFile(null);
+    setIsConvertingPdf(false);
     setFileError('');
   }, [onClose, defaultValues, methods]);
 
@@ -87,32 +94,65 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
     const file = acceptedFiles?.[0];
     if (!file) return;
 
-    if (!(await isAllowedFloorPlanImage(file))) {
+    if (!(await isAllowedFloorPlanFile(file))) {
       setUploadedFile(null);
-      setFileError('Choose a valid JPG, PNG, or WebP image. PDF files are not supported.');
-      toast.error('Only JPG, PNG, or WebP image files are allowed for a new floor.');
+      setOriginalPdfFile(null);
+      setFileError('Choose a valid JPG, PNG, or WebP image, or a PDF document.');
+      toast.error('Only JPG, PNG, WebP image files or PDF documents are allowed.');
       return;
     }
 
+    if (isPdfFile(file)) {
+      setIsConvertingPdf(true);
+      setFileError('');
+      try {
+        const result = await convertPdfToImage(file);
+        if (!result?.blob) {
+          throw new Error('Failed to convert PDF to image.');
+        }
+
+        const convertedFile = new File(
+          [result.blob],
+          file.name.replace(/\.[^/.]+$/, '') + '.png',
+          { type: 'image/png' }
+        );
+        convertedFile.preview = result.imageUrl || result.dataUrl;
+
+        setUploadedFile(convertedFile);
+        setOriginalPdfFile(file);
+        setFileError('');
+      } catch (err) {
+        console.error('PDF conversion error:', err);
+        setUploadedFile(null);
+        setOriginalPdfFile(null);
+        setFileError('Unable to convert this PDF file. Please ensure it is a valid document.');
+      } finally {
+        setIsConvertingPdf(false);
+      }
+      return;
+    }
+
+    setOriginalPdfFile(null);
     setUploadedFile(Object.assign(file, { preview: URL.createObjectURL(file) }));
     setFileError('');
   }, []);
 
   const handleRemoveFile = useCallback(() => {
     setUploadedFile(null);
+    setOriginalPdfFile(null);
     setFileError('');
   }, []);
 
   const onSubmit = methods.handleSubmit(async (data) => {
-    if (uploadedFile && !(await isAllowedFloorPlanImage(uploadedFile))) {
-      setFileError('Choose a valid JPG, PNG, or WebP image. PDF files are not supported.');
-      toast.error('Only JPG, PNG, or WebP image files are allowed for a new floor.');
+    if (uploadedFile && !(await isAllowedFloorPlanFile(uploadedFile))) {
+      setFileError('Choose a valid JPG, PNG, or WebP image, or a PDF document.');
       return;
     }
 
     setIsSubmitting(true);
     try {
       let imageUrl;
+
       if (uploadedFile) {
         const uploadResult = await uploadFile(uploadedFile).unwrap();
         imageUrl = uploadResult.key ?? '';
@@ -158,7 +198,7 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
             {/* Floor name */}
             <Field.Text name="name" label="Floor / wing label" placeholder="e.g. Second Floor" />
 
-            {/* Optional floor plan image upload */}
+            {/* Optional floor plan image or PDF upload */}
             <Stack spacing={1}>
               <Typography variant="subtitle2">
                 Floor Plan File
@@ -166,16 +206,18 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
               <Upload
                 value={uploadedFile}
                 error={Boolean(fileError)}
+                disabled={isConvertingPdf}
                 accept={{
                   'image/jpeg': ['.jpeg', '.jpg'],
                   'image/png': ['.png'],
                   'image/webp': ['.webp'],
+                  'application/pdf': ['.pdf'],
                 }}
                 onDrop={handleDrop}
                 onDropRejected={() => {
                   setUploadedFile(null);
-                  setFileError('Choose a JPG, PNG, or WebP image. PDF files are not supported.');
-                  toast.error('Only JPG, PNG, or WebP image files are allowed for a new floor.');
+                  setOriginalPdfFile(null);
+                  setFileError('Choose a JPG, PNG, or WebP image, or a PDF file.');
                 }}
                 onDelete={handleRemoveFile}
                 helperText={
@@ -185,7 +227,7 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
                   >
                     {fileError
                       ? fileError
-                      : 'Choose an image: *.jpeg, *.jpg, *.png, or *.webp'}
+                      : 'Choose an image (*.jpeg, *.jpg, *.png, *.webp) or PDF (*.pdf)'}
                   </Typography>
                 }
               />
@@ -194,11 +236,11 @@ export function FloorCreateModal({ open, onClose, siteOptions, defaultBranchId, 
         </DialogContent>
 
         <DialogActions>
-          <Button variant="outlined" onClick={handleClose} disabled={isSubmitting}>
+          <Button variant="outlined" onClick={handleClose} disabled={isSubmitting || isConvertingPdf}>
             Cancel
           </Button>
 
-          <LoadingButton type="submit" variant="contained" color="primary" loading={isSubmitting}>
+          <LoadingButton type="submit" variant="contained" color="primary" loading={isSubmitting} disabled={isConvertingPdf}>
             Add Floor
           </LoadingButton>
         </DialogActions>

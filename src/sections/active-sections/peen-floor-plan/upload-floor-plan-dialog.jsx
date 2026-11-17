@@ -1,5 +1,6 @@
 // components/upload-floor-plan-dialog.jsx
 
+import { useCallback, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z as zod } from 'zod';
@@ -9,27 +10,30 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import LoadingButton from '@mui/lab/LoadingButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import { Field, Form } from 'src/components/hook-form';
-import { isAllowedFloorPlanImage } from 'src/sections/floor-plans/utils';
+import { toast } from 'src/components/snackbar';
+import { isAllowedFloorPlanFile, isPdfFile } from 'src/sections/floor-plans/utils';
+import { convertPdfToImage } from 'src/utils/pdf-to-image';
 
 // ----------------------------------------------------------------------
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
 
 const UploadFloorPlanSchema = zod.object({
   floorPlan: zod
     .any()
     .refine((file) => file instanceof File, {
-      message: 'Please select a floor plan image.',
+      message: 'Please select a floor plan image or PDF.',
     })
-    .refine(isAllowedFloorPlanImage, {
-      message: 'Only JPG, PNG, or WebP image files are allowed.',
+    .refine(isAllowedFloorPlanFile, {
+      message: 'Only JPG, PNG, WebP image files or PDF documents are allowed.',
     })
     .refine((file) => file?.size <= MAX_FILE_SIZE, {
-      message: 'The floor plan must be smaller than 10 MB.',
+      message: 'The floor plan must be smaller than 15 MB.',
     }),
 });
 
@@ -40,8 +44,10 @@ export function UploadFloorPlanDialog({
   onClose,
   onUpload,
   title = 'Upload Floor Plan',
-  description = 'Upload an image floor plan for this site.',
+  description = 'Upload an image or PDF floor plan for this site.',
 }) {
+  const [isConverting, setIsConverting] = useState(false);
+
   const methods = useForm({
     resolver: zodResolver(UploadFloorPlanSchema),
     defaultValues: {
@@ -52,15 +58,63 @@ export function UploadFloorPlanDialog({
   const {
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { isSubmitting },
   } = methods;
 
+  const currentFile = watch('floorPlan');
+
   const handleClose = () => {
-    if (isSubmitting) return;
+    if (isSubmitting || isConverting) return;
 
     reset();
+    setIsConverting(false);
     onClose();
   };
+
+  const handleDrop = useCallback(
+    async (acceptedFiles) => {
+      const file = acceptedFiles?.[0];
+      if (!file) return;
+
+      if (!(await isAllowedFloorPlanFile(file))) {
+        setValue('floorPlan', null);
+        toast.error('Only JPG, PNG, WebP images or PDF files are allowed.');
+        return;
+      }
+
+      if (isPdfFile(file)) {
+        setIsConverting(true);
+        try {
+          const result = await convertPdfToImage(file);
+          if (!result?.blob) throw new Error('PDF conversion failed');
+
+          const convertedFile = new File(
+            [result.blob],
+            file.name.replace(/\.[^/.]+$/, '') + '.png',
+            { type: 'image/png' }
+          );
+          convertedFile.preview = result.imageUrl || result.dataUrl;
+
+          setValue('floorPlan', convertedFile, { shouldValidate: true });
+        } catch (err) {
+          console.error('PDF conversion error:', err);
+          setValue('floorPlan', null);
+          toast.error('Failed to convert PDF to image.');
+        } finally {
+          setIsConverting(false);
+        }
+      } else {
+        setValue(
+          'floorPlan',
+          Object.assign(file, { preview: URL.createObjectURL(file) }),
+          { shouldValidate: true }
+        );
+      }
+    },
+    [setValue]
+  );
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -72,6 +126,7 @@ export function UploadFloorPlanDialog({
       onClose();
     } catch (error) {
       console.error('Floor plan upload failed:', error);
+      toast.error(error?.message || 'Floor plan upload failed.');
     }
   });
 
@@ -88,13 +143,19 @@ export function UploadFloorPlanDialog({
 
             <Field.Upload
               name="floorPlan"
+              disabled={isConverting}
               accept={{
                 'image/jpeg': ['.jpg', '.jpeg'],
                 'image/png': ['.png'],
                 'image/webp': ['.webp'],
+                'application/pdf': ['.pdf'],
               }}
               maxSize={MAX_FILE_SIZE}
-              helperText="JPG, PNG, or WebP image (Max 10 MB)"
+              onDrop={handleDrop}
+              onDelete={() => {
+                setValue('floorPlan', null);
+              }}
+              helperText="JPG, PNG, WebP image or PDF document (Max 15 MB)"
               sx={{
                 minHeight: 180,
                 borderRadius: 2,
@@ -104,13 +165,19 @@ export function UploadFloorPlanDialog({
         </DialogContent>
 
         <DialogActions>
-          <Button color="inherit" variant="outlined" onClick={handleClose} disabled={isSubmitting}>
+          <Button color="inherit" variant="outlined" onClick={handleClose} disabled={isSubmitting || isConverting}>
             Cancel
           </Button>
 
-          <Button type="submit" variant="contained" color="primary" loading={isSubmitting} loadingPosition="start">
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            color="primary"
+            loading={isSubmitting}
+            disabled={isConverting || !currentFile}
+          >
             Upload Floor Plan
-          </Button>
+          </LoadingButton>
         </DialogActions>
       </Form>
     </Dialog>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 
 import Avatar from '@mui/material/Avatar';
@@ -42,8 +42,14 @@ export function ResidentTableRow({
 
     // Shared across the site manager, line manager and owner dashboards, so
     // the detail route is resolved from the current URL rather than a prop.
-    const isOwner = pathname.startsWith(paths.owner.root);
+    const isOwner = pathname.startsWith(paths.owner.root) || pathname.startsWith('/owner-dashboard');
     const isLineManager = pathname.startsWith(paths.lineManager.root);
+    const isSiteManager = pathname.startsWith(paths.siteManager.root) || pathname.startsWith('/site-manager');
+    const canViewPassword = isOwner || isSiteManager;
+
+    const [showPassword, setShowPassword] = useState(false);
+    const securityPassword = row.visitorPasscode || row.securityPassword || row.passcode || '';
+
     const detailPath = isOwner
         ? paths.owner.residents.detail(row._id)
         : isLineManager
@@ -142,10 +148,34 @@ export function ResidentTableRow({
 
             {/* Security Password Column */}
             <TableCell align="center" onClick={(event) => event.stopPropagation()}>
-                <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                        ••••••••
+                <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            fontFamily: 'monospace',
+                            fontWeight: 600,
+                            minWidth: 64,
+                            textAlign: 'center',
+                        }}
+                    >
+                        {showPassword ? (securityPassword || '—') : '••••••••'}
                     </Typography>
+
+                    {canViewPassword && (
+                        <Tooltip title={showPassword ? 'Hide Security Password' : 'Show Security Password'}>
+                            <IconButton
+                                size="small"
+                                color="default"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                            >
+                                <Iconify
+                                    icon={showPassword ? 'solar:eye-closed-bold' : 'solar:eye-bold'}
+                                    width={16}
+                                />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+
                     {onEditSecurity && (
                         <Tooltip title="Edit Security Password">
                             <IconButton size="small" color="primary" onClick={() => onEditSecurity?.(row)}>

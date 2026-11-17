@@ -5,6 +5,31 @@ const ALLOWED_IMAGE_TYPES = {
   '.webp': 'image/webp',
 };
 
+export function isPdfFile(file) {
+  if (!file) return false;
+  const name = file?.name?.toLowerCase() || '';
+  return name.endsWith('.pdf') || file?.type === 'application/pdf';
+}
+
+export async function isAllowedPdfFile(file) {
+  if (!file || !isPdfFile(file)) return false;
+  try {
+    const header = new Uint8Array(await file.slice(0, 1024).arrayBuffer());
+    const headerText = new TextDecoder().decode(header);
+    return headerText.includes('%PDF-');
+  } catch (error) {
+    return true;
+  }
+}
+
+export async function isAllowedFloorPlanFile(file) {
+  if (!file) return false;
+  if (isPdfFile(file)) {
+    return isAllowedPdfFile(file);
+  }
+  return isAllowedFloorPlanImage(file);
+}
+
 export async function isAllowedFloorPlanImage(file) {
   const extension = `.${file?.name?.split('.').pop()?.toLowerCase() || ''}`;
   const expectedType = ALLOWED_IMAGE_TYPES[extension];
