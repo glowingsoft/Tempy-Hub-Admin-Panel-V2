@@ -22,15 +22,15 @@ export const JobTitleLevel = {
 
 // `level` slugs matching the backend JobTitleLevel enum.
 export const JOB_TITLE_LEVEL_OPTIONS = [
-  { value: JobTitleLevel.ORGANIZATIONAL, label: 'Organizational' },
-  { value: JobTitleLevel.SITE_MANAGEMENT, label: 'Site Management' },
-  { value: JobTitleLevel.LINE_MANAGEMENT, label: 'Line Management' },
-  { value: JobTitleLevel.STAFF, label: 'Staff' },
+  { value: JobTitleLevel.ORGANIZATIONAL, label: 'Organizational Level' },
+  { value: JobTitleLevel.SITE_MANAGEMENT, label: 'Site Level' },
+  { value: JobTitleLevel.LINE_MANAGEMENT, label: 'Line Level' },
+  { value: JobTitleLevel.STAFF, label: 'Staff Level' },
 ];
 
 export const getJobTitleLevelLabel = (value) =>
   JOB_TITLE_LEVEL_OPTIONS.find((option) => option.value === value)?.label ||
-  (value === 'organizationManagement' ? 'Organizational' : value) ||
+  (value === 'organizationManagement' ? 'Organizational Level' : value) ||
   '—';
 
 const orgRef = (id) => {

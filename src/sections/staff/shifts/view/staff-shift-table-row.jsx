@@ -18,6 +18,7 @@ export function StaffShiftTableRow({
   claimed = false,
   showClaimAction = false,
   onClaim,
+  onWithdraw,
 }) {
   const activeClaim = claim || row?.myClaim;
   const isClaimed = Boolean(activeClaim) || claimed;
@@ -28,22 +29,61 @@ export function StaffShiftTableRow({
   // In Shift Claim view, if there is a claim on this shift, display the claim's status (e.g. Pending, Approved, Rejected)
   const displayStatus = showClaimAction && claimStatusMeta ? claimStatusMeta : shiftStatus;
 
+  const isPending =
+    activeClaim?.status === 'pending' || displayStatus?.label?.toLowerCase() === 'pending';
   const canClaim = row.status === 'open' && !isClaimed;
 
-  const handleClaim = (event) => {
+  const handleClickAction = (event) => {
     event.stopPropagation();
-    onClaim?.(row);
+    if (isPending) {
+      onWithdraw?.(row, activeClaim);
+    } else if (canClaim) {
+      onClaim?.(row);
+    }
   };
 
-  const getButtonLabel = () => {
-    if (activeClaim?.status) {
-      if (activeClaim.status === 'pending') return 'Claimed';
-      if (activeClaim.status === 'approved') return 'Approved';
-      if (activeClaim.status === 'rejected') return 'Rejected';
+  const getButtonProps = () => {
+    if (isPending) {
+      return {
+        label: 'Withdraw',
+        variant: 'outlined',
+        color: 'error',
+        disabled: false,
+      };
     }
-    if (isClaimed) return 'Claimed';
-    return 'Claim Shift';
+    if (canClaim) {
+      return {
+        label: 'Claim Shift',
+        variant: 'contained',
+        color: 'primary',
+        disabled: false,
+      };
+    }
+    if (activeClaim?.status === 'approved') {
+      return {
+        label: 'Approved',
+        variant: 'outlined',
+        color: 'inherit',
+        disabled: true,
+      };
+    }
+    if (activeClaim?.status === 'rejected') {
+      return {
+        label: 'Rejected',
+        variant: 'outlined',
+        color: 'inherit',
+        disabled: true,
+      };
+    }
+    return {
+      label: isClaimed ? 'Claimed' : 'Claim Shift',
+      variant: 'outlined',
+      color: 'inherit',
+      disabled: true,
+    };
   };
+
+  const buttonProps = getButtonProps();
 
   return (
     <TableRow hover>
@@ -65,13 +105,13 @@ export function StaffShiftTableRow({
         <TableCell align="center">
           <Button
             size="small"
-            variant={canClaim ? 'contained' : 'outlined'}
-            color={canClaim ? 'primary' : 'inherit'}
-            disabled={!canClaim}
-            onClick={handleClaim}
+            variant={buttonProps.variant}
+            color={buttonProps.color}
+            disabled={buttonProps.disabled}
+            onClick={handleClickAction}
             sx={{ whiteSpace: 'nowrap' }}
           >
-            {getButtonLabel()}
+            {buttonProps.label}
           </Button>
         </TableCell>
       )}
@@ -86,4 +126,5 @@ StaffShiftTableRow.propTypes = {
   claimed: PropTypes.bool,
   showClaimAction: PropTypes.bool,
   onClaim: PropTypes.func,
+  onWithdraw: PropTypes.func,
 };

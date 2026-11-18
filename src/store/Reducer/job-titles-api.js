@@ -32,7 +32,7 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //   }
 //
 // POST /admin/organizations/:organizationId/job-titles
-//   request:  { "name": "Head Chef", "level": "siteManagement", "branchId"?: string, "departmentId"?: string | null }
+//   request:  { "name": "Head Chef", "branchId"?: string, "departmentId"?: string | null }
 //   response: { "message": "Job title created successfully", "data": JobTitle }
 //
 // PATCH /admin/organizations/:organizationId/job-titles/:jobTitleId
@@ -89,12 +89,11 @@ export const jobTitlesApi = createApi({
     }),
 
     createJobTitle: builder.mutation({
-      query: ({ organizationId, name, level, branchId, departmentId }) => ({
+      query: ({ organizationId, name, branchId, departmentId }) => ({
         url: API_ROUTES.ORGANIZATION_JOB_TITLES(organizationId),
         method: 'POST',
         body: {
           name,
-          level,
           ...(branchId ? { branchId } : {}),
           ...(departmentId ? { departmentId } : {}),
         },

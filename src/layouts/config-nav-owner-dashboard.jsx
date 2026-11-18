@@ -50,6 +50,7 @@ export const navDataOwner = [
       { title: 'Billing & Usage', path: paths.owner.dataUsage.root, icon: ICONS.folder },
       { title: 'Statistics', path: paths.owner.statistics, icon: ICONS.analytics },
       { title: 'General Directory', path: paths.owner.directory.root, icon: ICONS.directory },
+      { title: 'Announcements', path: paths.owner.announcements.root, icon: ICONS.blog },
       { title: 'Residents', path: paths.owner.residents.root, icon: ICONS.user, moduleSlug: ModuleSlug.RESIDENTS },
       { title: 'Reports', path: paths.owner.reports, icon: ICONS.document },
       { title: 'Visitor Feedback', path: paths.owner.feedback, icon: ICONS.feedback },

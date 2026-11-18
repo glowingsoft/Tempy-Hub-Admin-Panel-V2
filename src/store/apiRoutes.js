@@ -89,6 +89,7 @@ export const API_ROUTES = {
     STAFF_MY_SHIFTS: '/app/shifts/my',
     STAFF_OPEN_SHIFTS: '/app/shifts/open',
     STAFF_SHIFT_CLAIMS: (shiftId) => `/app/shifts/${shiftId}/claims`,
+    STAFF_SHIFT_CLAIM_WITHDRAW: (shiftClaimId) => `/app/shift-claims/${shiftClaimId}/withdraw`,
 
     // Shift claims — kept separate from shifts.
     ORGANIZATION_SHIFT_CLAIMS: (organizationId) =>
@@ -278,6 +279,11 @@ export const API_ROUTES = {
 
     ORGANIZATION_FAMILY_OVERVIEW: (organizationId) =>
         `/admin/organizations/${organizationId}/family-overview`,
+    // Announcements
+    ADMIN_ANNOUNCEMENTS: '/admin/announcements',
+    APP_ANNOUNCEMENTS_MINE: '/app/announcements/mine',
+    APP_ANNOUNCEMENT_MINE_DETAIL: (id) => `/app/announcements/mine/${id}`,
+
     // Documents
     ORGANIZATION_DOCUMENTS: (organizationId) =>
         `/admin/organizations/${organizationId}/documents`,

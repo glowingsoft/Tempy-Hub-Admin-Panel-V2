@@ -29,6 +29,7 @@ import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { toast } from 'src/components/snackbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { ConfirmDialog } from 'src/components/custom-dialog/confirm-dialog';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
@@ -44,6 +45,7 @@ import {
   useClaimStaffShiftMutation,
   useGetMyShiftsQuery,
   useGetOpenShiftsQuery,
+  useWithdrawShiftClaimMutation,
 } from 'src/store/Reducer/shifts-api';
 
 import { StaffShiftTableRow } from './staff-shift-table-row';
@@ -201,6 +203,8 @@ export function StaffShiftListView({ claimable = false } = {}) {
   const [claimedShiftIds, setClaimedShiftIds] = useState([]);
   const [claimedShiftMap, setClaimedShiftMap] = useState({});
   const [claimDialog, setClaimDialog] = useState({ open: false, shift: null });
+  const [withdrawTarget, setWithdrawTarget] = useState(null);
+  const [withdrawShiftClaim, { isLoading: isWithdrawing }] = useWithdrawShiftClaimMutation();
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500).trim();
 
@@ -285,6 +289,58 @@ export function StaffShiftListView({ claimable = false } = {}) {
     setClaimDialog({ open: false, shift: null });
   }, []);
 
+  const handleOpenWithdrawDialog = useCallback((shift, claim) => {
+    const shiftClaimId =
+      claim?._id ||
+      claim?.id ||
+      shift?.myClaim?._id ||
+      shift?.myClaim?.id ||
+      shift?.claimId ||
+      shift?.filledByClaimId;
+
+    setWithdrawTarget({
+      shift,
+      claimId: shiftClaimId,
+    });
+  }, []);
+
+  const handleCloseWithdrawDialog = useCallback(() => {
+    if (isWithdrawing) return;
+    setWithdrawTarget(null);
+  }, [isWithdrawing]);
+
+  const handleConfirmWithdraw = useCallback(async () => {
+    if (!withdrawTarget?.claimId) {
+      toast.error('Unable to identify shift claim.');
+      return;
+    }
+
+    try {
+      await withdrawShiftClaim({
+        shiftClaimId: withdrawTarget.claimId,
+        organizationId,
+      }).unwrap();
+
+      toast.success('Shift claim withdrawn successfully!');
+
+      const shiftId = withdrawTarget.shift?._id;
+      if (shiftId) {
+        setClaimedShiftMap((prev) => {
+          const next = { ...prev };
+          delete next[shiftId];
+          return next;
+        });
+        setClaimedShiftIds((current) => current.filter((id) => id !== shiftId));
+      }
+
+      setWithdrawTarget(null);
+      openShiftsQuery.refetch?.();
+    } catch (error) {
+      console.error('Failed to withdraw shift claim:', error);
+      toast.error(error?.data?.message || error?.message || 'Failed to withdraw shift claim.');
+    }
+  }, [withdrawTarget, withdrawShiftClaim, organizationId, openShiftsQuery]);
+
   const handleClaimSuccess = useCallback(
     (shiftId, claimResult) => {
       const claimData =
@@ -367,6 +423,7 @@ export function StaffShiftListView({ claimable = false } = {}) {
                           claimed={isClaimed}
                           showClaimAction={claimable && canManageRota}
                           onClaim={claimable ? handleOpenClaimDialog : undefined}
+                          onWithdraw={claimable ? handleOpenWithdrawDialog : undefined}
                         />
                       );
                     })}
@@ -400,13 +457,57 @@ export function StaffShiftListView({ claimable = false } = {}) {
       </Card>
 
       {claimable && (
-        <StaffShiftClaimDialog
-          open={claimDialog.open}
-          onClose={handleCloseClaimDialog}
-          shift={claimDialog.shift}
-          organizationId={organizationId}
-          onClaimSuccess={handleClaimSuccess}
-        />
+        <>
+          <StaffShiftClaimDialog
+            open={claimDialog.open}
+            onClose={handleCloseClaimDialog}
+            shift={claimDialog.shift}
+            organizationId={organizationId}
+            onClaimSuccess={handleClaimSuccess}
+          />
+
+          <ConfirmDialog
+            open={Boolean(withdrawTarget)}
+            onClose={handleCloseWithdrawDialog}
+            title="Withdraw Shift Claim"
+            content={
+              withdrawTarget?.shift ? (
+                <Stack spacing={1.5} sx={{ pt: 1 }}>
+                  <Typography variant="body2">
+                    Are you sure you want to withdraw your claim for this shift?
+                  </Typography>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: 'background.neutral',
+                      border: (theme) => `1px solid ${theme.palette.divider}`,
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ color: 'text.primary', mb: 0.5 }}>
+                      {withdrawTarget.shift.branch?.name || 'Selected Site'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                      {fDateTime(withdrawTarget.shift.startsAt)} – {fDateTime(withdrawTarget.shift.endsAt)}
+                    </Typography>
+                  </Box>
+                </Stack>
+              ) : (
+                'Are you sure you want to withdraw your claim for this shift?'
+              )
+            }
+            action={
+              <LoadingButton
+                variant="contained"
+                color="error"
+                loading={isWithdrawing}
+                onClick={handleConfirmWithdraw}
+              >
+                Withdraw
+              </LoadingButton>
+            }
+          />
+        </>
       )}
     </DashboardContent>
   );

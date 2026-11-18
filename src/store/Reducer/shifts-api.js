@@ -190,6 +190,18 @@ export const shiftsApi = createApi({
                 staffListTag('OPEN', organizationId),
             ],
         }),
+        withdrawShiftClaim: builder.mutation({
+            query: ({ shiftClaimId, organizationId }) => ({
+                url: API_ROUTES.STAFF_SHIFT_CLAIM_WITHDRAW(shiftClaimId),
+                method: 'POST',
+                headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+            }),
+            invalidatesTags: (result, error, { organizationId }) => [
+                staffListTag('OPEN', organizationId),
+                staffListTag('MY', organizationId),
+                { type: 'Shift' },
+            ],
+        }),
     }),
 });
 
@@ -201,4 +213,5 @@ export const {
     useGetMyShiftsQuery,
     useGetOpenShiftsQuery,
     useClaimStaffShiftMutation,
+    useWithdrawShiftClaimMutation,
 } = shiftsApi;

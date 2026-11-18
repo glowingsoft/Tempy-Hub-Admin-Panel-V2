@@ -112,6 +112,7 @@ export function PeepRecordNewEditForm({ currentRecord, ownerDashboard = true }) 
   const {
     watch,
     setValue,
+    clearErrors,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -123,11 +124,12 @@ export function PeepRecordNewEditForm({ currentRecord, ownerDashboard = true }) 
   useEffect(() => {
     if (prevBranchRef.current !== undefined && prevBranchRef.current !== selectedBranchId) {
       if (!isEdit) {
-        setValue('residentId', null, { shouldValidate: true });
+        setValue('residentId', null, { shouldValidate: false });
+        clearErrors('residentId');
       }
     }
     prevBranchRef.current = selectedBranchId;
-  }, [selectedBranchId, isEdit, setValue]);
+  }, [selectedBranchId, isEdit, setValue, clearErrors]);
 
   const onSubmit = handleSubmit(async (values) => {
     try {

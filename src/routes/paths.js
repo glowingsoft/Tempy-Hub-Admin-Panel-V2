@@ -281,6 +281,10 @@ export const paths = {
       root: `${ROOTS.SITE_MANAGER}/residents`,
       detail: (id) => `${ROOTS.SITE_MANAGER}/residents/${id}`,
     },
+    announcements: {
+      root: `${ROOTS.SITE_MANAGER}/announcements`,
+      new: `${ROOTS.SITE_MANAGER}/announcements/new`,
+    },
     reports: `${ROOTS.SITE_MANAGER}/reports`,
     rota: `${ROOTS.SITE_MANAGER}/rota`,
     supervision: `${ROOTS.SITE_MANAGER}/supervision`,
@@ -655,6 +659,10 @@ export const paths = {
     staffDashboardSettings: `${ROOTS.OWNER_DASHBOARD}/staff-dashboard-settings`,
     configuration: `${ROOTS.OWNER_DASHBOARD}/configuration`,
     settings: `${ROOTS.OWNER_DASHBOARD}/settings`,
+    announcements: {
+      root: `${ROOTS.OWNER_DASHBOARD}/announcements`,
+      new: `${ROOTS.OWNER_DASHBOARD}/announcements/new`,
+    },
     fireDrills: `${ROOTS.OWNER_DASHBOARD}/fire-drills`,
 
     rota: {
@@ -718,6 +726,8 @@ export const paths = {
     appraisalDetail: (id) => `${ROOTS.STAFF}/appraisals/${id}`,
     training: `${ROOTS.STAFF}/training`,
     leaveRequests: `${ROOTS.STAFF}/leave-requests`,
+    announcements: `${ROOTS.STAFF}/announcements`,
+    announcementDetail: (id) => `${ROOTS.STAFF}/announcements/${id}`,
     documents: {
       root: `${ROOTS.STAFF}/documents`,
       detail: (id) => `${ROOTS.STAFF}/documents/${id}`,
