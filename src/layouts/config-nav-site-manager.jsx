@@ -4,6 +4,7 @@ import { paths } from 'src/routes/paths';
 import { CONFIG } from 'src/config-global';
 
 import { SvgColor } from 'src/components/svg-color';
+import { D } from '../../dist/assets/dist-Dl7MaAYy';
 
 // ----------------------------------------------------------------------
 
@@ -119,7 +120,7 @@ export const navDataSiteManager = [
       { title: 'Gazettes', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Family Groups', path: paths.siteManager.familyEngagement.familyGroups, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       {
-        title: 'Memberships',
+        title: 'Family Invite',
         path: paths.siteManager.familyEngagement.memberships.root,
         icon: ICONS.invitations,
         moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT,

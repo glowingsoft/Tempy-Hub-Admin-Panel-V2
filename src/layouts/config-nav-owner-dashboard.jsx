@@ -103,7 +103,7 @@ export const navDataOwner = [
       {
         // Same shared-prefix rule as Rota so the group stays open between
         // Invitations and Members.
-        title: 'Memberships',
+        title: 'Invite',
         path: paths.owner.memberships.root,
         icon: ICONS.invitations,
         children: [
@@ -143,7 +143,7 @@ export const navDataOwner = [
       { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Family Groups', path: paths.owner.familyEngagement.familyGroups, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       {
-        title: 'Family Memberships',
+        title: 'Family Invite',
         path: paths.owner.familyEngagement.memberships.root,
         icon: ICONS.invitations,
         moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT,

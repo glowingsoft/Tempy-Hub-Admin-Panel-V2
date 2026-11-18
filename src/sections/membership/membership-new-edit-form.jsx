@@ -119,7 +119,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const { data: grantablePermissions, isFetching: isFetchingPermissions } =
     useGetGrantablePermissionsQuery(
       { organizationId: resolvedOrganizationId },
-      { skip: !resolvedOrganizationId }
+      { skip: !resolvedOrganizationId || currentMembership?.role === 'staff' || currentMembership?.role === 'siteManager' }
     );
 
   const { data: departmentsData, isLoading: isLoadingDepartments } = useGetDepartmentsQuery(
@@ -194,9 +194,9 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const role = watch('role');
   const selectedPermissions = watch('permissions') || [];
   const hideJobTitle = role === 'siteManager' || role === 'lineManager';
-  const hideDepartment = role === 'siteManager' || role === 'lineManager';
+  const hideDepartment = role !== 'staff';
   const hideStartDate = role === 'siteManager' || role === 'lineManager';
-  const hidePermissions = role === 'staff';
+  const showAccess = role === 'lineManager';
   const watchedBranch = watch('branchId');
   const selectedBranchId = lookupId(watchedBranch);
   const staffDepartmentOptions = useMemo(() => {
@@ -232,6 +232,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       methods.setValue('jobTitleId', null);
       methods.setValue('departmentIds', []);
       methods.setValue('startDate', null);
+      methods.setValue('permissions', []);
     } else if (role === 'staff') {
       methods.setValue('permissions', []);
     }
@@ -283,7 +284,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
           invitationId: currentMembership._id,
           organizationId: resolvedOrganizationId,
           branchId: data.branchId?.value,
-          permissions: data.permissions,
+          ...(data.role === 'lineManager' ? { permissions: data.permissions } : {}),
         }).unwrap();
         invitationId = res?.data?._id || res?._id || invitationId;
       } else {
@@ -302,6 +303,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
           delete payload.jobTitleId;
           delete payload.departmentIds;
           delete payload.startDate;
+          delete payload.permissions;
         }
         if (data.role === 'lineManager') {
           delete payload.jobTitleId;
@@ -382,107 +384,6 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             {!hideStartDate && (
               <Field.DatePicker name="startDate" label="Start date" disabled={isEdit} />
             )}
-          </Box>
-        </Card>
-
-        <Card sx={{ p: 3 }}>
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ mb: 2 }}
-          >
-            <Typography variant="h6">Access</Typography>
-            {(!hidePermissions || isEdit) && allPermissionIds.length > 0 && (
-              <Button
-                size="small"
-                variant="text"
-                color={isAllSelected ? 'error' : 'primary'}
-                onClick={handleToggleSelectAll}
-                startIcon={
-                  <Iconify
-                    icon={isAllSelected ? 'solar:close-circle-bold' : 'solar:check-read-linear'}
-                    width={18}
-                  />
-                }
-              >
-                {isAllSelected ? 'Deselect all' : 'Select all'}
-              </Button>
-            )}
-          </Stack>
-
-          <Box
-            rowGap={3}
-            columnGap={2}
-            display="grid"
-            gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
-          >
-            {(!hidePermissions || isEdit) && (
-              <Field.Autocomplete
-                multiple
-                disableCloseOnSelect
-                name="permissions"
-                label="Permissions"
-                placeholder="Search permissions"
-                loading={isFetchingPermissions}
-                options={permissionOptions}
-                sx={{
-                  gridColumn: {
-                    xs: 'span 1',
-                    sm: hideDepartment ? 'span 2' : 'span 1',
-                  },
-                }}
-                groupBy={(option) =>
-                  option === 'all' ? 'All' : permissionTokens.moduleByKey[option] || 'Other'
-                }
-                slotProps={{
-                  popper: {
-                    placement: 'bottom-start',
-                    modifiers: [{ name: 'flip', enabled: false }],
-                  },
-                }}
-                ListboxProps={{ style: { maxHeight: 320 } }}
-                getOptionLabel={getPermissionLabel}
-                isOptionEqualToValue={(option, value) => option === value}
-                onChange={(event, newValue) => {
-                  if (newValue.some((item) => item === 'all')) {
-                    if (isAllSelected) {
-                      methods.setValue('permissions', [], { shouldValidate: true });
-                    } else {
-                      methods.setValue('permissions', allPermissionIds, { shouldValidate: true });
-                    }
-                  } else {
-                    methods.setValue(
-                      'permissions',
-                      newValue.filter((item) => item !== 'all'),
-                      { shouldValidate: true }
-                    );
-                  }
-                }}
-                renderOption={(props, option) => (
-                  <li
-                    {...props}
-                    key={option}
-                    aria-selected={option === 'all' ? isAllSelected : props['aria-selected']}
-                  >
-                    {getPermissionLabel(option)}
-                  </li>
-                )}
-                renderTags={(selected, getTagProps) =>
-                  selected
-                    .filter((option) => option !== 'all')
-                    .map((option, index) => (
-                      <Chip
-                        {...getTagProps({ index })}
-                        key={option}
-                        size="small"
-                        variant="soft"
-                        label={getPermissionLabel(option)}
-                      />
-                    ))
-                }
-              />
-            )}
 
             {!hideDepartment && (
               <Field.Autocomplete
@@ -511,6 +412,94 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             )}
           </Box>
         </Card>
+
+        {showAccess && (
+          <Card sx={{ p: 3 }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 2 }}
+            >
+              <Typography variant="h6">Access</Typography>
+              {allPermissionIds.length > 0 && (
+                <Button
+                  size="small"
+                  variant="text"
+                  color={isAllSelected ? 'error' : 'primary'}
+                  onClick={handleToggleSelectAll}
+                  startIcon={
+                    <Iconify
+                      icon={isAllSelected ? 'solar:close-circle-bold' : 'solar:check-read-linear'}
+                      width={18}
+                    />
+                  }
+                >
+                  {isAllSelected ? 'Deselect all' : 'Select all'}
+                </Button>
+              )}
+            </Stack>
+
+            <Field.Autocomplete
+              multiple
+              disableCloseOnSelect
+              name="permissions"
+              label="Permissions"
+              placeholder="Search permissions"
+              loading={isFetchingPermissions}
+              options={permissionOptions}
+              groupBy={(option) =>
+                option === 'all' ? 'All' : permissionTokens.moduleByKey[option] || 'Other'
+              }
+              slotProps={{
+                popper: {
+                  placement: 'bottom-start',
+                  modifiers: [{ name: 'flip', enabled: false }],
+                },
+              }}
+              ListboxProps={{ style: { maxHeight: 320 } }}
+              getOptionLabel={getPermissionLabel}
+              isOptionEqualToValue={(option, value) => option === value}
+              onChange={(event, newValue) => {
+                if (newValue.some((item) => item === 'all')) {
+                  if (isAllSelected) {
+                    methods.setValue('permissions', [], { shouldValidate: true });
+                  } else {
+                    methods.setValue('permissions', allPermissionIds, { shouldValidate: true });
+                  }
+                } else {
+                  methods.setValue(
+                    'permissions',
+                    newValue.filter((item) => item !== 'all'),
+                    { shouldValidate: true }
+                  );
+                }
+              }}
+              renderOption={(props, option) => (
+                <li
+                  {...props}
+                  key={option}
+                  aria-selected={option === 'all' ? isAllSelected : props['aria-selected']}
+                >
+                  {getPermissionLabel(option)}
+                </li>
+              )}
+              renderTags={(selected, getTagProps) =>
+                selected
+                  .filter((option) => option !== 'all')
+                  .map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option}
+                      size="small"
+                      variant="soft"
+                      label={getPermissionLabel(option)}
+                    />
+                  ))
+              }
+            />
+          </Card>
+        )}
 
         <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
           <Button

@@ -148,6 +148,7 @@ export function StaffDashboardSettingsView() {
 
       <Card>
         <CardHeader
+          sx={{ pb: 2 }}
           title="Home screen cards"
           subheader="Choose which cards appear on your staff's home screen."
           action={
