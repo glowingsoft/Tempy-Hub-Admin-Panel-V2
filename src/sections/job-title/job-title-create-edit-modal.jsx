@@ -30,7 +30,7 @@ export { JobTitleLevel };
 
 const JobTitleSchema = zod.object({
   name: zod.string().min(1, 'Job title name is required'),
-  level: zod.string().min(1, 'Level is required'),
+  level: zod.string().optional(),
   active: zod.boolean(),
   branchId: zod
     .object({ value: zod.string(), label: zod.string() })
@@ -63,6 +63,15 @@ export function JobTitleCreateEditModal({
   const isEdit = !!currentJobTitle;
 
   const lookupQueryArgs = useMemo(() => ({ organizationId }), [organizationId]);
+  const schema = useMemo(
+    () =>
+      isEdit
+        ? JobTitleSchema.extend({
+            level: zod.string().min(1, 'Level is required'),
+          })
+        : JobTitleSchema,
+    [isEdit]
+  );
 
   const defaultValues = useMemo(() => {
     const department =
@@ -83,7 +92,7 @@ export function JobTitleCreateEditModal({
 
     return {
       name: currentJobTitle?.name || '',
-      level: currentJobTitle?.level || JOB_TITLE_LEVEL_OPTIONS[0]?.value || '',
+      level: currentJobTitle?.level || '',
       active: currentJobTitle?.active ?? true,
       branchId: branchOption,
       departmentId: department
@@ -93,7 +102,7 @@ export function JobTitleCreateEditModal({
   }, [currentJobTitle]);
 
   const methods = useForm({
-    resolver: zodResolver(JobTitleSchema),
+    resolver: zodResolver(schema),
     defaultValues,
   });
 
@@ -116,7 +125,7 @@ export function JobTitleCreateEditModal({
       const payload = {
         organizationId,
         name: data.name,
-        level: data.level,
+        ...(isEdit ? { level: data.level } : {}),
         active: data.active,
         branchId:
           data.branchId?.value &&
@@ -146,7 +155,6 @@ export function JobTitleCreateEditModal({
         : await createJobTitle({
           organizationId,
           name: data.name,
-          level: data.level,
           branchId: payload.branchId,
           departmentId: payload.departmentId,
         }).unwrap();
@@ -185,13 +193,15 @@ export function JobTitleCreateEditModal({
           >
             <Field.Text name="name" label="Name" />
 
-            <Field.Select name="level" label="Level">
-              {JOB_TITLE_LEVEL_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            {isEdit && (
+              <Field.Select name="level" label="Level">
+                {JOB_TITLE_LEVEL_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            )}
 
             <Field.InfiniteAutocomplete
               name="branchId"

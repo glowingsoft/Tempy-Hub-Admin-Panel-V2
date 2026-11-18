@@ -59,6 +59,8 @@ const DocumentAcknowledgementsPage = lazy(() => import('src/pages/dashboard/acti
 const DocumentCategoriesPage = lazy(() => import('src/pages/dashboard/active-routes/documents/categories'));
 //reports
 const ReportsPage = lazy(() => import('src/pages/dashboard/active-routes/reports'));
+const AnnouncementsPage = lazy(() => import('src/pages/dashboard/active-routes/announcements'));
+const AnnouncementCreatePage = lazy(() => import('src/pages/dashboard/active-routes/announcements/new'));
 const VisitorFeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/visitor-feedback'));
 const VisitorFeedbackDetailPage = lazy(
   () => import('src/pages/dashboard/active-routes/visitor-feedback/detail')
@@ -285,6 +287,13 @@ export const ownerDashboardRoutes = [
       { path: "staff-dashboard-settings", element: <StaffDashboardSettingsPage /> },
       { path: "configuration", element: <ConfigurationPage /> },
       { path: "settings", element: <OwnerSettingsPage /> },
+      {
+        path: 'announcements',
+        children: [
+          { index: true, element: <AnnouncementsPage ownerDashboard /> },
+          { path: 'new', element: <AnnouncementCreatePage ownerDashboard /> },
+        ],
+      },
       { path: "fire-drills", element: <FireDrillsPage /> },
       {
         path: 'rota-management',

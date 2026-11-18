@@ -157,21 +157,72 @@ export async function convertPdfToImage(input, options = {}) {
       imageUrl,
       dataUrl,
       blob,
+      canvas,
       width: viewport.width,
       height: viewport.height,
       aspectRatio: viewport.width / viewport.height,
     });
   }
 
-  const firstPage = pages[0] || {};
+  if (numPages === 1) {
+    const firstPage = pages[0] || {};
+    return {
+      imageUrl: firstPage.imageUrl || '',
+      dataUrl: firstPage.dataUrl || '',
+      blob: firstPage.blob,
+      width: firstPage.width || 1000,
+      height: firstPage.height || 650,
+      aspectRatio: firstPage.aspectRatio || 1.55,
+      numPages: 1,
+      pages,
+    };
+  }
+
+  // Multi-page PDF: combine all pages vertically into one high-resolution composite floor plan image
+  const maxWidth = Math.max(...pages.map((p) => p.width));
+  const pageGap = 20;
+  const sumHeight = pages.reduce((sum, p) => sum + p.height, 0);
+  const totalHeight = sumHeight + pageGap * (numPages - 1);
+  const totalWidth = maxWidth;
+
+  const masterCanvas = document.createElement('canvas');
+  masterCanvas.width = totalWidth;
+  masterCanvas.height = totalHeight;
+
+  const masterCtx = masterCanvas.getContext('2d', { alpha: false });
+  masterCtx.fillStyle = '#FFFFFF';
+  masterCtx.fillRect(0, 0, totalWidth, totalHeight);
+
+  let currentY = 0;
+  for (let i = 0; i < pages.length; i++) {
+    const p = pages[i];
+    const offsetX = Math.round((maxWidth - p.width) / 2);
+
+    masterCtx.fillStyle = '#FFFFFF';
+    masterCtx.fillRect(offsetX, currentY, p.width, p.height);
+    masterCtx.drawImage(p.canvas, offsetX, currentY);
+
+    if (i < pages.length - 1) {
+      masterCtx.fillStyle = '#E5E7EB';
+      masterCtx.fillRect(0, currentY + p.height, totalWidth, pageGap);
+    }
+
+    currentY += p.height + pageGap;
+  }
+
+  const compositeDataUrl = masterCanvas.toDataURL('image/png');
+  const compositeBlob = await new Promise((resolve) =>
+    masterCanvas.toBlob(resolve, 'image/png', 0.95)
+  );
+  const compositeImageUrl = compositeBlob ? URL.createObjectURL(compositeBlob) : compositeDataUrl;
 
   return {
-    imageUrl: firstPage.imageUrl || '',
-    dataUrl: firstPage.dataUrl || '',
-    blob: firstPage.blob,
-    width: firstPage.width || 1000,
-    height: firstPage.height || 650,
-    aspectRatio: firstPage.aspectRatio || 1.55,
+    imageUrl: compositeImageUrl,
+    dataUrl: compositeDataUrl,
+    blob: compositeBlob,
+    width: totalWidth,
+    height: totalHeight,
+    aspectRatio: totalWidth / totalHeight,
     numPages,
     pages,
   };

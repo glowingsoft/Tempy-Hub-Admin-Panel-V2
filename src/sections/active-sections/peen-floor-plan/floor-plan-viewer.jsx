@@ -38,6 +38,7 @@ export function FloorPlanViewer({
   pinPlacementBusy = false,
 }) {
   const [imgError, setImgError] = useState(false);
+  const [naturalAspectRatio, setNaturalAspectRatio] = useState(null);
   const selectedResident = residentsById?.[selectedResidentId];
   const isUpdatingPin = pins.some((pin) => pin.residentId === selectedResidentId);
   const selectedPin = pins.find(
@@ -58,6 +59,7 @@ export function FloorPlanViewer({
 
   useEffect(() => {
     setImgError(false);
+    setNaturalAspectRatio(null);
   }, [floorPlan?.imageUrl]);
 
   const handleClick = (event) => {
@@ -280,7 +282,7 @@ export function FloorPlanViewer({
             sx={{
               position: 'relative',
               width: 1,
-              aspectRatio: floorPlan.aspectRatio ? `${floorPlan.aspectRatio}` : '1.55',
+              aspectRatio: floorPlan.aspectRatio ? `${floorPlan.aspectRatio}` : naturalAspectRatio ? `${naturalAspectRatio}` : '1.55',
               bgcolor: 'common.white',
               boxShadow: (theme) => theme.customShadows?.z8,
               overflow: 'hidden',
@@ -291,6 +293,12 @@ export function FloorPlanViewer({
                 component="img"
                 src={floorPlan.imageUrl}
                 alt={floorPlan.fileName || 'Floor Plan'}
+                onLoad={(event) => {
+                  const { naturalWidth, naturalHeight } = event.currentTarget;
+                  if (naturalWidth && naturalHeight) {
+                    setNaturalAspectRatio(naturalWidth / naturalHeight);
+                  }
+                }}
                 onError={() => setImgError(true)}
                 sx={{
                   position: 'absolute',

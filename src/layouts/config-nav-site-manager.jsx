@@ -4,6 +4,7 @@ import { paths } from 'src/routes/paths';
 import { CONFIG } from 'src/config-global';
 
 import { SvgColor } from 'src/components/svg-color';
+import { D } from '../../dist/assets/dist-Dl7MaAYy';
 
 // ----------------------------------------------------------------------
 
@@ -66,6 +67,7 @@ export const navDataSiteManager = [
       { title: 'Dashboard', path: paths.siteManager.root, icon: ICONS.dashboard },
       { title: 'Statistics', path: paths.siteManager.statistics, icon: ICONS.analytics },
       { title: 'General Directory', path: paths.siteManager.directory.root, icon: ICONS.directory },
+      { title: 'Announcements', path: paths.siteManager.announcements.root, icon: ICONS.blog },
       { title: 'Residents', path: paths.siteManager.residents.root, icon: ICONS.user, moduleSlug: ModuleSlug.RESIDENTS },
       { title: 'Reports', path: paths.siteManager.reports, icon: ICONS.reports },
       { title: 'Rota', path: paths.siteManager.rota, icon: ICONS.rota, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
@@ -119,7 +121,7 @@ export const navDataSiteManager = [
       { title: 'Gazettes', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Family Groups', path: paths.siteManager.familyEngagement.familyGroups, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       {
-        title: 'Memberships',
+        title: 'Family Invite',
         path: paths.siteManager.familyEngagement.memberships.root,
         icon: ICONS.invitations,
         moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT,
