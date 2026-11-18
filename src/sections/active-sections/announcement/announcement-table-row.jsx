@@ -7,17 +7,18 @@ import Avatar from '@mui/material/Avatar';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 
-import { Label } from 'src/components/label';
 import { fDateTime } from 'src/utils/format-time';
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 
 // ----------------------------------------------------------------------
 
 export function AnnouncementTableRow({ row, serialNumber, branchName, onView }) {
-  const { subject, category, createdAt, createdBy } = row || {};
+  const { subject, title, category, createdAt, date, createdBy, author } = row || {};
 
-  const name = createdBy?.name || '—';
-  const email = createdBy?.email || '—';
+  const name = createdBy?.name || author?.name || (typeof createdBy === 'string' ? createdBy : '—');
+  const email = createdBy?.email || author?.email || '';
+  const displaySubject = subject || title || '—';
+  const displayDate = createdAt || date;
 
   const actions = useMemo(
     () => [
@@ -33,7 +34,7 @@ export function AnnouncementTableRow({ row, serialNumber, branchName, onView }) 
   );
 
   return (
-    <TableRow hover>
+    <TableRow hover onClick={() => onView?.(row)} sx={{ cursor: onView ? 'pointer' : 'default' }}>
       <TableCell>{serialNumber}</TableCell>
 
       {/* Created by */}
@@ -56,25 +57,19 @@ export function AnnouncementTableRow({ row, serialNumber, branchName, onView }) 
       {/* Site */}
       <TableCell sx={{ textTransform: 'capitalize' }}>{branchName}</TableCell>
 
-      {/* Date */}
-      <TableCell sx={{ whiteSpace: 'nowrap', pr: 3 }}>
-        {createdAt ? fDateTime(createdAt) : '—'}
+      {/* Category */}
+      <TableCell sx={{ whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+        {category || '—'}
       </TableCell>
 
       {/* Announcement */}
-      <TableCell sx={{ pl: 3 }}>
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <Box sx={{ fontWeight: 600 }}>{subject || '—'}</Box>
-          {category && (
-            <Label
-              variant="soft"
-              color="info"
-              sx={{ height: 20, px: 0.75, fontSize: '0.675rem', textTransform: 'capitalize' }}
-            >
-              {category}
-            </Label>
-          )}
-        </Stack>
+      <TableCell>
+        <Box sx={{ fontWeight: 600 }}>{displaySubject}</Box>
+      </TableCell>
+
+      {/* Date */}
+      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+        {displayDate ? fDateTime(displayDate) : '—'}
       </TableCell>
 
       {/* Actions */}

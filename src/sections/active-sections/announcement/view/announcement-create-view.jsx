@@ -229,6 +229,7 @@ export function AnnouncementCreateView({ rootPath, listPath, ownerDashboard = fa
                 </TextField>
               ) : (
                 <TextField
+                  disabled
                   label="Site"
                   value={
                     branches.find((b) => b._id === branchId)?.name ||
@@ -236,7 +237,16 @@ export function AnnouncementCreateView({ rootPath, listPath, ownerDashboard = fa
                     'Assigned Site'
                   }
                   InputProps={{ readOnly: true }}
-                  sx={{ minWidth: { md: 220 } }}
+                  sx={{
+                    minWidth: { md: 220 },
+                    '& .MuiInputBase-root.Mui-disabled': {
+                      backgroundColor: 'action.disabledBackground',
+                      cursor: 'not-allowed',
+                    },
+                    '& .MuiInputBase-input.Mui-disabled': {
+                      cursor: 'not-allowed',
+                    },
+                  }}
                 />
               )}
 

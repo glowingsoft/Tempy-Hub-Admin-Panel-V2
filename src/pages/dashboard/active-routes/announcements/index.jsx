@@ -7,14 +7,14 @@ import { AnnouncementListView } from 'src/sections/active-sections/announcement'
 
 const metadata = { title: `Announcements | Dashboard - ${CONFIG.site.name}` };
 
-export default function Page({ ownerDashboard = false }) {
+export default function Page({ ownerDashboard = false, staffDashboard = false }) {
   return (
     <>
       <Helmet>
         <title>{metadata.title}</title>
       </Helmet>
 
-      <AnnouncementListView ownerDashboard={ownerDashboard} />
+      <AnnouncementListView ownerDashboard={ownerDashboard} staffDashboard={staffDashboard} />
     </>
   );
 }

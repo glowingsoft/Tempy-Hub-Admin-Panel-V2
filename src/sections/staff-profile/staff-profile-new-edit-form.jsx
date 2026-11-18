@@ -27,7 +27,6 @@ import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
 
 import {
-  useGetStaffProfilesQuery,
   useCreateStaffProfileMutation,
   useUpdateStaffProfileMutation,
 } from 'src/store/Reducer/staff-profiles-api';
@@ -60,21 +59,6 @@ function mapLookupOption(item) {
   return {
     value: item._id,
     label: item.name,
-  };
-}
-
-function mapSupervisorOption(item) {
-  const name =
-    item.userId?.name ||
-    item.user?.name ||
-    item.name ||
-    item.employeeCode ||
-    item._id;
-  const email = item.userId?.email || item.user?.email || item.email || '';
-  const label = email ? `${name} (${email})` : name;
-  return {
-    value: item._id,
-    label,
   };
 }
 
@@ -117,7 +101,6 @@ export const createStaffProfileSchema = ({ isLineManager: isLineManagerStaff = f
     .object({
       organizationId: zod.string().optional(),
       userId: zod.string().min(1, { message: 'User is required!' }),
-      supervisorStaffId: lookupOptionSchema.nullable().optional(),
       branchId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
         message: 'Site is required!',
       }),
@@ -208,9 +191,6 @@ export function StaffProfileNewEditForm({
     Number(user?.permission) === 3 ||
     isLineManager({ role: currentUserRole }) ||
     (!currentOrgId && memberships.some((membership) => isLineManager({ role: membership?.role })));
-  const hideSupervisorField =
-    isEdit && (isLineManagerStaff || isLineManagerUser);
-
   const defaultValues = useMemo(
     () => ({
       organizationId:
@@ -237,17 +217,6 @@ export function StaffProfileNewEditForm({
           : currentStaffProfile?.jobTitleId,
         (typeof currentStaffProfile?.jobTitleId === 'object' && currentStaffProfile?.jobTitleId?.name) ||
           currentStaffProfile?.jobTitle?.name
-      ),
-      supervisorStaffId: toLookupOption(
-        typeof currentStaffProfile?.supervisorStaffId === 'object' && currentStaffProfile?.supervisorStaffId !== null
-          ? currentStaffProfile.supervisorStaffId?._id
-          : currentStaffProfile?.supervisorStaffId,
-        typeof currentStaffProfile?.supervisorStaffId === 'object' && currentStaffProfile?.supervisorStaffId !== null
-          ? currentStaffProfile.supervisorStaffId?.userId?.name ||
-              currentStaffProfile.supervisorStaffId?.user?.name ||
-              currentStaffProfile.supervisorStaffId?.name ||
-              currentStaffProfile.supervisorStaffId?.employeeCode
-          : undefined
       ),
       departmentIds: Array.isArray(currentStaffProfile?.departments)
         ? currentStaffProfile.departments
@@ -377,11 +346,6 @@ export function StaffProfileNewEditForm({
           : isEdit
             ? { jobTitleId: null }
             : {}),
-        ...(data.supervisorStaffId?.value
-          ? { supervisorStaffId: data.supervisorStaffId.value }
-          : isEdit && data.supervisorStaffId === null
-            ? { supervisorStaffId: null }
-            : {}),
         ...(data.pin ? { pin: data.pin } : {}),
         ...(data.hourlyRate ? { hourlyRate: Number(data.hourlyRate) } : {}),
         ...(data.supervisionIntervalMonths !== '' && data.supervisionIntervalMonths != null
@@ -479,18 +443,6 @@ export function StaffProfileNewEditForm({
               mapOption={mapLookupOption}
               enabled={!!activeOrgId}
             />
-
-            {!hideSupervisorField && (
-              <Field.InfiniteAutocomplete
-                name="supervisorStaffId"
-                label="Supervisor"
-                placeholder="Search supervisor"
-                useQuery={useGetStaffProfilesQuery}
-                queryArgs={lookupQueryArgs}
-                mapOption={mapSupervisorOption}
-                enabled={!!activeOrgId}
-              />
-            )}
 
             <Field.DatePicker name="startDate" label="Start date" />
 

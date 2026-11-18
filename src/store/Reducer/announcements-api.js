@@ -46,7 +46,50 @@ export const announcementsApi = createApi({
       }),
       invalidatesTags: [{ type: 'Announcements', id: 'LIST' }],
     }),
+
+    getStaffAnnouncements: builder.query({
+      query: ({ page = 1, limit = 10, keyword, organizationId } = {}) => ({
+        url: API_ROUTES.APP_ANNOUNCEMENTS_MINE,
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        params: {
+          page,
+          limit,
+          ...(keyword && typeof keyword === 'string' && keyword.trim()
+            ? { keyword: keyword.trim() }
+            : {}),
+        },
+      }),
+      transformResponse: (res) => ({
+        data: Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []),
+        meta: res?.meta ?? {},
+      }),
+      providesTags: (result) =>
+        result?.data
+          ? [
+              ...result.data.map(({ _id, id }) => ({ type: 'Announcements', id: _id || id })),
+              { type: 'Announcements', id: 'STAFF_LIST' },
+            ]
+          : [{ type: 'Announcements', id: 'STAFF_LIST' }],
+    }),
+
+    getStaffAnnouncementDetail: builder.query({
+      query: ({ announcementId, organizationId }) => ({
+        url: API_ROUTES.APP_ANNOUNCEMENT_MINE_DETAIL(announcementId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: (result, error, { announcementId }) => [
+        { type: 'Announcements', id: announcementId },
+      ],
+    }),
   }),
 });
 
-export const { useGetAnnouncementsQuery, useCreateAnnouncementMutation } = announcementsApi;
+export const {
+  useGetAnnouncementsQuery,
+  useGetStaffAnnouncementsQuery,
+  useGetStaffAnnouncementDetailQuery,
+  useCreateAnnouncementMutation,
+} = announcementsApi;

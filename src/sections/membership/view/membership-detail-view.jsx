@@ -4,8 +4,10 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import { useCallback } from 'react';
@@ -20,6 +22,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { EmptyContent } from 'src/components/empty-content';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
@@ -307,14 +310,32 @@ export function MembershipDetailView() {
             label="Accept link"
             value={
               invitation.acceptUrl ? (
-                <Link
-                  href={invitation.acceptUrl}
-                  target="_blank"
-                  rel="noopener"
-                  sx={{ wordBreak: 'break-all' }}
-                >
-                  {invitation.acceptUrl}
-                </Link>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Link
+                    href={invitation.acceptUrl}
+                    target="_blank"
+                    rel="noopener"
+                    sx={{ wordBreak: 'break-all' }}
+                  >
+                    {invitation.acceptUrl}
+                  </Link>
+                  <Tooltip title="Copy accept link" arrow>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(invitation.acceptUrl);
+                          toast.success('Accept link copied to clipboard!');
+                        } catch {
+                          toast.error('Failed to copy link to clipboard');
+                        }
+                      }}
+                    >
+                      <Iconify icon="solar:copy-bold" width={18} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
               ) : (
                 '—'
               )

@@ -5,7 +5,7 @@ import TableRow from '@mui/material/TableRow';
 import { GenericTableRowActions } from 'src/components/generic-table/table-row-actions';
 import { Label } from 'src/components/label';
 
-import { JOB_TITLE_STATUS_OPTIONS, getJobTitleLevelLabel } from './mocks/data';
+import { JOB_TITLE_STATUS_OPTIONS } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
@@ -36,8 +36,6 @@ export function JobTitleTableRow({ row, serialNumber, onEditRow }) {
       <TableCell>{serialNumber}</TableCell>
 
       <TableCell sx={{ textTransform: 'capitalize' }}>{row.name || '—'}</TableCell>
-
-      <TableCell sx={{ whiteSpace: 'nowrap' }}>{getJobTitleLevelLabel(row.level)}</TableCell>
 
       <TableCell sx={{ whiteSpace: 'nowrap' }}>
         {row.siteScope === 'all' || (!row.siteScope && !row.branchId)

@@ -46,7 +46,6 @@ const STATUS_OPTIONS = [
 const TABLE_HEAD = [
   { id: 'sr', label: 'Sr#', width: 56 },
   { id: 'name', label: 'Name', width: 220, minWidth: 220 },
-  { id: 'level', label: 'Level', width: 160, minWidth: 160 },
   { id: 'branch', label: 'Site', width: 140, minWidth: 140 },
   { id: 'status', label: 'Status', width: 120, align: 'center' },
   { id: 'actions', label: 'Actions', width: 100, align: 'center' },
@@ -186,7 +185,7 @@ export function JobTitleListView() {
 
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 800 }}>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 680 }}>
               <TableHeadCustom headLabel={TABLE_HEAD} />
 
               <TableBody>

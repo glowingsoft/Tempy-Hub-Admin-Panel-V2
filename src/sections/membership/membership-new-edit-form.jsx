@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo, useCallback, useEffect } from 'react';
+import { useMemo, useCallback, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -24,6 +24,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 
 import {
   useCreateInvitationMutation,
@@ -51,6 +52,7 @@ export const MembershipSchema = zod
       message: 'Site is required!',
     }),
     jobTitleId: lookupOptionSchema.nullable(),
+    reportsToStaffId: lookupOptionSchema.nullable().optional(),
     permissions: zod.array(zod.string()),
     departmentIds: zod.array(lookupOptionSchema),
     startDate: zod.union([zod.string(), zod.null()]),
@@ -82,6 +84,59 @@ function mapLookupOption(item) {
   };
 }
 
+function mapJobTitleOption(item) {
+  if (!item || item.active === false || item.status === 'inactive') return null;
+  return {
+    value: item._id,
+    label: item.name,
+  };
+}
+
+function mapLineManagerOption(item) {
+  const name =
+    item.userId?.name ||
+    item.user?.name ||
+    item.name ||
+    item.employeeCode ||
+    item._id;
+  const rawEmail =
+    item.user?.email ||
+    item.userId?.email ||
+    item.email ||
+    item.userEmail ||
+    '';
+  const email = rawEmail ? String(rawEmail).toLowerCase().trim() : '';
+  const label = email ? `${name} (${email})` : name;
+  return {
+    value: item._id,
+    label,
+    name,
+    email,
+  };
+}
+
+function renderLineManagerOption(props, option) {
+  const email = option.email || (option.label?.match(/\(([^)]+@.+)\)/)?.[1] ?? '');
+  const name = option.name || (email ? option.label.replace(`(${email})`, '').trim() : option.label);
+
+  return (
+    <li {...props} key={option.value}>
+      <Typography variant="body2" component="span" sx={{ textTransform: 'capitalize' }}>
+        {name}
+      </Typography>
+      {email ? (
+        <Typography
+          variant="body2"
+          component="span"
+          sx={{ textTransform: 'none', color: 'text.secondary', ml: 0.75 }}
+        >
+          ({email})
+        </Typography>
+      ) : null}
+    </li>
+  );
+}
+
 function lookupId(value) {
   if (!value) return '';
   if (typeof value === 'object') return value._id || value.value || '';
@@ -89,7 +144,12 @@ function lookupId(value) {
 }
 
 function lookupName(value, fallback) {
-  if (value && typeof value === 'object') return value.name || fallback || '';
+  if (value && typeof value === 'object') {
+    const name = value.name || value.userId?.name || value.user?.name || fallback || '';
+    const rawEmail = value.email || value.userId?.email || value.user?.email || '';
+    const email = rawEmail ? String(rawEmail).toLowerCase().trim() : '';
+    return email ? `${name} (${email})` : name;
+  }
   return fallback || '';
 }
 
@@ -119,11 +179,11 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const { data: grantablePermissions, isFetching: isFetchingPermissions } =
     useGetGrantablePermissionsQuery(
       { organizationId: resolvedOrganizationId },
-      { skip: !resolvedOrganizationId }
+      { skip: !resolvedOrganizationId || (isEdit && currentMembership?.role === 'staff') }
     );
 
   const { data: departmentsData, isLoading: isLoadingDepartments } = useGetDepartmentsQuery(
-    { organizationId: resolvedOrganizationId, page: 1, limit: 1000, status: 'active' },
+    { organizationId: resolvedOrganizationId, page: 1, limit: 100, status: 'active' },
     { skip: !resolvedOrganizationId }
   );
 
@@ -174,6 +234,10 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               .filter(Boolean)
           : [],
       startDate: currentMembership?.startDate || null,
+      reportsToStaffId: toLookupOption(
+        lookupId(currentMembership?.reportsToStaffId || currentMembership?.reportsTo),
+        lookupName(currentMembership?.reportsTo, currentMembership?.reportsToName)
+      ),
     }),
     [currentMembership]
   );
@@ -199,6 +263,25 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const hidePermissions = role === 'staff';
   const watchedBranch = watch('branchId');
   const selectedBranchId = lookupId(watchedBranch);
+  const previousBranchIdRef = useRef(selectedBranchId);
+
+  const lineManagerQueryArgs = useMemo(
+    () => ({
+      organizationId: resolvedOrganizationId,
+      role: 'lineManager',
+      branchId: selectedBranchId || undefined,
+      limit: 100,
+    }),
+    [resolvedOrganizationId, selectedBranchId]
+  );
+
+  const jobTitleQueryArgs = useMemo(
+    () => ({
+      organizationId: resolvedOrganizationId,
+      status: 'active',
+    }),
+    [resolvedOrganizationId]
+  );
   const staffDepartmentOptions = useMemo(() => {
     const departments = Array.isArray(departmentsData?.data) ? departmentsData.data : [];
 
@@ -228,14 +311,26 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       methods.setValue('jobTitleId', null);
       methods.setValue('departmentIds', []);
       methods.setValue('startDate', null);
+      methods.setValue('reportsToStaffId', null);
     } else if (role === 'siteManager') {
       methods.setValue('jobTitleId', null);
       methods.setValue('departmentIds', []);
       methods.setValue('startDate', null);
+      methods.setValue('reportsToStaffId', null);
     } else if (role === 'staff') {
       methods.setValue('permissions', []);
     }
   }, [role, isEdit, methods]);
+
+  useEffect(() => {
+    if (previousBranchIdRef.current === selectedBranchId) return;
+
+    previousBranchIdRef.current = selectedBranchId;
+
+    if (role === 'staff') {
+      methods.setValue('reportsToStaffId', null, { shouldValidate: true });
+    }
+  }, [selectedBranchId, role, methods]);
 
   useEffect(() => {
     if (role !== 'staff' || isEdit) return;
@@ -279,13 +374,21 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       let invitationId = currentMembership?._id;
 
       if (isEdit) {
-        const res = await updateInvitation({
+        const editPayload = {
           invitationId: currentMembership._id,
           organizationId: resolvedOrganizationId,
           branchId: data.branchId?.value,
-          permissions: data.permissions,
-        }).unwrap();
-        invitationId = res?.data?._id || res?._id || invitationId;
+        };
+
+        if (data.role === 'staff') {
+          editPayload.jobTitleId = data.jobTitleId?.value;
+          editPayload.reportsToStaffId = data.reportsToStaffId?.value || null;
+        } else {
+          editPayload.permissions = data.permissions;
+        }
+
+        await updateInvitation(editPayload).unwrap();
+        toast.success('Invitation updated successfully!');
       } else {
         const payload = {
           email: data.email,
@@ -310,17 +413,30 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
         }
         if (data.role === 'staff') {
           delete payload.permissions;
+          if (data.reportsToStaffId?.value) {
+            payload.reportsToStaffId = data.reportsToStaffId.value;
+          }
         }
 
         const res = await createInvitation({
           organizationId: resolvedOrganizationId,
           ...payload,
         }).unwrap();
-        invitationId = res?.data?._id || res?._id;
+
+        const acceptUrl = res?.data?.acceptUrl || res?.acceptUrl;
+        if (acceptUrl && navigator?.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(acceptUrl);
+            toast.success('Invitation sent! Accept link copied to clipboard.');
+          } catch {
+            toast.success('Invitation sent successfully!');
+          }
+        } else {
+          toast.success('Invitation sent successfully!');
+        }
       }
 
-      toast.success(isEdit ? 'Invitation updated successfully!' : 'Invitation sent successfully!');
-      router.push(paths.owner.memberships.invitations.detail(invitationId));
+      router.push(paths.owner.memberships.invitations.root);
     } catch (error) {
       toast.error(error?.data?.message || error?.message || 'Something went wrong. Please try again.');
     }
@@ -364,6 +480,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               queryArgs={lookupQueryArgs}
               mapOption={mapLookupOption}
               enabled={!!resolvedOrganizationId}
+              disabled={isEdit && role === 'staff'}
             />
 
             {!hideJobTitle && (
@@ -372,15 +489,30 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                 label="Job title"
                 placeholder="Search job titles"
                 useQuery={useGetJobTitlesQuery}
-                queryArgs={lookupQueryArgs}
-                mapOption={mapLookupOption}
+                queryArgs={jobTitleQueryArgs}
+                mapOption={mapJobTitleOption}
                 enabled={!!resolvedOrganizationId}
-                disabled={isEdit}
+                disabled={isEdit && role === 'staff'}
               />
             )}
 
             {!hideStartDate && (
               <Field.DatePicker name="startDate" label="Start date" disabled={isEdit} />
+            )}
+
+            {role === 'staff' && (
+              <Field.InfiniteAutocomplete
+                key={`${resolvedOrganizationId || ''}:${selectedBranchId || ''}`}
+                name="reportsToStaffId"
+                label="Reports to (optional)"
+                placeholder={selectedBranchId ? 'Search line manager' : 'Select a site first'}
+                useQuery={useGetStaffProfilesQuery}
+                queryArgs={lineManagerQueryArgs}
+                mapOption={mapLineManagerOption}
+                renderOption={renderLineManagerOption}
+                enabled={!!resolvedOrganizationId && !!selectedBranchId}
+                disabled={!selectedBranchId}
+              />
             )}
           </Box>
         </Card>
@@ -393,7 +525,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             sx={{ mb: 2 }}
           >
             <Typography variant="h6">Access</Typography>
-            {(!hidePermissions || isEdit) && allPermissionIds.length > 0 && (
+            {!hidePermissions && allPermissionIds.length > 0 && (
               <Button
                 size="small"
                 variant="text"
@@ -417,7 +549,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
             display="grid"
             gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
           >
-            {(!hidePermissions || isEdit) && (
+            {!hidePermissions && (
               <Field.Autocomplete
                 multiple
                 disableCloseOnSelect

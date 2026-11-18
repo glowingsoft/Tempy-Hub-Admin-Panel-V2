@@ -57,7 +57,7 @@ export const SCOPE_TYPE_OPTIONS = [
 
 export const UploadDocumentSchema = zod.object({
   title: zod.string().min(1, { message: 'Document title is required!' }),
-  category: zod.string().optional(),
+  category: zod.string().min(1, { message: 'Category is required!' }),
   branchId: zod
     .object({ value: zod.string(), label: zod.string() })
     .nullable()
@@ -69,12 +69,20 @@ export const UploadDocumentSchema = zod.object({
   file: zod.any().optional(),
 });
 
+const EditDocumentSchema = UploadDocumentSchema.extend({
+  category: zod.string().optional(),
+});
+
 // ----------------------------------------------------------------------
 
-const mapCategoryOption = (item) => ({
-  value: item.title || item.name || item._id || item.id,
-  label: item.title || item.name || '',
-});
+const mapCategoryOption = (item) => {
+  if (item?.active !== true) return null;
+
+  return {
+    value: item.title || item.name || item._id || item.id,
+    label: item.title || item.name || '',
+  };
+};
 
 // ----------------------------------------------------------------------
 
@@ -138,7 +146,7 @@ export default function UploadDocumentModal({
 
   const methods = useForm({
     mode: 'all',
-    resolver: zodResolver(UploadDocumentSchema),
+    resolver: zodResolver(isEdit ? EditDocumentSchema : UploadDocumentSchema),
     defaultValues,
   });
 

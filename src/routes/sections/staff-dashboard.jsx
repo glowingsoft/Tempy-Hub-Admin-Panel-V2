@@ -27,6 +27,8 @@ const StaffPhotoUploadsPage = lazy(() => import('src/pages/staff/family-engageme
 const StaffMyResidentsPage = lazy(() => import('src/pages/staff/family-engagement/my-residents'));
 const StaffMyResidentDetailPage = lazy(() => import('src/pages/staff/family-engagement/my-resident-detail'));
 const GazettesPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/gazettes'));
+const AnnouncementsPage = lazy(() => import('src/pages/dashboard/active-routes/announcements'));
+const StaffAnnouncementDetailPage = lazy(() => import('src/pages/staff/announcements/detail'));
 
 const TrainingPage = lazy(() => import('src/pages/dashboard/active-routes/training'));
 
@@ -62,6 +64,8 @@ export const staffDashboardRoutes = [
       },
       { path: 'attendance', element: <StaffAttendancePage /> },
       { path: 'leave-requests', element: <StaffLeaveRequestsPage /> },
+      { path: 'announcements', element: <AnnouncementsPage staffDashboard /> },
+      { path: 'announcements/:id', element: <StaffAnnouncementDetailPage /> },
       { path: 'shifts', element: <StaffShiftsPage /> },
       { path: 'shift-claims', element: <StaffShiftClaimsPage /> },
       { path: 'competencies', element: <StaffCompetenciesPage /> },

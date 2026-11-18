@@ -281,6 +281,8 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/family-overview`,
     // Announcements
     ADMIN_ANNOUNCEMENTS: '/admin/announcements',
+    APP_ANNOUNCEMENTS_MINE: '/app/announcements/mine',
+    APP_ANNOUNCEMENT_MINE_DETAIL: (id) => `/app/announcements/mine/${id}`,
 
     // Documents
     ORGANIZATION_DOCUMENTS: (organizationId) =>

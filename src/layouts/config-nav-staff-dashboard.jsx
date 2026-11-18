@@ -25,6 +25,7 @@ export const navDataStaff = [
     subheader: '',
     items: [
       { title: 'Dashboard', path: paths.staff.dashboard, icon: ICONS.dashboard },
+      { title: 'Announcements', path: paths.staff.announcements, icon: ICONS.blog },
       { title: 'Rota', path: paths.staff.rota, icon: ICONS.rota, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
       { title: 'Attendance', path: paths.staff.attendance, icon: ICONS.clock, moduleSlug: ModuleSlug.SIGN_IN_ATTENDANCE },
       { title: 'Leave Requests', path: paths.staff.leaveRequests, icon: ICONS.calendar, moduleSlug: ModuleSlug.LEAVE },
