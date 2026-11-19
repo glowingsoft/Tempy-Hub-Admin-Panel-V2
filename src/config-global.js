@@ -8,6 +8,7 @@ export const CONFIG = {
   site: {
     name: 'Tempy Hub Admin Panel',
     serverUrl: import.meta.env.VITE_SERVER_URL ?? '',
+    socketUrl: import.meta.env.VITE_SOCKET_URL ?? '',
     assetURL: import.meta.env.VITE_ASSET_URL ?? '',
     basePath: import.meta.env.VITE_BASE_PATH ?? '',
     version: packageJson.version,
