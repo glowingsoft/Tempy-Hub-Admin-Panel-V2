@@ -140,11 +140,8 @@ export function LeaveRequestListView({
   const totalRecords = meta.totalRecords ?? requests.length;
 
   const detailHref = useCallback(
-    (rowId) => {
-      const base = ctx.detailHref(rowId);
-      return organizationId ? `${base}?orgId=${organizationId}` : base;
-    },
-    [ctx, organizationId]
+    (rowId) => ctx.detailHref(rowId),
+    [ctx]
   );
 
   const getStatusCount = useCallback(

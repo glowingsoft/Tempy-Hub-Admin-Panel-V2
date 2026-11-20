@@ -6,7 +6,7 @@ export default function Page() {
     return (
         <>
             <Helmet>
-                <title>Add shift | Owner Dashboard - {CONFIG.site.name}</title>
+                <title>Add shift - {CONFIG.site.name}</title>
             </Helmet>
             <ShiftCreateView />
         </>

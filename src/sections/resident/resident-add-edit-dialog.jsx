@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { z as zod } from 'zod';
-import { isValidPhoneNumber } from 'react-phone-number-input/input';
+import { isValidPhoneNumber, isPossiblePhoneNumber } from 'react-phone-number-input/input';
 
 import { LoadingButton } from '@mui/lab';
 import Button from '@mui/material/Button';
@@ -11,6 +11,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Grid from '@mui/material/Unstable_Grid2';
 
 import { Field, Form } from 'src/components/hook-form';
@@ -32,7 +33,7 @@ const lookupOptionSchema = zod.object({
 
 const digitsOnly = (value) => String(value || '').replace(/\D/g, '').slice(0, 32);
 
-const getResidentSchema = (isEdit) =>
+const getResidentSchema = (isEdit, ownerDashboard = true) =>
     zod.object({
         name: zod.string().trim().min(1, { message: 'Full name is required' }),
         email: zod
@@ -44,14 +45,24 @@ const getResidentSchema = (isEdit) =>
         phone: zod
             .string()
             .optional()
-            .refine((value) => !value || isValidPhoneNumber(value), {
-                message: 'Invalid phone number',
-            }),
+            .refine(
+                (value) =>
+                    !value ||
+                    isValidPhoneNumber(value, 'GB') ||
+                    isPossiblePhoneNumber(value, 'GB') ||
+                    isValidPhoneNumber(value) ||
+                    isPossiblePhoneNumber(value),
+                {
+                    message: 'Invalid phone number',
+                }
+            ),
         roomNumber: zod.string().trim().min(1, { message: 'Room number is required' }),
         careLevel: zod.string().min(1, { message: 'Care level is required' }),
-        branchId: lookupOptionSchema.nullable().refine((value) => Boolean(value?.value), {
-            message: 'Site is required',
-        }),
+        branchId: isEdit || !ownerDashboard
+            ? zod.any().optional()
+            : lookupOptionSchema.nullable().refine((value) => Boolean(value?.value), {
+                message: 'Site is required',
+            }),
         visitorPasscode: isEdit
             ? zod.string().optional()
             : zod
@@ -105,6 +116,9 @@ export function ResidentAddEditDialog({
     onClose,
     onSave,
     organizationId = null,
+    ownerDashboard = true,
+    defaultBranchId = '',
+    defaultBranchName = '',
 }) {
     const isEdit = !!currentResident;
 
@@ -116,7 +130,7 @@ export function ResidentAddEditDialog({
         [open]
     );
 
-    const schema = useMemo(() => getResidentSchema(isEdit), [isEdit]);
+    const schema = useMemo(() => getResidentSchema(isEdit, ownerDashboard), [isEdit, ownerDashboard]);
 
     const defaultValues = useMemo(
         () => ({
@@ -125,7 +139,11 @@ export function ResidentAddEditDialog({
             phone: currentResident?.phone || '',
             roomNumber: currentResident?.roomNumber || '',
             careLevel: currentResident?.careLevel || 'low',
-            branchId: resolveBranchOption(currentResident),
+            branchId: resolveBranchOption(currentResident) || (
+                !ownerDashboard && defaultBranchId
+                    ? { value: defaultBranchId, label: defaultBranchName || defaultBranchId }
+                    : null
+            ),
             visitorPasscode: digitsOnly(
                 currentResident?.visitorPasscode ||
                 currentResident?.securityPassword ||
@@ -135,7 +153,7 @@ export function ResidentAddEditDialog({
                 currentResident?.admissionStatus ||
                 (currentResident?.status === 'inactive' ? 'discharged' : 'admitted'),
         }),
-        [currentResident]
+        [currentResident, defaultBranchId, defaultBranchName, ownerDashboard]
     );
 
     const methods = useForm({
@@ -187,7 +205,7 @@ export function ResidentAddEditDialog({
                 organizationId,
                 name: data.name.trim(),
                 roomNumber: data.roomNumber.trim(),
-                branchId: data.branchId.value,
+                branchId: data.branchId?.value || (typeof data.branchId === 'string' ? data.branchId : defaultBranchId),
                 email: data.email.trim().toLowerCase(),
                 phone: (data.phone || '').trim(),
                 careLevel: data.careLevel,
@@ -256,15 +274,35 @@ export function ResidentAddEditDialog({
 
                         {!isEdit && (
                             <Grid xs={12}>
-                                <Field.InfiniteAutocomplete
-                                    name="branchId"
-                                    label="Site"
-                                    placeholder="Search sites"
-                                    useQuery={useGetBranchesQuery}
-                                    queryArgs={lookupQueryArgs}
-                                    mapOption={mapLookupOption}
-                                    enabled={open && !!organizationId}
-                                />
+                                {ownerDashboard ? (
+                                    <Field.InfiniteAutocomplete
+                                        name="branchId"
+                                        label="Site"
+                                        placeholder="Search sites"
+                                        useQuery={useGetBranchesQuery}
+                                        queryArgs={lookupQueryArgs}
+                                        mapOption={mapLookupOption}
+                                        enabled={open && !!organizationId}
+                                    />
+                                ) : (
+                                    <TextField
+                                        fullWidth
+                                        label="Site"
+                                        value={defaultBranchName || '—'}
+                                        disabled
+                                        InputProps={{
+                                            readOnly: true,
+                                        }}
+                                        sx={{
+                                            pointerEvents: 'none',
+                                            '& .MuiInputBase-root.Mui-disabled': {
+                                                cursor: 'not-allowed',
+                                                bgcolor: (theme) =>
+                                                    theme.palette.mode === 'light' ? 'action.hover' : 'action.selected',
+                                            },
+                                        }}
+                                    />
+                                )}
                             </Grid>
                         )}
 

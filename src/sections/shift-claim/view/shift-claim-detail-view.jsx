@@ -11,7 +11,7 @@ import Typography from '@mui/material/Typography';
 import { useCanApprove } from 'src/auth/hooks';
 import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
-import { useParams } from 'src/routes/hooks';
+import { useParams, usePathname } from 'src/routes/hooks';
 
 import { fDateTime } from 'src/utils/format-time';
 
@@ -63,7 +63,21 @@ function displayEmail(user) {
 export function ShiftClaimDetailView() {
   const canApproveClaims = useCanApprove(ModuleSlug.ROTA_SCHEDULING);
   const { id } = useParams();
+  const pathname = usePathname();
   const { organizationId } = useCurrentOrganization();
+
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
+  const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const claimBase = isLineManager
+    ? paths.lineManager.shiftClaims
+    : isSiteManager
+      ? paths.siteManager.shiftClaims
+      : paths.owner.shiftClaims;
+  const dashboardRoot = isLineManager
+    ? paths.lineManager.root
+    : isSiteManager
+      ? paths.siteManager.root
+      : paths.owner.root;
 
   const { data: claim, isLoading } = useGetShiftClaimQuery(
     { shiftClaimId: id, organizationId },
@@ -105,8 +119,8 @@ export function ShiftClaimDetailView() {
       <CustomBreadcrumbs
         heading={staffName}
         links={[
-          { name: 'Dashboard', href: paths.owner.root },
-          { name: 'Shift Claims', href: paths.owner.shiftClaims.root },
+          { name: 'Dashboard', href: dashboardRoot },
+          { name: 'Shift Claims', href: claimBase.root },
           { name: staffName },
         ]}
         action={

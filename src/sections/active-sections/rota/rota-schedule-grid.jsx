@@ -72,7 +72,14 @@ function DateHeaderRow({ days }) {
   );
 }
 
-export default function RotaScheduleGrid({ teams, days, onCellClick, locked = false, readOnly = false }) {
+export default function RotaScheduleGrid({
+  teams,
+  days,
+  onCellClick,
+  locked = false,
+  readOnly = false,
+  allowCellSelect = true,
+}) {
   const hasTeams = Boolean(teams && teams.length > 0);
 
   return (
@@ -91,6 +98,7 @@ export default function RotaScheduleGrid({ teams, days, onCellClick, locked = fa
                   onCellClick={readOnly ? undefined : onCellClick}
                   locked={locked}
                   readOnly={readOnly}
+                  allowCellSelect={allowCellSelect}
                 />
               ))}
             </Stack>

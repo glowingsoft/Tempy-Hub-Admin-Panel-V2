@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 
-import { useRouter } from 'src/routes/hooks';
+import { useRouter, usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { fDate, fDateTime } from 'src/utils/format-time';
@@ -17,8 +17,16 @@ import { getShiftClaimStatusMeta, getShiftClaimVisibilityLabel } from './mocks/d
 
 export function ShiftClaimTableRow({ row, serialNumber, onApprove, onSendToTempy, tempyConnected }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
+  const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const claimBase = isLineManager
+    ? paths.lineManager.shiftClaims
+    : isSiteManager
+      ? paths.siteManager.shiftClaims
+      : paths.owner.shiftClaims;
 
-  const detailPath = paths.owner.shiftClaims.detail(row._id);
+  const detailPath = claimBase.detail(row._id);
 
   const status = getShiftClaimStatusMeta(row.status);
   const canApprove = row.status === 'open' || row.status === 'pending';

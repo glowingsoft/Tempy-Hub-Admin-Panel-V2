@@ -12,6 +12,8 @@ import { useCanManage } from 'src/auth/hooks';
 import { ModuleSlug } from 'src/auth/permissions';
 import { toast } from 'src/components/snackbar';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { useOrganizationLookups } from 'src/hooks/use-organization-lookups';
+import { getAssignedBranch } from 'src/sections/org-rollup/utils';
 import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { Iconify } from 'src/components/iconify';
@@ -77,6 +79,29 @@ export function ResidentListView({ ownerDashboard = false }) {
     const { organizationId, user } = useCurrentOrganization();
     const { branchId, onBranchChange } = useOwnerBranchFilter();
 
+    const { branches } = useOrganizationLookups({
+        organizationId,
+        branches: !!organizationId,
+        jobTitles: false,
+        departments: false,
+        limit: 100,
+    });
+
+    const assignedBranch = useMemo(
+        () => (!ownerDashboard ? getAssignedBranch(user, organizationId) : null),
+        [ownerDashboard, user, organizationId]
+    );
+    const defaultBranchId = assignedBranch?.id || '';
+    const defaultBranchName = useMemo(() => {
+        if (assignedBranch?.name) return assignedBranch.name;
+        const found = branches.find((b) => b._id === defaultBranchId);
+        return found?.name || defaultBranchId;
+    }, [assignedBranch, branches, defaultBranchId]);
+
+    const activeBranchId = ownerDashboard
+        ? (branchId && branchId !== 'all' ? branchId : undefined)
+        : defaultBranchId || undefined;
+
     const importDialog = useBoolean();
     const securityDialog = useBoolean();
     const addEditDialog = useBoolean();
@@ -106,7 +131,7 @@ export function ResidentListView({ ownerDashboard = false }) {
             organizationId,
             page: table.page + 1,
             limit: table.rowsPerPage,
-            ...(branchId && branchId !== 'all' ? { branchId } : {}),
+            ...(activeBranchId ? { branchId: activeBranchId } : {}),
             ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
             ...(admissionStatus && admissionStatus !== 'all' ? { admissionStatus } : {}),
         },
@@ -121,7 +146,9 @@ export function ResidentListView({ ownerDashboard = false }) {
 
     const handleImport = useCallback(
         async (rows) => {
-            const defaultBranchId = branchId !== 'all' ? branchId : undefined;
+            const fallbackBranchId = ownerDashboard
+                ? (branchId !== 'all' ? branchId : undefined)
+                : defaultBranchId || undefined;
             let successCount = 0;
             for (const row of rows) {
                 try {
@@ -133,7 +160,7 @@ export function ResidentListView({ ownerDashboard = false }) {
                         roomNumber: row.roomNumber,
                         careLevel: ['low', 'medium', 'high'].includes(row.careLevel) ? row.careLevel : 'low',
                         admissionStatus: ['active', 'admitted'].includes(row.status) ? 'admitted' : 'discharged',
-                        branchId: row.branchId || defaultBranchId,
+                        branchId: row.branchId || fallbackBranchId,
                         visitorPasscode: `PASS-${Math.floor(1000 + Math.random() * 9000)}`,
                     }).unwrap();
                     successCount += 1;
@@ -146,7 +173,7 @@ export function ResidentListView({ ownerDashboard = false }) {
                 table.onResetPage();
             }
         },
-        [branchId, createResident, organizationId, table]
+        [branchId, createResident, defaultBranchId, ownerDashboard, organizationId, table]
     );
 
     const handleSaveSecurity = useCallback(() => {
@@ -241,7 +268,9 @@ export function ResidentListView({ ownerDashboard = false }) {
                 ]}
                 action={
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                        <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />
+                        {ownerDashboard && (
+                            <OwnerBranchFilterActions value={branchId} onChange={onBranchChange} />
+                        )}
                         {canManageResidents && (
                             <Button
                                 variant="contained"
@@ -328,6 +357,8 @@ export function ResidentListView({ ownerDashboard = false }) {
                 onClose={addEditDialog.onFalse}
                 onSave={handleSaveResident}
                 ownerDashboard={ownerDashboard}
+                defaultBranchId={defaultBranchId}
+                defaultBranchName={defaultBranchName}
                 organizationId={organizationId}
             />
 

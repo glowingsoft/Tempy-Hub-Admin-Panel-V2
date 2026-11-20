@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
+import { isPossiblePhoneNumber } from 'react-phone-number-input/input';
 
 // ----------------------------------------------------------------------
 
@@ -14,9 +15,16 @@ export const schemaHelper = {
       .min(1, {
         message: props?.message?.required_error ?? 'Phone number is required!',
       })
-      .refine((data) => props?.isValidPhoneNumber?.(data), {
-        message: props?.message?.invalid_type_error ?? 'Invalid phone number!',
-      }),
+      .refine(
+        (data) =>
+          props?.isValidPhoneNumber?.(data, 'GB') ||
+          isPossiblePhoneNumber(data, 'GB') ||
+          props?.isValidPhoneNumber?.(data) ||
+          isPossiblePhoneNumber(data),
+        {
+          message: props?.message?.invalid_type_error ?? 'Invalid phone number!',
+        }
+      ),
   /**
    * date
    * defaultValue === null

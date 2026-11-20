@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
@@ -10,27 +11,142 @@ const PIN_COLORS = {
   high: 'error.main',
 };
 
-export function FloorPlanPin({ pin, resident, onClick }) {
+export function FloorPlanPin({
+  pin,
+  resident,
+  canDrag = false,
+  onDragMove,
+  onDragEnd,
+  onDragCancel,
+  onClick,
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStateRef = useRef(null);
+  const lastWasMovedRef = useRef(false);
+
   const color = PIN_COLORS[resident.peepLevel] || 'grey.500';
+
+  const handlePointerDown = (event) => {
+    if (!canDrag || event.button !== 0) return;
+
+    event.stopPropagation();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch (err) {
+      // ignore
+    }
+
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      isDown: true,
+      hasMoved: false,
+    };
+  };
+
+  const handlePointerMove = (event) => {
+    const state = dragStateRef.current;
+    if (!state?.isDown) return;
+
+    event.stopPropagation();
+    const dist = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+
+    if (!state.hasMoved && dist >= 2) {
+      state.hasMoved = true;
+      setIsDragging(true);
+    }
+
+    if (state.hasMoved && onDragMove) {
+      onDragMove(pin, event.clientX, event.clientY);
+    }
+  };
+
+  const handlePointerUp = (event) => {
+    const state = dragStateRef.current;
+    if (!state?.isDown) return;
+
+    event.stopPropagation();
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch (err) {
+      // ignore
+    }
+
+    const wasMoved = state.hasMoved;
+    lastWasMovedRef.current = wasMoved;
+    dragStateRef.current = null;
+    setIsDragging(false);
+
+    if (wasMoved) {
+      if (onDragEnd) {
+        onDragEnd(pin, event.clientX, event.clientY);
+      }
+    }
+  };
+
+  const handlePointerCancel = (event) => {
+    const state = dragStateRef.current;
+    if (!state?.isDown) return;
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch (err) {
+      // ignore
+    }
+
+    const wasMoved = state.hasMoved;
+    lastWasMovedRef.current = false;
+    dragStateRef.current = null;
+    setIsDragging(false);
+
+    if (wasMoved && onDragCancel) {
+      onDragCancel(pin);
+    }
+  };
+
+  const handleClick = (event) => {
+    event.stopPropagation();
+    if (lastWasMovedRef.current) {
+      lastWasMovedRef.current = false;
+      return;
+    }
+    if (onClick) {
+      onClick(event);
+    }
+  };
 
   return (
     <Tooltip
       title={`Room ${resident.roomNumber} · ${resident.name}`}
       placement="top"
+      open={isDragging ? false : undefined}
+      disableHoverListener={isDragging}
     >
       <Box
-        onClick={onClick}
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         sx={{
           position: 'absolute',
           left: `${pin.x * 100}%`,
           top: `${pin.y * 100}%`,
-          transform: 'translate(-50%, -100%)',
-          zIndex: 5,
-          cursor: 'pointer',
+          transform: isDragging
+            ? 'translate(-50%, -100%) scale(1.2)'
+            : 'translate(-50%, -100%)',
+          zIndex: isDragging ? 25 : 5,
+          cursor: canDrag ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
           color,
-          transition: 'transform 0.15s ease',
+          touchAction: 'none',
+          userSelect: 'none',
+          filter: isDragging ? 'drop-shadow(0 6px 12px rgba(0,0,0,0.35))' : undefined,
+          transition: isDragging ? 'none' : 'transform 0.15s ease',
           '&:hover': {
-            transform: 'translate(-50%, -100%) scale(1.15)',
+            transform: isDragging
+              ? 'translate(-50%, -100%) scale(1.2)'
+              : 'translate(-50%, -100%) scale(1.15)',
           },
         }}
       >

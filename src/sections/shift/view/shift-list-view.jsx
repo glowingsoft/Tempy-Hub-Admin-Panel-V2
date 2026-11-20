@@ -8,6 +8,7 @@ import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { usePathname } from 'src/routes/hooks';
 
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -31,6 +32,7 @@ import {
 import { useCanManage } from 'src/auth/hooks';
 import { ModuleSlug } from 'src/auth/permissions';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { OwnerBranchFilterActions, useOwnerBranchFilter } from 'src/sections/branch/owner-branch-select';
 import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetShiftsQuery } from 'src/store/Reducer/shifts-api';
 import { SHIFT_STATUS_OPTIONS } from '../mocks/data';
@@ -71,6 +73,21 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
   const organizationId = propOrgId || resolvedOrgId;
   const orgName = resolvedOrgName;
 
+  const pathname = usePathname();
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
+  const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const isOwner = !isLineManager && !isSiteManager;
+
+  const { branchId, onBranchChange } = useOwnerBranchFilter();
+
+  const handleBranchChange = useCallback(
+    (newBranchId) => {
+      table.onResetPage();
+      onBranchChange(newBranchId);
+    },
+    [onBranchChange, table]
+  );
+
   const filters = useSetState({ search: '', status: 'all' });
   const keyword = useDebounce(filters.state.search, 500);
   const trimmedKeyword = keyword.trim();
@@ -92,6 +109,7 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
       limit: table.rowsPerPage,
       ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
       ...(status && status !== 'all' ? { status } : {}),
+      ...(isOwner && branchId && branchId !== 'all' ? { branchId } : {}),
     },
     { skip: !organizationId }
   );
@@ -124,20 +142,45 @@ export function ShiftListView({ organizationId: propOrgId, pathsConfig } = {}) {
     [filters, table]
   );
 
-  const newShiftHref = pathsConfig?.new || paths.owner.shifts.new;
+  const shiftBase = isLineManager
+    ? paths.lineManager.shifts
+    : isSiteManager
+      ? paths.siteManager.shifts
+      : paths.owner.shifts;
+  const dashboardRoot = isLineManager
+    ? paths.lineManager.root
+    : isSiteManager
+      ? paths.siteManager.root
+      : paths.owner.root;
+
+  const newShiftHref = pathsConfig?.new || shiftBase.new;
 
   return (
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Shifts"
         links={[
-          { name: 'Dashboard', href: paths.owner.root },
+          { name: 'Dashboard', href: dashboardRoot },
           // { name: 'Rota' },
           { name: 'Shifts' },
           ...(orgName ? [{ name: orgName }] : []),
         ]}
         action={
-          canManageShifts ? (
+          isOwner ? (
+            <OwnerBranchFilterActions value={branchId} onChange={handleBranchChange}>
+              {canManageShifts ? (
+                <Button
+                  component={RouterLink}
+                  href={newShiftHref}
+                  variant="contained"
+                  color="primary"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  New Shift
+                </Button>
+              ) : null}
+            </OwnerBranchFilterActions>
+          ) : canManageShifts && !isLineManager ? (
             <Button
               component={RouterLink}
               href={newShiftHref}

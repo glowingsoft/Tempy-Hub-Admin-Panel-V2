@@ -78,7 +78,7 @@ function StatBadge({ icon, value }) {
   );
 }
 
-function StaffRow({ staff, days, team, onCellClick, locked = false, readOnly = false }) {
+function StaffRow({ staff, days, team, onCellClick, locked = false, readOnly = false, allowCellSelect = true }) {
   return (
     <Stack direction="row" alignItems="stretch" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
       <Box
@@ -115,7 +115,10 @@ function StaffRow({ staff, days, team, onCellClick, locked = false, readOnly = f
 
       {days.map((day) => {
         const shiftsForDay = staff.shifts?.[day.date] ?? [];
+        const hasShifts = shiftsForDay.length > 0;
         const isInteractive = !readOnly && !staff.vacant && Boolean(onCellClick) && !locked;
+        const canSelectEmpty = isInteractive && allowCellSelect;
+        const isCellInteractive = hasShifts ? isInteractive : canSelectEmpty;
 
         return (
           <Stack
@@ -123,7 +126,7 @@ function StaffRow({ staff, days, team, onCellClick, locked = false, readOnly = f
             spacing={0.5}
             justifyContent="center"
             onClick={(event) => {
-              if (isInteractive) {
+              if (isCellInteractive) {
                 onCellClick({ staff, day, shifts: shiftsForDay, team, target: event.currentTarget });
               }
             }}
@@ -135,10 +138,10 @@ function StaffRow({ staff, days, team, onCellClick, locked = false, readOnly = f
               minHeight: 52,
               borderLeft: '1px solid',
               borderColor: 'divider',
-              cursor: isInteractive ? 'pointer' : 'default',
+              cursor: isCellInteractive ? 'pointer' : 'default',
               position: 'relative',
               transition: (theme) => theme.transitions.create(['background-color', 'border-color']),
-              '&:hover': isInteractive
+              '&:hover': isCellInteractive
                 ? {
                     bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
                     '& .cell-select-indicator': {
@@ -151,11 +154,11 @@ function StaffRow({ staff, days, team, onCellClick, locked = false, readOnly = f
                 : undefined,
             }}
           >
-            {shiftsForDay.length > 0 ? (
+            {hasShifts ? (
               shiftsForDay.map((shift, index) => (
                 <RotaShiftChip key={index} shift={shift} readOnly={readOnly || !isInteractive} />
               ))
-            ) : isInteractive ? (
+            ) : canSelectEmpty ? (
               <Box
                 className="cell-select-indicator"
                 sx={{
@@ -187,7 +190,14 @@ function StaffRow({ staff, days, team, onCellClick, locked = false, readOnly = f
   );
 }
 
-export default function RotaTeamSection({ team, days, onCellClick, locked = false, readOnly = false }) {
+export default function RotaTeamSection({
+  team,
+  days,
+  onCellClick,
+  locked = false,
+  readOnly = false,
+  allowCellSelect = true,
+}) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -204,6 +214,7 @@ export default function RotaTeamSection({ team, days, onCellClick, locked = fals
             onCellClick={readOnly ? undefined : onCellClick}
             locked={locked}
             readOnly={readOnly}
+            allowCellSelect={allowCellSelect}
           />
         ))}
       </Collapse>

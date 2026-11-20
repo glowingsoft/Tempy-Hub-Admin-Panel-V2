@@ -61,7 +61,7 @@ export const shiftsApi = createApi({
     tagTypes: ['Shift'],
     endpoints: (builder) => ({
         getShifts: builder.query({
-            query: ({ organizationId, page = 1, limit = 10, status, keyword }) => {
+            query: ({ organizationId, page = 1, limit = 10, status, keyword, branchId }) => {
                 const trimmedKeyword = typeof keyword === 'string' ? keyword.trim() : '';
 
                 return {
@@ -73,6 +73,7 @@ export const shiftsApi = createApi({
                         limit,
                         ...(trimmedKeyword ? { keyword: trimmedKeyword } : {}),
                         ...(status && status !== 'all' ? { status } : {}),
+                        ...(branchId && branchId !== 'all' ? { branchId } : {}),
                     },
                 };
             },

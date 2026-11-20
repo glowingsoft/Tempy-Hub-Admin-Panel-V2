@@ -16,7 +16,12 @@ import { getEvacuationTypeMeta } from './view/fire-drills-view';
 /**
  * Live active evacuation card placed under the headcount summary cards.
  */
-export function ActiveEvacuationBanner({ event, onViewRollcall, onCloseEvacuation }) {
+export function ActiveEvacuationBanner({
+  event,
+  onViewRollcall,
+  onCloseEvacuation,
+  showCloseButton = true,
+}) {
   if (!event) return null;
 
   const typeMeta = getEvacuationTypeMeta(event.type);
@@ -121,21 +126,23 @@ export function ActiveEvacuationBanner({ event, onViewRollcall, onCloseEvacuatio
           Rollcall
         </Button>
 
-        <Button
-          size="medium"
-          variant="contained"
-          onClick={() => onCloseEvacuation?.(event)}
-          sx={{
-            bgcolor: '#1C252E',
-            color: '#ffffff',
-            fontWeight: 600,
-            px: 2.25,
-            borderRadius: 1,
-            '&:hover': { bgcolor: '#000000' },
-          }}
-        >
-          Close
-        </Button>
+        {showCloseButton && (
+          <Button
+            size="medium"
+            variant="contained"
+            onClick={() => onCloseEvacuation?.(event)}
+            sx={{
+              bgcolor: '#1C252E',
+              color: '#ffffff',
+              fontWeight: 600,
+              px: 2.25,
+              borderRadius: 1,
+              '&:hover': { bgcolor: '#000000' },
+            }}
+          >
+            Close
+          </Button>
+        )}
       </Stack>
     </Box>
   );
@@ -145,4 +152,5 @@ ActiveEvacuationBanner.propTypes = {
   event: PropTypes.object,
   onViewRollcall: PropTypes.func,
   onCloseEvacuation: PropTypes.func,
+  showCloseButton: PropTypes.bool,
 };

@@ -4,16 +4,16 @@ import { countries } from 'src/assets/data/countries';
 
 // ----------------------------------------------------------------------
 
-export function getCountryCode(inputValue, countryCode) {
+export function getCountryCode(inputValue, countryCode = 'GB') {
   if (inputValue) {
-    const phoneNumber = parsePhoneNumber(inputValue);
+    const phoneNumber = parsePhoneNumber(inputValue, countryCode);
 
-    if (phoneNumber) {
-      return phoneNumber?.country;
+    if (phoneNumber?.country) {
+      return phoneNumber.country;
     }
   }
 
-  return countryCode ?? 'US';
+  return countryCode ?? 'GB';
 }
 
 // ----------------------------------------------------------------------

@@ -4,7 +4,7 @@ import { PhoneInput } from '../phone-input';
 
 // ----------------------------------------------------------------------
 
-export function RHFPhoneInput({ name, helperText, ...other }) {
+export function RHFPhoneInput({ name, helperText, country = 'GB', ...other }) {
   const { control, setValue } = useFormContext();
 
   return (
@@ -14,6 +14,7 @@ export function RHFPhoneInput({ name, helperText, ...other }) {
       render={({ field, fieldState: { error } }) => (
         <PhoneInput
           {...field}
+          country={country}
           fullWidth
           value={field.value}
           onChange={(newValue) => setValue(name, newValue, { shouldValidate: true })}

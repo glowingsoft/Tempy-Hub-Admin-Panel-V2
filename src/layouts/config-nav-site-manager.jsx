@@ -4,7 +4,6 @@ import { paths } from 'src/routes/paths';
 import { CONFIG } from 'src/config-global';
 
 import { SvgColor } from 'src/components/svg-color';
-import { D } from '../../dist/assets/dist-Dl7MaAYy';
 
 // ----------------------------------------------------------------------
 
@@ -71,6 +70,8 @@ export const navDataSiteManager = [
       { title: 'Residents', path: paths.siteManager.residents.root, icon: ICONS.user, moduleSlug: ModuleSlug.RESIDENTS },
       { title: 'Reports', path: paths.siteManager.reports, icon: ICONS.reports },
       { title: 'Rota', path: paths.siteManager.rota, icon: ICONS.rota, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+      { title: 'Shifts', path: paths.siteManager.shifts.root, icon: ICONS.calendar, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+      { title: 'Shift Claims', path: paths.siteManager.shiftClaims.root, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
       { title: 'Invitations', path: paths.siteManager.invitaions.root, icon: ICONS.invitations },
       {
         title: "Kiosks",
