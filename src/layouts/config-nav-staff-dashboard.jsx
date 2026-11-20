@@ -58,7 +58,7 @@ export const navDataStaff = [
       { title: 'My Residents', path: paths.staff.familyEngagement.myResidents, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Photo Upload', path: paths.staff.familyEngagement.photoUploads, icon: ICONS.check, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Community Wall', path: paths.staff.familyEngagement.communityWall, icon: ICONS.blog, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
-      { title: 'Gazettes', path: paths.staff.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Family Journal', path: paths.staff.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
     ],
   },
 ];

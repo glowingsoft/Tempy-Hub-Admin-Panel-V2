@@ -70,11 +70,11 @@ export function GazetteCreateDialog({
 
     try {
       await createFamilyGazette({ organizationId, branchId }).unwrap();
-      toast.success('Gazettes created for the selected site');
+      toast.success('Family journals created for the selected site');
       onCreated?.(branchId);
       onClose?.();
     } catch (error) {
-      toast.error(error?.data?.message || error?.message || 'Unable to create gazettes');
+      toast.error(error?.data?.message || error?.message || 'Unable to create family journals');
     }
   };
 
@@ -82,7 +82,7 @@ export function GazetteCreateDialog({
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h6" fontWeight={700}>
-          Create gazettes
+          Create family journals
         </Typography>
         <IconButton onClick={handleClose} size="small" disabled={isLoading}>
           <Iconify icon="eva:close-fill" />
@@ -92,7 +92,7 @@ export function GazetteCreateDialog({
       <DialogContent dividers sx={{ py: 3 }}>
         <Stack spacing={2}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Choose the site to generate the current gazette issue.
+            Choose the site to generate the current family journal issue.
           </Typography>
 
           <InfiniteAutocomplete
@@ -120,7 +120,7 @@ export function GazetteCreateDialog({
           disabled={isLoading || !selectedBranch?.value}
           startIcon={isLoading ? <CircularProgress size={16} color="inherit" /> : null}
         >
-          Create gazettes
+          Create Family Journals
         </Button>
       </DialogActions>
     </Dialog>

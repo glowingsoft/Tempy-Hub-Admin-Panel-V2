@@ -19,7 +19,7 @@ import { toast } from 'src/components/snackbar';
 
 export function GazetteMessageFamilyDialog({ open, onClose, resident }) {
   const [message, setMessage] = useState(
-    `Hello from Florence House! Issue 14 of the family gazette closes in 3 days. Please share a photo or message for ${resident?.resident || 'your loved one'} via the family app.`
+    `Hello from Florence House! Issue 14 of the Family Journal closes in 3 days. Please share a photo or message for ${resident?.resident || 'your loved one'} via the family app.`
   );
 
   if (!resident) return null;
@@ -46,7 +46,7 @@ export function GazetteMessageFamilyDialog({ open, onClose, resident }) {
       <DialogContent dividers sx={{ p: 3 }}>
         <Stack spacing={2.5}>
           <Alert severity="info" variant="outlined">
-            {resident.resident} currently has 0 approved messages for Issue 14. Prompting their family now ensures their gazette won't be empty.
+            {resident.resident} currently has 0 approved messages for Issue 14. Prompting their family now ensures their Family Journal won't be empty.
           </Alert>
 
           <TextField

@@ -1,5 +1,5 @@
 import { paths } from 'src/routes/paths';
-import { useParams } from 'src/routes/hooks';
+import { useParams, usePathname } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -15,7 +15,21 @@ import { ShiftNewEditForm } from '../shift-new-edit-form';
 
 export function ShiftEditView({ shift: propShift }) {
   const { id } = useParams();
+  const pathname = usePathname();
   const shiftId = id || propShift?._id;
+
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
+  const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const shiftBase = isLineManager
+    ? paths.lineManager.shifts
+    : isSiteManager
+      ? paths.siteManager.shifts
+      : paths.owner.shifts;
+  const dashboardRoot = isLineManager
+    ? paths.lineManager.root
+    : isSiteManager
+      ? paths.siteManager.root
+      : paths.owner.root;
 
   const { organizationId } = useCurrentOrganization();
   const { data: apiShift, isLoading } = useGetShiftQuery(
@@ -34,9 +48,9 @@ export function ShiftEditView({ shift: propShift }) {
         <CustomBreadcrumbs
           heading="Edit shift"
           links={[
-            { name: 'Dashboard', href: paths.owner.root },
+            { name: 'Dashboard', href: dashboardRoot },
             // { name: 'Rota' },
-            { name: 'Shifts', href: paths.owner.shifts.root },
+            { name: 'Shifts', href: shiftBase.root },
             { name: 'Loading...' },
           ]}
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -60,9 +74,9 @@ export function ShiftEditView({ shift: propShift }) {
       <CustomBreadcrumbs
         heading="Edit shift"
         links={[
-          { name: 'Dashboard', href: paths.owner.root },
+          { name: 'Dashboard', href: dashboardRoot },
           // { name: 'Rota' },
-          { name: 'Shifts', href: paths.owner.shifts.root },
+          { name: 'Shifts', href: shiftBase.root },
           { name: 'Edit shift' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

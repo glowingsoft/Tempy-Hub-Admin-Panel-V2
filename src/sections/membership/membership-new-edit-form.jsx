@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo, useCallback, useEffect } from 'react';
+import { useMemo, useCallback, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -24,6 +24,7 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
+import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
 
 import {
   useCreateInvitationMutation,
@@ -54,6 +55,7 @@ export const MembershipSchema = zod
     permissions: zod.array(zod.string()),
     departmentIds: zod.array(lookupOptionSchema),
     startDate: zod.union([zod.string(), zod.null()]),
+    reportsToStaffId: lookupOptionSchema.nullable().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.role === 'siteManager') return;
@@ -82,6 +84,23 @@ function mapLookupOption(item) {
   };
 }
 
+function mapLineManagerOption(profile) {
+  const name =
+    profile?.userId?.name ||
+    profile?.user?.name ||
+    profile?.name ||
+    profile?.employeeCode ||
+    profile?._id ||
+    '—';
+  const email = profile?.userId?.email || profile?.user?.email || profile?.email || '';
+  return {
+    value: profile?._id,
+    label: email ? `${name} (${email})` : name,
+    name,
+    email,
+  };
+}
+
 function lookupId(value) {
   if (!value) return '';
   if (typeof value === 'object') return value._id || value.value || '';
@@ -95,6 +114,11 @@ function lookupName(value, fallback) {
 
 function getDepartmentBranchId(department) {
   const branch = department?.branchId || department?.branch;
+  return typeof branch === 'object' ? branch?._id || branch?.id || '' : branch || '';
+}
+
+function getJobTitleBranchId(jobTitle) {
+  const branch = jobTitle?.branchId || jobTitle?.branch;
   return typeof branch === 'object' ? branch?._id || branch?.id || '' : branch || '';
 }
 
@@ -123,7 +147,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
     );
 
   const { data: departmentsData, isLoading: isLoadingDepartments } = useGetDepartmentsQuery(
-    { organizationId: resolvedOrganizationId, page: 1, limit: 1000, status: 'active' },
+    { organizationId: resolvedOrganizationId, page: 1, limit: 100, status: 'active' },
     { skip: !resolvedOrganizationId }
   );
 
@@ -174,6 +198,23 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
               .filter(Boolean)
           : [],
       startDate: currentMembership?.startDate || null,
+      reportsToStaffId: toLookupOption(
+        lookupId(
+          currentMembership?.reportsToStaffId ||
+            currentMembership?.reportsTo ||
+            currentMembership?.reportedBy ||
+            currentMembership?.lineManagerId ||
+            currentMembership?.lineManager
+        ),
+        lookupName(
+          currentMembership?.reportsTo ||
+            currentMembership?.reportedBy ||
+            currentMembership?.lineManager,
+          currentMembership?.reportsToName ||
+            currentMembership?.reportedByName ||
+            currentMembership?.lineManagerName
+        )
+      ),
     }),
     [currentMembership]
   );
@@ -196,9 +237,52 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const hideJobTitle = role === 'siteManager' || role === 'lineManager';
   const hideDepartment = role !== 'staff';
   const hideStartDate = role === 'siteManager' || role === 'lineManager';
+  const hideReportedBy = role !== 'staff';
   const showAccess = role === 'lineManager';
   const watchedBranch = watch('branchId');
   const selectedBranchId = lookupId(watchedBranch);
+  const prevBranchIdRef = useRef(selectedBranchId);
+  const isInitialMountRef = useRef(true);
+
+  const jobTitleQueryArgs = useMemo(
+    () => ({
+      organizationId: resolvedOrganizationId,
+      status: 'active',
+      ...(selectedBranchId ? { branchId: selectedBranchId } : {}),
+    }),
+    [resolvedOrganizationId, selectedBranchId]
+  );
+
+  const mapJobTitleOption = useCallback(
+    (item) => {
+      if (item?.active === false || item?.status === 'inactive') {
+        return null;
+      }
+      const jobTitleBranchId = getJobTitleBranchId(item);
+      if (
+        selectedBranchId &&
+        jobTitleBranchId &&
+        item?.siteScope !== 'all' &&
+        jobTitleBranchId !== selectedBranchId
+      ) {
+        return null;
+      }
+      return {
+        value: item._id,
+        label: item.name,
+      };
+    },
+    [selectedBranchId]
+  );
+
+  const lineManagerQueryArgs = useMemo(
+    () => ({
+      organizationId: resolvedOrganizationId,
+      role: 'lineManager',
+      branchId: selectedBranchId,
+    }),
+    [resolvedOrganizationId, selectedBranchId]
+  );
   const staffDepartmentOptions = useMemo(() => {
     const departments = Array.isArray(departmentsData?.data) ? departmentsData.data : [];
 
@@ -228,20 +312,39 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       methods.setValue('jobTitleId', null);
       methods.setValue('departmentIds', []);
       methods.setValue('startDate', null);
+      methods.setValue('reportsToStaffId', null);
     } else if (role === 'siteManager') {
       methods.setValue('jobTitleId', null);
       methods.setValue('departmentIds', []);
       methods.setValue('startDate', null);
       methods.setValue('permissions', []);
+      methods.setValue('reportsToStaffId', null);
     } else if (role === 'staff') {
       methods.setValue('permissions', []);
     }
   }, [role, isEdit, methods]);
 
   useEffect(() => {
-    if (role !== 'staff' || isEdit) return;
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      prevBranchIdRef.current = selectedBranchId;
+      return;
+    }
+
+    if (prevBranchIdRef.current !== selectedBranchId) {
+      prevBranchIdRef.current = selectedBranchId;
+      methods.setValue('reportsToStaffId', null);
+      methods.setValue('jobTitleId', null);
+      methods.setValue('departmentIds', []);
+    }
+  }, [selectedBranchId, methods]);
+
+  useEffect(() => {
+    if (role !== 'staff' || !departmentsData || isLoadingDepartments) return;
 
     const selectedDepartments = methods.getValues('departmentIds') || [];
+    if (!selectedDepartments.length) return;
+
     const validDepartments = selectedDepartments.filter((department) =>
       eligibleStaffDepartmentIds.has(department.value)
     );
@@ -249,7 +352,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
     if (validDepartments.length !== selectedDepartments.length) {
       methods.setValue('departmentIds', validDepartments, { shouldValidate: true });
     }
-  }, [eligibleStaffDepartmentIds, isEdit, methods, role]);
+  }, [eligibleStaffDepartmentIds, departmentsData, isLoadingDepartments, methods, role]);
 
   const isAllSelected = useMemo(
     () =>
@@ -280,12 +383,24 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       let invitationId = currentMembership?._id;
 
       if (isEdit) {
-        const res = await updateInvitation({
+        const editPayload = {
           invitationId: currentMembership._id,
           organizationId: resolvedOrganizationId,
           branchId: data.branchId?.value,
-          ...(data.role === 'lineManager' ? { permissions: data.permissions } : {}),
-        }).unwrap();
+        };
+
+        if (data.role === 'staff') {
+          editPayload.jobTitleId = data.jobTitleId?.value || null;
+          editPayload.departmentIds = departmentIds;
+          editPayload.reportsToStaffId = data.reportsToStaffId?.value || null;
+          if (data.startDate) {
+            editPayload.startDate = dayjs(data.startDate).toISOString();
+          }
+        } else if (data.role === 'lineManager') {
+          editPayload.permissions = data.permissions;
+        }
+
+        const res = await updateInvitation(editPayload).unwrap();
         invitationId = res?.data?._id || res?._id || invitationId;
       } else {
         const payload = {
@@ -297,6 +412,9 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
           jobTitleId: data.jobTitleId?.value,
           departmentIds,
           startDate: data.startDate ? dayjs(data.startDate).toISOString() : undefined,
+          ...(data.role === 'staff' && data.reportsToStaffId?.value
+            ? { reportsToStaffId: data.reportsToStaffId.value }
+            : {}),
         };
 
         if (data.role === 'siteManager') {
@@ -370,19 +488,19 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
 
             {!hideJobTitle && (
               <Field.InfiniteAutocomplete
+                key={`job-title-${resolvedOrganizationId || 'no-org'}-${selectedBranchId || 'no-branch'}`}
                 name="jobTitleId"
                 label="Job title"
-                placeholder="Search job titles"
+                placeholder={selectedBranchId ? 'Search job titles' : 'Select a site first'}
                 useQuery={useGetJobTitlesQuery}
-                queryArgs={lookupQueryArgs}
-                mapOption={mapLookupOption}
+                queryArgs={jobTitleQueryArgs}
+                mapOption={mapJobTitleOption}
                 enabled={!!resolvedOrganizationId}
-                disabled={isEdit}
               />
             )}
 
             {!hideStartDate && (
-              <Field.DatePicker name="startDate" label="Start date" disabled={isEdit} />
+              <Field.DatePicker name="startDate" label="Start date" />
             )}
 
             {!hideDepartment && (
@@ -394,7 +512,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                 placeholder={selectedBranchId ? 'Search departments' : 'Select a site first'}
                 loading={isLoadingDepartments}
                 options={staffDepartmentOptions}
-                disabled={!resolvedOrganizationId || !selectedBranchId || isLoadingDepartments || isEdit}
+                disabled={!resolvedOrganizationId || !selectedBranchId || isLoadingDepartments}
                 isOptionEqualToValue={(option, value) => option.value === value.value}
                 getOptionLabel={(option) => option.label || ''}
                 renderTags={(selected, getTagProps) =>
@@ -408,6 +526,38 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                     />
                   ))
                 }
+              />
+            )}
+
+            {!hideReportedBy && (
+              <Field.InfiniteAutocomplete
+                key={`${resolvedOrganizationId || 'no-org'}-${selectedBranchId || 'no-branch'}`}
+                name="reportsToStaffId"
+                label="Reported by"
+                placeholder={selectedBranchId ? 'Search line manager' : 'Select a site first'}
+                useQuery={useGetStaffProfilesQuery}
+                queryArgs={lineManagerQueryArgs}
+                mapOption={mapLineManagerOption}
+                enabled={Boolean(resolvedOrganizationId && selectedBranchId)}
+                disabled={!resolvedOrganizationId || !selectedBranchId}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.value}>
+                    <Typography variant="body2">
+                      <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                        {option.name || option.label}
+                      </Box>
+                      {option.email ? (
+                        <>
+                          {' ('}
+                          <Box component="span" sx={{ textTransform: 'none' }}>
+                            {option.email}
+                          </Box>
+                          {')'}
+                        </>
+                      ) : null}
+                    </Typography>
+                  </li>
+                )}
               />
             )}
           </Box>

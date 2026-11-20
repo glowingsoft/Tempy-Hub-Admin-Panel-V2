@@ -134,6 +134,8 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
 
   const [pins, setPins] = useState(() => getFloorPlanPins());
 
+  const [pinPositionOverrides, setPinPositionOverrides] = useState({});
+
   const placementMode = useBoolean();
 
   const uploadOpen = useBoolean();
@@ -142,11 +144,21 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
     setSelectedResidentId('');
     setAdditionalApiResidentState({ contextKey: residentPickerContextKey, residents: [] });
     setPinToDelete(null);
+    setPinPositionOverrides({});
     placementMode.onFalse();
   }, [floorPlanId, floorPlanBranchId, organizationId, placementMode.onFalse, residentPickerContextKey]);
 
   const visibleResidents = floorPlanId ? apiResidentsWithSelected : residents;
-  const visiblePins = floorPlanId ? apiPinsFromRecord : pins;
+  const rawVisiblePins = floorPlanId ? apiPinsFromRecord : pins;
+  const visiblePins = useMemo(() => {
+    return rawVisiblePins.map((pin) => {
+      const override = pinPositionOverrides[pin.id] || (pin.apiPinId && pinPositionOverrides[pin.apiPinId]);
+      if (override) {
+        return { ...pin, x: override.x, y: override.y };
+      }
+      return pin;
+    });
+  }, [rawVisiblePins, pinPositionOverrides]);
   const visibleFloorPlan = floorPlanId ? apiFloorPlanForViewer : floorPlanFile;
 
   const residentsById = useMemo(
@@ -223,6 +235,66 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
       return;
     }
     setSelectedResident(resident);
+  };
+
+  const handlePinMove = async ({ pin, x, y }) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) {
+      toast.error('Pin coordinates are invalid.');
+      return;
+    }
+
+    // Set optimistic position
+    setPinPositionOverrides((prev) => ({
+      ...prev,
+      [pin.id]: { x, y },
+      ...(pin.apiPinId ? { [pin.apiPinId]: { x, y } } : {}),
+    }));
+
+    if (floorPlanId) {
+      const selectedResident = apiResidentsWithSelected.find(
+        (resident) => resident.id === pin.residentId
+      );
+      const residentId = selectedResident?.residentId || pin.residentId;
+
+      if (!residentId) {
+        toast.error('This PEEP record is not linked to a resident.');
+        setPinPositionOverrides((prev) => {
+          const next = { ...prev };
+          delete next[pin.id];
+          if (pin.apiPinId) delete next[pin.apiPinId];
+          return next;
+        });
+        return;
+      }
+
+      try {
+        await createFloorPlanPin({
+          floorPlanId,
+          organizationId,
+          residentId,
+          x,
+          y,
+        }).unwrap();
+        toast.success('Pin moved successfully.');
+      } catch (error) {
+        // Rollback
+        setPinPositionOverrides((prev) => {
+          const next = { ...prev };
+          delete next[pin.id];
+          if (pin.apiPinId) delete next[pin.apiPinId];
+          return next;
+        });
+        toast.error(error?.data?.message || error?.message || 'Unable to move this pin.');
+      }
+      return;
+    }
+
+    // Mock / demo mode
+    const currentPins = pins;
+    const nextPins = currentPins.map((p) => (p.id === pin.id ? { ...p, x, y } : p));
+    setPins(nextPins);
+    setFloorPlanPins(nextPins);
+    toast.success('Pin moved successfully.');
   };
 
   const handleConfirmDeletePin = async () => {
@@ -303,6 +375,7 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
           }}
           onPlanClick={handlePlanClick}
           onPinClick={handlePinClick}
+          onPinMove={canManagePeep ? handlePinMove : undefined}
           onDeletePin={canManagePeep ? setPinToDelete : undefined}
           isDeletingPin={isDeletingPin}
           loading={Boolean(floorPlanId) && isFloorPlanLoading}

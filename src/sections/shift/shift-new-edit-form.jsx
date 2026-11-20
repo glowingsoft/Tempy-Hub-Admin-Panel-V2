@@ -13,7 +13,7 @@ import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks';
+import { useRouter, usePathname } from 'src/routes/hooks';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -52,6 +52,15 @@ export const ShiftSchema = zod
 
 export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
+  const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const shiftBase = isLineManager
+    ? paths.lineManager.shifts
+    : isSiteManager
+      ? paths.siteManager.shifts
+      : paths.owner.shifts;
 
   const curBranchId =
     currentShift?.branch?._id ||
@@ -212,9 +221,9 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
       toast.success(isEdit ? 'Shift updated successfully!' : 'Shift created successfully!');
       const targetShiftId = shiftId || currentShift?._id;
       if (targetShiftId) {
-        router.push(paths.owner.shifts.detail(targetShiftId));
+        router.push(shiftBase.detail(targetShiftId));
       } else {
-        router.push(paths.owner.shifts.root);
+        router.push(shiftBase.root);
       }
     } catch (error) {
       console.error('Failed to save shift:', error);
@@ -293,8 +302,8 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
             onClick={() =>
               router.push(
                 isEdit
-                ? paths.owner.shifts.detail(currentShift._id)
-                : paths.owner.shifts.root
+                ? shiftBase.detail(currentShift._id)
+                : shiftBase.root
               )
             }
           >

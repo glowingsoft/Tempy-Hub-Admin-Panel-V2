@@ -4,7 +4,7 @@ import TableRow from '@mui/material/TableRow';
 
 import { useCanManage } from 'src/auth/hooks';
 import { ModuleSlug } from 'src/auth/permissions';
-import { useRouter } from 'src/routes/hooks';
+import { useRouter, usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { fDate, fDateTime } from 'src/utils/format-time';
@@ -19,10 +19,19 @@ import { getShiftStatusMeta, getShiftVisibilityLabel } from './mocks/data';
 
 export function ShiftTableRow({ row, serialNumber }) {
   const router = useRouter();
+  const pathname = usePathname();
   const canManageShifts = useCanManage(ModuleSlug.ROTA_SCHEDULING);
 
-  const detailPath = paths.owner.shifts.detail(row._id);
-  const editPath = paths.owner.shifts.edit(row._id);
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
+  const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const shiftBase = isLineManager
+    ? paths.lineManager.shifts
+    : isSiteManager
+      ? paths.siteManager.shifts
+      : paths.owner.shifts;
+
+  const detailPath = shiftBase.detail(row._id);
+  const editPath = shiftBase.edit(row._id);
 
   const status = getShiftStatusMeta(row.status);
 
@@ -37,7 +46,7 @@ export function ShiftTableRow({ row, serialNumber }) {
       key: 'edit',
       icon: 'solar:pen-bold',
       tooltip: 'Edit',
-      hidden: !canManageShifts || row.status === 'cancelled',
+      hidden: !canManageShifts || row.status === 'cancelled' || isLineManager,
       onClick: (event) => {
         event.stopPropagation();
         router.push(editPath);

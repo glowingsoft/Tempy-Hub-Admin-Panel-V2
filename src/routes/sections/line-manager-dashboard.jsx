@@ -23,6 +23,16 @@ const PhotoApprovalPage = lazy(() => import('src/pages/dashboard/active-routes/p
 //rota
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
 
+//shifts
+const ShiftListPage = lazy(() => import('src/pages/owner-dashboard/rota/shifts/list.jsx'));
+const ShiftDetailPage = lazy(() => import('src/pages/owner-dashboard/rota/shifts/detail.jsx'));
+const ShiftCreatePage = lazy(() => import('src/pages/owner-dashboard/rota/shifts/new.jsx'));
+const ShiftEditPage = lazy(() => import('src/pages/owner-dashboard/rota/shifts/edit.jsx'));
+
+//shift claims
+const ShiftClaimListPage = lazy(() => import('src/pages/owner-dashboard/rota/shift-claims/list.jsx'));
+const ShiftClaimDetailPage = lazy(() => import('src/pages/owner-dashboard/rota/shift-claims/detail.jsx'));
+
 //team compliance
 const TeamCompliancePage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance'));
 const TeamComplianceDetailPage = lazy(() => import('src/pages/dashboard/active-routes/team-compliance/detail'));
@@ -104,6 +114,24 @@ export const lineManagerDashboardRoutes = [
             { element: <LineManagerDashboardPage />, index: true },
 
             { path: 'team-rota', element: <RotaPage /> },
+
+            {
+                path: 'shifts',
+                children: [
+                    { index: true, element: <ShiftListPage /> },
+                    { path: ':id', element: <ShiftDetailPage /> },
+                    { path: 'new', element: <ShiftCreatePage /> },
+                    { path: ':id/edit', element: <ShiftEditPage /> },
+                ],
+            },
+
+            {
+                path: 'shift-claims',
+                children: [
+                    { index: true, element: <ShiftClaimListPage /> },
+                    { path: ':id', element: <ShiftClaimDetailPage /> },
+                ],
+            },
 
             { path: "leave-approval", element: <LeaveApprovalPage /> },
 

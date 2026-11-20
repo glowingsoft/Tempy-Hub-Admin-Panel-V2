@@ -297,13 +297,15 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
     }
     return {
       canBookShift: Boolean(
-        (mappedBoard.permissions?.canBookShift ?? !isStaff) && canManageRota
+        !isLineManager &&
+          (mappedBoard.permissions?.canBookShift ?? !isStaff) &&
+          canManageRota
       ),
       canRecordLeave: Boolean(
         (mappedBoard.permissions?.canRecordLeave ?? !isStaff) && canManageLeave
       ),
     };
-  }, [mappedBoard.permissions, isStaff, locked.value]);
+  }, [mappedBoard.permissions, isStaff, isLineManager, canManageRota, canManageLeave, locked.value]);
 
   // Available managed teams for the team dropdown filter
   const managedTeams = useMemo(() => {
@@ -451,8 +453,8 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
   // Cell Click: respect role permissions
   const handleCellClick = useCallback(
     (arg1, arg2) => {
-      if (isStaff || locked.value) {
-        // View-only for staff or when locked
+      if (isStaff || isLineManager || locked.value) {
+        // View-only for staff or line manager or when locked
         return;
       }
 
@@ -467,7 +469,7 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
         team: data.team,
       });
     },
-    [isStaff, locked.value]
+    [isStaff, isLineManager, locked.value]
   );
 
   const handleOpenBookShift = useCallback((data) => {
@@ -711,16 +713,17 @@ export default function RotaView({ ownerDashboard = false, showTempyConnect = fa
             <RotaScheduleGrid
               teams={visibleTeams}
               days={mappedBoard.days}
-              onCellClick={isStaff ? undefined : handleCellClick}
+              onCellClick={isStaff || isLineManager ? undefined : handleCellClick}
               locked={locked.value}
               readOnly={isStaff}
+              allowCellSelect={!isLineManager && !isStaff}
             />
           )}
         </Box>
       </Card>
 
       {/* Date Cell Contextual Popover */}
-      {!isStaff && (
+      {!isStaff && !isLineManager && (
         <RotaCellActionPopover
           open={Boolean(cellPopoverAnchor)}
           anchorEl={cellPopoverAnchor}

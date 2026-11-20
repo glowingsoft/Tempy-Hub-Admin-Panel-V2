@@ -287,6 +287,16 @@ export const paths = {
     },
     reports: `${ROOTS.SITE_MANAGER}/reports`,
     rota: `${ROOTS.SITE_MANAGER}/rota`,
+    shifts: {
+      root: `${ROOTS.SITE_MANAGER}/shifts`,
+      new: `${ROOTS.SITE_MANAGER}/shifts/new`,
+      detail: (id) => `${ROOTS.SITE_MANAGER}/shifts/${id}`,
+      edit: (id) => `${ROOTS.SITE_MANAGER}/shifts/${id}/edit`,
+    },
+    shiftClaims: {
+      root: `${ROOTS.SITE_MANAGER}/shift-claims`,
+      detail: (id) => `${ROOTS.SITE_MANAGER}/shift-claims/${id}`,
+    },
     supervision: `${ROOTS.SITE_MANAGER}/supervision`,
     supervisionDetail: (id) => `${ROOTS.SITE_MANAGER}/supervision/${id}`,
     supervisionSignOff: (id) => `${ROOTS.SITE_MANAGER}/supervision/${id}/sign-off`,
@@ -460,6 +470,16 @@ export const paths = {
   lineManager: {
     root: `${ROOTS.LINE_MANAGER}`,
     teamRota: `${ROOTS.LINE_MANAGER}/team-rota`,
+    shifts: {
+      root: `${ROOTS.LINE_MANAGER}/shifts`,
+      new: `${ROOTS.LINE_MANAGER}/shifts/new`,
+      detail: (id) => `${ROOTS.LINE_MANAGER}/shifts/${id}`,
+      edit: (id) => `${ROOTS.LINE_MANAGER}/shifts/${id}/edit`,
+    },
+    shiftClaims: {
+      root: `${ROOTS.LINE_MANAGER}/shift-claims`,
+      detail: (id) => `${ROOTS.LINE_MANAGER}/shift-claims/${id}`,
+    },
     leaveApproval: {
       root: `${ROOTS.LINE_MANAGER}/leave-approval`,
       detail: (id) => `${ROOTS.LINE_MANAGER}/leave-approval/${id}`,

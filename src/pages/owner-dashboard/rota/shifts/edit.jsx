@@ -15,7 +15,7 @@ export default function Page() {
   return (
     <>
       <Helmet>
-        <title>Edit shift | Owner Dashboard - {CONFIG.site.name}</title>
+        <title>Edit shift - {CONFIG.site.name}</title>
       </Helmet>
 
       <ShiftEditView shift={currentShift} />
