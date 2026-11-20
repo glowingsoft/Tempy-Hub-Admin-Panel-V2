@@ -51,7 +51,7 @@ export function GazetteInviteFamilyDialog({ open, onClose, resident, onInvited }
       <DialogContent dividers sx={{ p: 3 }}>
         <Stack spacing={2.5}>
           <Alert severity="info" variant="outlined">
-            {resident.resident} (Room {resident.room}) currently has no family members linked to their profile. Inviting relatives connects them to the family portal and gazette submissions.
+            {resident.resident} (Room {resident.room}) currently has no family members linked to their profile. Inviting relatives connects them to the family portal and Family Journal submissions.
           </Alert>
 
           <TextField

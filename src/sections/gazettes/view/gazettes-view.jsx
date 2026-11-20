@@ -194,7 +194,7 @@ export function GazettesView() {
       clearPreviewPdf();
 
       if (!row?.hasPdf) {
-        toast.error('No PDF is available for this gazette yet');
+        toast.error('No PDF is available for this Family Journal yet');
         return;
       }
 
@@ -211,13 +211,13 @@ export function GazettesView() {
         }).unwrap();
 
         if (!(result?.blob instanceof Blob)) {
-          toast.error('Unable to load gazette PDF');
+          toast.error('Unable to load Family Journal PDF');
           return;
         }
 
         setPreviewPdfUrl(URL.createObjectURL(result.blob));
       } catch (error) {
-        toast.error(error?.data?.message || error?.message || 'Unable to load gazette PDF');
+        toast.error(error?.data?.message || error?.message || 'Unable to load Family Journal PDF');
       }
     },
     [clearPreviewPdf, getFamilyGazettePdf, organizationId, previewDialog]
@@ -235,9 +235,9 @@ export function GazettesView() {
 
       try {
         await regenerateFamilyGazette({ organizationId, gazetteItemId }).unwrap();
-        toast.success(`Gazette regenerated successfully for ${row.resident}`);
+        toast.success(`Family journal regenerated successfully for ${row.resident}`);
       } catch (error) {
-        toast.error(error?.data?.message || error?.message || 'Unable to regenerate gazette');
+        toast.error(error?.data?.message || error?.message || 'Unable to regenerate family journal');
       }
     },
     [organizationId, regenerateFamilyGazette]
@@ -263,11 +263,11 @@ export function GazettesView() {
 
         triggerFileDownload(
           result.url,
-          result.filename || `${String(row.resident).replace(/\s+/g, '_')}_Gazette.pdf`
+          result.filename || `${String(row.resident).replace(/\s+/g, '_')}_Family_Journal.pdf`
         );
-        toast.success(`Downloading ${row.resident} gazette PDF`);
+        toast.success(`Downloading ${row.resident} family journal PDF`);
       } catch (error) {
-        toast.error(error?.data?.message || error?.message || 'Unable to download gazette PDF');
+        toast.error(error?.data?.message || error?.message || 'Unable to download family journal PDF');
       }
     },
     [getFamilyGazettePdf, organizationId]
@@ -283,7 +283,7 @@ export function GazettesView() {
       const result = await markFamilyGazettesPrinted({ organizationId, branchId }).unwrap();
       toast.success(result?.message || 'Marked as printed');
     } catch (error) {
-      toast.error(error?.data?.message || error?.message || 'Unable to mark gazettes as printed');
+      toast.error(error?.data?.message || error?.message || 'Unable to mark family journals as printed');
     }
   }, [branchId, markFamilyGazettesPrinted, organizationId]);
 
@@ -294,16 +294,16 @@ export function GazettesView() {
       const result = await downloadAllFamilyGazettes({ organizationId, branchId }).unwrap();
       const blob = result?.blob;
       if (!(blob instanceof Blob)) {
-        toast.error('Unable to download gazette PDFs');
+        toast.error('Unable to download family journal PDFs');
         return;
       }
 
       const href = URL.createObjectURL(blob);
-      triggerFileDownload(href, result?.filename || 'gazettes.zip');
+      triggerFileDownload(href, result?.filename || 'family_journals.zip');
       URL.revokeObjectURL(href);
-      toast.success('Downloading gazettes bundle...');
+      toast.success('Downloading family journals bundle...');
     } catch (error) {
-      toast.error(error?.data?.message || error?.message || 'Unable to download gazette PDFs');
+      toast.error(error?.data?.message || error?.message || 'Unable to download family journal PDFs');
     }
   }, [branchId, downloadAllFamilyGazettes, organizationId]);
 
@@ -318,16 +318,16 @@ export function GazettesView() {
   return (
     <>
       <Helmet>
-        <title>{`Gazettes | ${CONFIG.site.name}`}</title>
+        <title>{`Family Journal | ${CONFIG.site.name}`}</title>
       </Helmet>
 
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Gazettes"
+          heading="Family Journal"
           links={[
             { name: 'Dashboard', href: familyPaths.dashboardRoot },
             { name: 'Family Engagement', href: familyPaths.familyOverview },
-            { name: 'Gazettes' },
+            { name: 'Family Journal' },
           ]}
           action={
             <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
@@ -358,7 +358,7 @@ export function GazettesView() {
                 startIcon={<Iconify icon="solar:add-circle-bold" />}
                 sx={{ fontWeight: 700 }}
               >
-                Create gazettes
+                Create Family Journals
               </Button>
               <Button
                 variant="outlined"

@@ -34,8 +34,8 @@ export function CommunityWallSidebar({ gazette, attention, activity, sx }) {
       <Card sx={{ p: 2.5, borderRadius: 2, border: (theme) => `1px solid ${theme.palette.divider}`, boxShadow: 'none' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '0.9375rem' }}>
           {gazette?.number
-            ? `Gazette no. ${gazette.number}${gazette.closesInDays != null ? ` closes in ${gazette.closesInDays} days` : ''}`
-            : 'Gazette'}
+            ? `Family Journal no. ${gazette.number}${gazette.closesInDays != null ? ` closes in ${gazette.closesInDays} days` : ''}`
+            : 'Family Journal'}
         </Typography>
 
         {gazette?.periodLabel && (

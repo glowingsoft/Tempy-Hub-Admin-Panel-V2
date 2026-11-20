@@ -141,7 +141,7 @@ export const navDataOwner = [
       { title: 'Moderation', path: paths.owner.familyEngagement.moderation, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Community Wall', path: paths.owner.familyEngagement.communityWall, icon: ICONS.blog, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Newsletters', path: paths.owner.familyEngagement.newsletters, icon: ICONS.mail, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
-      { title: 'Gazettes', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Family Journal', path: paths.owner.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Family Groups', path: paths.owner.familyEngagement.familyGroups, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       {
         title: 'Family Invite',
