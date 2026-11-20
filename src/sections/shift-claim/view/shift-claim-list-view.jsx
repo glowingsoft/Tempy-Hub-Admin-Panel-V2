@@ -8,6 +8,7 @@ import TableBody from '@mui/material/TableBody';
 import { useCanApprove } from 'src/auth/hooks';
 import { ModuleSlug } from 'src/auth/permissions';
 import { paths } from 'src/routes/paths';
+import { usePathname } from 'src/routes/hooks';
 
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 import { useDebounce } from 'src/hooks/use-debounce';
@@ -147,12 +148,21 @@ export function ShiftClaimListView() {
     [filters, table]
   );
 
+  const pathname = usePathname();
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
+  const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const dashboardRoot = isLineManager
+    ? paths.lineManager.root
+    : isSiteManager
+      ? paths.siteManager.root
+      : paths.owner.root;
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Shift Claims"
         links={[
-          { name: 'Dashboard', href: paths.owner.root },
+          { name: 'Dashboard', href: dashboardRoot },
           { name: 'Rota' },
           { name: 'Shift Claims' },
           ...(orgName ? [{ name: orgName }] : []),

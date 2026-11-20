@@ -1,4 +1,4 @@
-import { useState, forwardRef } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { getCountryCallingCode, parsePhoneNumber } from 'react-phone-number-input';
 import PhoneNumberInput from 'react-phone-number-input/input';
 
@@ -11,10 +11,17 @@ import { CountryListPopover } from './list';
 // ----------------------------------------------------------------------
 
 export const PhoneInput = forwardRef(
-  ({ value, onChange, placeholder, country: inputCountryCode, disableSelect, ...other }, ref) => {
+  ({ value, onChange, placeholder, country: inputCountryCode = 'GB', disableSelect, ...other }, ref) => {
     const defaultCountryCode = getCountryCode(value, inputCountryCode);
 
     const [selectedCountry, setSelectedCountry] = useState(defaultCountryCode);
+
+    useEffect(() => {
+      const countryCode = getCountryCode(value, inputCountryCode);
+      if (countryCode) {
+        setSelectedCountry(countryCode);
+      }
+    }, [value, inputCountryCode]);
 
     const handleCountryChange = (countryCode) => {
       setSelectedCountry(countryCode);

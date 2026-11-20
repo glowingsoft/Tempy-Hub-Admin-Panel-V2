@@ -140,6 +140,16 @@ const LeaveRequestDetailPage = lazy(() => import('src/pages/site-manager/leave-r
 //rota
 const RotaPage = lazy(() => import('src/pages/dashboard/active-routes/rota'));
 
+//shifts
+const ShiftListPage = lazy(() => import('src/pages/owner-dashboard/rota/shifts/list.jsx'));
+const ShiftDetailPage = lazy(() => import('src/pages/owner-dashboard/rota/shifts/detail.jsx'));
+const ShiftCreatePage = lazy(() => import('src/pages/owner-dashboard/rota/shifts/new.jsx'));
+const ShiftEditPage = lazy(() => import('src/pages/owner-dashboard/rota/shifts/edit.jsx'));
+
+//shift claims
+const ShiftClaimListPage = lazy(() => import('src/pages/owner-dashboard/rota/shift-claims/list.jsx'));
+const ShiftClaimDetailPage = lazy(() => import('src/pages/owner-dashboard/rota/shift-claims/detail.jsx'));
+
 //family engagement
 const FamilyOverviewPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/overview'));
 const FamilyModerationPage = lazy(() => import('src/pages/dashboard/active-routes/family-engagement/moderation'));
@@ -208,6 +218,22 @@ export const siteManagerDashboardRoutes = [
       },
       {
         path: "rota", element: <RotaPage />
+      },
+      {
+        path: "shifts",
+        children: [
+          { index: true, element: <ShiftListPage /> },
+          { path: ":id", element: <ShiftDetailPage /> },
+          { path: "new", element: <ShiftCreatePage /> },
+          { path: ":id/edit", element: <ShiftEditPage /> },
+        ],
+      },
+      {
+        path: "shift-claims",
+        children: [
+          { index: true, element: <ShiftClaimListPage /> },
+          { path: ":id", element: <ShiftClaimDetailPage /> },
+        ],
       },
       {
         path: "invitations",

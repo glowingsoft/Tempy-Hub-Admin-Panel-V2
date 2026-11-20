@@ -5,7 +5,7 @@ import { GazettesView } from 'src/sections/gazettes/view/gazettes-view';
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Gazettes | Dashboard - ${CONFIG.site.name}` };
+const metadata = { title: `Family Journal | Dashboard - ${CONFIG.site.name}` };
 
 export default function Page() {
   return (

@@ -239,6 +239,18 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     [user, organizationId]
   );
 
+  const isLineManager = useMemo(() => {
+    if (user?.permission === 3) return true;
+    if (user?.role === 'lineManager' || user?.role === 'line_manager') return true;
+    const currentMembership = user?.access?.memberships?.find(
+      (m) => String(m.organizationId?._id || m.organizationId) === String(organizationId)
+    );
+    if (currentMembership?.role === 'lineManager') return true;
+    if (typeof rootPath === 'string' && rootPath.includes('line-manager')) return true;
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/line-manager')) return true;
+    return false;
+  }, [user, organizationId, rootPath]);
+
   // Branch resolution logic:
   // - Line Manager / Site Manager (showSiteFilter = false):
   //   Always locked to user's assigned branch.
@@ -692,6 +704,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         event={activeEvent}
         onViewRollcall={handleOpenDetail}
         onCloseEvacuation={handleCloseEvacuation}
+        showCloseButton={!isLineManager}
       />
 
       <Card>
@@ -771,6 +784,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         closing={isClosingEvacuation}
         onUpdateCheck={handleUpdateCheck}
         onCloseEvacuation={handleCloseEvacuation}
+        canClose={!isLineManager}
       />
     </DashboardContent>
   );

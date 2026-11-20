@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -30,6 +30,7 @@ export function FloorPlanViewer({
   onResidentChange = () => {},
   onPlanClick = () => {},
   onPinClick = () => {},
+  onPinMove = () => {},
   onDeletePin = () => {},
   isDeletingPin = false,
   loading = false,
@@ -39,6 +40,47 @@ export function FloorPlanViewer({
 }) {
   const [imgError, setImgError] = useState(false);
   const [naturalAspectRatio, setNaturalAspectRatio] = useState(null);
+  const containerRef = useRef(null);
+  const [draggingPin, setDraggingPin] = useState(null);
+
+  const handlePinDragMove = useCallback((pin, clientX, clientY) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const x = Math.max(0.01, Math.min(0.99, (clientX - rect.left) / rect.width));
+    const y = Math.max(0.01, Math.min(0.99, (clientY - rect.top) / rect.height));
+
+    setDraggingPin({ id: pin.id, x, y });
+  }, []);
+
+  const handlePinDragEnd = useCallback(
+    (pin, clientX, clientY) => {
+      setDraggingPin(null);
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const x = Math.max(0.01, Math.min(0.99, (clientX - rect.left) / rect.width));
+      const y = Math.max(0.01, Math.min(0.99, (clientY - rect.top) / rect.height));
+
+      if (onPinMove) {
+        onPinMove({ pin, x, y, initialX: pin.x, initialY: pin.y });
+      }
+    },
+    [onPinMove]
+  );
+
+  const handlePinDragCancel = useCallback(() => {
+    setDraggingPin(null);
+  }, []);
+
+  const renderedPins = useMemo(() => {
+    if (!draggingPin) return pins;
+    return pins.map((p) =>
+      p.id === draggingPin.id ? { ...p, x: draggingPin.x, y: draggingPin.y } : p
+    );
+  }, [pins, draggingPin]);
   const selectedResident = residentsById?.[selectedResidentId];
   const isUpdatingPin = pins.some((pin) => pin.residentId === selectedResidentId);
   const selectedPin = pins.find(
@@ -279,6 +321,7 @@ export function FloorPlanViewer({
           </Box>
         ) : (
           <Box
+            ref={containerRef}
             sx={{
               position: 'relative',
               width: 1,
@@ -342,7 +385,7 @@ export function FloorPlanViewer({
                 pointerEvents: placementMode ? 'auto' : 'none',
               }}
             />
-            {pins.map((pin) => {
+            {renderedPins.map((pin) => {
               const resident = residentsById[pin.residentId];
 
               if (!resident) return null;
@@ -352,6 +395,10 @@ export function FloorPlanViewer({
                   key={pin.id}
                   pin={pin}
                   resident={resident}
+                  canDrag={!pinPlacementDisabled && !pinPlacementBusy}
+                  onDragMove={handlePinDragMove}
+                  onDragEnd={handlePinDragEnd}
+                  onDragCancel={handlePinDragCancel}
                   onClick={(event) => {
                     event.stopPropagation();
                     onPinClick(resident);

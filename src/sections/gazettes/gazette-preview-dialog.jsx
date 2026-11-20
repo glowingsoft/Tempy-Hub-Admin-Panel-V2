@@ -88,7 +88,7 @@ export function GazettePreviewDialog({
 
   // Print handler
   const handlePrint = () => {
-    toast.success(`Sending ${resident.resident}'s Gazette to printer...`);
+    toast.success(`Sending ${resident.resident}'s Family Journal to printer...`);
     const printWindow = window.open(pdfUrl, '_blank');
     if (printWindow) {
       printWindow.onload = () => {
@@ -103,11 +103,11 @@ export function GazettePreviewDialog({
   const handleDownloadPdf = () => {
     const link = document.createElement('a');
     link.href = pdfUrl;
-    link.download = `${resident.resident.replace(/\s+/g, '_')}_Gazette_${issueTitle}.pdf`;
+    link.download = `${resident.resident.replace(/\s+/g, '_')}_Family_Journal_${issueTitle}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`Downloading ${resident.resident} - Gazette ${issueTitle}.pdf`);
+    toast.success(`Downloading ${resident.resident} - Family Journal ${issueTitle}.pdf`);
   };
 
   return (
@@ -140,10 +140,10 @@ export function GazettePreviewDialog({
           </Box>
           <Box>
             <Typography variant="h6" fontWeight={700}>
-              {resident.resident} · Gazette {issueTitle}
+              {resident.resident} · Family Journal {issueTitle}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Room {resident.room} · Florence House Autumn Gazette PDF Preview
+              Room {resident.room} · Florence House Family Journal PDF Preview
               {pages.length > 0 ? ` · ${pages.length} ${pages.length === 1 ? 'Page' : 'Pages'}` : ''}
             </Typography>
           </Box>
@@ -230,7 +230,7 @@ export function GazettePreviewDialog({
           <Box
             component="iframe"
             src={`${pdfUrl}#toolbar=1&navpanes=0`}
-            title={`${resident.resident} Gazette PDF`}
+            title={`${resident.resident} Family Journal PDF`}
             sx={{
               width: '100%',
               height: '100%',
@@ -257,7 +257,7 @@ export function GazettePreviewDialog({
                   key={p.pageNumber || idx}
                   component="img"
                   src={imgSrc}
-                  alt={`${resident.resident} Gazette Page ${p.pageNumber || idx + 1}`}
+                  alt={`${resident.resident} Family Journal Page ${p.pageNumber || idx + 1}`}
                   sx={{
                     width: '100%',
                     height: 'auto',
@@ -293,7 +293,7 @@ export function GazettePreviewDialog({
           startIcon={<Iconify icon="solar:printer-bold" />}
           sx={{ fontWeight: 700 }}
         >
-          Print Gazette
+          Print Family Journal
         </Button>
       </DialogActions>
     </Dialog>

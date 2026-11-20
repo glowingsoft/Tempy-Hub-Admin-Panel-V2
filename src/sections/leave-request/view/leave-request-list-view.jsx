@@ -12,6 +12,7 @@ import { ModuleSlug } from 'src/auth/permissions';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
+import { usePathname } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -80,6 +81,9 @@ export function LeaveRequestListView({
   canSetEntitlement,
   ownerDashboard = variant === 'owner',
 }) {
+  const pathname = usePathname();
+  const isLineManager = variant === 'lineManager' || pathname.startsWith('/line-manager');
+
   const ctx = useMemo(() => getLeaveRequestContext(variant), [variant]);
   const canManageLeave = useCanManage(ModuleSlug.LEAVE);
   const canApproveLeave = useCanApprove(ModuleSlug.LEAVE);
@@ -140,11 +144,8 @@ export function LeaveRequestListView({
   const totalRecords = meta.totalRecords ?? requests.length;
 
   const detailHref = useCallback(
-    (rowId) => {
-      const base = ctx.detailHref(rowId);
-      return organizationId ? `${base}?orgId=${organizationId}` : base;
-    },
-    [ctx, organizationId]
+    (rowId) => ctx.detailHref(rowId),
+    [ctx]
   );
 
   const getStatusCount = useCallback(
@@ -192,16 +193,18 @@ export function LeaveRequestListView({
                   Set Entitlement
                 </Button>
               )}
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={recordLeaveModal.onTrue}
-                startIcon={<Iconify icon="solar:document-add-bold" />}
-              >
-                Add Leave
-              </Button>
+              {canManageLeave && !isLineManager && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={recordLeaveModal.onTrue}
+                  startIcon={<Iconify icon="solar:document-add-bold" />}
+                >
+                  Add Leave
+                </Button>
+              )}
             </OwnerBranchFilterActions>
-          ) : (
+          ) : (showEntitlement || (canManageLeave && !isLineManager)) ? (
             <Stack direction="row" spacing={1} alignItems="center">
               {showEntitlement && (
                 <Button
@@ -213,16 +216,18 @@ export function LeaveRequestListView({
                   Set Entitlement
                 </Button>
               )}
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={recordLeaveModal.onTrue}
-                startIcon={<Iconify icon="solar:document-add-bold" />}
-              >
-                Add Leave
-              </Button>
+              {canManageLeave && !isLineManager && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={recordLeaveModal.onTrue}
+                  startIcon={<Iconify icon="solar:document-add-bold" />}
+                >
+                  Add Leave
+                </Button>
+              )}
             </Stack>
-          )
+          ) : null
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -296,15 +301,17 @@ export function LeaveRequestListView({
         />
       )}
 
-      <RecordLeaveModal
-        open={recordLeaveModal.value}
-        onClose={recordLeaveModal.onFalse}
-        organizationId={organizationId}
-        defaultBranchId={defaultBranchId}
-        defaultBranchName={defaultBranchName}
-        ownerDashboard={ownerDashboard}
-        onSuccess={refetch}
-      />
+      {!isLineManager && (
+        <RecordLeaveModal
+          open={recordLeaveModal.value}
+          onClose={recordLeaveModal.onFalse}
+          organizationId={organizationId}
+          defaultBranchId={defaultBranchId}
+          defaultBranchName={defaultBranchName}
+          ownerDashboard={ownerDashboard}
+          onSuccess={refetch}
+        />
+      )}
 
       <LeaveRequestActionDialog {...dialogProps} />
     </DashboardContent>

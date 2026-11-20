@@ -8,6 +8,21 @@ export const AUTH_SOCKET_NAMESPACE = '/auth';
 let sharedSocket = null;
 let sharedConnectionKey = null;
 let disconnectTimer = null;
+const statusListeners = new Set();
+
+function notifyStatus(connected) {
+  statusListeners.forEach((listener) => listener(Boolean(connected)));
+}
+
+export function isAuthSocketConnected() {
+  return Boolean(sharedSocket?.connected);
+}
+
+export function subscribeAuthSocketStatus(listener) {
+  statusListeners.add(listener);
+  listener(isAuthSocketConnected());
+  return () => statusListeners.delete(listener);
+}
 
 function isDevelopmentMode() {
   return import.meta.env.VITE_MODE === 'development';
@@ -56,10 +71,16 @@ function createSocket(origin, { token, organizationId }) {
 
   socket.on('connect', () => {
     logDev('Socket live', AUTH_SOCKET_NAMESPACE);
+    notifyStatus(true);
+  });
+
+  socket.on('disconnect', () => {
+    notifyStatus(false);
   });
 
   socket.on('connect_error', (error) => {
     logDev('Socket connect error', error?.message || error);
+    notifyStatus(false);
   });
 
   return socket;
@@ -76,6 +97,7 @@ export function disconnectAuthSocket() {
   sharedSocket.disconnect();
   sharedSocket = null;
   sharedConnectionKey = null;
+  notifyStatus(false);
 }
 
 export function connectAuthSocket({ token, organizationId, onMeUpdated }) {

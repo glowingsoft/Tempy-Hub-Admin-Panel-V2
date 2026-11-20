@@ -70,6 +70,8 @@ export const navDataSiteManager = [
       { title: 'Residents', path: paths.siteManager.residents.root, icon: ICONS.user, moduleSlug: ModuleSlug.RESIDENTS },
       { title: 'Reports', path: paths.siteManager.reports, icon: ICONS.reports },
       { title: 'Rota', path: paths.siteManager.rota, icon: ICONS.rota, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+      { title: 'Shifts', path: paths.siteManager.shifts.root, icon: ICONS.calendar, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+      { title: 'Shift Claims', path: paths.siteManager.shiftClaims.root, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
       { title: 'Invitations', path: paths.siteManager.invitaions.root, icon: ICONS.invitations },
       {
         title: "Kiosks",
@@ -117,7 +119,7 @@ export const navDataSiteManager = [
       { title: 'Moderation', path: paths.siteManager.familyEngagement.moderation, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Community Wall', path: paths.siteManager.familyEngagement.communityWall, icon: ICONS.blog, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Newsletters', path: paths.siteManager.familyEngagement.newsletters, icon: ICONS.mail, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
-      { title: 'Gazettes', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
+      { title: 'Family Journal', path: paths.siteManager.familyEngagement.gazettes, icon: ICONS.document, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       { title: 'Family Groups', path: paths.siteManager.familyEngagement.familyGroups, icon: ICONS.user, moduleSlug: ModuleSlug.FAMILY_ENGAGEMENT },
       {
         title: 'Family Invite',

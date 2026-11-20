@@ -203,8 +203,11 @@ export function RecordLeaveModal({
     }
 
     try {
+      const branchId = data.branchId?.value || selectedBranchId || defaultBranchId;
+
       const payload = {
         organizationId,
+        branchId,
         staffId: data.staffId?.value,
         leaveType: data.leaveType,
         startDate: `${startDate.format('YYYY-MM-DD')}T00:00:00.000Z`,

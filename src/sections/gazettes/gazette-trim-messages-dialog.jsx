@@ -26,7 +26,7 @@ export function GazetteTrimMessagesDialog({ open, onClose, resident, onSaved }) 
   if (!resident) return null;
 
   const handleSave = () => {
-    toast.success(`Updated ${resident.resident}'s gazette to 30 selected messages. Status changed to Ready.`);
+    toast.success(`Updated ${resident.resident}'s Family Journal to 30 selected messages. Status changed to Ready.`);
     onSaved?.(resident.id);
     onClose();
   };
@@ -48,7 +48,7 @@ export function GazetteTrimMessagesDialog({ open, onClose, resident, onSaved }) 
       <DialogContent dividers sx={{ p: 3 }}>
         <Stack spacing={2.5}>
           <Alert severity="warning" variant="outlined">
-            {resident.resident} has <strong>{resident.messages} messages</strong>, which exceeds the 30-message layout maximum for standard 4-page gazette printing.
+            {resident.resident} has <strong>{resident.messages} messages</strong>, which exceeds the 30-message layout maximum for standard 4-page Family Journal printing.
           </Alert>
 
           <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 1.5 }}>

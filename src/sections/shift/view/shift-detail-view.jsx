@@ -11,7 +11,7 @@ import Typography from '@mui/material/Typography';
 import { useCanManage } from 'src/auth/hooks';
 import { ModuleSlug } from 'src/auth/permissions';
 import { RouterLink } from 'src/routes/components';
-import { useParams } from 'src/routes/hooks';
+import { useParams, usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
 
 import { fDateTime } from 'src/utils/format-time';
@@ -58,7 +58,21 @@ function getInitials(name) {
 export function ShiftDetailView() {
   const canManageShifts = useCanManage(ModuleSlug.ROTA_SCHEDULING);
   const { id } = useParams();
+  const pathname = usePathname();
   const { organizationId } = useCurrentOrganization();
+
+  const isLineManager = pathname.startsWith(paths.lineManager.root);
+  const isSiteManager = pathname.startsWith(paths.siteManager.root);
+  const shiftBase = isLineManager
+    ? paths.lineManager.shifts
+    : isSiteManager
+      ? paths.siteManager.shifts
+      : paths.owner.shifts;
+  const dashboardRoot = isLineManager
+    ? paths.lineManager.root
+    : isSiteManager
+      ? paths.siteManager.root
+      : paths.owner.root;
 
   const { data: apiShift, isLoading, isFetching } = useGetShiftQuery(
     { shiftId: id, organizationId },
@@ -89,20 +103,21 @@ export function ShiftDetailView() {
   const staffEmail = shift.staff?.email || shift.staff?.user?.email || '';
   const employeeCode = shift.staff?.employeeCode || '';
   const isUnassigned = !shift.staffId && staffName === 'Open / Unassigned';
-  const editHref = paths.owner.shifts.edit(shift._id);
+
+  const editHref = shiftBase.edit(shift._id);
 
   return (
     <DashboardContent>
       <CustomBreadcrumbs
         heading={staffName}
         links={[
-          { name: 'Dashboard', href: paths.owner.root },
+          { name: 'Dashboard', href: dashboardRoot },
           // { name: 'Rota' },
-          { name: 'Shifts', href: paths.owner.shifts.root },
+          { name: 'Shifts', href: shiftBase.root },
           { name: staffName },
         ]}
         action={
-          canManageShifts && !isCancelled && (
+          canManageShifts && !isCancelled && !isLineManager && (
             <Button
               component={RouterLink}
               href={editHref}

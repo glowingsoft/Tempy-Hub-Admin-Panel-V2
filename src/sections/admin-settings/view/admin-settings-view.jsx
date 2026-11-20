@@ -349,11 +349,11 @@ export function AdminSettingsView({ variant = 'owner' }) {
               <CardHeader
                 sx={{ pb: 1.5 }}
                 title="Family"
-                subheader="Gazette schedule for this site."
+                subheader="Family Journal schedule for this site."
               />
               <Divider />
               <Stack spacing={2} sx={{ p: 3 }}>
-                <SettingRow title="Issue every (days)" description="How often a gazette issue is opened.">
+                <SettingRow title="Issue every (days)" description="How often a Family Journal issue is opened.">
                   <TextField
                     fullWidth
                     type="number"
@@ -363,7 +363,7 @@ export function AdminSettingsView({ variant = 'owner' }) {
                     }
                   />
                 </SettingRow>
-                <SettingRow title="Message cap" description="Maximum family messages per gazette issue.">
+                <SettingRow title="Message cap" description="Maximum family messages per Family Journal issue.">
                   <TextField
                     fullWidth
                     type="number"
@@ -373,7 +373,7 @@ export function AdminSettingsView({ variant = 'owner' }) {
                     }
                   />
                 </SettingRow>
-                <SettingRow title="Anchor date" description="Date the gazette cycle is anchored to.">
+                <SettingRow title="Anchor date" description="Date the Family Journal cycle is anchored to.">
                   <DatePicker
                     value={family.anchorDate ? dayjs(family.anchorDate) : null}
                     onChange={(value) =>

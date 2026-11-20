@@ -43,6 +43,7 @@ export function EvacuationDetailDrawer({
   onCloseEvacuation,
   loadingChecks = false,
   closing = false,
+  canClose = true,
 }) {
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -277,7 +278,7 @@ export function EvacuationDetailDrawer({
           </Stack>
 
           {/* Close evacuation action button with Dark Mode support */}
-          {isActive && (
+          {isActive && canClose && (
             <Button
               fullWidth
               size="large"
@@ -416,4 +417,5 @@ EvacuationDetailDrawer.propTypes = {
   onCloseEvacuation: PropTypes.func,
   loadingChecks: PropTypes.bool,
   closing: PropTypes.bool,
+  canClose: PropTypes.bool,
 };

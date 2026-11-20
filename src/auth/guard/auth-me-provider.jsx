@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
+import { usePathname } from 'src/routes/hooks';
+
 import { SplashScreen } from 'src/components/loading-screen';
 
 import { useLazyGetMeQuery } from 'src/store/Reducer/auth';
 import { mergeMeProfile } from 'src/store/slices/userSlice';
-import { connectAuthSocket } from 'src/utils/auth-socket';
+import { connectAuthSocket, subscribeAuthSocketStatus } from 'src/utils/auth-socket';
 import { getOwnerOrganizationId } from 'src/utils/organization';
 
 import { isPlatformAdmin } from '../permissions';
@@ -18,12 +20,14 @@ function getOrganizationId(value) {
 
 export function AuthMeProvider({ children }) {
   const dispatch = useDispatch();
+  const pathname = usePathname();
   const user = useSelector((state) => state.user?.user);
   const skip = !user?.token || isPlatformAdmin(user);
   const hasModules = Array.isArray(user?.access?.modules);
   const fetchedOnce = useRef(hasModules);
   const currentOrgIdRef = useRef(getOrganizationId(user?.access?.organizationId));
   const [firstMeSettled, setFirstMeSettled] = useState(hasModules);
+  const [socketLive, setSocketLive] = useState(false);
 
   const organizationId =
     getOrganizationId(user?.access?.organizationId) || getOwnerOrganizationId(user) || '';
@@ -32,8 +36,11 @@ export function AuthMeProvider({ children }) {
 
   const [fetchMe] = useLazyGetMeQuery();
 
+  useEffect(() => subscribeAuthSocketStatus(setSocketLive), []);
+
   useEffect(() => {
     if (skip) return undefined;
+    if (socketLive && fetchedOnce.current) return undefined;
 
     let cancelled = false;
 
@@ -54,7 +61,7 @@ export function AuthMeProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [dispatch, fetchMe, skip]);
+  }, [dispatch, fetchMe, pathname, skip, socketLive]);
 
   useEffect(() => {
     if (skip || !user?.token || !organizationId) return undefined;

@@ -63,6 +63,10 @@ export const navDataLineManager = [
 
       { title: 'Rota', path: paths.lineManager.teamRota, icon: ICONS.rota, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
 
+      { title: 'Shifts', path: paths.lineManager.shifts.root, icon: ICONS.calendar, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+
+      { title: 'Shift Claims', path: paths.lineManager.shiftClaims.root, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.ROTA_SCHEDULING },
+
       { title: "Leave Requests", path: paths.lineManager.leaveApproval.root, icon: ICONS.pendingApproval, moduleSlug: ModuleSlug.LEAVE },
 
       { title: 'Team Attendance', path: paths.lineManager.teamAttendance, icon: ICONS.invitations, moduleSlug: ModuleSlug.SIGN_IN_ATTENDANCE },
