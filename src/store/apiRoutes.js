@@ -11,6 +11,8 @@ export const API_ROUTES = {
         CHANGE_PASSWORD: '/auth/change-password',
         INVITATION_BY_TOKEN: (token) => `/auth/invitations/${token}`,
         ACCEPT_INVITATION: (token) => `/auth/invitations/${token}/accept`,
+        FAMILY_INVITATION_BY_TOKEN: (token) => `/auth/family-invitations/${token}`,
+        ACCEPT_FAMILY_INVITATION: (token) => `/auth/family-invitations/${token}/accept`,
     },
 
     WALLETS: '/wallets',
@@ -281,6 +283,7 @@ export const API_ROUTES = {
         `/admin/organizations/${organizationId}/family-overview`,
     // Announcements
     ADMIN_ANNOUNCEMENTS: '/admin/announcements',
+    ADMIN_ANNOUNCEMENT_BY_ID: (id) => `/admin/announcements/${id}`,
     APP_ANNOUNCEMENTS_MINE: '/app/announcements/mine',
     APP_ANNOUNCEMENT_MINE_DETAIL: (id) => `/app/announcements/mine/${id}`,
 

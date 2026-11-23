@@ -84,6 +84,18 @@ export const announcementsApi = createApi({
         { type: 'Announcements', id: announcementId },
       ],
     }),
+
+    getAnnouncementById: builder.query({
+      query: ({ announcementId, organizationId }) => ({
+        url: API_ROUTES.ADMIN_ANNOUNCEMENT_BY_ID(announcementId),
+        method: 'GET',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: (result, error, { announcementId }) => [
+        { type: 'Announcements', id: announcementId },
+      ],
+    }),
   }),
 });
 
@@ -91,5 +103,6 @@ export const {
   useGetAnnouncementsQuery,
   useGetStaffAnnouncementsQuery,
   useGetStaffAnnouncementDetailQuery,
+  useGetAnnouncementByIdQuery,
   useCreateAnnouncementMutation,
 } = announcementsApi;

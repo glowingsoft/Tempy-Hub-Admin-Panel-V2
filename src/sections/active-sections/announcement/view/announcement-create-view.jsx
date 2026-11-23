@@ -54,6 +54,7 @@ export function AnnouncementCreateView({ rootPath, listPath, ownerDashboard = fa
     organizationId,
     branches: true,
     departments: true,
+    jobTitles: false,
     limit: 100,
   });
 

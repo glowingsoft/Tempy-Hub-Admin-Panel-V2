@@ -165,13 +165,17 @@ export function AnnouncementListView({
   const handleViewRow = useCallback(
     (row) => {
       const rowId = row._id || row.id;
-      if (staffDashboard && rowId) {
+      if (!rowId) return;
+
+      if (staffDashboard) {
         router.push(paths.staff.announcementDetail(rowId));
+      } else if (ownerDashboard) {
+        router.push(paths.owner.announcements.detail(rowId));
       } else {
-        setSelectedAnnouncement(row);
+        router.push(paths.siteManager.announcements.detail(rowId));
       }
     },
-    [staffDashboard, router]
+    [staffDashboard, ownerDashboard, router]
   );
 
   const loading = isLoading || isFetching;
