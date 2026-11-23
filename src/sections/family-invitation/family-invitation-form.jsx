@@ -34,7 +34,10 @@ const lookupOptionSchema = zod.object({
 });
 
 const InvitationSchema = zod.object({
-  name: zod.string().min(1, { message: 'Name is required!' }),
+  name: zod
+    .string()
+    .min(1, { message: 'Name is required!' })
+    .regex(/^[^0-9]*$/, { message: 'Name cannot contain numbers!' }),
   email: zod
     .string()
     .min(1, { message: 'Email is required!' })
@@ -149,7 +152,12 @@ export function FamilyInvitationForm({ currentInvitation }) {
             display="grid"
             gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
           >
-            <Field.Text name="name" label="Full Name" placeholder="e.g. Sarah Hughes" />
+            <Field.Text
+              name="name"
+              label="Full Name"
+              placeholder="e.g. Sarah Hughes"
+              allowNumbers={false}
+            />
             <Field.Text
               name="email"
               label="Email Address"

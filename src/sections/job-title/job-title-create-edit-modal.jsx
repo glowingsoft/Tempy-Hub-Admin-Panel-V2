@@ -29,7 +29,16 @@ export { JobTitleLevel };
 // ----------------------------------------------------------------------
 
 const JobTitleSchema = zod.object({
-  name: zod.string().min(1, 'Job title name is required'),
+  name: zod
+    .string()
+    .trim()
+    .min(1, 'Job title name is required')
+    .refine((val) => !/^\d+$/.test(val.trim()), {
+      message: 'Job title name cannot be only numbers!',
+    })
+    .refine((val) => /\p{L}/u.test(val), {
+      message: 'Job title name cannot be only numbers!',
+    }),
   level: zod.string().optional(),
   active: zod.boolean(),
   branchId: zod
@@ -102,6 +111,7 @@ export function JobTitleCreateEditModal({
   }, [currentJobTitle]);
 
   const methods = useForm({
+    mode: 'onSubmit',
     resolver: zodResolver(schema),
     defaultValues,
   });

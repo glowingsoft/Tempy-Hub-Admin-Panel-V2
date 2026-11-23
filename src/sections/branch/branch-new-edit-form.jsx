@@ -28,7 +28,16 @@ import { getBrowserTimezone } from './utils';
 // ----------------------------------------------------------------------
 
 export const BranchSchema = zod.object({
-  name: zod.string().trim().min(1, { message: 'Site name is required!' }),
+  name: zod
+    .string()
+    .trim()
+    .min(1, { message: 'Site name is required!' })
+    .refine((val) => !/^\d+$/.test(val.trim()), {
+      message: 'Site name cannot be only numbers!',
+    })
+    .refine((val) => /\p{L}/u.test(val), {
+      message: 'Site name cannot be only numbers!',
+    }),
   code: zod
     .string()
     .trim()

@@ -23,7 +23,10 @@ import { useUploadImageMutation } from 'src/store/Reducer/upload-api';
 // ----------------------------------------------------------------------
 
 export const UpdateUserSchema = zod.object({
-  displayName: zod.string().min(1, { message: 'Name is required!' }),
+  displayName: zod
+    .string()
+    .min(1, { message: 'Name is required!' })
+    .regex(/^[^0-9]*$/, { message: 'Name cannot contain numbers!' }),
   email: zod
     .string()
     .min(1, { message: 'Email is required!' })
@@ -167,7 +170,12 @@ export function AccountGeneral() {
                 sm: 'repeat(2, 1fr)',
               }}
             >
-              <Field.Text name="displayName" label="Name" disabled={isProfileLoading || isProfileError} />
+              <Field.Text
+                name="displayName"
+                label="Name"
+                allowNumbers={false}
+                disabled={isProfileLoading || isProfileError}
+              />
               <Field.Text name="email" label="Email address" disabled />
               <Field.Phone name="phoneNumber" label="Phone number" disabled />
             </Box>

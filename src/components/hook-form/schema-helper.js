@@ -6,6 +6,43 @@ import { isPossiblePhoneNumber } from 'react-phone-number-input/input';
 
 export const schemaHelper = {
   /**
+   * Name (disallows numbers)
+   * defaultValue === ''
+   */
+  name: (props) => {
+    let schema = zod.string();
+    if (props?.required !== false) {
+      schema = schema.min(1, {
+        message: props?.message?.required_error ?? 'Name is required!',
+      });
+    }
+    return schema.refine(
+      (data) => !data || !/\d/.test(data),
+      {
+        message: props?.message?.invalid_type_error ?? 'Name cannot contain numbers!',
+      }
+    );
+  },
+  /**
+   * Name that allows letters and numbers, but cannot be only numbers
+   * defaultValue === ''
+   */
+  notOnlyNumbers: (props) => {
+    let schema = zod.string().trim();
+    if (props?.required !== false) {
+      schema = schema.min(1, {
+        message: props?.message?.required_error ?? 'Field is required!',
+      });
+    }
+    return schema
+      .refine((data) => !data || !/^\d+$/.test(data.trim()), {
+        message: props?.message?.invalid_type_error ?? 'Cannot be only numbers!',
+      })
+      .refine((data) => !data || /\p{L}/u.test(data), {
+        message: props?.message?.invalid_type_error ?? 'Cannot be only numbers!',
+      });
+  },
+  /**
    * Phone number
    * defaultValue === null
    */

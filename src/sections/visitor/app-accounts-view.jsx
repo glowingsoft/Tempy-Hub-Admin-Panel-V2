@@ -22,6 +22,10 @@ import { useBoolean } from 'src/hooks/use-boolean';
 import { useSetState } from 'src/hooks/use-set-state';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useCurrentOrganization } from 'src/hooks/use-current-organization';
+import { z as zod } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, Field } from 'src/components/hook-form';
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { toast } from 'src/components/snackbar';
@@ -577,18 +581,29 @@ export function AppAccountsView({
 
 // ----------------------------------------------------------------------
 
-export function InviteToAppDialog({ open, onClose, organizationId, initialData }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState(null);
-  const [type, setType] = useState('contractor');
+const InviteToAppSchema = zod.object({
+  name: zod
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .regex(/^[^0-9]*$/, 'Name cannot contain numbers'),
+  email: zod
+    .string()
+    .trim()
+    .min(1, 'Email is required')
+    .email('Enter a valid email address'),
+  branch: zod
+    .object({ value: zod.string(), label: zod.string() })
+    .nullable()
+    .refine((val) => Boolean(val?.value), { message: 'Site is required' }),
+  type: zod.string().min(1, 'Type is required'),
+});
 
+export function InviteToAppDialog({ open, onClose, organizationId, initialData }) {
   const [createAccountInvite, { isLoading: isSubmitting }] =
     useCreateVisitorAccountInvitationMutation();
 
-  const resetForm = useCallback(() => {
-    setName(initialData?.name || '');
-    setEmail(initialData?.email || '');
+  const defaultValues = useMemo(() => {
     const branchVal =
       (typeof initialData?.branchId === 'object' ? initialData?.branchId?._id : initialData?.branchId) ||
       initialData?.branch?._id ||
@@ -597,46 +612,44 @@ export function InviteToAppDialog({ open, onClose, organizationId, initialData }
       initialData?.branch?.name ||
       (typeof initialData?.branch === 'string' ? initialData.branch : '') ||
       '';
-    setSelectedBranch(branchVal ? { value: branchVal, label: branchLabel } : null);
-    setType(initialData?.type || 'contractor');
+
+    return {
+      name: initialData?.name || '',
+      email: initialData?.email || '',
+      branch: branchVal ? { value: branchVal, label: branchLabel } : null,
+      type: initialData?.type || 'contractor',
+    };
   }, [initialData]);
+
+  const methods = useForm({
+    resolver: zodResolver(InviteToAppSchema),
+    defaultValues,
+  });
+
+  const { reset, handleSubmit } = methods;
 
   useEffect(() => {
     if (open) {
-      resetForm();
+      reset(defaultValues);
     }
-  }, [open, resetForm]);
+  }, [open, reset, defaultValues]);
 
   const handleClose = () => {
-    resetForm();
+    reset(defaultValues);
     onClose();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      toast.error('Please enter name');
-      return;
-    }
-    if (!email.trim()) {
-      toast.error('Please enter email address');
-      return;
-    }
-    if (!selectedBranch?.value) {
-      toast.error('Please select a site');
-      return;
-    }
-
+  const onSubmit = handleSubmit(async (data) => {
     try {
       const body = {
         organizationId,
-        branchId: selectedBranch.value,
-        name: name.trim(),
-        visitorName: name.trim(),
-        email: email.trim(),
-        visitorEmail: email.trim(),
-        type,
-        badgeType: type,
+        branchId: data.branch.value,
+        name: data.name.trim(),
+        visitorName: data.name.trim(),
+        email: data.email.trim(),
+        visitorEmail: data.email.trim(),
+        type: data.type,
+        badgeType: data.type,
       };
 
       const res = await createAccountInvite(body).unwrap();
@@ -649,42 +662,34 @@ export function InviteToAppDialog({ open, onClose, organizationId, initialData }
     } catch (err) {
       // Error toast handled by baseQuery
     }
-  };
+  });
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
       <DialogTitle>Invite to app</DialogTitle>
-      <Box component="form" onSubmit={handleSubmit}>
+      <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
-            <TextField
+            <Field.Text
               name="name"
               label="Name"
               placeholder="e.g. John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              fullWidth
+              allowNumbers={false}
               required
-              inputProps={{ autoComplete: 'off' }}
             />
 
-            <TextField
+            <Field.Text
               name="email"
               label="Email"
               type="email"
               placeholder="e.g. user@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              fullWidth
               required
-              inputProps={{ autoComplete: 'off' }}
             />
 
-            <InfiniteAutocomplete
+            <Field.InfiniteAutocomplete
+              name="branch"
               label="Site"
               placeholder="Search and select site..."
-              value={selectedBranch}
-              onChange={(newValue) => setSelectedBranch(newValue)}
               useQuery={useGetBranchesQuery}
               queryArgs={{ organizationId }}
               mapOption={mapBranchOption}
@@ -692,16 +697,10 @@ export function InviteToAppDialog({ open, onClose, organizationId, initialData }
               fullWidth
             />
 
-            <TextField
-              select
-              label="Type"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              fullWidth
-            >
+            <Field.Select name="type" label="Type">
               <MenuItem value="contractor">Contractor</MenuItem>
               <MenuItem value="visitor">Visitor</MenuItem>
-            </TextField>
+            </Field.Select>
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -717,7 +716,7 @@ export function InviteToAppDialog({ open, onClose, organizationId, initialData }
             Send invite
           </LoadingButton>
         </DialogActions>
-      </Box>
+      </Form>
     </Dialog>
   );
 }

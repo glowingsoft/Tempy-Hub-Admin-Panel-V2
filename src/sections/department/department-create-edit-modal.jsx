@@ -23,7 +23,16 @@ import {
 // ----------------------------------------------------------------------
 
 const DepartmentSchema = zod.object({
-  name: zod.string().min(1, 'Department name is required'),
+  name: zod
+    .string()
+    .trim()
+    .min(1, 'Department name is required')
+    .refine((val) => !/^\d+$/.test(val.trim()), {
+      message: 'Department name cannot be only numbers!',
+    })
+    .refine((val) => /\p{L}/u.test(val), {
+      message: 'Department name cannot be only numbers!',
+    }),
   active: zod.boolean(),
   branchId: zod
     .object({ value: zod.string(), label: zod.string() })
@@ -66,6 +75,7 @@ export function DepartmentCreateEditModal({
   );
 
   const methods = useForm({
+    mode: 'onSubmit',
     resolver: zodResolver(DepartmentSchema),
     defaultValues,
   });

@@ -46,7 +46,7 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
     const [updateExternalPerson] = useUpdateExternalPersonMutation();
 
     const schema = zod.object({
-        name: zod.string().trim().min(1, 'Name is required'),
+        name: zod.string().trim().min(1, 'Name is required').regex(/^[^0-9]*$/, 'Name cannot contain numbers'),
         email: zod.string().trim().refine(
             (email) => !email || zod.string().email().safeParse(email).success,
             'Email must be a valid email address'
@@ -99,7 +99,7 @@ const QuickStatusChangeModal = ({ currentUser, open, onClose }) => {
             <Form methods={methods} onSubmit={methods.handleSubmit(onSubmit)}>
                 <DialogTitle sx={{ pb: 0 }}>Edit People Details </DialogTitle>
                 <DialogContent>
-                    <Field.Text name="name" label="Name" sx={{ mt: 2 }} />
+                    <Field.Text name="name" label="Name" allowNumbers={false} sx={{ mt: 2 }} />
 
                     <Field.Text name="email" label="Email" type="email" sx={{ mt: 2 }} />
 
