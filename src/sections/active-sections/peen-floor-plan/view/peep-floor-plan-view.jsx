@@ -268,14 +268,14 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
       }
 
       try {
-        await createFloorPlanPin({
+        const response = await createFloorPlanPin({
           floorPlanId,
           organizationId,
           residentId,
           x,
           y,
         }).unwrap();
-        toast.success('Pin moved successfully.');
+        toast.success(response?.message || response);
       } catch (error) {
         // Rollback
         setPinPositionOverrides((prev) => {
@@ -523,3 +523,4 @@ function mapFloorPlanPins(pins, residents) {
     ];
   });
 }
+

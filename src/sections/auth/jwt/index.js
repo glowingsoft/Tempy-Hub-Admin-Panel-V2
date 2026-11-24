@@ -4,3 +4,4 @@ export * from './jwt-reset-password-view';
 export * from './jwt-verify-view';
 export * from './jwt-update-password-view';
 export * from './jwt-invite-accept-view';
+export * from './family-invite-accept-view';

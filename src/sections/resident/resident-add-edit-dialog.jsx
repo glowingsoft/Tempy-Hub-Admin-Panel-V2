@@ -35,7 +35,11 @@ const digitsOnly = (value) => String(value || '').replace(/\D/g, '').slice(0, 32
 
 const getResidentSchema = (isEdit, ownerDashboard = true) =>
     zod.object({
-        name: zod.string().trim().min(1, { message: 'Full name is required' }),
+        name: zod
+            .string()
+            .trim()
+            .min(1, { message: 'Full name is required' })
+            .regex(/^[^0-9]*$/, { message: 'Name cannot contain numbers' }),
         email: zod
             .string()
             .trim()
@@ -240,6 +244,7 @@ export function ResidentAddEditDialog({
                                     name="name"
                                     label="Full Name"
                                     placeholder="e.g. James Taylor"
+                                    allowNumbers={false}
                                 />
                             </Grid>
                         )}

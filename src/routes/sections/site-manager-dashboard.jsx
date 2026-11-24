@@ -113,6 +113,7 @@ const RequirementDetailPage = lazy(() => import('src/pages/dashboard/active-rout
 const ReportsPage = lazy(() => import('src/pages/dashboard/active-routes/reports'));
 const AnnouncementsPage = lazy(() => import('src/pages/dashboard/active-routes/announcements'));
 const AnnouncementCreatePage = lazy(() => import('src/pages/dashboard/active-routes/announcements/new'));
+const AnnouncementDetailPage = lazy(() => import('src/pages/dashboard/active-routes/announcements/detail'));
 
 //peep and floor plan
 const PeepFloorPlanPage = lazy(() => import('src/pages/dashboard/active-routes/floor-plan'));
@@ -211,6 +212,7 @@ export const siteManagerDashboardRoutes = [
         children: [
           { index: true, element: <AnnouncementsPage /> },
           { path: "new", element: <AnnouncementCreatePage /> },
+          { path: ":id", element: <AnnouncementDetailPage /> },
         ],
       },
       {

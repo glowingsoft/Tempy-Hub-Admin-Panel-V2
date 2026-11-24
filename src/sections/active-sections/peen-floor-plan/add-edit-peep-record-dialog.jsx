@@ -17,7 +17,10 @@ export function AddEditRecordDialog({ open, onClose, editingRecord = null }) {
   const isEdit = Boolean(editingRecord);
 
   const peepRecordSchema = zod.object({
-    name: zod.string().min(1, { message: 'Name is required!' }),
+    name: zod
+      .string()
+      .min(1, { message: 'Name is required!' })
+      .regex(/^[^0-9]*$/, { message: 'Name cannot contain numbers!' }),
     roomNumber: zod.string().min(1, { message: 'Room number is required!' }),
     peepLevel: zod.string().min(1, { message: 'PEEP level is required!' }),
   });
@@ -89,7 +92,7 @@ export function AddEditRecordDialog({ open, onClose, editingRecord = null }) {
 
           <Stack spacing={2} sx={{ pt: 1 }}>
 
-            <Field.Text name="name" label="Resident name" />
+            <Field.Text name="name" label="Resident name" allowNumbers={false} />
 
             <Field.Text name="roomNumber" label="Room number" />
 

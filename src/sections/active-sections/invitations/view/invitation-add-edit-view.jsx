@@ -49,7 +49,10 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const InvitationSchema = zod
   .object({
-    visitorName: zod.string().min(1, 'Visitor name is required'),
+    visitorName: zod
+      .string()
+      .min(1, 'Visitor name is required')
+      .regex(/^[^0-9]*$/, 'Visitor name cannot contain numbers'),
     visitorEmail: zod.string().min(1, 'Visitor email is required').email('Enter a valid email'),
     hostId: zod.string().min(1, 'Host is required'),
     badgeType: zod.string().min(1, 'Badge type is required'),
@@ -193,7 +196,12 @@ function InvitationAddEditView({ currentInvitation }) {
         <Stack spacing={2.5}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { md: '1fr 1fr', xs: '1fr' }, gap: 2.5 }}>
 
-            <Field.Text name="visitorName" label="Visitor name" placeholder="Full name" />
+            <Field.Text
+              name="visitorName"
+              label="Visitor name"
+              placeholder="Full name"
+              allowNumbers={false}
+            />
 
             <Field.Text
               name="visitorEmail"

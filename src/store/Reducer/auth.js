@@ -121,6 +121,26 @@ export const authApi = createApi({
       transformResponse: (res) => res?.data ?? res,
     }),
 
+    // Get family invitation details by inviteToken (GET /auth/family-invitations/:token)
+    getFamilyInvitationByToken: builder.query({
+      query: (token) => ({
+        url: API_ROUTES.AUTH.FAMILY_INVITATION_BY_TOKEN(token),
+        method: "GET",
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: (result, error, token) => [{ type: 'FamilyInvitation', id: token }],
+    }),
+
+    // Accept family invitation and set password (POST /auth/family-invitations/:token/accept)
+    acceptFamilyInvitation: builder.mutation({
+      query: ({ token, ...body }) => ({
+        url: API_ROUTES.AUTH.ACCEPT_FAMILY_INVITATION(token),
+        method: "POST",
+        body,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+    }),
+
     resendOtpEmail: builder.mutation({
       query: ({ email }) => ({
         url: API_ROUTES.AUTH.RESEND_OTP_EMAIL,
@@ -168,6 +188,8 @@ export const {
   useAdminLoginMutation,
   useGetInvitationByTokenQuery,
   useAcceptInvitationMutation,
+  useGetFamilyInvitationByTokenQuery,
+  useAcceptFamilyInvitationMutation,
   useResendOtpEmailMutation,
   useVerifyOtpEmailMutation,
   useResetPasswordMutation,

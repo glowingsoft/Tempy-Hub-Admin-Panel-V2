@@ -23,6 +23,10 @@ import { MobileDateTimePicker } from '@mui/x-date-pickers/MobileDateTimePicker';
 
 import { useCanManage } from 'src/auth/hooks';
 import { ModuleSlug } from 'src/auth/permissions';
+import { z as zod } from 'zod';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Form, Field } from 'src/components/hook-form';
 import { useBoolean } from 'src/hooks/use-boolean';
 import { useDebounce } from 'src/hooks/use-debounce';
 import { useSetState } from 'src/hooks/use-set-state';
@@ -384,21 +388,54 @@ export function VisitInvitationsView({
 
 // ----------------------------------------------------------------------
 
-export function NewVisitInvitationDialog({ open, onClose, organizationId, initialData }) {
-  const [selectedBranch, setSelectedBranch] = useState(null);
-  const [visitorName, setVisitorName] = useState('');
-  const [visitorEmail, setVisitorEmail] = useState('');
-  const [badgeType, setBadgeType] = useState('visitor');
-  const [arrivalAt, setArrivalAt] = useState(dayjs());
-  const [visitingUntil, setVisitingUntil] = useState(dayjs().add(9, 'hour'));
-  const [hostName, setHostName] = useState('Reception');
+const NewVisitInvitationSchema = zod
+  .object({
+    visitorName: zod
+      .string()
+      .trim()
+      .min(1, 'Visitor name is required')
+      .regex(/^[^0-9]*$/, 'Visitor name cannot contain numbers'),
+    visitorEmail: zod
+      .string()
+      .trim()
+      .min(1, 'Visitor email is required')
+      .email('Enter a valid email address'),
+    branch: zod
+      .object({ value: zod.string(), label: zod.string() })
+      .nullable()
+      .refine((val) => Boolean(val?.value), { message: 'Site is required' }),
+    badgeType: zod.string().min(1, 'Badge / type is required'),
+    arrivalAt: zod.any().refine((val) => val && dayjs(val).isValid(), {
+      message: 'Arrival date & time is required',
+    }),
+    visitingUntil: zod.any().refine((val) => val && dayjs(val).isValid(), {
+      message: 'Visiting until date & time is required',
+    }),
+    hostName: zod.string().trim().optional(),
+  })
+  .refine(
+    (data) => !data.arrivalAt || !dayjs(data.arrivalAt).isBefore(dayjs().startOf('day')),
+    {
+      message: 'Arrival date cannot be before today',
+      path: ['arrivalAt'],
+    }
+  )
+  .refine(
+    (data) =>
+      !data.arrivalAt ||
+      !data.visitingUntil ||
+      !dayjs(data.visitingUntil).isBefore(dayjs(data.arrivalAt)),
+    {
+      message: 'Visiting until date cannot be earlier than arrival',
+      path: ['visitingUntil'],
+    }
+  );
 
+export function NewVisitInvitationDialog({ open, onClose, organizationId, initialData }) {
   const [createVisitorInvitation, { isLoading: isCreating }] = useCreateVisitorInvitationMutation();
 
-  const resetForm = useCallback(() => {
+  const defaultValues = useMemo(() => {
     const now = dayjs();
-    setVisitorName(initialData?.name || '');
-    setVisitorEmail(initialData?.email || '');
     const branchVal =
       (typeof initialData?.branchId === 'object' ? initialData?.branchId?._id : initialData?.branchId) ||
       initialData?.branch?._id ||
@@ -407,64 +444,47 @@ export function NewVisitInvitationDialog({ open, onClose, organizationId, initia
       initialData?.branch?.name ||
       (typeof initialData?.branch === 'string' ? initialData.branch : '') ||
       '';
-    setSelectedBranch(branchVal ? { value: branchVal, label: branchLabel } : null);
-    setBadgeType(initialData?.type === 'contractor' ? 'contractor' : 'visitor');
-    setArrivalAt(now);
-    setVisitingUntil(now.add(9, 'hour'));
-    setHostName(initialData?.hostName || 'Reception');
+
+    return {
+      visitorName: initialData?.name || '',
+      visitorEmail: initialData?.email || '',
+      branch: branchVal ? { value: branchVal, label: branchLabel } : null,
+      badgeType: initialData?.type === 'contractor' ? 'contractor' : 'visitor',
+      arrivalAt: now,
+      visitingUntil: now.add(9, 'hour'),
+      hostName: initialData?.hostName || 'Reception',
+    };
   }, [initialData]);
+
+  const methods = useForm({
+    resolver: zodResolver(NewVisitInvitationSchema),
+    defaultValues,
+  });
+
+  const { reset, handleSubmit, control } = methods;
 
   useEffect(() => {
     if (open) {
-      resetForm();
+      reset(defaultValues);
     }
-  }, [open, resetForm]);
-
-  const handleArrivalChange = (newVal) => {
-    setArrivalAt(newVal);
-    if (newVal && visitingUntil && dayjs(visitingUntil).isBefore(newVal)) {
-      setVisitingUntil(dayjs(newVal).add(2, 'hour'));
-    }
-  };
+  }, [open, reset, defaultValues]);
 
   const handleClose = () => {
-    resetForm();
+    reset(defaultValues);
     onClose();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedBranch?.value) {
-      toast.error('Please select a site');
-      return;
-    }
-    if (!visitorName.trim()) {
-      toast.error('Visitor name is required');
-      return;
-    }
-    if (!visitorEmail.trim()) {
-      toast.error('Visitor email is required');
-      return;
-    }
-    if (arrivalAt && dayjs(arrivalAt).isBefore(dayjs().startOf('day'))) {
-      toast.error('Arrival date cannot be before today');
-      return;
-    }
-    if (arrivalAt && visitingUntil && dayjs(visitingUntil).isBefore(dayjs(arrivalAt))) {
-      toast.error('Visiting until date cannot be earlier than arrival');
-      return;
-    }
-
+  const onSubmit = handleSubmit(async (data) => {
     try {
       const body = {
         organizationId,
-        branchId: selectedBranch.value,
-        visitorName: visitorName.trim(),
-        visitorEmail: visitorEmail.trim(),
-        hostName: hostName.trim() || 'Reception',
-        badgeType,
-        arrivalAt: arrivalAt ? dayjs(arrivalAt).toISOString() : undefined,
-        visitingUntil: visitingUntil ? dayjs(visitingUntil).toISOString() : undefined,
+        branchId: data.branch.value,
+        visitorName: data.visitorName.trim(),
+        visitorEmail: data.visitorEmail.trim(),
+        hostName: data.hostName?.trim() || 'Reception',
+        badgeType: data.badgeType,
+        arrivalAt: data.arrivalAt ? dayjs(data.arrivalAt).toISOString() : undefined,
+        visitingUntil: data.visitingUntil ? dayjs(data.visitingUntil).toISOString() : undefined,
       };
 
       const res = await createVisitorInvitation(body).unwrap();
@@ -475,42 +495,34 @@ export function NewVisitInvitationDialog({ open, onClose, organizationId, initia
     } catch (err) {
       // Handled by baseQuery api error toast
     }
-  };
+  });
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
       <DialogTitle>New visit invitation</DialogTitle>
-      <Box component="form" onSubmit={handleSubmit}>
+      <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
-            <TextField
+            <Field.Text
               name="visitorName"
               label="Visitor Name"
               placeholder="e.g. John Doe"
-              value={visitorName}
-              onChange={(e) => setVisitorName(e.target.value)}
-              fullWidth
+              allowNumbers={false}
               required
-              inputProps={{ autoComplete: 'off' }}
             />
 
-            <TextField
+            <Field.Text
               name="visitorEmail"
               label="Visitor Email"
               type="email"
               placeholder="e.g. visitor@example.com"
-              value={visitorEmail}
-              onChange={(e) => setVisitorEmail(e.target.value)}
-              fullWidth
               required
-              inputProps={{ autoComplete: 'off' }}
             />
 
-            <InfiniteAutocomplete
+            <Field.InfiniteAutocomplete
+              name="branch"
               label="Site"
               placeholder="Search and select site..."
-              value={selectedBranch}
-              onChange={(newValue) => setSelectedBranch(newValue)}
               useQuery={useGetBranchesQuery}
               queryArgs={{ organizationId }}
               mapOption={mapBranchOption}
@@ -518,48 +530,63 @@ export function NewVisitInvitationDialog({ open, onClose, organizationId, initia
               fullWidth
             />
 
-            <TextField
-              select
-              label="Badge / Type"
-              value={badgeType}
-              onChange={(e) => setBadgeType(e.target.value)}
-              fullWidth
-            >
+            <Field.Select name="badgeType" label="Badge / Type">
               <MenuItem value="visitor">Visitor</MenuItem>
               <MenuItem value="contractor">Contractor</MenuItem>
-            </TextField>
+            </Field.Select>
 
-            <MobileDateTimePicker
-              label="Arrival"
-              value={arrivalAt}
-              minDate={dayjs().startOf('day')}
-              onChange={handleArrivalChange}
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                },
-              }}
+            <Controller
+              name="arrivalAt"
+              control={control}
+              render={({ field, fieldState: { error } }) => (
+                <MobileDateTimePicker
+                  label="Arrival"
+                  value={field.value}
+                  minDate={dayjs().startOf('day')}
+                  onChange={(newVal) => {
+                    field.onChange(newVal);
+                    const currentUntil = methods.getValues('visitingUntil');
+                    if (newVal && currentUntil && dayjs(currentUntil).isBefore(newVal)) {
+                      methods.setValue('visitingUntil', dayjs(newVal).add(2, 'hour'), {
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      error: Boolean(error),
+                      helperText: error?.message,
+                    },
+                  }}
+                />
+              )}
             />
 
-            <MobileDateTimePicker
-              label="Visiting until"
-              value={visitingUntil}
-              minDateTime={arrivalAt || dayjs().startOf('day')}
-              onChange={(newVal) => setVisitingUntil(newVal)}
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                },
-              }}
+            <Controller
+              name="visitingUntil"
+              control={control}
+              render={({ field, fieldState: { error } }) => (
+                <MobileDateTimePicker
+                  label="Visiting until"
+                  value={field.value}
+                  minDateTime={methods.getValues('arrivalAt') || dayjs().startOf('day')}
+                  onChange={field.onChange}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      error: Boolean(error),
+                      helperText: error?.message,
+                    },
+                  }}
+                />
+              )}
             />
 
-            <TextField
+            <Field.Text
               name="hostName"
               label="Host Name"
               placeholder="e.g. Reception"
-              value={hostName}
-              onChange={(e) => setHostName(e.target.value)}
-              fullWidth
             />
           </Stack>
         </DialogContent>
@@ -577,7 +604,7 @@ export function NewVisitInvitationDialog({ open, onClose, organizationId, initia
             Send code
           </LoadingButton>
         </DialogActions>
-      </Box>
+      </Form>
     </Dialog>
   );
 }

@@ -42,7 +42,7 @@ const QuickAddUserModal = ({ open, onClose, currentUser }) => {
 
     const schema = zod.object({
         image: zod.any().optional(),
-        name: zod.string().min(1, 'Name is required'),
+        name: zod.string().min(1, 'Name is required').regex(/^[^0-9]*$/, 'Name cannot contain numbers'),
         email: zod.string().min(1, 'Email is required').email('Email must be a valid email address'),
         phone: zod.string().min(1, 'Phone is required'),
         type: zod.enum(['visitor', 'contractor', 'professional'], { message: 'Type is required' }),
@@ -90,7 +90,7 @@ const QuickAddUserModal = ({ open, onClose, currentUser }) => {
                     <Field.UploadAvatar name="image" />
 
                     <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { md: "repeat(1,1fr)", xs: "repeat(1,1fr)" }, mt: 3 }}>
-                        <Field.Text name="name" label="Name" />
+                        <Field.Text name="name" label="Name" allowNumbers={false} />
 
                         <Field.Text name="email" label="Email" />
 

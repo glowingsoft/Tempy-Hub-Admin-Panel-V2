@@ -23,6 +23,7 @@ import { staffDashboardRoutes } from './staff-dashboard';
 
 const HomePage = lazy(() => import('src/pages/home'));
 const InvitePage = lazy(() => import('src/pages/invite'));
+const FamilyInvitePage = lazy(() => import('src/pages/family-invite'));
 
 const Jwt = {
   SignInPage: lazy(() => import('src/pages/auth/jwt/sign-in')),
@@ -77,6 +78,28 @@ export function Router() {
         <Suspense fallback={<SplashScreen />}>
           <AuthCenteredLayout>
             <InvitePage />
+          </AuthCenteredLayout>
+        </Suspense>
+      ),
+    },
+
+    // Accept Family Invitation Onboarding
+    {
+      path: 'family-invite/:token',
+      element: (
+        <Suspense fallback={<SplashScreen />}>
+          <AuthCenteredLayout>
+            <FamilyInvitePage />
+          </AuthCenteredLayout>
+        </Suspense>
+      ),
+    },
+    {
+      path: 'family-invite/:token/*',
+      element: (
+        <Suspense fallback={<SplashScreen />}>
+          <AuthCenteredLayout>
+            <FamilyInvitePage />
           </AuthCenteredLayout>
         </Suspense>
       ),

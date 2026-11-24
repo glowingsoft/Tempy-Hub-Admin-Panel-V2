@@ -28,7 +28,14 @@ import { groupItems, applyFilter, getAllItems } from './utils';
 
 // ----------------------------------------------------------------------
 
-export function Searchbar({ data: navItems = [], sx, ...other }) {
+export function Searchbar({
+  data: navItems = [],
+  showLabel = false,
+  labelText = 'Search...',
+  showShortcut = true,
+  sx,
+  ...other
+}) {
   const theme = useTheme();
 
   const router = useRouter();
@@ -117,7 +124,7 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
       }}
       {...other}
     >
-      <IconButton disableRipple>
+      <IconButton disableRipple size="small">
         {/* https://icon-sets.iconify.design/eva/search-fill/ */}
         <SvgIcon sx={{ width: 20, height: 20 }}>
           <path
@@ -127,17 +134,35 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
         </SvgIcon>
       </IconButton>
 
-      <Label
-        sx={{
-          fontSize: 12,
-          color: 'grey.800',
-          bgcolor: 'common.white',
-          boxShadow: theme.customShadows.z1,
-          display: { xs: 'none', sm: 'inline-flex' },
-        }}
-      >
-        ⌘K
-      </Label>
+      {showLabel && (
+        <Box
+          component="span"
+          sx={{
+            flexGrow: 1,
+            typography: 'body2',
+            color: 'text.disabled',
+            textAlign: 'left',
+            px: 0.75,
+            userSelect: 'none',
+          }}
+        >
+          {labelText}
+        </Box>
+      )}
+
+      {showShortcut && (
+        <Label
+          sx={{
+            fontSize: 12,
+            color: 'grey.800',
+            bgcolor: 'common.white',
+            boxShadow: theme.customShadows.z1,
+            display: { xs: 'none', sm: 'inline-flex' },
+          }}
+        >
+          ⌘K
+        </Label>
+      )}
     </Box>
   );
 

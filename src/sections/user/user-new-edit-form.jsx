@@ -29,7 +29,7 @@ export const NewUserSchema = zod.object({
   avatarUrl: schemaHelper.file({
     message: { required_error: 'Avatar is required!' },
   }),
-  name: zod.string().min(1, { message: 'Name is required!' }),
+  name: schemaHelper.name({ message: { required_error: 'Name is required!' } }),
   email: zod
     .string()
     .min(1, { message: 'Email is required!' })
@@ -215,7 +215,7 @@ export function UserNewEditForm({ currentUser }) {
                 sm: 'repeat(2, 1fr)',
               }}
             >
-              <Field.Text name="name" label="Full name" />
+              <Field.Text name="name" label="Full name" allowNumbers={false} />
               <Field.Text name="email" label="Email address" />
               <Field.Phone name="phoneNumber" label="Phone number" />
 

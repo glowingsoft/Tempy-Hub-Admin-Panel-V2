@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 
 import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
@@ -109,40 +108,50 @@ const MAX_VISIBLE = 2;
 
 function AppliesToCell({ items }) {
   if (!items.length) {
-    return <Typography variant="body2" color="text.secondary">—</Typography>;
+    return (
+      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        —
+      </Typography>
+    );
   }
 
-  const visible = items.slice(0, MAX_VISIBLE);
+  const visibleItems = items.slice(0, MAX_VISIBLE).map((i) => i.label).join(', ');
   const hiddenCount = items.length - MAX_VISIBLE;
 
+  const fullTooltipText = items
+    .map((i) => `${i.groupLabel}: ${i.label}`)
+    .join('\n');
+
   return (
-    <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 0.5, alignItems: 'center' }}>
-      {visible.map((item, idx) => (
-        <Chip
-          key={idx}
-          label={item.label}
-          size="small"
-          variant="soft"
-          color="default"
-          sx={{ maxWidth: 110, fontSize: 11 }}
-        />
-      ))}
-      {hiddenCount > 0 && (
-        <Tooltip
-          title={items
-            .slice(MAX_VISIBLE)
-            .map((i) => `${i.groupLabel}: ${i.label}`)
-            .join('\n')}
-          placement="top"
-          arrow
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, maxWidth: 280 }}>
+      <Tooltip title={fullTooltipText} placement="top" arrow>
+        <Typography
+          variant="body2"
+          noWrap
+          sx={{
+            color: 'text.primary',
+            textTransform: 'capitalize',
+            cursor: 'default',
+          }}
         >
-          <Chip
-            label={`+${hiddenCount}`}
-            size="small"
-            variant="soft"
-            color="primary"
-            sx={{ fontSize: 11, cursor: 'default' }}
-          />
+          {visibleItems}
+        </Typography>
+      </Tooltip>
+
+      {hiddenCount > 0 && (
+        <Tooltip title={fullTooltipText} placement="top" arrow>
+          <Typography
+            component="span"
+            variant="caption"
+            sx={{
+              color: 'primary.main',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+            }}
+          >
+            +{hiddenCount} more
+          </Typography>
         </Tooltip>
       )}
     </Box>

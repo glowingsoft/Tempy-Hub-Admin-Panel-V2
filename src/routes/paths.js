@@ -77,6 +77,7 @@ export const paths = {
       signIn: '/',
     },
     invite: (token) => `/invite/${token}`,
+    familyInvite: (token) => `/family-invite/${token}`,
     jwt: {
       signIn: `${ROOTS.AUTH}/jwt/sign-in`,
       signUp: `${ROOTS.AUTH}/jwt/sign-up`,
@@ -284,6 +285,7 @@ export const paths = {
     announcements: {
       root: `${ROOTS.SITE_MANAGER}/announcements`,
       new: `${ROOTS.SITE_MANAGER}/announcements/new`,
+      detail: (id) => `${ROOTS.SITE_MANAGER}/announcements/${id}`,
     },
     reports: `${ROOTS.SITE_MANAGER}/reports`,
     rota: `${ROOTS.SITE_MANAGER}/rota`,
@@ -682,6 +684,7 @@ export const paths = {
     announcements: {
       root: `${ROOTS.OWNER_DASHBOARD}/announcements`,
       new: `${ROOTS.OWNER_DASHBOARD}/announcements/new`,
+      detail: (id) => `${ROOTS.OWNER_DASHBOARD}/announcements/${id}`,
     },
     fireDrills: `${ROOTS.OWNER_DASHBOARD}/fire-drills`,
 

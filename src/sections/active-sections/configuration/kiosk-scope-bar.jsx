@@ -141,11 +141,20 @@ export function KioskScopeBar({
               <MenuItem value="all">
                 All kiosks at this site (default)
               </MenuItem>
-              {kiosks.map((kiosk) => (
-                <MenuItem key={kiosk._id} value={kiosk._id}>
-                  {kiosk.name || kiosk.code || `Kiosk ${kiosk._id.slice(-4)}`}
-                </MenuItem>
-              ))}
+              {kiosks.map((kiosk) => {
+                const id = kiosk._id || kiosk.id;
+                const label =
+                  kiosk.receptionIdentifier?.trim() ||
+                  kiosk.settings?.receptionIdentifier?.trim() ||
+                  kiosk.locationLabel?.trim() ||
+                  '';
+
+                return (
+                  <MenuItem key={id} value={id}>
+                    {label}
+                  </MenuItem>
+                );
+              })}
             </TextField>
           </Grid>
 

@@ -11,6 +11,7 @@ import { getDashboardPath } from 'src/auth/utils/get-dashboard-path';
 
 import { NavUpgrade } from '../components/nav-upgrade';
 import { NavToggleButton } from '../components/nav-toggle-button';
+import { Searchbar } from '../components/searchbar';
 
 // ----------------------------------------------------------------------
 
@@ -29,6 +30,26 @@ export function NavVertical({ sx, data, slots, isNavMini, layoutQuery, onToggleN
         </Box>
       )}
 
+      <Box sx={{ px: 2, pb: 1.5 }}>
+        <Searchbar
+          data={data}
+          showLabel
+          sx={{
+            width: 1,
+            height: 40,
+            px: 1.25,
+            borderRadius: 1,
+            cursor: 'pointer',
+            justifyContent: 'space-between',
+            border: `1px solid ${theme.vars.palette.divider}`,
+            bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
+            '&:hover': {
+              bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+            },
+          }}
+        />
+      </Box>
+
       <Scrollbar fillContent>
         <NavSectionVertical data={data} sx={{ px: 2, flex: '1 1 auto' }} {...other} />
 
@@ -44,6 +65,27 @@ export function NavVertical({ sx, data, slots, isNavMini, layoutQuery, onToggleN
           <Logo href={logoHref} width={AUTH_LOGO.width} height={AUTH_LOGO.height} />
         </Box>
       )}
+
+      <Box sx={{ display: 'flex', justifyContent: 'center', pb: 1.5 }}>
+        <Searchbar
+          data={data}
+          showShortcut={false}
+          showLabel={false}
+          sx={{
+            width: 44,
+            height: 44,
+            p: 0,
+            justifyContent: 'center',
+            borderRadius: 1,
+            cursor: 'pointer',
+            border: `1px solid ${theme.vars.palette.divider}`,
+            bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
+            '&:hover': {
+              bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+            },
+          }}
+        />
+      </Box>
 
       <NavSectionMini
         data={data}

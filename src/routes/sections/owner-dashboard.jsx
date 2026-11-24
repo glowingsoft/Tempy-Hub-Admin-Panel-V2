@@ -61,6 +61,7 @@ const DocumentCategoriesPage = lazy(() => import('src/pages/dashboard/active-rou
 const ReportsPage = lazy(() => import('src/pages/dashboard/active-routes/reports'));
 const AnnouncementsPage = lazy(() => import('src/pages/dashboard/active-routes/announcements'));
 const AnnouncementCreatePage = lazy(() => import('src/pages/dashboard/active-routes/announcements/new'));
+const AnnouncementDetailPage = lazy(() => import('src/pages/dashboard/active-routes/announcements/detail'));
 const VisitorFeedbackPage = lazy(() => import('src/pages/dashboard/active-routes/visitor-feedback'));
 const VisitorFeedbackDetailPage = lazy(
   () => import('src/pages/dashboard/active-routes/visitor-feedback/detail')
@@ -292,6 +293,7 @@ export const ownerDashboardRoutes = [
         children: [
           { index: true, element: <AnnouncementsPage ownerDashboard /> },
           { path: 'new', element: <AnnouncementCreatePage ownerDashboard /> },
+          { path: ':id', element: <AnnouncementDetailPage /> },
         ],
       },
       { path: "fire-drills", element: <FireDrillsPage /> },

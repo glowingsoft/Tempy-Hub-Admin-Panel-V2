@@ -23,7 +23,10 @@ const makeOrganizationSchema = (isEdit) =>
     name: zod.string().min(1, 'Organization name is required'),
     ownerName: isEdit
       ? zod.string().optional()
-      : zod.string().min(1, 'Owner name is required'),
+      : zod
+          .string()
+          .min(1, 'Owner name is required')
+          .regex(/^[^0-9]*$/, 'Owner name cannot contain numbers'),
     ownerEmail: isEdit
       ? zod.string().optional()
       : zod
@@ -127,6 +130,7 @@ export function OrganizationCreateEditModal({ open, onClose, currentOrganization
             <Field.Text
               name="ownerName"
               label="Owner Name"
+              allowNumbers={false}
               disabled={isEdit}
               helperText={isEdit ? 'Owner cannot be modified' : undefined}
             />

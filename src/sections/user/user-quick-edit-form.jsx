@@ -22,7 +22,7 @@ import { Form, Field, schemaHelper } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
 export const UserQuickEditSchema = zod.object({
-  name: zod.string().min(1, { message: 'Name is required!' }),
+  name: schemaHelper.name({ message: { required_error: 'Name is required!' } }),
   email: zod
     .string()
     .min(1, { message: 'Email is required!' })
@@ -126,7 +126,7 @@ export function UserQuickEditForm({ currentUser, open, onClose }) {
 
             <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
 
-            <Field.Text name="name" label="Full name" />
+            <Field.Text name="name" label="Full name" allowNumbers={false} />
             <Field.Text name="email" label="Email address" />
             <Field.Phone name="phoneNumber" label="Phone number" />
 
