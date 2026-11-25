@@ -22,6 +22,7 @@ import { staffDashboardRoutes } from './staff-dashboard';
 // ----------------------------------------------------------------------
 
 const HomePage = lazy(() => import('src/pages/home'));
+const LandingPage = lazy(() => import('src/pages/landing'));
 const InvitePage = lazy(() => import('src/pages/invite'));
 const FamilyInvitePage = lazy(() => import('src/pages/family-invite'));
 
@@ -34,26 +35,10 @@ export function Router() {
   return useRoutes([
     {
       path: '/',
-      /**
-       * Skip home page
-       * element: <Navigate to={CONFIG.auth.redirectPath} replace />,
-       */
       element: (
-        // <Suspense fallback={<SplashScreen />}>
-        //   <MainLayout>
-        //     <HomePage />
-        //   </MainLayout>
-        // </Suspense>
-        <GuestGuard>
-          <AuthSplitLayout
-            section={{
-              title: 'Manager Portal',
-              subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
-            }}
-          >
-            <Jwt.SignInPage />
-          </AuthSplitLayout>
-        </GuestGuard>
+        <Suspense fallback={<SplashScreen />}>
+          <LandingPage />
+        </Suspense>
       ),
     },
 

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Navigate } from 'react-router-dom';
 
 import { MainLayout } from 'src/layouts/main';
 import { SimpleLayout } from 'src/layouts/simple';
@@ -30,6 +30,8 @@ const Page403 = lazy(() => import('src/pages/error/403'));
 const Page404 = lazy(() => import('src/pages/error/404'));
 // Blank
 const BlankPage = lazy(() => import('src/pages/blank'));
+// Landing
+const LandingPage = lazy(() => import('src/pages/landing'));
 
 // ----------------------------------------------------------------------
 
@@ -41,6 +43,10 @@ export const mainRoutes = [
       </Suspense>
     ),
     children: [
+      {
+        path: 'landing',
+        element: <Navigate to="/" replace />,
+      },
       {
         element: (
           <MainLayout>

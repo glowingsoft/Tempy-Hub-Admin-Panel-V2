@@ -8,6 +8,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
@@ -37,7 +38,7 @@ export function JwtResetPasswordView({
   title = 'Forgot your password?',
   description = "Please enter the email address associated with your account and we'll send you a 6-digit code to reset your password.",
   onSuccess,
-  signInPath = '/',
+  signInPath = paths.auth.jwt.signIn,
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();

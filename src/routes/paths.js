@@ -68,22 +68,24 @@ export const paths = {
     },
 
     admin: {
-      signIn: `${ROOTS.AUTH}/admin/login`,
+      signIn: '/admin/login',
     },
     owner: {
-      signIn: '/',
+      signIn: `${ROOTS.AUTH}/login`,
     },
     staff: {
-      signIn: '/',
+      signIn: `${ROOTS.AUTH}/login`,
     },
     invite: (token) => `/invite/${token}`,
     familyInvite: (token) => `/family-invite/${token}`,
     jwt: {
-      signIn: `${ROOTS.AUTH}/jwt/sign-in`,
+      signIn: `${ROOTS.AUTH}/login`,
       signUp: `${ROOTS.AUTH}/jwt/sign-up`,
-      resetPassword: `${ROOTS.AUTH}/jwt/reset-password`,
-      verify: `${ROOTS.AUTH}/jwt/verify`,
-      updatePassword: `${ROOTS.AUTH}/jwt/update-password`,
+      resetPassword: '/reset-password',
+      verify: '/verify-email',
+      updatePassword: '/verify-password',
+      verifyEmail: '/verify-email',
+      verifyPassword: '/verify-password',
     },
     firebase: {
       signIn: `${ROOTS.AUTH}/firebase/sign-in`,
