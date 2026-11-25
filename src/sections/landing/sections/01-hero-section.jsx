@@ -17,7 +17,7 @@ export function HeroSection() {
       id="hero"
       className="hero tempy-section theme-night"
       sx={{
-        minHeight: { xs: 'auto', lg: 'calc(100vh / var(--landing-viewport-scale))' },
+        minHeight: { xs: 'auto', lg: '100vh' },
         width: '100%',
         position: 'relative',
         display: 'flex',
@@ -46,9 +46,8 @@ export function HeroSection() {
         }}
       />
 
-      {/* Main Grid Content aligned with Navbar via Container maxWidth="xl" */}
+      {/* Main Grid Content aligned with Navbar via Container */}
       <Container
-        maxWidth="xl"
         sx={{
           position: 'relative',
           zIndex: 5,
@@ -130,8 +129,8 @@ export function HeroSection() {
               data-cursor="button"
               endIcon={<Iconify icon="solar:arrow-right-linear" width={17} />}
               sx={{
-                bgcolor: 'var(--indigo)',
-                color: '#FFFFFF',
+                bgcolor: 'var(--indigo) !important',
+                color: '#FFFFFF !important',
                 borderRadius: '9999px',
                 py: 1.25,
                 px: 3,
@@ -140,7 +139,8 @@ export function HeroSection() {
                 fontWeight: 600,
                 boxShadow: '0 4px 18px rgba(84, 88, 216, 0.35)',
                 '&:hover': {
-                  bgcolor: 'var(--indigo-2)',
+                  bgcolor: 'var(--indigo-2) !important',
+                  color: '#FFFFFF !important',
                   transform: 'translateY(-2px)',
                 },
               }}

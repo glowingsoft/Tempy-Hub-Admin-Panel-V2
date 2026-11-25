@@ -42,7 +42,7 @@ export function JourneySection() {
         position: 'relative',
       }}
     >
-      <Container maxWidth="xl">
+      <Container>
         {/* Section Header */}
         <Box sx={{ textAlign: 'center', mb: { xs: 5, md: 7 } }}>
           <Typography className="tempy-mono" sx={{ fontSize: 10.5, color: 'var(--indigo)', letterSpacing: '0.12em' }}>

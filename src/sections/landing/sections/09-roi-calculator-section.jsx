@@ -27,7 +27,7 @@ export function RoiCalculatorSection() {
         bgcolor: '#FFFFFF',
       }}
     >
-      <Container maxWidth="xl">
+      <Container>
         <Box sx={{ textAlign: 'center', mb: { xs: 4, md: 6 } }}>
           <Typography className="tempy-mono" sx={{ fontSize: 10.5, color: 'var(--indigo)', letterSpacing: '0.12em' }}>
             PROJECTED FINANCIAL RETURN

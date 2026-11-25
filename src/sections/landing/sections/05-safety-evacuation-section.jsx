@@ -52,7 +52,7 @@ export function SafetyEvacuationSection() {
         }}
       />
 
-      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 2 }}>
+      <Container sx={{ position: 'relative', zIndex: 2 }}>
         <Box
           sx={{
             display: 'grid',

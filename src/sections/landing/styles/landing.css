@@ -35,44 +35,10 @@
   100% { transform: translateY(-12px); }
 }
 
-/* Keep the current desktop scale while allowing tablet and mobile layouts to
-   use the full CSS viewport and standard responsive breakpoints. */
-html:has(.tempy-landing-root),
-html.landing-page-active {
-  --landing-viewport-scale: 0.8;
-  zoom: 0.8 !important;
-}
-
-@media (max-width: 899.95px) {
-  html:has(.tempy-landing-root),
-  html.landing-page-active {
-    --landing-viewport-scale: 1;
-    zoom: 1 !important;
-  }
-}
-
-@media (min-width: 1600px) {
-  html:has(.tempy-landing-root),
-  html.landing-page-active {
-    --landing-viewport-scale: 0.92;
-    zoom: 0.92 !important;
-  }
-}
-
-@media (min-width: 1200px) and (max-width: 1439.95px) {
-  .tempy-landing-root .MuiContainer-root {
-    width: calc(100% - 128px);
-    margin-right: auto;
-    margin-left: auto;
-    padding-right: clamp(32px, 4vw, 48px);
-    padding-left: clamp(32px, 4vw, 48px);
-  }
-}
-
-/* Keep viewport-height sections aligned with the active landing scale. */
-.tempy-landing-root section,
-.tempy-section {
-  --vh-fix: calc(100vh / var(--landing-viewport-scale));
+.tempy-landing-root .MuiContainer-root {
+  min-width: 85%;
+  margin-right: auto;
+  margin-left: auto;
 }
 
 /* Base resets for landing view */
@@ -138,6 +104,18 @@ html.landing-page-active {
   transition: background-color 0.6s ease, color 0.6s ease;
 }
 
+.tempy-landing-root section[id],
+.tempy-section[id] {
+  scroll-margin-top: 72px;
+}
+
+@media (max-width: 899.95px) {
+  .tempy-landing-root section[id],
+  .tempy-section[id] {
+    scroll-margin-top: 64px;
+  }
+}
+
 .tempy-section.theme-night {
   background-color: var(--night);
   color: #FFFFFF;
@@ -175,7 +153,7 @@ html.landing-page-active {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background-color: var(--indigo);
+  background-color: var(--indigo) !important;
   color: #FFFFFF !important;
   font-family: var(--font-mono);
   font-size: 13px;
@@ -191,7 +169,8 @@ html.landing-page-active {
 }
 
 .tempy-btn-primary:hover {
-  background-color: var(--indigo-2);
+  background-color: var(--indigo-2) !important;
+  color: #FFFFFF !important;
   transform: translateY(-2px);
   box-shadow: 0 8px 26px rgba(84, 88, 216, 0.55);
 }

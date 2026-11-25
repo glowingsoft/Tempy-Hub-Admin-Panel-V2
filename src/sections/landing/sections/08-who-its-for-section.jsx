@@ -23,7 +23,7 @@ export function WhoItsForSection() {
         scrollMarginTop: { xs: '88px', md: '104px' },
       }}
     >
-      <Container maxWidth="xl">
+      <Container>
         <Box sx={{ mb: { xs: 3, md: 4.5 } }}>
           <Typography
             className="tempy-mono"

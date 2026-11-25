@@ -831,7 +831,7 @@ export function PlatformRailSection() {
         ref={ghostRef}
         sx={{
           position: 'sticky',
-          top: 'calc(20vh / var(--landing-viewport-scale))',
+          top: '20vh',
           left: 0,
           whiteSpace: 'nowrap',
           fontFamily: 'var(--font-display)',
@@ -877,7 +877,7 @@ export function PlatformRailSection() {
         />
       </Box>
 
-      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 2 }}>
+      <Container sx={{ position: 'relative', zIndex: 2 }}>
         {/* Section Header */}
         <Box ref={headlineRef} sx={{ mb: { xs: 5, md: 7 }, maxWidth: 840 }}>
           <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1.5 }}>

@@ -44,6 +44,24 @@ export function LandingNavbar() {
   const navBg = isLightSection ? 'rgba(255, 255, 255, 0.88)' : 'rgba(14, 16, 32, 0.82)';
   const borderColor = isLightSection ? 'rgba(27, 31, 46, 0.08)' : 'rgba(255, 255, 255, 0.1)';
 
+  const handleNavLinkClick = (e, href) => {
+    if (!href?.startsWith('#')) return;
+
+    const target = document.querySelector(href);
+    if (!target) return;
+
+    e.preventDefault();
+    setMobileMenuOpen(false);
+
+    const headerHeight = e.currentTarget.closest('header')?.offsetHeight || 72;
+
+    if (window.__tempyLenis) {
+      window.__tempyLenis.scrollTo(target, { offset: -headerHeight });
+    } else {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <Box
       component="header"
@@ -61,7 +79,6 @@ export function LandingNavbar() {
       }}
     >
       <Container
-        maxWidth="xl"
         sx={{
           py: { xs: 1.25, sm: 1.5, md: 2 },
           px: { xs: 2, sm: 3 },
@@ -76,7 +93,13 @@ export function LandingNavbar() {
           underline="none"
           onClick={(e) => {
             e.preventDefault();
-            window.location.reload();
+            if (window.scrollY > 10) {
+              if (window.__tempyLenis) {
+                window.__tempyLenis.scrollTo(0);
+              } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }
           }}
           sx={{
             display: 'flex',
@@ -126,6 +149,7 @@ export function LandingNavbar() {
               href={link.href}
               underline="none"
               className="tempy-mono"
+              onClick={(e) => handleNavLinkClick(e, link.href)}
               sx={{
                 fontSize: 12,
                 color: textColor,
@@ -194,7 +218,6 @@ export function LandingNavbar() {
       <Container
         component="nav"
         id="landing-mobile-menu"
-        maxWidth="xl"
         sx={{
           display: { xs: mobileMenuOpen ? 'block' : 'none', md: 'none' },
           px: { xs: 2, sm: 3 },
@@ -209,7 +232,7 @@ export function LandingNavbar() {
               href={link.href}
               underline="none"
               className="tempy-mono"
-              onClick={() => setMobileMenuOpen(false)}
+              onClick={(e) => handleNavLinkClick(e, link.href)}
               sx={{
                 display: 'flex',
                 alignItems: 'center',

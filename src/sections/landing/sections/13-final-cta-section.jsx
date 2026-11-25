@@ -21,7 +21,7 @@ export function FinalCtaSection() {
       className="tempy-section theme-night"
       sx={{
         width: '100%',
-        minHeight: 'calc(85vh / var(--landing-viewport-scale))',
+        minHeight: '85vh',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -209,7 +209,7 @@ export function FinalCtaSection() {
       </Box>
 
       {/* Main Content */}
-      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 3 }}>
+      <Container sx={{ position: 'relative', zIndex: 3 }}>
         <Typography
           className="tempy-mono"
           sx={{

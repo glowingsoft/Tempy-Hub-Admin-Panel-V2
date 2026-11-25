@@ -27,19 +27,24 @@ import { FooterSection } from '../sections/14-footer-section';
 export function LandingView() {
   const [loading, setLoading] = useState(true);
 
-  // Initialize smooth scroll & libraries
-  useLenisScroll();
-
+  // Initialize smooth scroll & libraries once loaded
+  useLenisScroll(!loading);
 
   useEffect(() => {
-    document.documentElement.classList.add('landing-page-active');
+    let isMounted = true;
+    let timer = null;
+
     loadAllLandingLibraries().then(() => {
-      setTimeout(() => {
-        setLoading(false);
+      timer = setTimeout(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
       }, 500);
     });
+
     return () => {
-      document.documentElement.classList.remove('landing-page-active');
+      isMounted = false;
+      if (timer) clearTimeout(timer);
     };
   }, []);
 
@@ -52,7 +57,7 @@ export function LandingView() {
       className="tempy-landing-root"
       sx={{
         width: '100%',
-        minHeight: 'calc(100vh / var(--landing-viewport-scale))',
+        minHeight: '100vh',
         position: 'relative',
       }}
     >

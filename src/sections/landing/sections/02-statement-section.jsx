@@ -17,7 +17,7 @@ export function StatementSection({ imageSrc = null }) {
       id="statement"
       className="tempy-section theme-paper"
       sx={{
-        minHeight: { xs: 'auto', md: 'calc(80vh / var(--landing-viewport-scale))' },
+        minHeight: { xs: 'auto', md: '80vh' },
         display: 'flex',
         alignItems: 'center',
         py: { xs: 6, md: 8.5 },
@@ -26,7 +26,6 @@ export function StatementSection({ imageSrc = null }) {
       }}
     >
       <Container
-        maxWidth="xl"
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '0.9fr 1.4fr' },

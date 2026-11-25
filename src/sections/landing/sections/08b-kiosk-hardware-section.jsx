@@ -54,7 +54,6 @@ export function KioskHardwareSection() {
 
       {/* Unified xl Centered Container */}
       <Container
-        maxWidth="xl"
         sx={{
           position: 'relative',
           zIndex: 2,

@@ -27,7 +27,7 @@ export function FooterSection() {
         borderTop: '1px solid #E6E7F3',
       }}
     >
-      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 2 }}>
+      <Container sx={{ position: 'relative', zIndex: 2 }}>
         {/* Main Grid */}
         <Box
           sx={{

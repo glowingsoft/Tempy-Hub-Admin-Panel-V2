@@ -30,7 +30,6 @@ export function FaqSection() {
       }}
     >
       <Container
-        maxWidth="xl"
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '0.8fr 1.4fr' },

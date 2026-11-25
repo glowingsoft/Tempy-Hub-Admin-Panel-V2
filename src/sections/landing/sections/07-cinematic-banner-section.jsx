@@ -20,8 +20,8 @@ export function CinematicBannerSection() {
       className="tempy-section theme-night"
       sx={{
         minHeight: {
-          xs: 'calc(60vh / var(--landing-viewport-scale))',
-          md: 'calc(75vh / var(--landing-viewport-scale))',
+          xs: '60vh',
+          md: '75vh',
         },
         position: 'relative',
         display: 'flex',
@@ -89,12 +89,10 @@ export function CinematicBannerSection() {
 
       {/* Content */}
       <Container
-        maxWidth="xl"
         sx={{
           position: 'relative',
           zIndex: 3,
           textAlign: 'center',
-          maxWidth: '960px !important',
           mx: 'auto',
         }}
       >
