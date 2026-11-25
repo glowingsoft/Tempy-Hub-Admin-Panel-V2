@@ -54,13 +54,14 @@ export function StatsSection() {
             <Box
               key={idx}
               sx={{
+                minWidth: 0,
                 p: { xs: 3, md: 4 },
                 borderRadius: 2,
                 bgcolor: 'rgba(241, 241, 252, 0.45)',
                 border: '1px solid #E6E7F3',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-start',
               }}
             >
               <Box>
@@ -69,7 +70,7 @@ export function StatsSection() {
                   prefix={stat.prefix}
                   suffix={stat.suffix}
                   sx={{
-                    fontSize: { xs: '30px', md: '42px' },
+                    fontSize: { xs: '28px', sm: '30px', md: 'clamp(24px, 2.15vw, 38px)' },
                     fontWeight: 800,
                     color: '#1B1F2E',
                     display: 'block',
@@ -93,6 +94,7 @@ export function StatsSection() {
               <Typography
                 className="tempy-body"
                 sx={{
+                  mt: 'auto',
                   fontSize: 14,
                   color: '#5B6075',
                   lineHeight: 1.5,

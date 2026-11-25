@@ -95,21 +95,28 @@ export function FaqSection() {
                 <Box
                   sx={{
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
                     justifyContent: 'space-between',
-                    gap: 2,
+                    gap: { xs: 1.25, sm: 2 },
                   }}
                 >
-                  <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1 }}>
+                  <Stack
+                    direction="row"
+                    spacing={{ xs: 1.25, sm: 2 }}
+                    alignItems={{ xs: 'flex-start', sm: 'center' }}
+                    sx={{ flex: 1, minWidth: 0 }}
+                  >
                     <Box
                       className="tempy-mono"
                       sx={{
-                        fontSize: 11,
+                        flexShrink: 0,
+                        mt: { xs: 0.25, sm: 0 },
+                        fontSize: { xs: 10, sm: 11 },
                         fontWeight: 800,
                         color: isOpen ? '#FFFFFF' : 'var(--indigo)',
                         bgcolor: isOpen ? 'var(--indigo)' : 'rgba(84, 88, 216, 0.1)',
                         py: 0.5,
-                        px: 1.25,
+                        px: { xs: 1, sm: 1.25 },
                         borderRadius: 1.5,
                         transition: 'all 0.25s ease',
                       }}
@@ -119,11 +126,13 @@ export function FaqSection() {
                     <Typography
                       className="tempy-display"
                       sx={{
-                        fontSize: { xs: 15, sm: 17 },
+                        minWidth: 0,
+                        fontSize: { xs: 13, sm: 15, md: 17 },
                         fontWeight: 700,
                         color: isOpen ? 'var(--indigo)' : '#1B1F2E',
-                        lineHeight: 1.35,
+                        lineHeight: { xs: 1.45, sm: 1.35 },
                         letterSpacing: '-0.01em',
+                        overflowWrap: 'anywhere',
                         transition: 'color 0.25s ease',
                       }}
                     >

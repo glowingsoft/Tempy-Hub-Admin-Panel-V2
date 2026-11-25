@@ -20,7 +20,6 @@ export function WhoItsForSection() {
         py: { xs: 5, sm: 6, md: 8.5 },
         position: 'relative',
         bgcolor: '#0E1020',
-        scrollMarginTop: { xs: '88px', md: '104px' },
       }}
     >
       <Container>
@@ -62,9 +61,10 @@ export function WhoItsForSection() {
                 sx={{
                   display: 'block',
                   width: '100%',
-                  p: 0,
+                  border: 'none',
                   borderTop: '1px solid rgba(255, 255, 255, 0.12)',
                   py: { xs: 2.5, sm: 3, md: 4 },
+                  px: { xs: 1, sm: 1.5, md: 2 },
                   cursor: 'pointer',
                   transition: 'opacity 0.4s ease',
                   opacity: { xs: isActive ? 1 : 0.65, md: isActive ? 1 : 0.35 },
@@ -82,11 +82,12 @@ export function WhoItsForSection() {
                   sx={{
                     display: 'grid',
                     gridTemplateColumns: {
-                      xs: '32px minmax(0, 1fr)',
-                      sm: '56px minmax(0, 1fr) minmax(0, 1.15fr)',
-                      md: '80px 1.2fr 1.6fr 50px',
+                      xs: '44px minmax(0, 1fr)',
+                      sm: '64px minmax(0, 1fr) minmax(0, 1.15fr)',
+                      md: '88px 1.2fr 1.6fr 50px',
                     },
-                    gap: { xs: 1.5, sm: 2, md: 3 },
+                    columnGap: { xs: 2, sm: 3, md: 4 },
+                    rowGap: { xs: 1, sm: 1.5, md: 2 },
                     alignItems: { xs: 'start', md: 'baseline' },
                   }}
                 >
@@ -98,6 +99,8 @@ export function WhoItsForSection() {
                       fontSize: { xs: 14, md: 18 },
                       color: 'var(--indigo)',
                       fontWeight: 700,
+                      lineHeight: 1.3,
+                      pr: { xs: 0.5, sm: 1 },
                     }}
                   >
                     {row.idx}

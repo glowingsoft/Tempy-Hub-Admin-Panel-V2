@@ -207,10 +207,15 @@ export function LandingNavbar() {
             aria-controls="landing-mobile-menu"
             sx={{
               display: { xs: 'flex', md: 'none' },
+              bgcolor: 'transparent',
               color: textColor,
+              transition: 'color 0.4s ease',
+              '&:hover': {
+                bgcolor: 'transparent',
+              },
             }}
           >
-            <Iconify icon={mobileMenuOpen ? 'solar:close-circle-bold' : 'solar:hamburger-menu-bold'} width={24} />
+            <Iconify icon={mobileMenuOpen ? 'lucide:x' : 'lucide:menu'} width={24} />
           </IconButton>
         </Stack>
       </Container>

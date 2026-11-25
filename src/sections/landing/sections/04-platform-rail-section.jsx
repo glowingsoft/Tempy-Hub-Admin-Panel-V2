@@ -298,19 +298,35 @@ function PeepMiniUi({ registerTimeline }) {
       }}
     >
       {/* Top Header */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Stack direction="row" spacing={1} alignItems="center">
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        flexWrap="wrap"
+        gap={1}
+      >
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
           <Box
             sx={{
               width: 8,
               height: 8,
+              flexShrink: 0,
               borderRadius: '50%',
               bgcolor: '#FF6B6B',
               boxShadow: '0 0 10px #FF6B6B',
               animation: 'pulseDot 1.2s infinite alternate',
             }}
           />
-          <Typography className="tempy-mono" sx={{ fontSize: 11, color: '#FFFFFF', fontWeight: 700, letterSpacing: '0.04em' }}>
+          <Typography
+            className="tempy-mono"
+            sx={{
+              fontSize: { xs: 10, sm: 11 },
+              color: '#FFFFFF',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              lineHeight: 1.3,
+            }}
+          >
             LIVE PEEP EVACUATION RADAR · 100% CQC READY
           </Typography>
         </Stack>
@@ -320,6 +336,7 @@ function PeepMiniUi({ registerTimeline }) {
           sx={{
             height: 20,
             fontSize: 9.5,
+            flexShrink: 0,
             bgcolor: 'rgba(255, 107, 107, 0.18)',
             color: '#FF6B6B',
             border: '1px solid rgba(255, 107, 107, 0.4)',
@@ -333,7 +350,7 @@ function PeepMiniUi({ registerTimeline }) {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
           gap: 1,
         }}
       >
@@ -345,6 +362,7 @@ function PeepMiniUi({ registerTimeline }) {
             spacing={0.75}
             alignItems="center"
             sx={{
+              minWidth: 0,
               py: 0.6,
               px: 1,
               borderRadius: 1,
@@ -353,11 +371,20 @@ function PeepMiniUi({ registerTimeline }) {
             }}
           >
             <Iconify icon={room.icon} width={14} sx={{ color: room.color, flexShrink: 0 }} />
-            <Box sx={{ overflow: 'hidden' }}>
+            <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
               <Typography className="tempy-mono" sx={{ fontSize: 10.5, fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
                 {room.label}
               </Typography>
-              <Typography className="tempy-mono" sx={{ fontSize: 9.5, color: room.color, whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+              <Typography
+                className="tempy-mono"
+                sx={{
+                  fontSize: 9.5,
+                  color: room.color,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
                 {room.status}
               </Typography>
             </Box>
@@ -369,14 +396,14 @@ function PeepMiniUi({ registerTimeline }) {
       <Box
         ref={statsRef}
         sx={{
-          py: 0.6,
+          py: { xs: 1, sm: 0.6 },
           px: 1.5,
           borderRadius: 1.5,
           bgcolor: 'rgba(14, 16, 32, 0.92)',
           border: '1px solid rgba(255, 107, 107, 0.35)',
           display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'flex-start', sm: 'center' },
           justifyContent: 'space-between',
           gap: 1,
         }}
@@ -384,7 +411,15 @@ function PeepMiniUi({ registerTimeline }) {
         <Typography className="tempy-mono" sx={{ fontSize: 10.5, color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>
           ROLL CALL:
         </Typography>
-        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+        <Box
+          sx={{
+            width: { xs: '100%', sm: 'auto' },
+            display: { xs: 'grid', sm: 'flex' },
+            gridTemplateColumns: { xs: 'repeat(2, 1fr)' },
+            alignItems: 'center',
+            gap: { xs: 1, sm: 1.5 },
+          }}
+        >
           {rollCall.map((stat) => (
             <Stack key={stat.label} direction="row" spacing={0.5} alignItems="center">
               <Typography className="tempy-mono" sx={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
@@ -395,7 +430,7 @@ function PeepMiniUi({ registerTimeline }) {
               </Typography>
             </Stack>
           ))}
-        </Stack>
+        </Box>
       </Box>
     </Box>
   );

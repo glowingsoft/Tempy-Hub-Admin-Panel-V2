@@ -251,7 +251,17 @@ export function CounterRoll({ target, prefix = '', suffix = '', duration = 1600,
   const formattedCount = count >= 1000 ? count.toLocaleString() : count;
 
   return (
-    <Typography component="span" ref={elRef} className={`tempy-display ${className}`} sx={{ ...sx }}>
+    <Typography
+      component="span"
+      ref={elRef}
+      className={`tempy-display ${className}`}
+      sx={{
+        fontVariantNumeric: 'tabular-nums',
+        lineHeight: 1.15,
+        whiteSpace: 'nowrap',
+        ...sx,
+      }}
+    >
       {prefix}
       {formattedCount}
       <Box
