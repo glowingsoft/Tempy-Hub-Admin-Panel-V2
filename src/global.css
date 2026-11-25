@@ -88,23 +88,3 @@ input[type='number']::-webkit-inner-spin-button {
   margin: 0;
   -webkit-appearance: none;
 }
-
-/* Dashboard viewport scaling to match landing and auth pages at 100% browser zoom */
-html.dashboard-page-active {
-  --dashboard-viewport-scale: 0.8;
-  zoom: 0.8;
-}
-
-@media (max-width: 899.95px) {
-  html.dashboard-page-active {
-    --dashboard-viewport-scale: 1;
-    zoom: 1;
-  }
-}
-
-@media (min-width: 1600px) {
-  html.dashboard-page-active {
-    --dashboard-viewport-scale: 0.92;
-    zoom: 0.92;
-  }
-}
