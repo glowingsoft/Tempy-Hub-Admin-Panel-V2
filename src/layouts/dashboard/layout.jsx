@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 
 import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
@@ -42,6 +42,13 @@ export function DashboardLayout({ sx, children, data }) {
   const { user } = useSelector((state) => state.user);
 
   const settings = useSettingsContext();
+
+  useEffect(() => {
+    document.documentElement.classList.add('dashboard-page-active');
+    return () => {
+      document.documentElement.classList.remove('dashboard-page-active');
+    };
+  }, []);
 
   const navColorVars = useNavColorVars(theme, settings);
 

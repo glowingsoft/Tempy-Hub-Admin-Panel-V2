@@ -42,7 +42,7 @@ export const SignInSchema = zod.object({
 // ----------------------------------------------------------------------
 
 export function JwtSignInView({
-  forgotReturnPath = '/',
+  forgotReturnPath = paths.auth.jwt.signIn,
   title = 'Sign in to your account',
 }) {
   const router = useRouter();

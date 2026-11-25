@@ -108,7 +108,7 @@ const Admin = {
 function RedirectToRootLogin() {
   const [searchParams] = useSearchParams();
   const search = searchParams.toString();
-  return <Navigate to={search ? `/?${search}` : '/'} replace />;
+  return <Navigate to={search ? `/auth/login?${search}` : '/auth/login'} replace />;
 }
 
 const authAmplify = {
@@ -351,6 +351,64 @@ const authSupabase = {
 
 // ----------------------------------------------------------------------
 
+const authLogin = {
+  path: 'login',
+  element: (
+    <GuestGuard>
+      <AuthSplitLayout
+        section={{
+          title: 'Manager Portal',
+          subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+        }}
+      >
+        <Jwt.SignInPage />
+      </AuthSplitLayout>
+    </GuestGuard>
+  ),
+};
+
+const verifyEmailRoute = {
+  path: 'verify-email',
+  element: (
+    <AuthSplitLayout
+      section={{
+        title: 'Manager Portal',
+        subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+      }}
+    >
+      <Jwt.VerifyPage />
+    </AuthSplitLayout>
+  ),
+};
+
+const verifyPasswordRoute = {
+  path: 'verify-password',
+  element: (
+    <AuthSplitLayout
+      section={{
+        title: 'Manager Portal',
+        subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+      }}
+    >
+      <Jwt.UpdatePasswordPage />
+    </AuthSplitLayout>
+  ),
+};
+
+const resetPasswordRoute = {
+  path: 'reset-password',
+  element: (
+    <AuthSplitLayout
+      section={{
+        title: 'Manager Portal',
+        subtitle: 'Streamline care home operations, rotas, and staff attendance with real-time clarity.',
+      }}
+    >
+      <Jwt.ResetPasswordPage />
+    </AuthSplitLayout>
+  ),
+};
+
 export const authRoutes = [
   {
     path: 'auth',
@@ -361,7 +419,20 @@ export const authRoutes = [
         </Suspense>
       </GuestGuard>
     ),
-    children: [authJwt, authAmplify, authFirebase, authAuth0, authSupabase, authAdmin, authOwner, authStaff],
+    children: [
+      authLogin,
+      verifyEmailRoute,
+      verifyPasswordRoute,
+      resetPasswordRoute,
+      authJwt,
+      authAmplify,
+      authFirebase,
+      authAuth0,
+      authSupabase,
+      authAdmin,
+      authOwner,
+      authStaff,
+    ],
   },
   {
     path: '',
@@ -372,6 +443,18 @@ export const authRoutes = [
         </Suspense>
       </GuestGuard>
     ),
-    children: [authJwt, authAmplify, authFirebase, authAuth0, authSupabase, authAdmin, authOwner, authStaff],
+    children: [
+      verifyEmailRoute,
+      verifyPasswordRoute,
+      resetPasswordRoute,
+      authJwt,
+      authAmplify,
+      authFirebase,
+      authAuth0,
+      authSupabase,
+      authAdmin,
+      authOwner,
+      authStaff,
+    ],
   },
 ];

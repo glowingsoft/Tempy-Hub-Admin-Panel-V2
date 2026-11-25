@@ -16,7 +16,7 @@ export function Main({ sx, children, layoutQuery, ...other }) {
         display: 'flex',
         flex: '1 1 auto',
         width: 1,
-        minHeight: '100vh',
+        minHeight: 'calc(100vh / var(--auth-viewport-scale, 1))',
         flexDirection: 'column',
         [theme.breakpoints.up(layoutQuery)]: {
           flexDirection: 'row',
@@ -60,7 +60,7 @@ export function Content({ sx, children, layoutQuery, ...other }) {
         alignItems: 'center',
         flexDirection: 'column',
         justifyContent: 'center',
-        minHeight: '100vh',
+        minHeight: 'calc(100vh / var(--auth-viewport-scale, 1))',
         [theme.breakpoints.up(layoutQuery)]: {
           width: '50%',
           maxWidth: '50%',

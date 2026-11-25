@@ -35,7 +35,7 @@ export function Section({
           flex: '0 0 50%',
           width: '50%',
           maxWidth: '50%',
-          minHeight: '100vh',
+          minHeight: 'calc(100vh / var(--auth-viewport-scale, 1))',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',

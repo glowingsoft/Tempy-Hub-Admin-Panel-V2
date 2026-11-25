@@ -9,7 +9,7 @@ const RESEND_UNTIL_KEY = 'tempy-password-reset-resend-until';
 
 export const RESEND_COOLDOWN_SECONDS = 30;
 
-const ALLOWED_RETURN_PATHS = new Set(['/', paths.auth.jwt.signIn]);
+const ALLOWED_RETURN_PATHS = new Set(['/', '/auth/login', paths.auth.jwt.signIn]);
 
 function withQuery(path, params) {
   const searchParams = new URLSearchParams();
@@ -32,7 +32,7 @@ export function getPasswordResetEmail() {
   }
 }
 
-export function getPasswordResetReturnPath(fallback = '/') {
+export function getPasswordResetReturnPath(fallback = paths.auth.jwt.signIn) {
   try {
     const stored = window.sessionStorage.getItem(RETURN_KEY);
     if (stored && ALLOWED_RETURN_PATHS.has(stored)) {
@@ -42,7 +42,7 @@ export function getPasswordResetReturnPath(fallback = '/') {
     // Ignore storage access failures.
   }
 
-  return ALLOWED_RETURN_PATHS.has(fallback) ? fallback : '/';
+  return ALLOWED_RETURN_PATHS.has(fallback) ? fallback : paths.auth.jwt.signIn;
 }
 
 export function rememberPasswordResetReturnPath(returnPath) {
@@ -124,9 +124,9 @@ export function clearPasswordResetFlow() {
   }
 }
 
-export function getPasswordResetHref(returnPath = '/') {
+export function getPasswordResetHref(returnPath = paths.auth.jwt.signIn) {
   return withQuery(paths.auth.jwt.resetPassword, {
-    returnTo: ALLOWED_RETURN_PATHS.has(returnPath) ? returnPath : '/',
+    returnTo: ALLOWED_RETURN_PATHS.has(returnPath) ? returnPath : paths.auth.jwt.signIn,
   });
 }
 

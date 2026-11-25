@@ -61,7 +61,19 @@ export function AuthSplitLayout({ sx, section, hideSection=false, children }) {
       /** **************************************
        * Style
        *************************************** */
-      sx={sx}
+      sx={{
+        '--auth-viewport-scale': 1,
+        zoom: 1,
+        '@media (min-width: 900px)': {
+          '--auth-viewport-scale': 0.8,
+          zoom: 0.8,
+        },
+        '@media (min-width: 1600px)': {
+          '--auth-viewport-scale': 0.92,
+          zoom: 0.92,
+        },
+        ...sx,
+      }}
       cssVars={{
         '--layout-auth-content-width': '460px',
       }}
