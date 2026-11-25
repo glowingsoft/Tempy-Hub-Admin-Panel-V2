@@ -120,10 +120,10 @@ const PeepFloorPlanPage = lazy(() => import('src/pages/dashboard/active-routes/f
 const OrgRollupPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan'));
 const SiteDetailPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/site-detail.jsx'));
 const PeepAddPinPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/add-pin.jsx'));
-const PeepRecordsListPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/list.jsx'));
-const PeepRecordCreatePage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/new.jsx'));
-const PeepRecordDetailPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/detail.jsx'));
-const PeepRecordEditPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/edit.jsx'));
+// const PeepRecordsListPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/list.jsx'));
+// const PeepRecordCreatePage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/new.jsx'));
+// const PeepRecordDetailPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/detail.jsx'));
+// const PeepRecordEditPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/peep-records/edit.jsx'));
 const FloorPlanListPage = lazy(() => import('src/pages/site-manager/peep-and-floor-plan/floor-plans/list.jsx'));
 
 const ConfigurationPage = lazy(() => import('src/pages/dashboard/active-routes/configuration'));
@@ -275,12 +275,12 @@ export const siteManagerDashboardRoutes = [
           { path: 'site/:siteId', element: <SiteDetailPage /> },
           { path: 'site/:siteId/map', element: <PeepFloorPlanPage siteManagerDashboard /> },
           { path: 'site/:siteId/map/add-pin', element: <PeepAddPinPage /> },
-          { path: 'site/:siteId/peep-records', element: <PeepRecordsListPage /> },
+          // { path: 'site/:siteId/peep-records', element: <PeepRecordsListPage /> },
           { path: 'site/:siteId/floor-plans', element: <FloorPlanListPage /> },
-          { path: 'peep-records', element: <PeepRecordsListPage /> },
-          { path: 'peep-records/new', element: <PeepRecordCreatePage /> },
-          { path: 'peep-records/:id', element: <PeepRecordDetailPage /> },
-          { path: 'peep-records/:id/edit', element: <PeepRecordEditPage /> },
+          // { path: 'peep-records', element: <PeepRecordsListPage /> },
+          // { path: 'peep-records/new', element: <PeepRecordCreatePage /> },
+          // { path: 'peep-records/:id', element: <PeepRecordDetailPage /> },
+          // { path: 'peep-records/:id/edit', element: <PeepRecordEditPage /> },
           { path: 'floor-plans', element: <FloorPlanListPage /> },
         ],
       },

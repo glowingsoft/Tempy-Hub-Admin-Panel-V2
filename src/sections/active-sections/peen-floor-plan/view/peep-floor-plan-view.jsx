@@ -170,12 +170,7 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
     [visibleResidents]
   );
 
-  const handlePlanClick = async ({ x, y, togglePlacement }) => {
-    if (togglePlacement) {
-      placementMode.onToggle();
-      return;
-    }
-
+  const handlePlanClick = async ({ x, y }) => {
     if (!visibleFloorPlan || !placementMode.value || !selectedResidentId) return;
 
     if (floorPlanId) {
@@ -356,7 +351,13 @@ export function PeepFloorPlanView({ ownerDashboard = false, siteManagerDashboard
           placementMode={placementMode.value}
           selectedResidentId={selectedResidentId}
           onResidentChange={(option) => {
-            setSelectedResidentId(option?.value || '');
+            const nextResidentId = option?.value || '';
+            setSelectedResidentId(nextResidentId);
+            if (nextResidentId && canManagePeep && visibleFloorPlan) {
+              placementMode.onTrue();
+            } else {
+              placementMode.onFalse();
+            }
             if (floorPlanId && option?.resident) {
               setAdditionalApiResidentState((current) => {
                 const currentResidents =
@@ -478,7 +479,7 @@ function mapPeepRecord(record) {
     email: record?.email || resident.email || '',
     image: resident.avatar || resident.imageUrl || resident.image || record?.image || '',
     roomNumber: record?.roomNumber || resident.roomNumber || record?.room?.number || record?.room || '—',
-    peepLevel: record?.peepLevel || record?.level || 'low',
+    peepLevel: String(record?.peepLevel || record?.level || 'low').trim().toLowerCase(),
     peepSummary: record?.supportNeeds || record?.peepSummary || '',
   };
 }

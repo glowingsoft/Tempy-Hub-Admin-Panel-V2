@@ -42,42 +42,42 @@ export const peepFloorPlanApi = createApi({
       keepUnusedDataFor: 30,
     }),
 
-    createPeepRecord: builder.mutation({
-      query: ({ organizationId, ...body }) => ({
-        url: API_ROUTES.ORGANIZATION_PEEP_RECORDS(organizationId),
-        method: 'POST',
-        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
-        body,
-      }),
-      invalidatesTags: ['PeepRecords', 'PeepFloorSummary'],
-    }),
+    // createPeepRecord: builder.mutation({
+    //   query: ({ organizationId, ...body }) => ({
+    //     url: API_ROUTES.ORGANIZATION_PEEP_RECORDS(organizationId),
+    //     method: 'POST',
+    //     headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+    //     body,
+    //   }),
+    //   invalidatesTags: ['PeepRecords', 'PeepFloorSummary'],
+    // }),
 
-    getPeepRecordById: builder.query({
-      query: ({ peepRecordId, organizationId } = {}) => ({
-        url: API_ROUTES.PEEP_RECORD_BY_ID(peepRecordId),
-        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
-      }),
-      transformResponse: (res) => res?.data ?? res,
-      providesTags: (result, error, { peepRecordId }) => [{ type: 'PeepRecords', id: peepRecordId }],
-      keepUnusedDataFor: 30,
-    }),
+    // getPeepRecordById: builder.query({
+    //   query: ({ peepRecordId, organizationId } = {}) => ({
+    //     url: API_ROUTES.PEEP_RECORD_BY_ID(peepRecordId),
+    //     headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+    //   }),
+    //   transformResponse: (res) => res?.data ?? res,
+    //   providesTags: (result, error, { peepRecordId }) => [{ type: 'PeepRecords', id: peepRecordId }],
+    //   keepUnusedDataFor: 30,
+    // }),
 
-    updatePeepRecord: builder.mutation({
-      query: ({ peepRecordId, organizationId, ...body }) => ({
-        url: API_ROUTES.PEEP_RECORD_BY_ID(peepRecordId),
-        method: 'PATCH',
-        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
-        body,
-      }),
-      invalidatesTags: ['PeepRecords', 'PeepFloorSummary'],
-    }),
+    // updatePeepRecord: builder.mutation({
+    //   query: ({ peepRecordId, organizationId, ...body }) => ({
+    //     url: API_ROUTES.PEEP_RECORD_BY_ID(peepRecordId),
+    //     method: 'PATCH',
+    //     headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+    //     body,
+    //   }),
+    //   invalidatesTags: ['PeepRecords', 'PeepFloorSummary'],
+    // }),
   }),
 });
 
 export const {
   useGetPeepFloorSummaryQuery,
   useGetPeepRecordsQuery,
-  useGetPeepRecordByIdQuery,
-  useCreatePeepRecordMutation,
-  useUpdatePeepRecordMutation,
+  // useGetPeepRecordByIdQuery,
+  // useCreatePeepRecordMutation,
+  // useUpdatePeepRecordMutation,
 } = peepFloorPlanApi;

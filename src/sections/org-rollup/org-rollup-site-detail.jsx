@@ -187,7 +187,7 @@ export function OrgRollupSiteDetail({
           color="primary"
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
         >
-          All sites
+          Back
         </Button>
       </Box>
 
@@ -205,7 +205,7 @@ export function OrgRollupSiteDetail({
         ]}
         action={
           <Stack direction={{ md: 'row', xs: 'column' }} spacing={1.5}>
-            <Button
+            {/* <Button
               component={RouterLink}
               href={base.peepAndFloorPlans.records.bySite(site._id || currentSiteId)}
               variant="outlined"
@@ -213,7 +213,7 @@ export function OrgRollupSiteDetail({
               startIcon={<Iconify icon="solar:users-group-rounded-bold" />}
             >
               View PEEP Records
-            </Button>
+            </Button> */}
             <Button
               component={RouterLink}
               href={base.peepAndFloorPlans.floorPlans.bySite(site._id || currentSiteId)}

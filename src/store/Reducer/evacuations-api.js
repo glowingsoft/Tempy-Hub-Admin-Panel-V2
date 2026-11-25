@@ -130,6 +130,51 @@ export const evacuationsApi = createApi({
       }),
       invalidatesTags: ['Evacuation', 'ActiveEvacuation', 'OnSiteSummary', 'EvacuationCheck'],
     }),
+
+    getMyActiveEvacuation: builder.query({
+      query: ({ organizationId, branchId } = {}) => ({
+        url: API_ROUTES.MY_EVACUATION_ACTIVE,
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        params: branchId ? { branchId } : undefined,
+      }),
+      transformResponse: (res) => res?.data ?? res,
+      providesTags: ['ActiveEvacuation'],
+      keepUnusedDataFor: 15,
+    }),
+
+    getMyEvacuationDrills: builder.query({
+      query: ({ organizationId, page = 1, limit = 10, status, search } = {}) => ({
+        url: API_ROUTES.MY_EVACUATION_DRILLS,
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        params: {
+          page,
+          limit,
+          ...(status && status !== 'all' ? { status } : {}),
+          ...(search ? { search } : {}),
+        },
+      }),
+      transformResponse: (res) => ({
+        data: res?.data ?? [],
+        meta: res?.meta ?? res?.pagination ?? {},
+      }),
+      providesTags: ['Evacuation'],
+      keepUnusedDataFor: 30,
+    }),
+
+    checkInMyEvacuation: builder.mutation({
+      query: ({ organizationId, branchId, status, locationLabel, clientEventId }) => ({
+        url: API_ROUTES.MY_EVACUATION_CHECK,
+        method: 'POST',
+        headers: organizationId ? { 'x-org-id': organizationId } : undefined,
+        body: {
+          branchId,
+          status,
+          ...(locationLabel ? { locationLabel } : {}),
+          ...(clientEventId ? { clientEventId } : {}),
+        },
+      }),
+      invalidatesTags: ['Evacuation', 'ActiveEvacuation', 'EvacuationCheck'],
+    }),
   }),
 });
 
@@ -142,5 +187,8 @@ export const {
   useGetEvacuationChecksQuery,
   useUpsertEvacuationCheckMutation,
   useCloseEvacuationMutation,
+  useGetMyActiveEvacuationQuery,
+  useGetMyEvacuationDrillsQuery,
+  useCheckInMyEvacuationMutation,
 } = evacuationsApi;
 export default evacuationsApi;

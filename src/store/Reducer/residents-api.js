@@ -13,9 +13,12 @@ import { createCustomFetchBaseQuery } from '../baseQuery';
 //     "branchId": "string",
 //     "email": "james.taylor@example.com",
 //     "phone": "+447700900001",
+//     "photoUrl": "",
 //     "careLevel": "low" | "medium" | "high",
 //     "admissionStatus": "admitted" | "pending" | "discharged",
-//     "visitorPasscode": "PASS-1098"
+//     "visitorPasscode": "48213",
+//     "photographyConsent": true,
+//     "peep": { "peepLevel": "high", "supportNeeds": "...", "primaryRoute": "...", ... }
 //   }
 //   response: { "message": "string", "data": Resident }
 //

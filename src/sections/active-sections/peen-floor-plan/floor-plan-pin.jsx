@@ -14,6 +14,7 @@ const PIN_COLORS = {
 export function FloorPlanPin({
   pin,
   resident,
+  isSelected = false,
   canDrag = false,
   onDragMove,
   onDragEnd,
@@ -24,7 +25,8 @@ export function FloorPlanPin({
   const dragStateRef = useRef(null);
   const lastWasMovedRef = useRef(false);
 
-  const color = PIN_COLORS[resident.peepLevel] || 'grey.500';
+  const normalizedPeepLevel = String(resident?.peepLevel || '').trim().toLowerCase();
+  const color = PIN_COLORS[normalizedPeepLevel] || 'grey.500';
 
   const handlePointerDown = (event) => {
     if (!canDrag || event.button !== 0) return;
@@ -135,14 +137,20 @@ export function FloorPlanPin({
           top: `${pin.y * 100}%`,
           transform: isDragging
             ? 'translate(-50%, -100%) scale(1.2)'
+            : isSelected
+            ? 'translate(-50%, -100%) scale(1.15)'
             : 'translate(-50%, -100%)',
-          zIndex: isDragging ? 25 : 5,
+          zIndex: isDragging ? 25 : isSelected ? 15 : 5,
           cursor: canDrag ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
           color,
           touchAction: 'none',
           userSelect: 'none',
-          filter: isDragging ? 'drop-shadow(0 6px 12px rgba(0,0,0,0.35))' : undefined,
-          transition: isDragging ? 'none' : 'transform 0.15s ease',
+          filter: isDragging
+            ? 'drop-shadow(0 6px 12px rgba(0,0,0,0.35))'
+            : isSelected
+            ? 'drop-shadow(0 0 10px currentColor)'
+            : undefined,
+          transition: isDragging ? 'none' : 'transform 0.15s ease, filter 0.2s ease',
           '&:hover': {
             transform: isDragging
               ? 'translate(-50%, -100%) scale(1.2)'
@@ -150,6 +158,33 @@ export function FloorPlanPin({
           },
         }}
       >
+        {isSelected && !isDragging && (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: '50%',
+              top: '38%',
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              border: '2px solid currentColor',
+              pointerEvents: 'none',
+              transform: 'translate(-50%, -50%)',
+              animation: 'selectedPinPulse 1.6s infinite ease-out',
+              '@keyframes selectedPinPulse': {
+                '0%': {
+                  transform: 'translate(-50%, -50%) scale(0.85)',
+                  opacity: 0.9,
+                },
+                '100%': {
+                  transform: 'translate(-50%, -50%) scale(1.85)',
+                  opacity: 0,
+                },
+              },
+            }}
+          />
+        )}
+
         <Iconify
           icon="solar:map-point-bold"
           width={38}

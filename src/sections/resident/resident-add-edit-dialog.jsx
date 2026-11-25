@@ -18,11 +18,9 @@ import { Field, Form } from 'src/components/hook-form';
 import { toast } from 'src/components/snackbar';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useCreateResidentMutation, useUpdateResidentMutation } from 'src/store/Reducer/residents-api';
+import { PEEP_LEVELS } from 'src/sections/active-sections/peen-floor-plan/mocks/data';
 
-import {
-    RESIDENT_ADMISSION_STATUS_OPTIONS,
-    RESIDENT_CARE_LEVEL_OPTIONS,
-} from './mocks/data';
+import { RESIDENT_ADMISSION_STATUS_OPTIONS } from './mocks/data';
 
 // ----------------------------------------------------------------------
 
@@ -61,7 +59,7 @@ const getResidentSchema = (isEdit, ownerDashboard = true) =>
                 }
             ),
         roomNumber: zod.string().trim().min(1, { message: 'Room number is required' }),
-        careLevel: zod.string().min(1, { message: 'Care level is required' }),
+        careLevel: zod.string().min(1, { message: 'PEEP level is required' }),
         branchId: isEdit || !ownerDashboard
             ? zod.any().optional()
             : lookupOptionSchema.nullable().refine((value) => Boolean(value?.value), {
@@ -77,6 +75,11 @@ const getResidentSchema = (isEdit, ownerDashboard = true) =>
                 .min(4, { message: 'Passcode must be at least 4 digits' })
                 .max(32, { message: 'Passcode cannot exceed 32 digits' }),
         admissionStatus: zod.string().min(1, { message: 'Admission status is required' }),
+        supportNeeds: zod.string().optional().or(zod.literal('')),
+        primaryRoute: zod.string().optional().or(zod.literal('')),
+        secondaryRoute: zod.string().optional().or(zod.literal('')),
+        equipmentRequired: zod.string().optional().or(zod.literal('')),
+        responsibleStaff: zod.string().optional().or(zod.literal('')),
     });
 
 const mapLookupOption = (item) => ({
@@ -156,6 +159,11 @@ export function ResidentAddEditDialog({
             admissionStatus:
                 currentResident?.admissionStatus ||
                 (currentResident?.status === 'inactive' ? 'discharged' : 'admitted'),
+            supportNeeds: '',
+            primaryRoute: '',
+            secondaryRoute: '',
+            equipmentRequired: '',
+            responsibleStaff: '',
         }),
         [currentResident, defaultBranchId, defaultBranchName, ownerDashboard]
     );
@@ -207,14 +215,24 @@ export function ResidentAddEditDialog({
 
             const result = await createResident({
                 organizationId,
+                branchId:
+                    data.branchId?.value ||
+                    (typeof data.branchId === 'string' ? data.branchId : defaultBranchId),
                 name: data.name.trim(),
-                roomNumber: data.roomNumber.trim(),
-                branchId: data.branchId?.value || (typeof data.branchId === 'string' ? data.branchId : defaultBranchId),
                 email: data.email.trim().toLowerCase(),
                 phone: (data.phone || '').trim(),
+                roomNumber: data.roomNumber.trim(),
                 careLevel: data.careLevel,
                 admissionStatus: data.admissionStatus || 'admitted',
                 visitorPasscode: data.visitorPasscode.trim(),
+                peep: {
+                    peepLevel: data.careLevel,
+                    supportNeeds: (data.supportNeeds || '').trim(),
+                    primaryRoute: (data.primaryRoute || '').trim(),
+                    secondaryRoute: (data.secondaryRoute || '').trim(),
+                    equipmentRequired: (data.equipmentRequired || '').trim(),
+                    responsibleStaff: (data.responsibleStaff || '').trim(),
+                },
             }).unwrap();
 
             toast.success('Resident created successfully!');
@@ -228,7 +246,7 @@ export function ResidentAddEditDialog({
     });
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
             <Form methods={methods} onSubmit={onSubmit}>
                 <DialogTitle>
                     {isEdit
@@ -312,10 +330,10 @@ export function ResidentAddEditDialog({
                         )}
 
                         <Grid xs={12} sm={6}>
-                            <Field.Select name="careLevel" label="Care Level">
-                                {RESIDENT_CARE_LEVEL_OPTIONS.map((option) => (
-                                    <MenuItem key={option.value} value={option.value}>
-                                        {option.label}
+                            <Field.Select name="careLevel" label="PEEP Level">
+                                {Object.entries(PEEP_LEVELS).map(([value, level]) => (
+                                    <MenuItem key={value} value={value}>
+                                        {level.label} - {level.description}
                                     </MenuItem>
                                 ))}
                             </Field.Select>
@@ -332,36 +350,83 @@ export function ResidentAddEditDialog({
                         </Grid>
 
                         {!isEdit && (
-                            <Grid xs={12}>
-                                <Field.Text
-                                    name="visitorPasscode"
-                                    label="Visitor Passcode / Security PIN"
-                                    placeholder={randomPlaceholder}
-                                    helperText="Numbers only (4–32 digits). Required for visitor verification"
-                                    inputProps={{
-                                        inputMode: 'numeric',
-                                        pattern: '[0-9]*',
-                                        maxLength: 32,
-                                        autoComplete: 'off',
-                                    }}
-                                    onChange={(event) => {
-                                        methods.setValue('visitorPasscode', digitsOnly(event.target.value), {
-                                            shouldDirty: true,
-                                            shouldValidate: true,
-                                        });
-                                    }}
-                                    onKeyDown={(event) => {
-                                        if (
-                                            event.key.length === 1 &&
-                                            !/[0-9]/.test(event.key) &&
-                                            !event.ctrlKey &&
-                                            !event.metaKey
-                                        ) {
-                                            event.preventDefault();
-                                        }
-                                    }}
-                                />
-                            </Grid>
+                            <>
+                                <Grid xs={12}>
+                                    <Field.Text
+                                        name="visitorPasscode"
+                                        label="Visitor Passcode / Security PIN"
+                                        placeholder={randomPlaceholder}
+                                        helperText="Numbers only (4–32 digits). Required for visitor verification"
+                                        inputProps={{
+                                            inputMode: 'numeric',
+                                            pattern: '[0-9]*',
+                                            maxLength: 32,
+                                            autoComplete: 'off',
+                                        }}
+                                        onChange={(event) => {
+                                            methods.setValue('visitorPasscode', digitsOnly(event.target.value), {
+                                                shouldDirty: true,
+                                                shouldValidate: true,
+                                            });
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (
+                                                event.key.length === 1 &&
+                                                !/[0-9]/.test(event.key) &&
+                                                !event.ctrlKey &&
+                                                !event.metaKey
+                                            ) {
+                                                event.preventDefault();
+                                            }
+                                        }}
+                                    />
+                                </Grid>
+
+                                <Grid xs={12}>
+                                    <Field.Text
+                                        name="supportNeeds"
+                                        label="Support needs"
+                                        multiline
+                                        rows={3}
+                                    />
+                                </Grid>
+
+                                <Grid xs={12} sm={6}>
+                                    <Field.Text
+                                        name="primaryRoute"
+                                        label="Primary route"
+                                        multiline
+                                        rows={3}
+                                    />
+                                </Grid>
+
+                                <Grid xs={12} sm={6}>
+                                    <Field.Text
+                                        name="secondaryRoute"
+                                        label="Secondary route"
+                                        multiline
+                                        rows={3}
+                                    />
+                                </Grid>
+
+                                <Grid xs={12} sm={6}>
+                                    <Field.Text
+                                        name="equipmentRequired"
+                                        label="Equipment required"
+                                        multiline
+                                        rows={3}
+                                    />
+                                </Grid>
+
+                                <Grid xs={12} sm={6}>
+                                    <Field.Text
+                                        name="responsibleStaff"
+                                        label="Responsible staff"
+                                        multiline
+                                        rows={3}
+                                    />
+                                </Grid>
+                            </>
                         )}
                     </Grid>
                 </DialogContent>

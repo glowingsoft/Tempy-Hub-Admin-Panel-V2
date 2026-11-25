@@ -330,13 +330,13 @@ export const paths = {
       site: (siteId) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/site/${siteId}`,
       map: (siteId) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/site/${siteId}/map`,
       addPin: (siteId) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/site/${siteId}/map/add-pin`,
-      records: {
-        root: `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records`,
-        bySite: (siteId) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/site/${siteId}/peep-records`,
-        new: `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/new`,
-        detail: (id) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/${id}`,
-        edit: (id) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/${id}/edit`,
-      },
+      // records: {
+      //   root: `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records`,
+      //   bySite: (siteId) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/site/${siteId}/peep-records`,
+      //   new: `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/new`,
+      //   detail: (id) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/${id}`,
+      //   edit: (id) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/peep-records/${id}/edit`,
+      // },
       floorPlans: {
         root: `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/floor-plans`,
         bySite: (siteId) => `${ROOTS.SITE_MANAGER}/peep-and-Floor-plan/site/${siteId}/floor-plans`,
@@ -641,13 +641,13 @@ export const paths = {
       site: (siteId) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/site/${siteId}`,
       map: (siteId) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/site/${siteId}/map`,
       addPin: (siteId) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/site/${siteId}/map/add-pin`,
-      records: {
-        root: `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records`,
-        bySite: (siteId) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/site/${siteId}/peep-records`,
-        new: `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/new`,
-        detail: (id) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/${id}`,
-        edit: (id) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/${id}/edit`,
-      },
+      // records: {
+      //   root: `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records`,
+      //   bySite: (siteId) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/site/${siteId}/peep-records`,
+      //   new: `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/new`,
+      //   detail: (id) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/${id}`,
+      //   edit: (id) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/peep-records/${id}/edit`,
+      // },
       floorPlans: {
         root: `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/floor-plans`,
         bySite: (siteId) => `${ROOTS.OWNER_DASHBOARD}/peep-and-floor-plan/site/${siteId}/floor-plans`,
@@ -751,6 +751,7 @@ export const paths = {
     appraisalDetail: (id) => `${ROOTS.STAFF}/appraisals/${id}`,
     training: `${ROOTS.STAFF}/training`,
     leaveRequests: `${ROOTS.STAFF}/leave-requests`,
+    fireDrills: `${ROOTS.STAFF}/fire-drills`,
     announcements: `${ROOTS.STAFF}/announcements`,
     announcementDetail: (id) => `${ROOTS.STAFF}/announcements/${id}`,
     documents: {

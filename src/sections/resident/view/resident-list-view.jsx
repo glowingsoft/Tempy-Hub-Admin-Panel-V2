@@ -48,7 +48,7 @@ const TABLE_HEAD = [
     { id: 'resident', label: 'Resident', minWidth: 220 },
     { id: 'branch', label: 'Site', minWidth: 150 },
     { id: 'room', label: 'Room', width: 90 },
-    { id: 'careLevel', label: 'Care Level', width: 120, align: 'center' },
+    { id: 'careLevel', label: 'PEEP Level', width: 120, align: 'center' },
     { id: 'securityPassword', label: 'Security Password', minWidth: 190, align: 'center' },
     { id: 'status', label: 'Status', width: 110, align: 'center' },
     { id: 'actions', label: 'Actions', width: 90, align: 'center' },

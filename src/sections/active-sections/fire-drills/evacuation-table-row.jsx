@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import Box from '@mui/material/Box';
 import TableCell from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
 
 import { fDateTime } from 'src/utils/format-time';
 import { Label } from 'src/components/label';
@@ -35,11 +36,25 @@ function durationLabel(startedAt, closedAt) {
  * 8. Status
  * 9. Action (GenericTableRowActions)
  */
-export default function EvacuationTableRow({ row, serialNumber, onOpen }) {
+export default function EvacuationTableRow({
+  row,
+  serialNumber,
+  onOpen,
+  staffDashboard = false,
+}) {
   const typeMeta = getEvacuationTypeMeta(row.type);
   const stats = row.stats || {};
   const isActive = row.status === 'active';
   const branchName = row.branch?.name || row.branchName || row.branch || '—';
+
+  const checkStatusMeta =
+    row.checkStatus === 'safe'
+      ? { label: 'Safe', color: 'success' }
+      : row.checkStatus === 'offSite'
+      ? { label: 'Off-site', color: 'warning' }
+      : row.attended
+      ? { label: row.checkStatus || 'Attended', color: 'info' }
+      : { label: 'Not marked', color: 'default' };
 
   const actions = [
     {
@@ -52,7 +67,12 @@ export default function EvacuationTableRow({ row, serialNumber, onOpen }) {
   ];
 
   return (
-    <TableRow hover tabIndex={-1} sx={{ cursor: 'pointer' }} onClick={() => onOpen?.(row)}>
+    <TableRow
+      hover
+      tabIndex={-1}
+      sx={{ cursor: staffDashboard ? 'default' : 'pointer' }}
+      onClick={staffDashboard ? undefined : () => onOpen?.(row)}
+    >
       {/* 1. Sr# */}
       <TableCell sx={{ width: 50 }}>{serialNumber}</TableCell>
 
@@ -68,25 +88,46 @@ export default function EvacuationTableRow({ row, serialNumber, onOpen }) {
         </Label>
       </TableCell>
 
-      {/* 4. Started at */}
+      {/* 4. Location (staff) or Started at (admin) */}
+      {staffDashboard && (
+        <TableCell sx={{ width: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {row.locationLabel || '—'}
+        </TableCell>
+      )}
+
+      {/* Started at */}
       <TableCell sx={{ width: 175, minWidth: 175, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {fDateTime(row.startedAt)}
       </TableCell>
 
-      {/* 5. Started by */}
-      <TableCell sx={{ width: 175, minWidth: 175, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {row.startedByName && !/^[0-9a-fA-F]{24}$/.test(row.startedByName) ? row.startedByName : '—'}
-      </TableCell>
+      {/* Started by (admin) & Safe / total (admin) */}
+      {!staffDashboard && (
+        <>
+          <TableCell sx={{ width: 175, minWidth: 175, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {row.startedByName && !/^[0-9a-fA-F]{24}$/.test(row.startedByName) ? row.startedByName : '—'}
+          </TableCell>
 
-      {/* 6. Safe / total */}
-      <TableCell align="center">
-        {stats.safe ?? 0} / {stats.total ?? 0}
-      </TableCell>
+          <TableCell align="center">
+            {stats.safe ?? 0} / {stats.total ?? 0}
+          </TableCell>
+        </>
+      )}
 
-      {/* 7. Duration */}
-      <TableCell align="center">
+      {/* Duration */}
+      <TableCell align="center" sx={{ whiteSpace: 'nowrap' }}>
         {durationLabel(row.startedAt, row.closedAt)}
       </TableCell>
+
+      {/* My Check-in (staff) */}
+      {staffDashboard && (
+        <TableCell align="center">
+          <Tooltip title={row.markedAt ? `Marked at ${fDateTime(row.markedAt)}` : 'Not checked in yet'} arrow>
+            <Label variant="soft" color={checkStatusMeta.color}>
+              {checkStatusMeta.label}
+            </Label>
+          </Tooltip>
+        </TableCell>
+      )}
 
       {/* 8. Status */}
       <TableCell align="center">
@@ -95,12 +136,14 @@ export default function EvacuationTableRow({ row, serialNumber, onOpen }) {
         </Label>
       </TableCell>
 
-      {/* 9. Action */}
-      <TableCell align="center" onClick={(event) => event.stopPropagation()}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <GenericTableRowActions actions={actions} />
-        </Box>
-      </TableCell>
+      {/* 9. Action (admin only) */}
+      {!staffDashboard && (
+        <TableCell align="center" onClick={(event) => event.stopPropagation()}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <GenericTableRowActions actions={actions} />
+          </Box>
+        </TableCell>
+      )}
     </TableRow>
   );
 }
@@ -109,4 +152,5 @@ EvacuationTableRow.propTypes = {
   row: PropTypes.object,
   serialNumber: PropTypes.number,
   onOpen: PropTypes.func,
+  staffDashboard: PropTypes.bool,
 };

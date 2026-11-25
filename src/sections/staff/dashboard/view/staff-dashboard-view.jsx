@@ -1,4 +1,4 @@
-import dayjs from 'dayjs';
+// import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 
@@ -25,12 +25,12 @@ import {
     isStaffModuleActive,
     staffEvacuation,
     staffMember,
-    staffSite,
-    staffTodayShift,
+    // staffSite,
+    // staffTodayShift,
 } from '../../mocks/data';
 import { useStaffClock } from '../../use-staff-clock';
-import { fDurationFromMinutes, getBreakEntitlementMinutes, getWorkedMinutes } from '../../utils';
-import { StaffAttendanceBar } from '../components/staff-attendance-bar';
+import { /* fDurationFromMinutes, getBreakEntitlementMinutes, */ getWorkedMinutes } from '../../utils';
+// import { StaffAttendanceBar } from '../components/staff-attendance-bar';
 import { StaffEmergencyAlertBanner } from '../components/staff-emergency-alert-banner';
 import { StaffQuickActions } from '../components/staff-quick-actions';
 import { StaffShiftCalendarStrip } from '../components/staff-shift-calendar-strip';
@@ -43,7 +43,7 @@ export function StaffDashboardView() {
     const { user } = useSelector((state) => state.user);
     const searchParams = useSearchParams();
     const { organizationId } = useCurrentOrganization();
-    const { clock, clockIn, clockOut, startBreak, endBreak } = useStaffClock();
+    const { clock /* , clockIn, clockOut, startBreak, endBreak */ } = useStaffClock();
     const safeAtAssembly = useBoolean(false);
     const [nowTs, setNowTs] = useState(() => Date.now());
 
@@ -61,7 +61,7 @@ export function StaffDashboardView() {
     }, []);
 
     const firstName = (user?.basicInfo?.name || staffMember.name).split(' ')[0];
-    const checkInActive = isStaffDashboardWidgetVisible('checkIn');
+    // const checkInActive = isStaffDashboardWidgetVisible('checkIn');
     const pendingLeaveVisible = isStaffDashboardWidgetVisible('pendingLeave');
     const shiftBiddingActive = isStaffModuleActive('shiftBidding');
     const evacuationActive =
@@ -72,16 +72,16 @@ export function StaffDashboardView() {
     const liveMinutes = isClockedIn ? getWorkedMinutes(clock, nowTs) : 0;
     const onSiteToday = formatOnSiteToday(summary.onSiteTodayMinutes, liveMinutes, isClockedIn);
 
-    const canBreak = !!staffSite.settings?.enableBreaks;
-    const todayShiftHours = dayjs(staffTodayShift.endsAt).diff(dayjs(staffTodayShift.startsAt), 'hour', true);
-    const breakEntitlementMinutes = canBreak
-        ? getBreakEntitlementMinutes(todayShiftHours, staffSite.settings?.breakRules)
-        : 0;
-    const breakNote = staffSite.settings?.breaksPaid
-        ? 'Breaks are paid.'
-        : breakEntitlementMinutes
-            ? `${fDurationFromMinutes(breakEntitlementMinutes)} unpaid break today.`
-            : null;
+    // const canBreak = !!staffSite.settings?.enableBreaks;
+    // const todayShiftHours = dayjs(staffTodayShift.endsAt).diff(dayjs(staffTodayShift.startsAt), 'hour', true);
+    // const breakEntitlementMinutes = canBreak
+    //     ? getBreakEntitlementMinutes(todayShiftHours, staffSite.settings?.breakRules)
+    //     : 0;
+    // const breakNote = staffSite.settings?.breaksPaid
+    //     ? 'Breaks are paid.'
+    //     : breakEntitlementMinutes
+    //         ? `${fDurationFromMinutes(breakEntitlementMinutes)} unpaid break today.`
+    //         : null;
 
     const hoursSubheader = dashboard.weeklyHours.targetHours === '—'
         ? `Worked vs target · ${dashboard.weeklyHours.workedHours}h so far`
@@ -100,7 +100,7 @@ export function StaffDashboardView() {
             </Typography>
 
             <Grid container spacing={3}>
-                {checkInActive ? (
+                {/* {checkInActive ? (
                     <Grid xs={12}>
                         {loading ? (
                             <DashboardWidgetSkeleton
@@ -120,7 +120,7 @@ export function StaffDashboardView() {
                             />
                         )}
                     </Grid>
-                ) : null}
+                ) : null} */}
                 <Grid xs={12} sm={6} md={3}>
                     <CourseWidgetSummary title="On-site today" total={onSiteToday} color="primary" icon={icon('ic-clock')} loading={loading} sx={{ width: 1 }} />
                 </Grid>

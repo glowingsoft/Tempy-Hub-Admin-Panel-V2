@@ -5,7 +5,6 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 
 import { Iconify } from 'src/components/iconify';
@@ -16,6 +15,9 @@ import { useGetPeepRecordsQuery } from 'src/store/Reducer/peep-floor-plan-api';
 import { convertPdfToImage } from 'src/utils/pdf-to-image';
 
 import { FloorPlanPin } from './floor-plan-pin';
+
+const isPlaceholderImageUrl = (url) =>
+  typeof url === 'string' && /no[-_ ]?image|placeholder/i.test(url);
 
 export function FloorPlanViewer({
   floorPlan,
@@ -82,7 +84,6 @@ export function FloorPlanViewer({
     );
   }, [pins, draggingPin]);
   const selectedResident = residentsById?.[selectedResidentId];
-  const isUpdatingPin = pins.some((pin) => pin.residentId === selectedResidentId);
   const selectedPin = pins.find(
     (pin) => pin.residentId === selectedResidentId && pin.apiPinId
   );
@@ -104,8 +105,14 @@ export function FloorPlanViewer({
     setNaturalAspectRatio(null);
   }, [floorPlan?.imageUrl]);
 
+  const hasValidImage = Boolean(
+    floorPlan?.imageUrl && !imgError && !isPlaceholderImageUrl(floorPlan.imageUrl)
+  );
+  const hasPdf = Boolean(floorPlan?.url || floorPlan?.file);
+  const hasPreviewMedia = Boolean(floorPlan && (hasValidImage || hasPdf));
+
   const handleClick = (event) => {
-    if (!placementMode) return;
+    if (!placementMode || !hasPreviewMedia || pinPlacementDisabled || pinPlacementBusy) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
 
@@ -141,7 +148,8 @@ export function FloorPlanViewer({
           queryArgs={{ organizationId, branchId }}
           mapOption={mapResidentRecordOption}
           extraOptions={residentOptions}
-          enabled={Boolean(floorPlanId && organizationId && branchId)}
+          enabled={Boolean(hasPreviewMedia && floorPlanId && organizationId && branchId)}
+          disabled={!hasPreviewMedia || pinPlacementDisabled}
           limit={100}
           label="Room / resident"
           placeholder="Select a resident"
@@ -157,130 +165,41 @@ export function FloorPlanViewer({
           }}
         />
 
-        {selectedResident && (
-          <Label
-            variant="soft"
-            color={
-              selectedResident.peepLevel === 'high'
-                ? 'error'
-                : selectedResident.peepLevel === 'medium'
-                ? 'warning'
-                : 'success'
-            }
-            sx={{
-              textTransform: 'capitalize',
-              fontWeight: 700,
-              height: 32,
-              px: 1.5,
-              fontSize: 12,
-              borderRadius: 1,
-            }}
-          >
-            PEEP: {selectedResident.peepLevel}
-          </Label>
-        )}
+        {selectedResident && (() => {
+          const normalizedPeepLevel = String(selectedResident.peepLevel || '').trim().toLowerCase();
+          const peepColor =
+            normalizedPeepLevel === 'high'
+              ? 'error'
+              : normalizedPeepLevel === 'medium'
+              ? 'warning'
+              : 'success';
 
-        <Tooltip
-          title={
-            pinPlacementBusy
-              ? 'Saving pin...'
-              : pinPlacementDisabled
-              ? 'Pin placement is unavailable for this floor plan'
-              : !floorPlan
-              ? 'Upload a floor plan PDF first'
-              : !selectedResidentId
-              ? 'Select a resident from the dropdown first to place their pin'
-              : placementMode
-              ? `Click the plan to ${isUpdatingPin ? 'update' : 'place'} this resident's pin (or click here to cancel)`
-              : `Click to ${isUpdatingPin ? 'update' : 'place'} a pin for Room ${selectedResident?.roomNumber} (${selectedResident?.name})`
-          }
-          arrow
-        >
-          <Button
-            size="small"
-            variant="contained"
-            disabled={pinPlacementDisabled || pinPlacementBusy}
-            startIcon={pinPlacementBusy ? (
-              <CircularProgress size={16} color="inherit" />
-            ) : (
-              <Iconify
-                icon={placementMode ? 'solar:cursor-bold' : 'solar:map-point-wave-bold'}
-                sx={{
-                  width: 19,
-                  height: 19,
-                  filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.3))',
-                }}
-              />
-            )}
-            onClick={() => {
-              if (!floorPlan) {
-                toast.info('Please upload a floor plan PDF first.');
-                return;
-              }
-              if (!selectedResidentId) {
-                toast.info('Please select a resident from the dropdown first to place their pin.');
-                return;
-              }
-              onPlanClick({ togglePlacement: true });
-            }}
-            sx={{
-              height: 40,
-              fontWeight: 700,
-              fontSize: 13.5,
-              textTransform: 'none',
-              px: 2.5,
-              borderRadius: 1.25,
-              color: '#ffffff',
-              letterSpacing: '0.2px',
-              transition: 'all 0.2s ease-in-out',
-              cursor: 'pointer',
-              ...(placementMode
-                ? {
-                    bgcolor: '#0284C7',
-                    boxShadow: '0 0 0 4px rgba(14, 165, 233, 0.35), 0 4px 14px rgba(14, 165, 233, 0.4)',
-                    animation: 'pulsePlacePin 1.6s infinite ease-in-out',
-                    '&:hover': {
-                      bgcolor: '#0369A1',
-                      boxShadow: '0 0 0 5px rgba(14, 165, 233, 0.45), 0 6px 18px rgba(14, 165, 233, 0.5)',
-                    },
-                  }
-                : {
-                    bgcolor: '#0EA5E9',
-                    boxShadow: '0 2px 8px 0 rgba(14, 165, 233, 0.35)',
-                    '&:hover': {
-                      bgcolor: '#0284C7',
-                      boxShadow: '0 4px 14px 0 rgba(14, 165, 233, 0.45)',
-                      transform: 'translateY(-1px)',
-                    },
-                    '&:active': {
-                      transform: 'translateY(0)',
-                    },
-                  }),
-              '@keyframes pulsePlacePin': {
-                '0%': {
-                  boxShadow: '0 0 0 0 rgba(14, 165, 233, 0.6), 0 2px 8px rgba(14, 165, 233, 0.35)',
-                  transform: 'scale(1)',
-                },
-                '50%': {
-                  boxShadow: '0 0 0 8px rgba(14, 165, 233, 0), 0 4px 14px rgba(14, 165, 233, 0.45)',
-                  transform: 'scale(1.02)',
-                },
-                '100%': {
-                  boxShadow: '0 0 0 0 rgba(14, 165, 233, 0), 0 2px 8px rgba(14, 165, 233, 0.35)',
-                  transform: 'scale(1)',
-                },
-              },
-            }}
-          >
-            {pinPlacementBusy
-              ? 'Saving pin...'
-              : placementMode
-              ? `Click plan to ${isUpdatingPin ? 'update' : 'place'}`
-              : isUpdatingPin
-                ? 'Update pin'
-                : 'Place pin'}
-          </Button>
-        </Tooltip>
+          return (
+            <Label
+              variant="soft"
+              color={peepColor}
+              sx={{
+                textTransform: 'capitalize',
+                fontWeight: 700,
+                height: 32,
+                px: 1.5,
+                fontSize: 12,
+                borderRadius: 1,
+              }}
+            >
+              PEEP: {normalizedPeepLevel || 'low'}
+            </Label>
+          );
+        })()}
+
+        {pinPlacementBusy && (
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ color: 'info.main' }}>
+            <CircularProgress size={16} color="inherit" />
+            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+              Saving pin...
+            </Typography>
+          </Stack>
+        )}
 
         {floorPlanId && selectedPin && (
           <Button
@@ -331,7 +250,7 @@ export function FloorPlanViewer({
               overflow: 'hidden',
             }}
           >
-            {floorPlan.imageUrl && !imgError ? (
+            {hasValidImage ? (
               <Box
                 component="img"
                 src={floorPlan.imageUrl}
@@ -354,7 +273,7 @@ export function FloorPlanViewer({
                   pointerEvents: 'none',
                 }}
               />
-            ) : floorPlan.url || floorPlan.file ? (
+            ) : hasPdf ? (
               <PdfImageFallback plan={floorPlan} />
             ) : showEmptyWhenMissing ? (
               <Box
@@ -368,8 +287,8 @@ export function FloorPlanViewer({
                   textAlign: 'center',
                 }}
               >
-                <Typography variant="body2" color="text.secondary">
-                  No floor plan image or PDF is available.
+                <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  No PDF or image available.
                 </Typography>
               </Box>
             ) : (
@@ -381,8 +300,14 @@ export function FloorPlanViewer({
               sx={{
                 position: 'absolute',
                 inset: 0,
-                cursor: placementMode ? 'crosshair' : 'default',
-                pointerEvents: placementMode ? 'auto' : 'none',
+                cursor:
+                  placementMode && hasPreviewMedia && !pinPlacementDisabled && !pinPlacementBusy
+                    ? 'crosshair'
+                    : 'default',
+                pointerEvents:
+                  placementMode && hasPreviewMedia && !pinPlacementDisabled && !pinPlacementBusy
+                    ? 'auto'
+                    : 'none',
               }}
             />
             {renderedPins.map((pin) => {
@@ -395,6 +320,7 @@ export function FloorPlanViewer({
                   key={pin.id}
                   pin={pin}
                   resident={resident}
+                  isSelected={pin.residentId === selectedResidentId}
                   canDrag={!pinPlacementDisabled && !pinPlacementBusy}
                   onDragMove={handlePinDragMove}
                   onDragEnd={handlePinDragEnd}
@@ -459,7 +385,7 @@ function mapPeepRecordOption(record, pins) {
     name: record?.name || record?.residentName || resident.name || residentName || '—',
     roomNumber:
       record?.roomNumber || resident.roomNumber || record?.room?.number || record?.room || '—',
-    peepLevel: record?.peepLevel || record?.level || 'low',
+    peepLevel: String(record?.peepLevel || record?.level || 'low').trim().toLowerCase(),
   };
 
   return mapResidentOption(mappedResident, pins);

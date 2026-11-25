@@ -454,7 +454,7 @@ export function OrgRollupView({ ownerDashboard = true }) {
                             />
                         )}
 
-                        <Button
+                        {/* <Button
                             component={RouterLink}
                             href={
                                 branchId && branchId !== ALL_BRANCHES_VALUE
@@ -468,7 +468,7 @@ export function OrgRollupView({ ownerDashboard = true }) {
                             startIcon={<Iconify icon="solar:users-group-rounded-bold" />}
                         >
                             View PEEP Records
-                        </Button>
+                        </Button> */}
 
                         <Button
                             component={RouterLink}

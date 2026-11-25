@@ -50,6 +50,7 @@ export const navDataStaff = [
         ],
       },
       { title: 'Documents', path: paths.staff.documents.root, icon: ICONS.document, moduleSlug: ModuleSlug.DOCUMENTS_ESIGN },
+      { title: 'Fire Drills', path: paths.staff.fireDrills, icon: ICONS.competencies, moduleSlug: ModuleSlug.FIRE_DRILL_EVACUATION },
     ],
   },
   {

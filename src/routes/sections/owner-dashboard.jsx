@@ -77,10 +77,10 @@ const StatsPage = lazy(() => import('src/pages/owner-dashboard/statistics'));
 const StaffDashboardSettingsPage = lazy(() => import('src/pages/owner-dashboard/staff-dashboard-settings.jsx'));
 const ConfigurationPage = lazy(() => import('src/pages/owner-dashboard/configuration.jsx'));
 const OwnerSettingsPage = lazy(() => import('src/pages/owner-dashboard/settings.jsx'));
-const PeepRecordsListPage = lazy(() => import('src/pages/owner-dashboard/peep-records/list.jsx'));
-const PeepRecordCreatePage = lazy(() => import('src/pages/owner-dashboard/peep-records/new.jsx'));
-const PeepRecordDetailPage = lazy(() => import('src/pages/owner-dashboard/peep-records/detail.jsx'));
-const PeepRecordEditPage = lazy(() => import('src/pages/owner-dashboard/peep-records/edit.jsx'));
+// const PeepRecordsListPage = lazy(() => import('src/pages/owner-dashboard/peep-records/list.jsx'));
+// const PeepRecordCreatePage = lazy(() => import('src/pages/owner-dashboard/peep-records/new.jsx'));
+// const PeepRecordDetailPage = lazy(() => import('src/pages/owner-dashboard/peep-records/detail.jsx'));
+// const PeepRecordEditPage = lazy(() => import('src/pages/owner-dashboard/peep-records/edit.jsx'));
 const FloorPlanListPage = lazy(() => import('src/pages/owner-dashboard/floor-plans/list.jsx'));
 const OrgRollupPage = lazy(() => import('src/pages/owner-dashboard/org-rollup.jsx'));
 const SiteDetailPage = lazy(() => import('src/pages/owner-dashboard/peep-and-floor-plan/site-detail.jsx'));
@@ -114,10 +114,10 @@ function LegacySiteRedirect({ target }) {
   return <Navigate to={`/owner-dashboard/peep-and-floor-plan/site/${siteId}/${target}`} replace />;
 }
 
-function LegacyPeepRecordEditRedirect() {
-  const { id } = useParams();
-  return <Navigate to={`/owner-dashboard/peep-and-floor-plan/peep-records/${id}/edit`} replace />;
-}
+// function LegacyPeepRecordEditRedirect() {
+//   const { id } = useParams();
+//   return <Navigate to={`/owner-dashboard/peep-and-floor-plan/peep-records/${id}/edit`} replace />;
+// }
 
 // ----------------------------------------------------------------------
 
@@ -228,24 +228,24 @@ export const ownerDashboardRoutes = [
           { path: 'site/:siteId/map', element: <PeepFloorPlanPage ownerDashboard /> },
           { path: 'site/:siteId/map/add-pin', element: <PeepAddPinPage /> },
           { path: 'site/:siteId/add-pin', element: <PeepAddPinPage /> },
-          { path: 'site/:siteId/peep-records', element: <PeepRecordsListPage /> },
+          // { path: 'site/:siteId/peep-records', element: <PeepRecordsListPage /> },
           { path: 'site/:siteId/floor-plans', element: <FloorPlanListPage /> },
-          { path: 'peep-records', element: <PeepRecordsListPage /> },
-          { path: 'peep-records/new', element: <PeepRecordCreatePage /> },
-          { path: 'peep-records/:id', element: <PeepRecordDetailPage /> },
-          { path: 'peep-records/:id/edit', element: <PeepRecordEditPage /> },
+          // { path: 'peep-records', element: <PeepRecordsListPage /> },
+          // { path: 'peep-records/new', element: <PeepRecordCreatePage /> },
+          // { path: 'peep-records/:id', element: <PeepRecordDetailPage /> },
+          // { path: 'peep-records/:id/edit', element: <PeepRecordEditPage /> },
           { path: 'floor-plans', element: <FloorPlanListPage /> },
         ],
       },
-      {
-        path: 'peep-records',
-        children: [
-          { index: true, element: <Navigate to="/owner-dashboard/peep-and-floor-plan/peep-records" replace /> },
-          { path: 'site/:siteId', element: <LegacySiteRedirect target="peep-records" /> },
-          { path: 'new', element: <Navigate to="/owner-dashboard/peep-and-floor-plan/peep-records/new" replace /> },
-          { path: ':id/edit', element: <LegacyPeepRecordEditRedirect /> },
-        ],
-      },
+      // {
+      //   path: 'peep-records',
+      //   children: [
+      //     { index: true, element: <Navigate to="/owner-dashboard/peep-and-floor-plan/peep-records" replace /> },
+      //     { path: 'site/:siteId', element: <LegacySiteRedirect target="peep-records" /> },
+      //     { path: 'new', element: <Navigate to="/owner-dashboard/peep-and-floor-plan/peep-records/new" replace /> },
+      //     { path: ':id/edit', element: <LegacyPeepRecordEditRedirect /> },
+      //   ],
+      // },
       {
         path: 'floor-plans',
         children: [

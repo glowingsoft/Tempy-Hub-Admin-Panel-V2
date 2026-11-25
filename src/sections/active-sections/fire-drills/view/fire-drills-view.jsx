@@ -4,6 +4,8 @@ import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Grid from '@mui/material/Unstable_Grid2';
+import Skeleton from '@mui/material/Skeleton';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import Stack from '@mui/material/Stack';
@@ -43,12 +45,18 @@ import {
   useGetEvacuationChecksQuery,
   useUpsertEvacuationCheckMutation,
   useCloseEvacuationMutation,
+  useGetMyActiveEvacuationQuery,
+  useGetMyEvacuationDrillsQuery,
+  useCheckInMyEvacuationMutation,
 } from 'src/store/Reducer/evacuations-api';
 
+import { CONFIG } from 'src/config-global';
+import { CourseWidgetSummary } from 'src/sections/overview/course/course-widget-summary';
 import { ActiveEvacuationBanner } from '../active-evacuation-banner';
 import { EvacuationDetailDrawer } from '../evacuation-detail-drawer';
 import EvacuationTableRow from '../evacuation-table-row';
 import { OnSiteSummary } from '../on-site-summary';
+import { StaffActiveEvacuationCard } from '../staff-active-evacuation-card';
 import { StartEvacuationDialog } from '../start-evacuation-dialog';
 
 // ----------------------------------------------------------------------
@@ -89,6 +97,17 @@ const TABLE_HEAD = [
   { id: 'duration', label: 'Duration', width: 110, align: 'center' },
   { id: 'status', label: 'Status', width: 110, align: 'center' },
   { id: 'actions', label: 'Action', width: 80, align: 'center' },
+];
+
+const STAFF_TABLE_HEAD = [
+  { id: 'sr', label: 'Sr#', width: 50 },
+  { id: 'site', label: 'Site', width: 130 },
+  { id: 'type', label: 'Type', width: 125 },
+  { id: 'locationLabel', label: 'Location', width: 140 },
+  { id: 'startedAt', label: 'Started at', width: 175, minWidth: 175 },
+  { id: 'duration', label: 'Duration', width: 150, align: 'center' },
+  { id: 'checkStatus', label: 'My Check-in', width: 120, align: 'center' },
+  { id: 'status', label: 'Status', width: 100, align: 'center' },
 ];
 
 const FILTER_FIELDS = [
@@ -188,7 +207,7 @@ const mapBranchOption = (item) => ({
 
 const EXTRA_BRANCH_OPTIONS = [{ value: ALL_BRANCHES_VALUE, label: 'All sites' }];
 
-export function FireDrillsView({ rootPath, showSiteFilter = false }) {
+export function FireDrillsView({ rootPath, showSiteFilter = false, staffDashboard = false }) {
   const canManageFire = useCanManage(ModuleSlug.FIRE_DRILL_EVACUATION);
   const table = useTable({ defaultDense: true });
   const startDialog = useBoolean();
@@ -266,7 +285,7 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     return userAssignedBranchId || undefined;
   }, [showSiteFilter, scopedBranchId, userAssignedBranchId]);
 
-  const shouldSkipSummary = !organizationId;
+  const shouldSkipSummary = staffDashboard || !organizationId;
 
   // Real-time On-Site Headcount Query
   const {
@@ -317,10 +336,10 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     useStartEvacuationMutation();
 
   const {
-    data: evacuationsApiData,
-    isLoading: isEvacuationsLoading,
-    isFetching: isEvacuationsFetching,
-    error: evacuationsApiError,
+    data: adminEvacuationsApiData,
+    isLoading: isAdminEvacuationsLoading,
+    isFetching: isAdminEvacuationsFetching,
+    error: adminEvacuationsApiError,
   } = useGetEvacuationsQuery(
     {
       organizationId,
@@ -331,9 +350,39 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
       limit: table.rowsPerPage,
     },
     {
-      skip: !organizationId,
+      skip: staffDashboard || !organizationId,
     }
   );
+
+  const { data: myActiveEvacuationData } = useGetMyActiveEvacuationQuery(
+    { organizationId },
+    { skip: !staffDashboard || !organizationId }
+  );
+
+  const {
+    data: myEvacuationsApiData,
+    isLoading: isMyEvacuationsLoading,
+    isFetching: isMyEvacuationsFetching,
+    error: myEvacuationsApiError,
+  } = useGetMyEvacuationDrillsQuery(
+    {
+      organizationId,
+      page: table.page + 1,
+      limit: table.rowsPerPage,
+      status: filters.state.status,
+      search: filters.state.name,
+    },
+    {
+      skip: !staffDashboard || !organizationId,
+    }
+  );
+
+  const evacuationsApiData = staffDashboard ? myEvacuationsApiData : adminEvacuationsApiData;
+  const isEvacuationsLoading = staffDashboard ? isMyEvacuationsLoading : isAdminEvacuationsLoading;
+  const isEvacuationsFetching = staffDashboard
+    ? isMyEvacuationsFetching
+    : isAdminEvacuationsFetching;
+  const evacuationsApiError = staffDashboard ? myEvacuationsApiError : adminEvacuationsApiError;
 
   const hasPermissionDenied = [
     onSiteSummaryApiError,
@@ -425,7 +474,8 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     return rows.filter(
       (row) =>
         row.branchName?.toLowerCase().includes(search) ||
-        row.startedByName?.toLowerCase().includes(search)
+        row.startedByName?.toLowerCase().includes(search) ||
+        row.locationLabel?.toLowerCase().includes(search)
     );
   }, [
     rawEvacuationsList,
@@ -536,6 +586,8 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
   const [closeEvacuationMutation, { isLoading: isClosingEvacuation }] =
     useCloseEvacuationMutation();
   const [upsertEvacuationCheckMutation] = useUpsertEvacuationCheckMutation();
+  const [checkInMyEvacuationMutation, { isLoading: isCheckingInSelf }] =
+    useCheckInMyEvacuationMutation();
 
   const {
     data: checksApiData,
@@ -625,13 +677,44 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
     [organizationId, upsertEvacuationCheckMutation]
   );
 
+  const handleStaffSelfCheck = useCallback(
+    async (row, status, selectedLocation) => {
+      const targetBranchId =
+        row?.branchId ||
+        (typeof row?.branch === 'object' ? row?.branch?._id : row?.branch) ||
+        userAssignedBranchId;
+
+      if (!targetBranchId) {
+        toast.error('Site (branchId) is missing for this drill.');
+        return;
+      }
+
+      try {
+        await checkInMyEvacuationMutation({
+          organizationId,
+          branchId: targetBranchId,
+          status,
+          locationLabel: selectedLocation || row?.locationLabel || row?.branch?.assemblyPoint || 'Car park',
+          clientEventId: `evac-self-${row?.evacuationEventId || row?._id || Date.now()}-${status}-${Date.now()}`,
+        }).unwrap();
+        toast.success(
+          status === 'offSite' ? 'Marked as Off-site successfully.' : 'Marked as Safe successfully.'
+        );
+      } catch (err) {
+        console.error('Failed to check in evacuation status', err);
+        toast.error(err?.data?.message || err?.message || 'Unable to update evacuation status.');
+      }
+    },
+    [checkInMyEvacuationMutation, organizationId, userAssignedBranchId]
+  );
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Fire Drills"
         links={[{ name: 'Dashboard', href: rootPath }, { name: 'Fire Drills' }]}
         action={
-          showSiteFilter ? (
+          staffDashboard ? null : showSiteFilter ? (
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
               spacing={1.5}
@@ -694,26 +777,103 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         </Alert>
       )}
 
-      <OnSiteSummary
-        summary={onSiteSummaryApiData}
-        loading={isSummaryLoading}
-        hideSiteDetails={showSiteFilter && branchId === ALL_BRANCHES_VALUE}
-      />
+      {staffDashboard && (
+        <Box sx={{ mb: 3 }}>
+          {loading && !evacuationsApiData?.meta?.fireDrills ? (
+            <Grid container spacing={2.5}>
+              {[1, 2, 3, 4].map((item) => (
+                <Grid key={item} xs={12} sm={6} md={3}>
+                  <Skeleton variant="rounded" height={124} sx={{ borderRadius: 2 }} />
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Grid container spacing={2.5}>
+              {[
+                {
+                  key: 'percent',
+                  title: 'Completion Rate',
+                  total: `${evacuationsApiData?.meta?.fireDrills?.percent ?? 0}%`,
+                  color: 'primary',
+                  icon: `${CONFIG.site.basePath}/assets/icons/navbar/ic-analytics.svg`,
+                },
+                {
+                  key: 'done',
+                  title: 'Drills Done',
+                  total: evacuationsApiData?.meta?.fireDrills?.done ?? 0,
+                  color: 'success',
+                  icon: `${CONFIG.site.basePath}/assets/icons/navbar/ic-compliance.svg`,
+                },
+                {
+                  key: 'expected',
+                  title: 'Expected Drills',
+                  total: evacuationsApiData?.meta?.fireDrills?.expected ?? 0,
+                  color: 'warning',
+                  icon: `${CONFIG.site.basePath}/assets/icons/navbar/ic-calendar.svg`,
+                },
+                {
+                  key: 'windowMonths',
+                  title: 'Window (Months)',
+                  total: evacuationsApiData?.meta?.fireDrills?.windowMonths ?? 12,
+                  color: 'info',
+                  icon: `${CONFIG.site.basePath}/assets/icons/navbar/ic-clock.svg`,
+                },
+              ].map((item) => (
+                <Grid key={item.key} xs={12} sm={6} md={3}>
+                  <CourseWidgetSummary
+                    title={item.title}
+                    total={item.total}
+                    color={item.color}
+                    icon={item.icon}
+                    sx={{
+                      transition: (theme) => theme.transitions.create(['box-shadow', 'transform']),
+                      '&:hover': {
+                        transform: 'translateY(-3px)',
+                        boxShadow: (theme) => theme.customShadows?.z12 || 4,
+                      },
+                    }}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Box>
+      )}
 
-      <ActiveEvacuationBanner
-        event={activeEvent}
-        onViewRollcall={handleOpenDetail}
-        onCloseEvacuation={handleCloseEvacuation}
-        showCloseButton={!isLineManager}
-      />
+      {staffDashboard && (
+        <StaffActiveEvacuationCard
+          event={myActiveEvacuationData}
+          onCheckIn={handleStaffSelfCheck}
+          loading={isCheckingInSelf}
+        />
+      )}
+
+      {!staffDashboard && (
+        <>
+          <OnSiteSummary
+            summary={onSiteSummaryApiData}
+            loading={isSummaryLoading}
+            hideSiteDetails={showSiteFilter && branchId === ALL_BRANCHES_VALUE}
+          />
+
+          <ActiveEvacuationBanner
+            event={activeEvent}
+            onViewRollcall={handleOpenDetail}
+            onCloseEvacuation={handleCloseEvacuation}
+            showCloseButton={!isLineManager}
+          />
+        </>
+      )}
 
       <Card>
-        <StatusTabsFilterWrapper
-          filterField={statusFilterField}
-          value={filters.state.status}
-          onChange={handleFilterChange}
-          getCount={getStatusCount}
-        />
+        {!staffDashboard && (
+          <StatusTabsFilterWrapper
+            filterField={statusFilterField}
+            value={filters.state.status}
+            onChange={handleFilterChange}
+            getCount={getStatusCount}
+          />
+        )}
 
         <FlexibleTableToolbar
           filterFields={toolbarFilterFields}
@@ -725,23 +885,26 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         <Box sx={{ position: 'relative' }}>
           <Scrollbar slotProps={{ content: { width: 1, minWidth: '100%' } }}>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1050 }}>
-              <TableHeadCustom headLabel={TABLE_HEAD} />
+              <TableHeadCustom headLabel={staffDashboard ? STAFF_TABLE_HEAD : TABLE_HEAD} />
 
               <TableBody>
                 {loading ? (
                   <TableBodySkeleton
                     rowCount={table.rowsPerPage}
-                    cellCount={TABLE_HEAD.length}
+                    cellCount={(staffDashboard ? STAFF_TABLE_HEAD : TABLE_HEAD).length}
                     dense={table.dense}
                   />
                 ) : (
                   <>
                     {paginatedRows.map((row, index) => (
                       <EvacuationTableRow
-                        key={row._id}
+                        key={row._id || row.evacuationEventId || index}
                         row={row}
                         serialNumber={table.page * table.rowsPerPage + index + 1}
                         onOpen={handleOpenDetail}
+                        staffDashboard={staffDashboard}
+                        onStaffCheck={handleStaffSelfCheck}
+                        isCheckingIn={isCheckingInSelf}
                       />
                     ))}
 
@@ -764,28 +927,32 @@ export function FireDrillsView({ rootPath, showSiteFilter = false }) {
         />
       </Card>
 
-      <StartEvacuationDialog
-        open={startDialog.value}
-        onClose={startDialog.onFalse}
-        onStart={handleStart}
-        branchLabel={onSiteSummary?.branchName}
-        onSiteTotal={onSiteSummary?.counts?.total ?? 0}
-        currentBranchId={queryBranchId}
-        loading={isStartingEvacuation}
-      />
+      {!staffDashboard && (
+        <>
+          <StartEvacuationDialog
+            open={startDialog.value}
+            onClose={startDialog.onFalse}
+            onStart={handleStart}
+            branchLabel={onSiteSummary?.branchName}
+            onSiteTotal={onSiteSummary?.counts?.total ?? 0}
+            currentBranchId={queryBranchId}
+            loading={isStartingEvacuation}
+          />
 
-      <EvacuationDetailDrawer
-        open={detailDrawer.value}
-        onClose={detailDrawer.onFalse}
-        event={selectedEvent}
-        checks={detailChecks}
-        stats={detailStats}
-        loadingChecks={isChecksLoading}
-        closing={isClosingEvacuation}
-        onUpdateCheck={handleUpdateCheck}
-        onCloseEvacuation={handleCloseEvacuation}
-        canClose={!isLineManager}
-      />
+          <EvacuationDetailDrawer
+            open={detailDrawer.value}
+            onClose={detailDrawer.onFalse}
+            event={selectedEvent}
+            checks={detailChecks}
+            stats={detailStats}
+            loadingChecks={isChecksLoading}
+            closing={isClosingEvacuation}
+            onUpdateCheck={handleUpdateCheck}
+            onCloseEvacuation={handleCloseEvacuation}
+            canClose={!isLineManager}
+          />
+        </>
+      )}
     </DashboardContent>
   );
 }
