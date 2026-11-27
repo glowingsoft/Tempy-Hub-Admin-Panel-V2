@@ -28,7 +28,11 @@ export const ShiftSchema = zod
       .union([zod.string(), zod.null()])
       .refine((value) => Boolean(value && dayjs(value).isValid()), {
         message: 'Start date and time is required!',
-      }),
+      })
+      .refine(
+        (value) => !value || !dayjs(value).isValid() || !dayjs(value).isBefore(dayjs().startOf('day')),
+        { message: 'Previous days shifts cannot be created!' }
+      ),
     endsAt: zod
       .union([zod.string(), zod.null()])
       .refine((value) => Boolean(value && dayjs(value).isValid()), {

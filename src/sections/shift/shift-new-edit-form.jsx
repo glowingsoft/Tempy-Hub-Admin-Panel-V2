@@ -25,28 +25,35 @@ import { useCurrentOrganization } from 'src/hooks/use-current-organization';
 
 // ----------------------------------------------------------------------
 
-export const ShiftSchema = zod
-  .object({
-    branchId: zod.string().min(1, { message: 'Site is required!' }),
-    staffId: zod.string().optional(),
-    startsAt: zod
-      .any()
-      .refine((value) => !!value && dayjs(value).isValid(), {
-        message: 'Start date and time is required!',
-      }),
-    endsAt: zod
-      .any()
-      .refine((value) => !!value && dayjs(value).isValid(), {
-        message: 'End date and time is required!',
-      }),
-  })
-  .refine(
-    (values) =>
-      !values.startsAt ||
-      !values.endsAt ||
-      dayjs(values.endsAt).isAfter(dayjs(values.startsAt)),
-    { path: ['endsAt'], message: 'End date and time must be after the start!' }
-  );
+export const createShiftSchema = (isEdit = false) =>
+  zod
+    .object({
+      branchId: zod.string().min(1, { message: 'Site is required!' }),
+      staffId: zod.string().optional(),
+      startsAt: zod
+        .any()
+        .refine((value) => !!value && dayjs(value).isValid(), {
+          message: 'Start date and time is required!',
+        })
+        .refine(
+          (value) => isEdit || !value || !dayjs(value).isValid() || !dayjs(value).isBefore(dayjs().startOf('day')),
+          { message: 'Previous days shifts cannot be created!' }
+        ),
+      endsAt: zod
+        .any()
+        .refine((value) => !!value && dayjs(value).isValid(), {
+          message: 'End date and time is required!',
+        }),
+    })
+    .refine(
+      (values) =>
+        !values.startsAt ||
+        !values.endsAt ||
+        dayjs(values.endsAt).isAfter(dayjs(values.startsAt)),
+      { path: ['endsAt'], message: 'End date and time must be after the start!' }
+    );
+
+export const ShiftSchema = createShiftSchema(false);
 
 // ----------------------------------------------------------------------
 
@@ -132,9 +139,11 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
     [curBranchId, curStaffId, currentShift]
   );
 
+  const schema = useMemo(() => createShiftSchema(isEdit), [isEdit]);
+
   const methods = useForm({
     mode: 'onSubmit',
-    resolver: zodResolver(ShiftSchema),
+    resolver: zodResolver(schema),
     defaultValues,
   });
 
@@ -268,7 +277,7 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
               helperText={!selectedBranchId ? 'Select a site to load staff' : undefined}
               SelectProps={{ sx: { textTransform: 'none' } }}
             >
-              <MenuItem value="">Open / Unassigned</MenuItem>
+              {isEdit && <MenuItem value="">Open / Unassigned</MenuItem>}
               {staffOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'none' }}>
                   <Box component="span" sx={{ textTransform: 'capitalize' }}>
@@ -282,15 +291,19 @@ export function ShiftNewEditForm({ organizationId: propOrgId, currentShift }) {
             <Field.MobileDateTimePicker
               name="startsAt"
               label="Start date & time"
+              minDate={!isEdit ? dayjs().startOf('day') : undefined}
             />
             <Field.MobileDateTimePicker
               name="endsAt"
               label="End date & time"
-              minDate={
-                startsAtValue && dayjs(startsAtValue).isValid()
-                  ? dayjs(startsAtValue).startOf('day')
-                  : undefined
-              }
+              minDate={(() => {
+                const todayStart = dayjs().startOf('day');
+                if (startsAtValue && dayjs(startsAtValue).isValid()) {
+                  const startDay = dayjs(startsAtValue).startOf('day');
+                  return !isEdit && startDay.isBefore(todayStart) ? todayStart : startDay;
+                }
+                return !isEdit ? todayStart : undefined;
+              })()}
             />
           </Box>
         </Card>

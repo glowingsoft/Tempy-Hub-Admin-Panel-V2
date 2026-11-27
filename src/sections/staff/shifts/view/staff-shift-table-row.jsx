@@ -27,10 +27,14 @@ export function StaffShiftTableRow({
   const claimStatusMeta = activeClaim?.status ? getShiftClaimStatusMeta(activeClaim.status) : null;
 
   // In Shift Claim view, if there is a claim on this shift, display the claim's status (e.g. Pending, Approved, Rejected)
-  const displayStatus = showClaimAction && claimStatusMeta ? claimStatusMeta : shiftStatus;
+  const rawDisplayStatus = showClaimAction && claimStatusMeta ? claimStatusMeta : shiftStatus;
 
   const isPending =
-    activeClaim?.status === 'pending' || displayStatus?.label?.toLowerCase() === 'pending';
+    activeClaim?.status === 'pending' || rawDisplayStatus?.label?.toLowerCase() === 'pending';
+
+  // Keep Open (warning) and Scheduled (success) unchanged; highlight Pending in red (error) on /staff/shift-claims
+  const displayStatus =
+    showClaimAction && isPending ? { ...rawDisplayStatus, color: 'error' } : rawDisplayStatus;
   const canClaim = row.status === 'open' && !isClaimed;
 
   const handleClickAction = (event) => {
@@ -46,7 +50,7 @@ export function StaffShiftTableRow({
     if (isPending) {
       return {
         label: 'Withdraw',
-        variant: 'outlined',
+        variant: 'contained',
         color: 'error',
         disabled: false,
       };
