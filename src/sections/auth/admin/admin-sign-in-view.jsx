@@ -21,7 +21,6 @@ import { Iconify } from 'src/components/iconify';
 import { useDispatch } from 'react-redux';
 import { useAdminLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
-import { getDeviceId } from 'src/utils/getDeviceId';
 import { getDeviceType } from 'src/utils/getDeviceType';
 import { AppSurface } from 'src/auth/constants';
 
@@ -92,7 +91,7 @@ export function AdminSignInView() {
       email: data.email.trim().toLowerCase(),
       password: data.password,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
-      deviceId: getDeviceId(),
+      deviceId: '123',
       deviceType: deviceType || 'desktop',
       surface: AppSurface.PLATFORM_ADMIN,
     };

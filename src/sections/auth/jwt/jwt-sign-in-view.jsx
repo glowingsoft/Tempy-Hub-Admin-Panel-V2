@@ -23,7 +23,6 @@ import { Iconify } from 'src/components/iconify';
 import { useDispatch } from 'react-redux';
 import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
-import { getDeviceId } from 'src/utils/getDeviceId';
 import { getDeviceType } from 'src/utils/getDeviceType';
 import { getPasswordResetHref } from './password-reset-flow';
 
@@ -110,7 +109,7 @@ export function JwtSignInView({
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
       userType: 'user',
       deviceType: deviceType || 'desktop',
-      deviceId: getDeviceId(),
+      deviceId: '123',
     };
 
     try {
