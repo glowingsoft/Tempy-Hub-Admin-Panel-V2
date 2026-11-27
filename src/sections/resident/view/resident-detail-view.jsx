@@ -226,7 +226,7 @@ export function ResidentDetailView() {
                     justifyContent="space-between"
                 >
                     <Stack direction="row" spacing={2} alignItems="center">
-                        <Avatar alt={resident.name} src={resident.image} sx={{ width: 56, height: 56, textTransform: 'capitalize' }}>
+                        <Avatar alt={resident.name} src={resident.photoUrl || resident.image} sx={{ width: 56, height: 56, textTransform: 'capitalize' }}>
                             {resident.name?.charAt(0)}
                         </Avatar>
                         <Stack>

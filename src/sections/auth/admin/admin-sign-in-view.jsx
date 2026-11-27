@@ -21,6 +21,7 @@ import { Iconify } from 'src/components/iconify';
 import { useDispatch } from 'react-redux';
 import { useAdminLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
+import { getDeviceId } from 'src/utils/getDeviceId';
 import { getDeviceType } from 'src/utils/getDeviceType';
 import { AppSurface } from 'src/auth/constants';
 
@@ -29,6 +30,7 @@ import { AppSurface } from 'src/auth/constants';
 export const SignInSchema = zod.object({
   email: zod
     .string()
+    .trim()
     .min(1, { message: 'Email is required!' })
     .email({ message: 'Email must be a valid email address!' }),
   password: zod
@@ -90,7 +92,7 @@ export function AdminSignInView() {
       email: data.email.trim().toLowerCase(),
       password: data.password,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
-      deviceId: '123',
+      deviceId: getDeviceId(),
       deviceType: deviceType || 'desktop',
       surface: AppSurface.PLATFORM_ADMIN,
     };

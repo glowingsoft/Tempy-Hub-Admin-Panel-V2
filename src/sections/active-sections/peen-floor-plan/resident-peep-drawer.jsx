@@ -84,7 +84,7 @@ function DetailPanel({ resident, inline = false, onClose, onUpdate }) {
           <Box sx={{ p: 3 }}>
             <Stack direction="row" spacing={2} alignItems="center">
 
-              <Avatar alt={resident.name} src={resident.avatar || resident.image} />
+              <Avatar alt={resident.name} src={resident.photoUrl || resident.avatar || resident.image} />
 
               <Box>
                 <Typography variant="subtitle2" sx={{ textTransform: 'capitalize' }}>

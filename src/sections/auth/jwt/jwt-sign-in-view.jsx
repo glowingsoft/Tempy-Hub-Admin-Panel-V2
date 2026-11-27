@@ -23,6 +23,7 @@ import { Iconify } from 'src/components/iconify';
 import { useDispatch } from 'react-redux';
 import { useLoginMutation } from 'src/store/Reducer/auth';
 import { setUser } from 'src/store/slices/userSlice';
+import { getDeviceId } from 'src/utils/getDeviceId';
 import { getDeviceType } from 'src/utils/getDeviceType';
 import { getPasswordResetHref } from './password-reset-flow';
 
@@ -31,6 +32,7 @@ import { getPasswordResetHref } from './password-reset-flow';
 export const SignInSchema = zod.object({
   email: zod
     .string()
+    .trim()
     .min(1, { message: 'Email is required!' })
     .email({ message: 'Email must be a valid email address!' }),
   password: zod
@@ -106,9 +108,9 @@ export function JwtSignInView({
       email: data.email.trim().toLowerCase(),
       password: data.password,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Karachi',
-      userType: data.email.includes('admin') ? 'admin' : 'user',
+      userType: 'user',
       deviceType: deviceType || 'desktop',
-      deviceId: '123',
+      deviceId: getDeviceId(),
     };
 
     try {

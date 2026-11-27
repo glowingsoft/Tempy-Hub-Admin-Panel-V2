@@ -194,7 +194,7 @@ export function ResidentOutDialog({
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogTitle sx={{ pb: 1 }}>
           <Stack direction="row" spacing={2} alignItems="center">
-            <Avatar src={resident.image} alt={resident.name} sx={{ textTransform: 'capitalize' }}>
+            <Avatar src={resident.photoUrl || resident.image} alt={resident.name} sx={{ textTransform: 'capitalize' }}>
               {resident.name?.charAt(0)}
             </Avatar>
             <Stack>

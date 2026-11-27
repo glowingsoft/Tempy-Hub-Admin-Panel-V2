@@ -107,7 +107,7 @@ export function ResidentTableRow({
             {/* Resident Info */}
             <TableCell>
                 <Stack direction="row" spacing={2} alignItems="center">
-                    <Avatar alt={row.name} src={row.image} sx={{ width: 36, height: 36, fontSize: 16, textTransform: 'capitalize' }}>
+                    <Avatar alt={row.name} src={row.photoUrl || row.image} sx={{ width: 36, height: 36, fontSize: 16, textTransform: 'capitalize' }}>
                         {row.name?.charAt(0)}
                     </Avatar>
                     <Stack sx={{ typography: 'body2', minWidth: 0 }}>

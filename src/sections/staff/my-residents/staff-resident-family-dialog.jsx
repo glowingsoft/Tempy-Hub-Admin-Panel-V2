@@ -29,7 +29,7 @@ export function StaffResidentFamilyDialog({ open, onClose, resident }) {
         <Stack direction="row" alignItems="center" spacing={2}>
           <Avatar
             alt={resident.resident}
-            src={resident.avatarUrl}
+            src={resident.photoUrl || resident.avatarUrl}
             sx={{ width: 44, height: 44 }}
           >
             {resident.resident?.charAt(0)}
