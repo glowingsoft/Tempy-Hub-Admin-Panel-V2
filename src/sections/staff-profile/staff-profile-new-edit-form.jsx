@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -25,6 +25,7 @@ import { mockOrganizations } from 'src/sections/organization/mocks/data';
 import { useGetBranchesQuery } from 'src/store/Reducer/branches-api';
 import { useGetDepartmentsQuery } from 'src/store/Reducer/departments-api';
 import { useGetJobTitlesQuery } from 'src/store/Reducer/job-titles-api';
+import { useGetMembersQuery } from 'src/store/Reducer/members-api';
 
 import {
   useCreateStaffProfileMutation,
@@ -46,7 +47,7 @@ function capitalizeLabel(value = '') {
 
 function formatUserLabel(name, email) {
   const displayName = capitalizeLabel(name || '—');
-  const displayEmail = email ? String(email).toLowerCase() : '';
+  const displayEmail = email ? String(email) : '';
   return displayEmail ? `${displayName} (${displayEmail})` : displayName;
 }
 
@@ -70,6 +71,11 @@ function lookupId(value) {
 
 function getDepartmentBranchId(department) {
   const branch = department?.branchId || department?.branch;
+  return typeof branch === 'object' ? branch?._id || branch?.id || '' : branch || '';
+}
+
+function getJobTitleBranchId(jobTitle) {
+  const branch = jobTitle?.branchId || jobTitle?.branch;
   return typeof branch === 'object' ? branch?._id || branch?.id || '' : branch || '';
 }
 
@@ -100,7 +106,12 @@ export const createStaffProfileSchema = ({ isLineManager: isLineManagerStaff = f
   zod
     .object({
       organizationId: zod.string().optional(),
-      userId: zod.string().min(1, { message: 'User is required!' }),
+      userId: zod
+        .union([zod.string().min(1), lookupOptionSchema])
+        .nullable()
+        .refine((value) => Boolean(typeof value === 'string' ? value : value?.value), {
+          message: 'User is required!',
+        }),
       branchId: lookupOptionSchema.nullable().refine((value) => !!value?.value, {
         message: 'Site is required!',
       }),
@@ -156,6 +167,9 @@ export function StaffProfileNewEditForm({
   organizationId,
   currentStaffProfile,
   pathsConfig,
+  inModal = false,
+  onSuccess,
+  onCancel,
 } = {}) {
   const router = useRouter();
   const { organizationId: currentOrgId, isOwner, user } = useCurrentOrganization(organizationId);
@@ -203,7 +217,7 @@ export function StaffProfileNewEditForm({
       userId:
         (typeof currentStaffProfile?.userId === 'object' && currentStaffProfile?.userId !== null
           ? currentStaffProfile.userId?._id
-          : currentStaffProfile?.userId) || '',
+          : currentStaffProfile?.userId) || null,
       branchId: toLookupOption(
         typeof currentStaffProfile?.branchId === 'object' && currentStaffProfile?.branchId !== null
           ? currentStaffProfile.branchId?._id
@@ -272,14 +286,132 @@ export function StaffProfileNewEditForm({
   const [createStaffProfile, { isLoading: isCreating }] = useCreateStaffProfileMutation();
   const [updateStaffProfile, { isLoading: isUpdating }] = useUpdateStaffProfileMutation();
   const lookupQueryArgs = useMemo(() => ({ organizationId: activeOrgId }), [activeOrgId]);
+  const watchedUser = watch('userId');
+  const watchedBranch = watch('branchId');
+  const selectedBranchId = lookupId(watchedBranch);
+  const prevBranchIdRef = useRef(selectedBranchId);
+  const isInitialMountRef = useRef(true);
+
+  const memberQueryArgs = useMemo(
+    () => ({
+      organizationId: activeOrgId,
+      role: 'siteManager',
+      hasStaffProfile: false,
+      ...(selectedBranchId ? { branchId: selectedBranchId } : {}),
+    }),
+    [activeOrgId, selectedBranchId]
+  );
+
+  const mapMemberOption = useCallback(
+    (member) => {
+      const id = member?.userId || member?.user?._id;
+      if (!id) return null;
+      const memberBranchId =
+        (typeof member.branchId === 'object' && member.branchId !== null
+          ? member.branchId._id
+          : member.branchId) || member.branch?._id;
+      if (selectedBranchId && memberBranchId && memberBranchId !== selectedBranchId) {
+        return null;
+      }
+      const name = member?.name || member?.user?.name || id;
+      const email = member?.email || member?.user?.email || '';
+      return {
+        value: id,
+        label: formatUserLabel(name, email),
+        name,
+        email,
+        member,
+      };
+    },
+    [selectedBranchId]
+  );
+
+  const jobTitleQueryArgs = useMemo(
+    () => ({
+      organizationId: activeOrgId,
+      status: 'active',
+      ...(selectedBranchId ? { branchId: selectedBranchId } : {}),
+    }),
+    [activeOrgId, selectedBranchId]
+  );
+
+  const mapJobTitleOption = useCallback(
+    (item) => {
+      if (item?.active === false || item?.status === 'inactive' || item?.siteScope === 'none') {
+        return null;
+      }
+      const jobTitleBranchId = getJobTitleBranchId(item);
+      if (
+        selectedBranchId &&
+        jobTitleBranchId &&
+        item?.siteScope !== 'all' &&
+        jobTitleBranchId !== selectedBranchId
+      ) {
+        return null;
+      }
+      return {
+        value: item._id,
+        label: item.name,
+      };
+    },
+    [selectedBranchId]
+  );
 
   const { data: departmentsData, isLoading: isLoadingDepartments } = useGetDepartmentsQuery(
-    { organizationId: activeOrgId, page: 1, limit: 1000, status: 'active' },
+    { organizationId: activeOrgId, page: 1, limit: 100, status: 'active' },
     { skip: !activeOrgId }
   );
 
-  const watchedBranch = watch('branchId');
-  const selectedBranchId = lookupId(watchedBranch);
+  useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      prevBranchIdRef.current = selectedBranchId;
+      return;
+    }
+
+    if (prevBranchIdRef.current !== selectedBranchId) {
+      prevBranchIdRef.current = selectedBranchId;
+      if (!isEdit) {
+        methods.setValue('userId', null);
+      }
+      methods.setValue('jobTitleId', null);
+      methods.setValue('departmentIds', []);
+    }
+  }, [selectedBranchId, isEdit, methods]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    const member = watchedUser?.member;
+    if (!member) return;
+
+    const memberJobTitleId =
+      (typeof member.jobTitleId === 'object' && member.jobTitleId !== null
+        ? member.jobTitleId._id
+        : member.jobTitleId) || member.jobTitle?._id;
+    const memberJobTitleName =
+      (typeof member.jobTitleId === 'object' && member.jobTitleId?.name) || member.jobTitle?.name;
+
+    methods.setValue('jobTitleId', toLookupOption(memberJobTitleId, memberJobTitleName));
+
+    const memberDepartments = Array.isArray(member.departments)
+      ? member.departments
+          .filter(Boolean)
+          .map((department) => toLookupOption(department?._id, department?.name))
+          .filter(Boolean)
+      : Array.isArray(member.departmentIds)
+        ? member.departmentIds
+            .filter(Boolean)
+            .map((department) =>
+              typeof department === 'object' && department !== null
+                ? toLookupOption(department?._id, department?.name)
+                : toLookupOption(department, department)
+            )
+            .filter(Boolean)
+        : [];
+
+    methods.setValue('departmentIds', memberDepartments);
+    methods.setValue('startDate', member.startDate || null);
+  }, [watchedUser, isEdit, methods]);
 
   const departmentOptions = useMemo(() => {
     const departments = Array.isArray(departmentsData?.data) ? departmentsData.data : [];
@@ -348,10 +480,10 @@ export function StaffProfileNewEditForm({
             : {}),
         ...(data.pin ? { pin: data.pin } : {}),
         ...(data.hourlyRate ? { hourlyRate: Number(data.hourlyRate) } : {}),
-        ...(data.supervisionIntervalMonths !== '' && data.supervisionIntervalMonths != null
+        ...(isEdit && data.supervisionIntervalMonths !== '' && data.supervisionIntervalMonths != null
           ? { supervisionIntervalMonths: Number(data.supervisionIntervalMonths) }
           : {}),
-        ...(data.appraisalIntervalMonths !== '' && data.appraisalIntervalMonths != null
+        ...(isEdit && data.appraisalIntervalMonths !== '' && data.appraisalIntervalMonths != null
           ? { appraisalIntervalMonths: Number(data.appraisalIntervalMonths) }
           : {}),
       };
@@ -368,14 +500,19 @@ export function StaffProfileNewEditForm({
       } else {
         const res = await createStaffProfile({
           organizationId: targetOrgId,
-          userId: data.userId,
+          userId: typeof data.userId === 'object' ? data.userId?.value : data.userId,
           ...payload,
         }).unwrap();
         profileId = res?.data?._id || res?._id || staffProfileId;
       }
 
       toast.success(isEdit ? 'Staff profile updated successfully!' : 'Staff profile created successfully!');
-      router.push(resolvedPaths.detail(profileId));
+      if (onSuccess) {
+        methods.reset(defaultValues);
+        onSuccess(profileId);
+      } else {
+        router.push(resolvedPaths.detail(profileId));
+      }
     } catch (error) {
       console.error('Failed to save staff profile:', error);
       if (!error?.status) {
@@ -384,20 +521,13 @@ export function StaffProfileNewEditForm({
     }
   });
 
-  return (
-    <Form methods={methods} onSubmit={onSubmit}>
-      <Stack spacing={3}>
-        <Card sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Staff profile
-          </Typography>
-
-          <Box
-            rowGap={3}
-            columnGap={2}
-            display="grid"
-            gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
-          >
+  const formFields = (
+    <Box
+      rowGap={3}
+      columnGap={2}
+      display="grid"
+      gridTemplateColumns={{ xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' }}
+    >
             {!organizationId && !isEdit && (
               <Field.Select name="organizationId" label="Organization">
                 {mockOrganizations.map((org) => (
@@ -407,22 +537,6 @@ export function StaffProfileNewEditForm({
                 ))}
               </Field.Select>
             )}
-
-            <Field.Select
-              name="userId"
-              label="User"
-              disabled={isEdit}
-              SelectProps={{
-                MenuProps: { PaperProps: { sx: { maxHeight: 220 } } },
-                sx: { textTransform: 'none' },
-              }}
-            >
-              {userOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'none' }}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
 
             <Field.InfiniteAutocomplete
               name="branchId"
@@ -434,14 +548,64 @@ export function StaffProfileNewEditForm({
               enabled={!!activeOrgId}
             />
 
+            {isEdit ? (
+              <Field.Select
+                name="userId"
+                label="User"
+                disabled
+                SelectProps={{
+                  MenuProps: { PaperProps: { sx: { maxHeight: 220 } } },
+                  sx: { textTransform: 'none' },
+                }}
+              >
+                {userOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'none' }}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            ) : (
+              <Field.InfiniteAutocomplete
+                key={`member-user-${activeOrgId || 'no-org'}-${selectedBranchId || 'no-branch'}`}
+                name="userId"
+                label="User"
+                placeholder={selectedBranchId ? 'Search site managers' : 'Select a site first'}
+                useQuery={useGetMembersQuery}
+                queryArgs={memberQueryArgs}
+                mapOption={mapMemberOption}
+                enabled={Boolean(activeOrgId && selectedBranchId)}
+                disabled={!activeOrgId || !selectedBranchId}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.value}>
+                    <Typography variant="body2">
+                      <Box component="span" sx={{ textTransform: 'capitalize' }}>
+                        {option.name || option.label}
+                      </Box>
+                      {option.email ? (
+                        <>
+                          {' ('}
+                          <Box component="span" sx={{ textTransform: 'none' }}>
+                            {option.email}
+                          </Box>
+                          {')'}
+                        </>
+                      ) : null}
+                    </Typography>
+                  </li>
+                )}
+              />
+            )}
+
             <Field.InfiniteAutocomplete
+              key={`job-title-${activeOrgId || 'no-org'}-${selectedBranchId || 'no-branch'}`}
               name="jobTitleId"
               label={isLineManagerStaff ? 'Job title (optional)' : 'Job title'}
-              placeholder="Search job titles"
+              placeholder={selectedBranchId ? 'Search job titles' : 'Select a site first'}
               useQuery={useGetJobTitlesQuery}
-              queryArgs={lookupQueryArgs}
-              mapOption={mapLookupOption}
-              enabled={!!activeOrgId}
+              queryArgs={jobTitleQueryArgs}
+              mapOption={mapJobTitleOption}
+              enabled={Boolean(activeOrgId && selectedBranchId)}
+              disabled={!activeOrgId || !selectedBranchId}
             />
 
             <Field.DatePicker name="startDate" label="Start date" />
@@ -479,43 +643,61 @@ export function StaffProfileNewEditForm({
               inputProps={{ inputMode: 'numeric', maxLength: 6 }}
             />
 
-            <Field.Text
-              name="hourlyRate"
-              label="Hourly rate (optional)"
-              placeholder="12.50"
-              inputProps={{ inputMode: 'decimal' }}
-              InputProps={{ startAdornment: <InputAdornment position="start">£</InputAdornment> }}
-            />
+            {isEdit && (
+              <>
+                <Field.Text
+                  name="hourlyRate"
+                  label="Hourly rate (optional)"
+                  placeholder="12.50"
+                  inputProps={{ inputMode: 'decimal' }}
+                  InputProps={{ startAdornment: <InputAdornment position="start">£</InputAdornment> }}
+                />
 
-            <Field.Select name="supervisionIntervalMonths" label="Supervision interval">
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {SUPERVISION_INTERVAL_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+                <Field.Select name="supervisionIntervalMonths" label="Supervision interval">
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {SUPERVISION_INTERVAL_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Field.Select>
 
-            <Field.Select name="appraisalIntervalMonths" label="Appraisal interval">
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {APPRAISAL_INTERVAL_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+                <Field.Select name="appraisalIntervalMonths" label="Appraisal interval">
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {APPRAISAL_INTERVAL_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Field.Select>
+              </>
+            )}
           </Box>
-        </Card>
+  );
+
+  return (
+    <Form methods={methods} onSubmit={onSubmit}>
+      <Stack spacing={3}>
+        {inModal ? (
+          <Box sx={{ pt: 1 }}>{formFields}</Box>
+        ) : (
+          <Card sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Staff profile
+            </Typography>
+            {formFields}
+          </Card>
+        )}
 
         <Stack direction="row" justifyContent="flex-end" spacing={1.5}>
           <Button
             variant="outlined"
             color="primary"
-            onClick={() => router.push(resolvedPaths.root)}
+            onClick={() => (onCancel ? onCancel() : router.push(resolvedPaths.root))}
           >
             Cancel
           </Button>

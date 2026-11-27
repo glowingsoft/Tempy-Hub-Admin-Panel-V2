@@ -435,25 +435,21 @@ export default function AppraisalDetailView() {
         )}
       </Card>
 
-      {/* Review & Performance Notes */}
-      {/* Review & Performance Notes / Manager Comments */}
+      {/* Manager Comments */}
       <Card sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 1.5, textTransform: 'capitalize' }}>
-          Review Notes
-          {appraisal.managerComments ? 'Manager Comments' : 'Review Notes'}
+          Manager Comments
         </Typography>
         <Typography
           variant="body2"
           sx={{
-            color: appraisal.notes ? 'text.primary' : 'text.secondary',
             color: appraisal.managerComments || appraisal.notes ? 'text.primary' : 'text.secondary',
             whiteSpace: 'pre-line',
             lineHeight: 1.7,
             textTransform: 'capitalize',
           }}
         >
-          {appraisal.notes || 'No review notes provided.'}
-          {appraisal.managerComments || appraisal.notes || 'No review comments provided.'}
+          {appraisal.managerComments || appraisal.notes || 'No manager comments provided.'}
         </Typography>
       </Card>
 

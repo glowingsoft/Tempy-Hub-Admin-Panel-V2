@@ -58,11 +58,10 @@ export const MembershipSchema = zod
     reportsToStaffId: lookupOptionSchema.nullable().optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.role === 'siteManager') return;
     if (data.role !== 'lineManager' && !data.jobTitleId?.value) {
       ctx.addIssue({ code: 'custom', path: ['jobTitleId'], message: 'Job title is required!' });
     }
-    if (data.role !== 'lineManager' && !data.startDate) {
+    if (data.role !== 'siteManager' && data.role !== 'lineManager' && !data.startDate) {
       ctx.addIssue({ code: 'custom', path: ['startDate'], message: 'Start date is required!' });
     }
   });
@@ -234,7 +233,7 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
 
   const role = watch('role');
   const selectedPermissions = watch('permissions') || [];
-  const hideJobTitle = role === 'siteManager' || role === 'lineManager';
+  const hideJobTitle = role === 'lineManager';
   const hideDepartment = role !== 'staff';
   const hideStartDate = role === 'siteManager' || role === 'lineManager';
   const hideReportedBy = role !== 'staff';
@@ -256,6 +255,9 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
   const mapJobTitleOption = useCallback(
     (item) => {
       if (item?.active === false || item?.status === 'inactive') {
+        return null;
+      }
+      if (item?.siteScope === 'none') {
         return null;
       }
       const jobTitleBranchId = getJobTitleBranchId(item);
@@ -314,7 +316,6 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
       methods.setValue('startDate', null);
       methods.setValue('reportsToStaffId', null);
     } else if (role === 'siteManager') {
-      methods.setValue('jobTitleId', null);
       methods.setValue('departmentIds', []);
       methods.setValue('startDate', null);
       methods.setValue('permissions', []);
@@ -396,6 +397,8 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
           if (data.startDate) {
             editPayload.startDate = dayjs(data.startDate).toISOString();
           }
+        } else if (data.role === 'siteManager') {
+          editPayload.jobTitleId = data.jobTitleId?.value || null;
         } else if (data.role === 'lineManager') {
           editPayload.permissions = data.permissions;
         }
@@ -418,7 +421,6 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
         };
 
         if (data.role === 'siteManager') {
-          delete payload.jobTitleId;
           delete payload.departmentIds;
           delete payload.startDate;
           delete payload.permissions;
@@ -495,7 +497,8 @@ export function MembershipNewEditForm({ organizationId, currentMembership }) {
                 useQuery={useGetJobTitlesQuery}
                 queryArgs={jobTitleQueryArgs}
                 mapOption={mapJobTitleOption}
-                enabled={!!resolvedOrganizationId}
+                enabled={Boolean(resolvedOrganizationId && selectedBranchId)}
+                disabled={!resolvedOrganizationId || !selectedBranchId}
               />
             )}
 

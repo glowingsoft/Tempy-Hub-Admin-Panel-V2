@@ -72,7 +72,7 @@ export const membersApi = createApi({
 
   endpoints: (builder) => ({
     getMembers: builder.query({
-      query: ({ organizationId, page = 1, limit = 10, status, keyword }) => ({
+      query: ({ organizationId, page = 1, limit = 10, status, keyword, role, hasStaffProfile, branchId }) => ({
         url: API_ROUTES.ORGANIZATION_MEMBERS(organizationId),
         method: 'GET',
         params: {
@@ -80,6 +80,9 @@ export const membersApi = createApi({
           limit,
           ...(status && status !== 'all' ? { status } : {}),
           ...(keyword ? { keyword } : {}),
+          ...(role ? { role } : {}),
+          ...(hasStaffProfile !== undefined ? { hasStaffProfile } : {}),
+          ...(branchId ? { branchId } : {}),
         },
       }),
       transformResponse: (res) => ({

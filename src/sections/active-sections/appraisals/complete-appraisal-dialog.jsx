@@ -18,13 +18,15 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { useUpdateAppraisalMutation } from 'src/store/Reducer/appraisals-api';
 
+import { ActionPointsField, normalizeActionPoints } from '../supervision/complete-supervision-dialog';
+
 // ----------------------------------------------------------------------
 
 export function CompleteAppraisalDialog({ open, row, organizationId, onClose, onSave }) {
   const [managerComments, setManagerComments] = useState('');
   const [goals, setGoals] = useState('');
   const [trainingNeeds, setTrainingNeeds] = useState('');
-  const [actionPoints, setActionPoints] = useState('');
+  const [actionPointsList, setActionPointsList] = useState(['']);
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
 
@@ -73,14 +75,7 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
       setManagerComments(row?.managerComments || row?.notes || '');
       setGoals(row?.goals || '');
       setTrainingNeeds(row?.trainingNeeds || '');
-      setActionPoints(
-        Array.isArray(row?.actionPoints)
-          ? row.actionPoints
-              .map((ap) => (typeof ap === 'string' ? ap : ap?.text || ap?.description || ''))
-              .filter(Boolean)
-              .join('\n')
-          : ''
-      );
+      setActionPointsList(normalizeActionPoints(row?.actionPoints));
       setError('');
       setTouched(false);
     }
@@ -90,7 +85,7 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
     setManagerComments('');
     setGoals('');
     setTrainingNeeds('');
-    setActionPoints('');
+    setActionPointsList(['']);
     setError('');
     setTouched(false);
   };
@@ -100,10 +95,11 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
     onClose();
   };
 
+  const validActionPoints = actionPointsList.map((a) => a.trim()).filter(Boolean);
   const isManagerCommentsInvalid = touched && !managerComments.trim();
   const isGoalsInvalid = touched && !goals.trim();
   const isTrainingNeedsInvalid = touched && !trainingNeeds.trim();
-  const isActionPointsInvalid = touched && !actionPoints.trim();
+  const isActionPointsInvalid = touched && validActionPoints.length === 0;
 
   const handleComplete = async () => {
     setTouched(true);
@@ -112,7 +108,7 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
       !managerComments.trim() ||
       !goals.trim() ||
       !trainingNeeds.trim() ||
-      !actionPoints.trim()
+      validActionPoints.length === 0
     ) {
       return;
     }
@@ -132,12 +128,6 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
     try {
       setError('');
 
-      // Format action points into an array of strings
-      const actionPointsArray = (actionPoints || '')
-        .split('\n')
-        .map((a) => a.trim())
-        .filter(Boolean);
-
       const payload = {
         organizationId,
         appraisalId,
@@ -145,7 +135,7 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
         managerComments: managerComments.trim(),
         goals: goals.trim(),
         trainingNeeds: trainingNeeds.trim(),
-        actionPoints: actionPointsArray,
+        actionPoints: validActionPoints,
       };
 
       const res = await updateAppraisal(payload).unwrap();
@@ -246,22 +236,11 @@ export function CompleteAppraisalDialog({ open, row, organizationId, onClose, on
           />
 
           {/* Action Points */}
-          <TextField
-            required
-            fullWidth
-            multiline
-            rows={2}
-            label="Action Points"
-            placeholder="e.g. Book the next review"
-            helperText={
-              isActionPointsInvalid
-                ? 'Action points are required'
-                : 'Enter one action point per line'
-            }
-            error={isActionPointsInvalid}
-            value={actionPoints}
+          <ActionPointsField
+            value={actionPointsList}
+            onChange={setActionPointsList}
             disabled={isSubmitting}
-            onChange={(e) => setActionPoints(e.target.value)}
+            error={isActionPointsInvalid}
           />
         </Stack>
       </DialogContent>

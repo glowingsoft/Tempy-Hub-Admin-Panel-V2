@@ -1,7 +1,12 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
@@ -14,6 +19,7 @@ import { useSetState } from 'src/hooks/use-set-state';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { Iconify } from 'src/components/iconify';
 import { createFilterField } from 'src/components/generic-table/table-filter-fields';
 import { FlexibleTableToolbar } from 'src/components/generic-table/table-toolbar';
 import { StatusTabsFilterWrapper } from 'src/components/generic-table/tabs-filter-wrapper';
@@ -29,17 +35,21 @@ import {
 import { MEMBERSHIP_ROLE_OPTIONS } from 'src/sections/membership/mocks/data';
 import { getListStatusTabCount } from 'src/utils/table-utils';
 import { useGetStaffProfilesQuery } from 'src/store/Reducer/staff-profiles-api';
+import { StaffProfileNewEditForm } from '../staff-profile-new-edit-form';
 import { StaffProfileTableRow } from '../staff-profile-table-row';
 
 // ----------------------------------------------------------------------
 
+const ROLE_ORDER = ['staff', 'lineManager', 'siteManager'];
+
 const ROLE_OPTIONS = [
   { value: 'all', label: 'All', color: 'default' },
-  ...MEMBERSHIP_ROLE_OPTIONS
-    .filter((option) => option.value !== 'siteManager')
+  ...[...MEMBERSHIP_ROLE_OPTIONS]
+    .sort((a, b) => ROLE_ORDER.indexOf(a.value) - ROLE_ORDER.indexOf(b.value))
     .map((option) => ({
       ...option,
       color:
+        (option.value === 'siteManager' && 'info') ||
         (option.value === 'lineManager' && 'warning') ||
         (option.value === 'staff' && 'success') ||
         'default',
@@ -98,6 +108,7 @@ export function StaffProfileListView({
   );
 
   const filters = useSetState({ search: '', role: 'all' });
+  const [openCreateModal, setOpenCreateModal] = useState(false);
   const keyword = useDebounce(filters.state.search, 500);
   const trimmedKeyword = keyword.trim();
 
@@ -149,6 +160,16 @@ export function StaffProfileListView({
             { name: 'Staff Profiles' },
             ...(orgName ? [{ name: orgName }] : []),
           ]}
+          action={
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setOpenCreateModal(true)}
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              Create staff profile
+            </Button>
+          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
       )}
@@ -210,6 +231,29 @@ export function StaffProfileListView({
           onRowsPerPageChange={table.onChangeRowsPerPage}
         />
       </Card>
+
+      <Dialog
+        open={openCreateModal}
+        onClose={() => setOpenCreateModal(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          Create staff profile
+          <IconButton onClick={() => setOpenCreateModal(false)} size="small">
+            <Iconify icon="mingcute:close-line" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pb: 3 }}>
+          <StaffProfileNewEditForm
+            organizationId={organizationId}
+            pathsConfig={resolvedPaths}
+            inModal
+            onCancel={() => setOpenCreateModal(false)}
+            onSuccess={() => setOpenCreateModal(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 

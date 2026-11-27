@@ -20,18 +20,140 @@ import { useRescheduleSupervisionMutation } from 'src/store/Reducer/supervision-
 
 // ----------------------------------------------------------------------
 
-function splitActionPointText(text) {
+export function splitActionPointText(text) {
   if (!text || typeof text !== 'string') return [];
   // Normalize bullet markers (•, -, *, ⁃) and numbered prefixes (1., 2), etc.)
   const normalized = text
-    .replace(/^\s*[\u2022\u2023\u25E6\u2043\u2219\*\-]\s+/gm, '\n')
-    .replace(/^\s*\d+[\.\)]\s+/gm, '\n');
+    .replace(/^\s*[\u2022\u2023\u25E6\u2043\u2219*-]\s+/gm, '\n')
+    .replace(/^\s*\d+[.)]\s+/gm, '\n');
 
   return normalized
     .split(/\r?\n/)
     .map((p) => p.trim())
     .filter(Boolean);
 }
+
+export function normalizeActionPoints(actionPoints) {
+  const rawPoints = Array.isArray(actionPoints)
+    ? actionPoints
+        .map((ap) => (typeof ap === 'string' ? ap : ap?.text || ap?.description || ''))
+        .filter(Boolean)
+    : typeof actionPoints === 'string'
+      ? splitActionPointText(actionPoints)
+      : [];
+  return rawPoints.length > 0 ? rawPoints : [''];
+}
+
+export function ActionPointsField({ value, onChange, disabled = false, error = false }) {
+  const handleAdd = () => {
+    onChange([...value, '']);
+  };
+
+  const handleRemove = (index) => {
+    const updated = value.filter((_, i) => i !== index);
+    onChange(updated.length > 0 ? updated : ['']);
+  };
+
+  const handleChangeItem = (index, nextValue) => {
+    const updated = [...value];
+    updated[index] = nextValue;
+    onChange(updated);
+  };
+
+  const handlePaste = (index, event) => {
+    const pasteText = event.clipboardData?.getData('text');
+    if (!pasteText) return;
+
+    const lines = splitActionPointText(pasteText);
+    if (lines.length > 1) {
+      event.preventDefault();
+      const updated = [...value];
+      updated.splice(index, 1, ...lines);
+      onChange(updated);
+    }
+  };
+
+  return (
+    <Stack spacing={1.5}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 600,
+            color: error ? 'error.main' : 'text.secondary',
+          }}
+        >
+          Action Points *
+        </Typography>
+        <Button
+          size="small"
+          color="primary"
+          startIcon={<Iconify icon="mingcute:add-line" />}
+          onClick={handleAdd}
+          disabled={disabled}
+          sx={{ typography: 'caption', fontWeight: 600 }}
+        >
+          Add Action Point
+        </Button>
+      </Stack>
+
+      <Stack spacing={1}>
+        {value.map((point, index) => (
+          <Stack key={index} direction="row" spacing={1} alignItems="center">
+            <TextField
+              fullWidth
+              size="small"
+              placeholder={`Action point ${index + 1}`}
+              value={point}
+              disabled={disabled}
+              error={error && index === 0 && !point.trim()}
+              onChange={(e) => handleChangeItem(index, e.target.value)}
+              onPaste={(e) => handlePaste(index, e)}
+              InputProps={{
+                startAdornment: (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.disabled', mr: 1, minWidth: 16, fontWeight: 700 }}
+                  >
+                    {index + 1}.
+                  </Typography>
+                ),
+              }}
+            />
+            {value.length > 1 && (
+              <IconButton
+                size="small"
+                color="error"
+                disabled={disabled}
+                onClick={() => handleRemove(index)}
+                sx={{ flexShrink: 0 }}
+              >
+                <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+              </IconButton>
+            )}
+          </Stack>
+        ))}
+      </Stack>
+
+      {error ? (
+        <Typography variant="caption" color="error">
+          At least one action point is required
+        </Typography>
+      ) : (
+        <Typography variant="caption" color="text.secondary">
+          Enter each point separately, or paste a list/paragraph to auto-split
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
+ActionPointsField.propTypes = {
+  value: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onChange: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+  error: PropTypes.bool,
+};
 
 export function CompleteSupervisionDialog({ open, row, organizationId, onClose, onSave }) {
   const [topics, setTopics] = useState('');
@@ -90,14 +212,7 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
           : ''
       );
       setNotes(row?.notes || '');
-      const rawPoints = Array.isArray(row?.actionPoints)
-        ? row.actionPoints
-            .map((ap) => (typeof ap === 'string' ? ap : ap?.text || ap?.description || ''))
-            .filter(Boolean)
-        : typeof row?.actionPoints === 'string'
-        ? splitActionPointText(row.actionPoints)
-        : [];
-      setActionPointsList(rawPoints.length > 0 ? rawPoints : ['']);
+      setActionPointsList(normalizeActionPoints(row?.actionPoints));
       setError('');
       setTouched(false);
     }
@@ -114,40 +229,6 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
   const handleClose = () => {
     handleReset();
     onClose();
-  };
-
-  const handleAddActionPoint = () => {
-    setActionPointsList((prev) => [...prev, '']);
-  };
-
-  const handleRemoveActionPoint = (index) => {
-    setActionPointsList((prev) => {
-      const updated = prev.filter((_, i) => i !== index);
-      return updated.length > 0 ? updated : [''];
-    });
-  };
-
-  const handleChangeActionPoint = (index, value) => {
-    setActionPointsList((prev) => {
-      const updated = [...prev];
-      updated[index] = value;
-      return updated;
-    });
-  };
-
-  const handlePasteActionPoint = (index, event) => {
-    const pasteText = event.clipboardData?.getData('text');
-    if (!pasteText) return;
-
-    const lines = splitActionPointText(pasteText);
-    if (lines.length > 1) {
-      event.preventDefault();
-      setActionPointsList((prev) => {
-        const updated = [...prev];
-        updated.splice(index, 1, ...lines);
-        return updated;
-      });
-    }
   };
 
   const validActionPoints = actionPointsList.map((a) => a.trim()).filter(Boolean);
@@ -274,77 +355,12 @@ export function CompleteSupervisionDialog({ open, row, organizationId, onClose, 
           />
 
           {/* Agreed Action Points */}
-          <Stack spacing={1.5}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 600,
-                  color: isActionsInvalid ? 'error.main' : 'text.secondary',
-                }}
-              >
-                Action Points *
-              </Typography>
-              <Button
-                size="small"
-                color="primary"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-                onClick={handleAddActionPoint}
-                disabled={isSubmitting}
-                sx={{ typography: 'caption', fontWeight: 600 }}
-              >
-                Add Action Point
-              </Button>
-            </Stack>
-
-            <Stack spacing={1}>
-              {actionPointsList.map((point, index) => (
-                <Stack key={index} direction="row" spacing={1} alignItems="center">
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder={`Action point ${index + 1}`}
-                    value={point}
-                    disabled={isSubmitting}
-                    error={isActionsInvalid && index === 0 && !point.trim()}
-                    onChange={(e) => handleChangeActionPoint(index, e.target.value)}
-                    onPaste={(e) => handlePasteActionPoint(index, e)}
-                    InputProps={{
-                      startAdornment: (
-                        <Typography
-                          variant="caption"
-                          sx={{ color: 'text.disabled', mr: 1, minWidth: 16, fontWeight: 700 }}
-                        >
-                          {index + 1}.
-                        </Typography>
-                      ),
-                    }}
-                  />
-                  {actionPointsList.length > 1 && (
-                    <IconButton
-                      size="small"
-                      color="error"
-                      disabled={isSubmitting}
-                      onClick={() => handleRemoveActionPoint(index)}
-                      sx={{ flexShrink: 0 }}
-                    >
-                      <Iconify icon="solar:trash-bin-trash-bold" width={18} />
-                    </IconButton>
-                  )}
-                </Stack>
-              ))}
-            </Stack>
-
-            {isActionsInvalid ? (
-              <Typography variant="caption" color="error">
-                At least one action point is required
-              </Typography>
-            ) : (
-              <Typography variant="caption" color="text.secondary">
-                Enter each point separately, or paste a list/paragraph to auto-split
-              </Typography>
-            )}
-          </Stack>
+          <ActionPointsField
+            value={actionPointsList}
+            onChange={setActionPointsList}
+            disabled={isSubmitting}
+            error={isActionsInvalid}
+          />
         </Stack>
       </DialogContent>
 
